@@ -948,7 +948,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                }
 
                if (this.isMinervaItem(item, "friend_book") && event.getAction().isRightClick()) {
-                  this.openStatusUi(player, "progress:0");
+                  this.openFriendUi(player);
                   event.setCancelled(true);
                } else if (this.isReincarnationStar(item) && event.getAction().isRightClick()) {
                   event.setCancelled(true);
