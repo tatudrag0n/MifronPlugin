@@ -273,6 +273,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    private final CompassFeature compassFeature = new CompassFeature(this);
    private final WorldRulesFeature worldRulesFeature = new WorldRulesFeature(this);
    private final UtilityItemsFeature utilityItemsFeature = new UtilityItemsFeature(this);
+   private BedrockUiFeature bedrockUiFeature;
    private final TextDisplayFeature textDisplayFeature = new TextDisplayFeature(this);
    private final AuctionFeature auctionFeature = new AuctionFeature(this, this.economyPriceTable);
    private final StructureManager structureManager = new StructureManager(this);
@@ -355,6 +356,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("register athletic events", () -> Bukkit.getPluginManager().registerEvents(this.athleticManager, this));
       this.runStartupStep("register compass events", () -> Bukkit.getPluginManager().registerEvents(this.compassFeature, this));
       this.runStartupStep("register utility item events", () -> Bukkit.getPluginManager().registerEvents(this.utilityItemsFeature, this));
+      if (Bukkit.getPluginManager().getPlugin("Geyser-Spigot") != null) {
+         this.bedrockUiFeature = new BedrockUiFeature(this);
+         this.getLogger().info("Bedrock mobile Forms UI enabled through Geyser.");
+      }
       this.registerCommand("minerva");
       this.registerCommand("mva");
       this.registerCommand("friend");
@@ -929,7 +934,28 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                }
             } else if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.isBarrelShop(event.getClickedBlock())) {
                if (event.getClickedBlock().getState() instanceof Barrel barrel) {
-                  player.openInventory(barrel.getInventory());
+                  Inventory barrelInventory = barrel.getInventory();
+                  if (this.bedrockUiFeature == null
+                     || !this.bedrockUiFeature.showMenu(
+                        player,
+                        "Minerva Barrel Shop",
+                        barrelInventory,
+                        itemx -> itemx != null && itemx.getType() != Material.AIR,
+                        (slot, itemx) -> {
+                           this.buyBarrelOffer(player, itemx, slot, barrelInventory);
+                           if (player.isOnline() && this.bedrockUiFeature != null) {
+                              this.bedrockUiFeature.showMenu(
+                                 player,
+                                 "Minerva Barrel Shop",
+                                 barrelInventory,
+                                 next -> next != null && next.getType() != Material.AIR,
+                                 (nextSlot, nextItem) -> this.buyBarrelOffer(player, nextItem, nextSlot, barrelInventory)
+                              );
+                           }
+                        }
+                     )) {
+                     player.openInventory(barrelInventory);
+                  }
                }
 
                event.setCancelled(true);
@@ -2897,6 +2923,30 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       }
 
       this.fillEmptyGuiSlots(inventory);
+      if (this.bedrockUiFeature != null
+         && this.bedrockUiFeature.showMenu(
+            player,
+            "Minerva Merchant",
+            inventory,
+            this::isMerchantOffer,
+            (slot, item) -> {
+               if (this.isMerchantOffer(item)) {
+                  this.buyMerchantOffer(player, item, false);
+               }
+            },
+            () -> {
+               UUID merchantId = this.activeMerchantViews.remove(player.getUniqueId());
+               if (merchantId != null && !this.activeMerchantViews.containsValue(merchantId)) {
+                  Entity entity = this.findEntity(merchantId);
+                  if (entity instanceof AbstractVillager merchant && this.isMinervaMerchant(entity)) {
+                     merchant.setAI(true);
+                     merchant.setInvulnerable(false);
+                  }
+               }
+            }
+         )) {
+         return;
+      }
       player.openInventory(inventory);
    }
 
@@ -3333,6 +3383,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       this.fillNotificationOrChatBox(player, inventory);
       this.fillStatusBox(player, inventory);
       this.fillEmptyGuiSlots(inventory);
+      if (this.bedrockUiFeature != null
+         && this.bedrockUiFeature.showMenu(player, "Minerva Friends / Status", inventory, item -> this.getUiAction(item) != null, (slot, item) -> this.handleFriendUiClick(player, item))) {
+         return;
+      }
       player.openInventory(inventory);
    }
 
@@ -3534,6 +3588,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
       inventory.setItem(53, this.actionItem(Material.ARROW, "§f戻る", List.of("§7フレンド画面に戻る"), "friend_status_back", null));
       this.fillEmptyGuiSlots(inventory);
+      if (this.bedrockUiFeature != null
+         && this.bedrockUiFeature.showMenu(player, "Minerva Status", inventory, item -> this.getUiAction(item) != null, (slot, item) -> this.handleStatusUiClick(player, item))) {
+         return;
+      }
       player.openInventory(inventory);
    }
 
@@ -4423,6 +4481,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       }
 
       this.fillEmptyGuiSlots(inventory);
+      if (this.bedrockUiFeature != null
+         && this.bedrockUiFeature.showMenu(player, "Minerva Teleporter", inventory, item -> this.getUiAction(item) != null, (slot, item) -> this.handleTeleporterUiItem(player, item))) {
+         return;
+      }
       player.openInventory(inventory);
    }
 
@@ -4553,6 +4615,24 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
          : null;
    }
 
+   private void handleTeleporterUiItem(Player player, ItemStack clicked) {
+      String action = this.getUiAction(clicked);
+      String target = this.getUiTargetString(clicked);
+      if ("teleport".equals(action) && target != null) {
+         this.playUiClickSound(player);
+         this.teleportToConfigLocation(player, target);
+         player.closeInventory();
+      } else if ("server_portal_bind".equals(action) && target != null) {
+         String[] parts = target.split("\\|", 2);
+         if (parts.length == 2) {
+            this.serverPortalFeature.setServerPortalTarget(parts[0], parts[1]);
+            this.playUiClickSound(player);
+            player.sendMessage("§aサーバーポータルの移動先を設定しました。");
+            player.closeInventory();
+         }
+      }
+   }
+
    @EventHandler
    public void onInventoryClick(InventoryClickEvent event) {
       if (event.getWhoClicked() instanceof Player player) {
@@ -4571,21 +4651,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                this.handleStatusUiClick(player, event.getCurrentItem());
             } else if ("§5Minerva Teleporter".equals(title)) {
                event.setCancelled(true);
-               String action = this.getUiAction(event.getCurrentItem());
-               String target = this.getUiTargetString(event.getCurrentItem());
-               if ("teleport".equals(action) && target != null) {
-                  this.playUiClickSound(player);
-                  this.teleportToConfigLocation(player, target);
-                  player.closeInventory();
-               } else if ("server_portal_bind".equals(action) && target != null) {
-                  String[] parts = target.split("\\|", 2);
-                  if (parts.length == 2) {
-                     this.serverPortalFeature.setServerPortalTarget(parts[0], parts[1]);
-                     this.playUiClickSound(player);
-                     player.sendMessage("§aサーバーポータルの移動先を設定しました。");
-                     player.closeInventory();
-                  }
-               }
+               this.handleTeleporterUiItem(player, event.getCurrentItem());
             } else {
                if ("§6Minerva Merchant".equals(title)) {
                   if (event.getClickedInventory() != event.getView().getTopInventory()) {

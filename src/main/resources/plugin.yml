@@ -6,6 +6,7 @@ api-version: '1.21'
 load: POSTWORLD
 softdepend:
   - WorldEdit
+  - Geyser-Spigot
 commands:
   minerva:
     description: Minerva server management and player utilities.
