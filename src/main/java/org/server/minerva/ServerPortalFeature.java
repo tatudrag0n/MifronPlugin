@@ -12,6 +12,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Axis;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -27,12 +28,16 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Interaction;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -48,16 +53,21 @@ final class ServerPortalFeature implements Listener {
    private final Minerva plugin;
    private final NamespacedKey minervaItemKey;
    private final NamespacedKey frameLabelKey;
+   private final NamespacedKey teleporterOptionKey;
+   private final NamespacedKey teleporterOwnerKey;
    private final Map<UUID, Long> portalUseCooldowns = new ConcurrentHashMap<>();
    private final Map<UUID, Location> pendingCoordinateTargets = new ConcurrentHashMap<>();
    private final Map<UUID, String> pendingFrameRenameKeys = new ConcurrentHashMap<>();
    private final Map<UUID, Integer> teleporterSelections = new ConcurrentHashMap<>();
    private final Map<UUID, Long> teleporterSelectionExpires = new ConcurrentHashMap<>();
+   private final Map<UUID, List<UUID>> teleporterMenuEntities = new ConcurrentHashMap<>();
 
    ServerPortalFeature(Minerva plugin) {
       this.plugin = plugin;
       this.minervaItemKey = new NamespacedKey(plugin, "item");
       this.frameLabelKey = new NamespacedKey(plugin, "teleporter_frame_label");
+      this.teleporterOptionKey = new NamespacedKey(plugin, "teleporter_option");
+      this.teleporterOwnerKey = new NamespacedKey(plugin, "teleporter_owner");
    }
 
    ItemStack createServerWand() {
@@ -231,15 +241,73 @@ final class ServerPortalFeature implements Listener {
       if (event.getHand() != EquipmentSlot.HAND || !event.getAction().isLeftClick() || !this.isTeleporter(event.getItem())) {
          return;
       }
+      if (this.teleporterMenuEntities.containsKey(event.getPlayer().getUniqueId())) {
+         event.setCancelled(true);
+      }
+   }
 
-      // Bedrock users navigate with the native Form opened by right-click.
-      BedrockUiFeature bedrock = this.plugin.bedrockUiFeature();
-      if (bedrock != null && bedrock.isBedrock(event.getPlayer())) {
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onWorldTeleporterHit(EntityDamageByEntityEvent event) {
+      if (!(event.getDamager() instanceof Player player) || !(event.getEntity() instanceof Interaction interaction)) {
+         return;
+      }
+      String owner = interaction.getPersistentDataContainer().get(this.teleporterOwnerKey, PersistentDataType.STRING);
+      String key = interaction.getPersistentDataContainer().get(this.teleporterOptionKey, PersistentDataType.STRING);
+      if (owner == null || key == null || !owner.equals(player.getUniqueId().toString())) {
          return;
       }
 
       event.setCancelled(true);
-      this.cycleJavaTeleporter(event.getPlayer(), -1);
+      TeleportDestination destination = this.teleporterDestinations().stream().filter(d -> d.key().equals(key)).findFirst().orElse(null);
+      if (destination == null) {
+         player.sendMessage(ChatColor.RED + "この移動先は現在利用できません。");
+         this.closeWorldTeleporter(player);
+         return;
+      }
+      this.closeWorldTeleporter(player);
+      this.teleportDirect(player, destination);
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onWorldTeleporterRightClick(PlayerInteractEntityEvent event) {
+      if (!(event.getRightClicked() instanceof Interaction interaction)) {
+         return;
+      }
+      String owner = interaction.getPersistentDataContainer().get(this.teleporterOwnerKey, PersistentDataType.STRING);
+      if (owner != null && owner.equals(event.getPlayer().getUniqueId().toString())) {
+         event.setCancelled(true);
+         event.getPlayer().sendActionBar(Component.text("左クリックでテレポート", NamedTextColor.GRAY));
+      }
+   }
+
+   private void closeWorldTeleporter(Player player) {
+      if (player == null) {
+         return;
+      }
+      List<UUID> ids = this.teleporterMenuEntities.remove(player.getUniqueId());
+      if (ids == null) {
+         return;
+      }
+      for (UUID id : ids) {
+         for (World world : Bukkit.getWorlds()) {
+            Entity entity = world.getEntity(id);
+            if (entity != null) {
+               entity.remove();
+               break;
+            }
+         }
+      }
+   }
+
+   private Material teleporterIcon(TeleportDestination destination) {
+      String key = destination.key().toLowerCase();
+      if (key.contains("survival")) return Material.GRASS_BLOCK;
+      if (key.contains("ffa") || key.contains("pvp")) return Material.IRON_SWORD;
+      if (key.contains("athletic") || key.contains("parkour")) return Material.FEATHER;
+      if (key.contains("mini")) return Material.SLIME_BALL;
+      if (key.contains("mod")) return Material.REDSTONE;
+      if (key.contains("hub") || key.contains("lobby")) return Material.NETHER_STAR;
+      return Material.ENDER_PEARL;
    }
 
    private void useTeleporterFrame(Player player, Block frame) {
@@ -273,44 +341,62 @@ final class ServerPortalFeature implements Listener {
          return;
       }
 
-      BedrockUiFeature bedrock = this.plugin.bedrockUiFeature();
-      if (bedrock != null && bedrock.isBedrock(player)) {
-         List<String> buttons = new ArrayList<>();
-         for (TeleportDestination destination : destinations) {
-            buttons.add("▶ " + destination.name() + "\n" + destination.location().getWorld().getName() + "  " + this.formatCoordinates(destination.location().getX(), destination.location().getY(), destination.location().getZ()));
-         }
-         if (bedrock.showButtons(
-            player,
-            "Mifron Teleporter",
-            "移動先をタップしてください。\nチェスト操作は必要ありません。",
-            buttons,
-            index -> {
-               List<TeleportDestination> current = this.teleporterDestinations();
-               if (index >= 0 && index < current.size()) {
-                  this.teleportDirect(player, current.get(index));
-               }
-            }
-         )) {
-            return;
-         }
-      }
-
-      long now = System.currentTimeMillis();
-      boolean active = this.teleporterSelectionExpires.getOrDefault(player.getUniqueId(), 0L) > now;
-      if (player.isSneaking() && active) {
-         int index = Math.max(0, Math.min(this.teleporterSelections.getOrDefault(player.getUniqueId(), 0), destinations.size() - 1));
-         this.teleportDirect(player, destinations.get(index));
-         return;
-      }
-
-      if (!active) {
-         this.teleporterSelections.put(player.getUniqueId(), 0);
+      this.closeWorldTeleporter(player);
+      Location eye = player.getEyeLocation();
+      Vector forward = eye.getDirection().normalize();
+      Vector right = new Vector(-forward.getZ(), 0.0, forward.getX());
+      if (right.lengthSquared() < 0.01) {
+         right = new Vector(1.0, 0.0, 0.0);
       } else {
-         int next = Math.floorMod(this.teleporterSelections.getOrDefault(player.getUniqueId(), 0) + 1, destinations.size());
-         this.teleporterSelections.put(player.getUniqueId(), next);
+         right.normalize();
       }
-      this.teleporterSelectionExpires.put(player.getUniqueId(), now + 12000L);
-      this.showJavaTeleporterSelection(player, destinations);
+
+      int columns = Math.min(5, Math.max(1, destinations.size()));
+      int rows = (destinations.size() + columns - 1) / columns;
+      Location center = eye.clone().add(forward.clone().multiply(3.0)).add(0.0, -0.35, 0.0);
+      List<UUID> spawned = new ArrayList<>();
+
+      for (int i = 0; i < destinations.size(); i++) {
+         TeleportDestination destination = destinations.get(i);
+         int row = i / columns;
+         int col = i % columns;
+         int rowCount = Math.min(columns, destinations.size() - row * columns);
+         double horizontal = (col - (rowCount - 1) / 2.0) * 1.15;
+         double vertical = (rows - 1) * 0.65 - row * 1.3;
+         Location iconLocation = center.clone().add(right.clone().multiply(horizontal)).add(0.0, vertical, 0.0);
+
+         Interaction hitbox = (Interaction)player.getWorld().spawnEntity(iconLocation, EntityType.INTERACTION);
+         hitbox.setInteractionWidth(0.95F);
+         hitbox.setInteractionHeight(1.15F);
+         hitbox.setResponsive(true);
+         hitbox.getPersistentDataContainer().set(this.teleporterOptionKey, PersistentDataType.STRING, destination.key());
+         hitbox.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
+         spawned.add(hitbox.getUniqueId());
+
+         ItemDisplay icon = (ItemDisplay)player.getWorld().spawnEntity(iconLocation.clone().add(0.0, 0.18, 0.0), EntityType.ITEM_DISPLAY);
+         icon.setItemStack(new ItemStack(this.teleporterIcon(destination)));
+         icon.setBillboard(Display.Billboard.CENTER);
+         icon.setViewRange(0.8F);
+         icon.setShadowStrength(0.6F);
+         icon.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
+         spawned.add(icon.getUniqueId());
+
+         TextDisplay label = (TextDisplay)player.getWorld().spawnEntity(iconLocation.clone().add(0.0, -0.48, 0.0), EntityType.TEXT_DISPLAY);
+         label.text(Component.text(destination.name(), NamedTextColor.WHITE));
+         label.setBillboard(Display.Billboard.CENTER);
+         label.setSeeThrough(true);
+         label.setShadowed(true);
+         label.setViewRange(0.8F);
+         label.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
+         spawned.add(label.getUniqueId());
+      }
+
+      this.teleporterMenuEntities.put(player.getUniqueId(), spawned);
+      player.sendActionBar(Component.text("移動したいアイテムを左クリック", NamedTextColor.LIGHT_PURPLE));
+      player.playSound(player.getLocation(), Sound.BLOCK_END_PORTAL_FRAME_FILL, 0.65F, 1.35F);
+      player.spawnParticle(Particle.PORTAL, center, 24, 1.5, 0.8, 0.25, 0.02);
+
+      this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> this.closeWorldTeleporter(player), 20L * 12L);
    }
 
    private void cycleJavaTeleporter(Player player, int delta) {
@@ -438,6 +524,7 @@ final class ServerPortalFeature implements Listener {
       this.pendingFrameRenameKeys.remove(uuid);
       this.teleporterSelections.remove(uuid);
       this.teleporterSelectionExpires.remove(uuid);
+      this.closeWorldTeleporter(event.getPlayer());
    }
 
    private String sanitizeFrameName(String raw) {

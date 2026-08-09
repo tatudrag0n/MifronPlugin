@@ -57,7 +57,8 @@ final class UtilityItemsFeature implements Listener {
             "teleporter",
             ChatColor.LIGHT_PURPLE + "テレポーター",
             List.of(
-               ChatColor.GRAY + "右クリック: テレポート先を選択",
+               ChatColor.GRAY + "右クリック: 目の前に移動先を表示",
+               ChatColor.GRAY + "表示されたアイテムを左クリック: テレポート",
                ChatColor.GRAY + "エンドポータルフレームに使用: フレームの登録地点へ移動",
                ChatColor.DARK_GRAY + "投げることはできません"
             )
