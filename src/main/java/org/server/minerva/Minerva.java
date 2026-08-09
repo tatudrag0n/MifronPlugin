@@ -1103,7 +1103,11 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       if (offer.material() != null && offer.price() > 0) {
          int discountedPrice = this.applyShopDiscount(player, offer.price());
          int currentEmeralds = this.getEmeralds(player.getUniqueId());
-         if (currentEmeralds < discountedPrice) {
+         int stock = this.shelfShopStock(offer.material());
+         if (stock < offer.amount()) {
+            this.showTemporaryActionBar(player, "在庫切れです。プレイヤーが売却すると再入荷します。");
+            return true;
+         } else if (currentEmeralds < discountedPrice) {
             this.showTemporaryActionBar(player, "MPが不足しています：" + this.formatNumber(discountedPrice - currentEmeralds) + "MP");
             return true;
          } else if (this.inventorySpaceFor(player, offer.material()) < offer.amount()) {
@@ -1113,11 +1117,16 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             this.showTemporaryActionBar(player, "MPが不足しています：" + this.formatNumber(discountedPrice) + "MP");
             return true;
          } else {
+            this.changeShelfShopStock(offer.material(), -offer.amount());
             this.giveShopPurchasedItems(player, offer.material(), offer.amount());
             this.addPlayerStat(player.getUniqueId(), "total-trades", offer.amount());
             this.playPurchaseSound(player);
             this.sendItemMessage(
-               player, NamedTextColor.GREEN, "購入しました: ", offer.material(), " x" + offer.amount() + " (" + this.formatNumber(discountedPrice) + "MP)"
+               player,
+               NamedTextColor.GREEN,
+               "購入しました: ",
+               offer.material(),
+               " x" + offer.amount() + " (" + this.formatNumber(discountedPrice) + "MP / 在庫 " + this.formatNumber(this.shelfShopStock(offer.material())) + ")"
             );
             return true;
          }
@@ -1129,16 +1138,24 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    private boolean tryShopSell(Player player, Block block, ItemStack held) {
       Minerva.ShelfShopOffer offer = this.readShelfShopOffer(player, block);
       if (offer != null && held != null && held.getType() == offer.material()) {
-         int price = this.materialBuyPrice(offer.material());
+         int currentSellPrice = this.applyShopDiscount(player, offer.price());
+         int price = Math.max(0, Math.min(this.materialBuyPrice(offer.material()), currentSellPrice - 1));
          if (price <= 0) {
             this.showTemporaryActionBar(player, "このアイテムは買い取り対象外です。");
             return true;
          } else if (this.utilityItemsFeature.getMinervaItemId(held) == null && !this.isShopWand(held)) {
             held.setAmount(held.getAmount() - 1);
+            this.changeShelfShopStock(offer.material(), 1);
             this.depositEmeralds(player.getUniqueId(), price);
             this.addPlayerStat(player.getUniqueId(), "total-trades", 1);
             this.playPurchaseSound(player);
-            this.sendItemMessage(player, NamedTextColor.GREEN, "買い取りました: ", offer.material(), " (" + this.formatNumber(price) + "MP)");
+            this.sendItemMessage(
+               player,
+               NamedTextColor.GREEN,
+               "買い取りました: ",
+               offer.material(),
+               " (" + this.formatNumber(price) + "MP / 在庫 " + this.formatNumber(this.shelfShopStock(offer.material())) + ")"
+            );
             return true;
          } else {
             return true;
@@ -1175,7 +1192,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       } else if (event.getAction().isRightClick()) {
          this.setShelfShop(block, true);
          this.setShopOwner(block, player.getUniqueId());
-         player.sendMessage("§a棚をショップ化しました。取得済みアイテムが順番に追加されます。");
+         player.sendMessage("§a棚をショップ化しました。商品は固定カタログの番号順に表示され、在庫は全棚で共有されます。");
          event.setCancelled(true);
       } else {
          if (event.getAction().isLeftClick()) {
@@ -1292,10 +1309,20 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             Block target = player.getTargetBlockExact(5);
             Minerva.ShelfShopOffer offer = this.readShelfShopOffer(player, target);
             if (offer != null) {
+               int catalogNumber = this.shelfShopCatalogNumber(offer.material());
+               int sellPrice = this.applyShopDiscount(player, offer.price());
+               int buyPrice = Math.max(0, Math.min(this.materialBuyPrice(offer.material()), sellPrice - 1));
+               int stock = this.shelfShopStock(offer.material());
+               Component prefix = Component.text(String.format("No.%03d ", Math.max(0, catalogNumber)), NamedTextColor.GRAY);
                player.sendActionBar(
-                  ((TranslatableComponent)Component.translatable(offer.material().translationKey())
-                        .color(this.rarityTextColor(this.merchantRarity(offer.material()))))
-                     .append(Component.text("：" + this.formatNumber(this.applyShopDiscount(player, offer.price())) + "MP", NamedTextColor.GOLD))
+                  prefix.append(
+                     ((TranslatableComponent)Component.translatable(offer.material().translationKey())
+                           .color(this.rarityTextColor(this.merchantRarity(offer.material()))))
+                        .append(Component.text(
+                           "  販売:" + this.formatNumber(sellPrice) + "MP / 買取:" + this.formatNumber(buyPrice) + "MP / 在庫:" + this.formatNumber(stock),
+                           stock > 0 ? NamedTextColor.GOLD : NamedTextColor.RED
+                        ))
+                  )
                );
             }
          }
@@ -1335,94 +1362,76 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    private List<Material> shelfShopRandomOffers(Block block) {
-      String path = this.shelfShopOfferPath(block);
-      int order = this.data.getInt(this.shelfShopPath(block) + ".order", this.data.getInt(path + ".order", 0));
-      if (order > 0) {
-         List<Material> unlocked = this.shelfShopUnlockedMaterials();
-         int start = (order - 1) * 3;
-         return start >= unlocked.size() ? List.of() : unlocked.subList(start, Math.min(unlocked.size(), start + 3));
+      int order = this.data.getInt(this.shelfShopPath(block) + ".order", 0);
+      if (order <= 0) {
+         return List.of();
       }
 
-      List<Material> materials = new ArrayList<>();
+      List<Material> catalog = this.shelfShopCatalogMaterials();
+      int start = (order - 1) * SHELF_SHOP_OFFER_SLOTS;
+      return start >= catalog.size() ? List.of() : catalog.subList(start, Math.min(catalog.size(), start + SHELF_SHOP_OFFER_SLOTS));
+   }
 
-      for (String raw : this.data.getStringList(path + ".materials")) {
-         Material material = Material.matchMaterial(raw);
+   private List<Material> shelfShopCatalogMaterials() {
+      List<Material> materials = new ArrayList<>();
+      for (Material material : Material.values()) {
          if (this.isRandomShopItem(material)) {
             materials.add(material);
          }
       }
-
-      if (!materials.isEmpty()) {
-         return materials;
-      } else {
-         String materialName = this.data.getString(path + ".material");
-         if (materialName != null && !materialName.isBlank()) {
-            Material material = Material.matchMaterial(materialName);
-            return material != null && this.isRandomShopItem(material) ? List.of(material) : List.of();
-         } else {
-            return List.of();
-         }
-      }
-   }
-
-   private List<Material> shelfShopUnlockedMaterials() {
-      List<Material> materials = new ArrayList<>();
-
-      for (String raw : this.data.getStringList("shelf-shop-unlocked")) {
-         Material material = Material.matchMaterial(raw);
-         if (this.isRandomShopItem(material) && !materials.contains(material)) {
-            materials.add(material);
-         }
-      }
-
+      materials.sort((a, b) -> a.name().compareTo(b.name()));
       return materials;
    }
 
-   private void recordAcquiredItem(Player player, Material material) {
-      if (player != null && !player.isOp() && this.isRandomShopItem(material)) {
-         List<Material> unlocked = this.shelfShopUnlockedMaterials();
-         if (!unlocked.contains(material)) {
-            unlocked.add(material);
-            this.data.set("shelf-shop-unlocked", unlocked.stream().map(Enum::name).toList());
-            this.saveData();
-            this.syncShelfShopDisplays();
-         }
+   private int shelfShopCatalogNumber(Material material) {
+      if (material == null) {
+         return 0;
       }
+      List<Material> catalog = this.shelfShopCatalogMaterials();
+      int index = catalog.indexOf(material);
+      return index < 0 ? 0 : index + 1;
+   }
+
+   private String shelfShopStockPath(Material material) {
+      return "shelf-shop-stock." + material.name();
+   }
+
+   private int shelfShopStock(Material material) {
+      return material == null ? 0 : Math.max(0, this.data.getInt(this.shelfShopStockPath(material), 0));
+   }
+
+   private void changeShelfShopStock(Material material, int delta) {
+      if (material == null || delta == 0) {
+         return;
+      }
+      int next = Math.max(0, this.shelfShopStock(material) + delta);
+      this.data.set(this.shelfShopStockPath(material), next);
+      this.saveData();
+   }
+
+   private void recordAcquiredItem(Player player, Material material) {
+      // Shelf shops now use a fixed global catalog; acquiring an item no longer unlocks shop entries.
    }
 
    private void recordInventoryAcquisitions(Player player) {
-      if (player != null && !player.isOp()) {
-         List<Material> unlocked = this.shelfShopUnlockedMaterials();
-         boolean changed = false;
-
-         for (ItemStack item : player.getInventory().getContents()) {
-            if (item != null && item.getType() != Material.AIR && this.isRandomShopItem(item.getType()) && !unlocked.contains(item.getType())) {
-               unlocked.add(item.getType());
-               changed = true;
-            }
-         }
-
-         if (changed) {
-            this.data.set("shelf-shop-unlocked", unlocked.stream().map(Enum::name).toList());
-            this.saveData();
-            this.syncShelfShopDisplays();
-         }
-      }
+      // Kept as a compatibility no-op. Global stock changes only through shelf-shop buy/sell transactions.
    }
 
    void recordShelfShopAcquisition(Player player, Material material) {
-      this.recordAcquiredItem(player, material);
+      // No-op: catalog availability is independent of player acquisition history.
    }
 
    private void handleShelfShopCommand(CommandSender sender, String[] args) {
       if (!sender.hasPermission("minerva.shop.admin") && !sender.hasPermission("minerva.admin")) {
          sender.sendMessage("§c権限がありません。");
       } else if (args.length >= 2 && "reset".equalsIgnoreCase(args[1])) {
-         int unlockedCount = this.shelfShopUnlockedMaterials().size();
-         this.data.set("shelf-shop-unlocked", List.of());
+         ConfigurationSection stock = this.data.getConfigurationSection("shelf-shop-stock");
+         int stockedTypes = stock == null ? 0 : stock.getKeys(false).size();
+         this.data.set("shelf-shop-stock", null);
+         this.data.set("shelf-shop-unlocked", null);
          this.saveData();
          this.syncShelfShopDisplays();
-         sender.sendMessage("§a棚ショップの取得履歴をリセットしました: " + unlockedCount + "種類");
+         sender.sendMessage("§a棚ショップの共有在庫を0にリセットしました: " + stockedTypes + "種類");
          if (sender instanceof Player player) {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7F, 0.8F);
          }
@@ -1514,7 +1523,12 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
          for (int slot = 0; slot < slots; slot++) {
             Material material = materials.get(slot);
             if (material != null && material != Material.AIR) {
-               inventory.setItem(slot, new ItemStack(material));
+               ItemStack displayItem = new ItemStack(material);
+               int stock = this.shelfShopStock(material);
+               if (stock > 0 && displayItem.getMaxStackSize() > 1) {
+                  displayItem.setAmount(Math.min(stock, displayItem.getMaxStackSize()));
+               }
+               inventory.setItem(slot, displayItem);
             }
          }
 
@@ -1618,6 +1632,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       boolean existed = this.isShelfShop(block);
       if (enabled) {
          this.slotMachineManager.unregisterMachine(block);
+      }
+
+      if (enabled) {
+         this.clearShelfShopRandomOffer(block);
       }
 
       if (enabled && !existed) {
