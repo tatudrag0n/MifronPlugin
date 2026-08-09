@@ -16,8 +16,9 @@ new = '''   boolean isShelfShop(Block block) {
          return false;
       }
 
-      // Slot machines also use shelf blocks, but must never participate in
-      // shelf-shop catalog numbering or stock/shop handling.
+      // Slot machines also use shelf blocks, but they are never shelf shops.
+      // This prevents slot shelves from receiving shelf-shop numbering,
+      // stock handling, action bars, or display synchronisation.
       if (this.slotMachineManager != null && this.slotMachineManager.isMachine(block)) {
          return false;
       }
@@ -29,29 +30,11 @@ if old not in s:
     raise SystemExit('missing isShelfShop target')
 s = s.replace(old, new, 1)
 
-old = '''                  for (String coordinates : worldShops.getKeys(false)) {
-                     nextOrder = Math.max(nextOrder, worldShops.getInt(coordinates + ".order", 0) + 1);
-                  }'''
-new = '''                  for (String coordinates : worldShops.getKeys(false)) {
-                     World world = this.worldFromId(worldId);
-                     Block candidate = world == null ? null : this.blockFromCoordinates(world, coordinates);
-                     boolean enabledShop = worldShops.getBoolean(coordinates, false)
-                        || worldShops.getBoolean(coordinates + ".enabled", false);
-                     if (candidate != null
-                        && enabledShop
-                        && (this.slotMachineManager == null || !this.slotMachineManager.isMachine(candidate))) {
-                        nextOrder = Math.max(nextOrder, worldShops.getInt(coordinates + ".order", 0) + 1);
-                     }
-                  }'''
-if old not in s:
-    raise SystemExit('missing nextOrder target')
-s = s.replace(old, new, 1)
-
 old = '''            this.setShelfShop(block, false);
             if (!manager.registerMachine(block, difficulty)) {'''
-new = '''            // A slot machine occupies the same physical shelf block type as a shelf shop.
-            // Remove every shelf-shop trace before registering it so it cannot consume
-            // a catalog/order number or be picked up by shelf-shop synchronisation.
+new = '''            // Slot machines and shelf shops share the same physical shelf block type.
+            // Purge every shelf-shop marker before registering the slot machine so the
+            // machine cannot be treated as a numbered shop shelf later.
             this.setShelfShop(block, false);
             this.data.set(this.shelfShopPath(block), null);
             this.data.set(this.shelfShopOfferPath(block), null);
