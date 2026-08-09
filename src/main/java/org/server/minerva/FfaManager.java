@@ -115,6 +115,8 @@ final class FfaManager {
    private final Map<UUID, List<UUID>> bugMobs = new HashMap<>();
    private final Map<UUID, UUID> bugOwners = new HashMap<>();
    private final Map<UUID, BukkitTask> bugExpiryTasks = new HashMap<>();
+   private final Map<UUID, UUID> infestedBugOwners = new HashMap<>();
+   private final Map<UUID, Long> infestedBugOwnerExpires = new HashMap<>();
    private final Map<UUID, Map<String, FfaManager.TrapState>> traps = new HashMap<>();
    private final Map<UUID, FfaManager.DamageCredit> damageCredits = new HashMap<>();
    private final Map<UUID, FfaManager.DeathLeaveRestore> deathLeaveRestores = new HashMap<>();
@@ -171,6 +173,8 @@ final class FfaManager {
       this.trackedTridents.clear();
       this.removeAllSummons();
       this.removeAllBugMobs();
+      this.infestedBugOwners.clear();
+      this.infestedBugOwnerExpires.clear();
       this.restoreAllTraps();
       this.damageCredits.clear();
       this.deathLeaveRestores.clear();
@@ -1166,26 +1170,34 @@ final class FfaManager {
    }
 
    private void spawnBugSilverfish(Player owner, Location location) {
-      int globalMax = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.BUG_MANIA, "max-global-silverfish"), 30));
+      if (owner == null || location == null || location.getWorld() == null) {
+         return;
+      }
+      Entity entity = location.getWorld().spawnEntity(location, EntityType.SILVERFISH);
+      this.registerBugSilverfish(owner, entity);
+   }
 
+   private void registerBugSilverfish(Player owner, Entity entity) {
+      if (owner == null || entity == null || entity.getType() != EntityType.SILVERFISH) {
+         return;
+      }
+
+      int globalMax = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.BUG_MANIA, "max-global-silverfish"), 30));
       while (this.bugOwners.size() >= globalMax) {
          UUID first = this.bugOwners.keySet().stream().findFirst().orElse(null);
          if (first == null) {
             break;
          }
-
          this.removeBugEntity(first);
       }
 
       UUID ownerId = owner.getUniqueId();
       List<UUID> owned = this.bugMobs.computeIfAbsent(ownerId, ignored -> new ArrayList<>());
       int maxOwned = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.BUG_MANIA, "max-owned-silverfish"), 6));
-
       while (owned.size() >= maxOwned) {
          this.removeBugEntity(owned.remove(0));
       }
 
-      Entity entity = location.getWorld().spawnEntity(location, EntityType.SILVERFISH);
       entity.getPersistentDataContainer().set(this.entityKindKey, PersistentDataType.STRING, "bug_silverfish");
       entity.getPersistentDataContainer().set(this.entityOwnerKey, PersistentDataType.STRING, ownerId.toString());
       if (entity instanceof LivingEntity living) {
@@ -1193,8 +1205,14 @@ final class FfaManager {
          living.setRemoveWhenFarAway(false);
       }
 
-      owned.add(entity.getUniqueId());
+      if (!owned.contains(entity.getUniqueId())) {
+         owned.add(entity.getUniqueId());
+      }
       this.bugOwners.put(entity.getUniqueId(), ownerId);
+      BukkitTask oldExpiry = this.bugExpiryTasks.remove(entity.getUniqueId());
+      if (oldExpiry != null) {
+         oldExpiry.cancel();
+      }
       BukkitTask task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> this.removeBugEntity(entity.getUniqueId()), 400L);
       this.bugExpiryTasks.put(entity.getUniqueId(), task);
    }
@@ -1259,10 +1277,59 @@ final class FfaManager {
             if (killer != null
                && (owner == null || !owner.equals(killer.getUniqueId()))
                && this.rollBugManiaChance("silverfish-death-infestation-chance-percent", 10)) {
+               if (owner != null) {
+                  this.infestedBugOwners.put(killer.getUniqueId(), owner);
+                  this.infestedBugOwnerExpires.put(killer.getUniqueId(), System.currentTimeMillis() + 65000L);
+               }
                killer.addPotionEffect(new PotionEffect(PotionEffectType.INFESTED, 1200, 0, false, false, true));
             }
          }
       }
+   }
+
+   void handlePotionEffectSilverfishSpawn(Entity entity) {
+      if (entity == null || entity.getType() != EntityType.SILVERFISH) {
+         return;
+      }
+      String existingKind = entity.getPersistentDataContainer().get(this.entityKindKey, PersistentDataType.STRING);
+      if ("bug_silverfish".equals(existingKind)) {
+         return;
+      }
+
+      long now = System.currentTimeMillis();
+      Player afflicted = null;
+      UUID bugOwnerId = null;
+      double bestDistance = Double.MAX_VALUE;
+      for (Player candidate : this.plugin.getServer().getOnlinePlayers()) {
+         if (!this.isPlaying(candidate) || candidate.getWorld() != entity.getWorld() || !candidate.hasPotionEffect(PotionEffectType.INFESTED)) {
+            continue;
+         }
+         UUID mappedOwner = this.infestedBugOwners.get(candidate.getUniqueId());
+         long expires = this.infestedBugOwnerExpires.getOrDefault(candidate.getUniqueId(), 0L);
+         if (mappedOwner == null || expires < now) {
+            if (expires < now) {
+               this.infestedBugOwners.remove(candidate.getUniqueId());
+               this.infestedBugOwnerExpires.remove(candidate.getUniqueId());
+            }
+            continue;
+         }
+         double distance = candidate.getLocation().distanceSquared(entity.getLocation());
+         if (distance <= 16.0 && distance < bestDistance) {
+            afflicted = candidate;
+            bugOwnerId = mappedOwner;
+            bestDistance = distance;
+         }
+      }
+
+      if (afflicted == null || bugOwnerId == null) {
+         return;
+      }
+      Player owner = this.plugin.getServer().getPlayer(bugOwnerId);
+      if (owner == null || !this.isPlaying(owner) || !this.isBugMania(owner)) {
+         return;
+      }
+
+      this.registerBugSilverfish(owner, entity);
    }
 
    void handleBugSilverfishBlockChange(EntityChangeBlockEvent event) {

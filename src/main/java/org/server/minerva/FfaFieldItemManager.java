@@ -17,6 +17,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
@@ -54,6 +55,7 @@ final class FfaFieldItemManager {
    private final Map<UUID, ItemStack> skyChestplates = new HashMap<>();
    private final Map<UUID, List<ItemStack>> pendingLoot = new HashMap<>();
    private BukkitTask spawnTask;
+   private BukkitTask rainVisualTask;
    private long nextLootAt;
    private long nextEventAt;
 
@@ -80,6 +82,8 @@ final class FfaFieldItemManager {
          this.spawnTask.cancel();
          this.spawnTask = null;
       }
+
+      this.stopRainVisuals();
 
       for (BukkitTask task : this.channelTasks.values()) {
          task.cancel();
@@ -353,6 +357,9 @@ final class FfaFieldItemManager {
          String oldType = this.activeEvents.remove(channel);
          if (oldType != null) {
             this.removeEventItems(oldType);
+            if ("rain".equals(oldType)) {
+               this.stopRainWeather();
+            }
          }
       }
 
@@ -381,6 +388,7 @@ final class FfaFieldItemManager {
                world.setThundering(false);
                world.setThunderDuration(durationTicks);
             }
+            this.startRainVisuals();
 
             for (Player player : this.ffaPlayers()) {
                player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, seconds * 20, 0, false, false, true));
@@ -436,14 +444,7 @@ final class FfaFieldItemManager {
       this.activeEvents.remove(channel);
       this.removeEventItems(type);
       if ("rain".equals(type)) {
-         World world = this.ffa.center() == null ? null : this.ffa.center().getWorld();
-         if (world != null) {
-            world.setStorm(false);
-            world.setWeatherDuration(0);
-            world.setThundering(false);
-            world.setThunderDuration(0);
-            world.setClearWeatherDuration(20);
-         }
+         this.stopRainWeather();
       }
 
       if ("mp_fever".equals(type)) {
@@ -453,6 +454,38 @@ final class FfaFieldItemManager {
       }
 
       this.broadcast("§7" + this.eventDisplay(type) + " が終了しました。");
+   }
+
+   private void startRainVisuals() {
+      this.stopRainVisuals();
+      this.rainVisualTask = this.plugin.getServer().getScheduler().runTaskTimer(this.plugin, () -> {
+         for (Player player : this.ffaPlayers()) {
+            Location above = player.getLocation().clone().add(0.0, 5.5, 0.0);
+            // RAIN supplies the familiar rain/splash visual; FALLING_WATER makes
+            // the shower visible even in biomes where vanilla precipitation is hidden.
+            player.spawnParticle(Particle.RAIN, above, 40, 5.5, 4.0, 5.5, 0.12);
+            player.spawnParticle(Particle.FALLING_WATER, above, 24, 5.0, 3.2, 5.0, 0.08);
+         }
+      }, 0L, 4L);
+   }
+
+   private void stopRainVisuals() {
+      if (this.rainVisualTask != null) {
+         this.rainVisualTask.cancel();
+         this.rainVisualTask = null;
+      }
+   }
+
+   private void stopRainWeather() {
+      this.stopRainVisuals();
+      World world = this.ffa.center() == null ? null : this.ffa.center().getWorld();
+      if (world != null) {
+         world.setStorm(false);
+         world.setWeatherDuration(0);
+         world.setThundering(false);
+         world.setThunderDuration(0);
+         world.setClearWeatherDuration(20);
+      }
    }
 
    void applyActiveEventGear(Player player) {

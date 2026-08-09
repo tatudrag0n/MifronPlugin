@@ -11,6 +11,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -49,6 +50,14 @@ final class FfaListener implements Listener {
    FfaListener(Minerva plugin, FfaManager ffa) {
       this.plugin = plugin;
       this.ffa = ffa;
+   }
+
+   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+   public void onCreatureSpawn(CreatureSpawnEvent event) {
+      if (event.getEntityType() == org.bukkit.entity.EntityType.SILVERFISH
+         && event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.POTION_EFFECT) {
+         this.ffa.handlePotionEffectSilverfishSpawn(event.getEntity());
+      }
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
