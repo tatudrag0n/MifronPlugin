@@ -18,6 +18,8 @@ import org.geysermc.geyser.api.GeyserApi;
 
 final class BedrockUiFeature {
    private static final int MAX_CONTENT_ITEMS = 36;
+   private static final int MAX_STATUS_CONTENT_ITEMS = 18;
+   private static final int MAX_STATUS_LORE_LINES = 2;
    private final Minerva plugin;
 
    BedrockUiFeature(Minerva plugin) {
@@ -59,6 +61,10 @@ final class BedrockUiFeature {
          return false;
       }
 
+      if (isStatusLikeTitle(title)) {
+         return this.showStatusMenu(player, title, inventory, actionable, clickHandler, closeHandler);
+      }
+
       try {
          List<Integer> buttonSlots = new ArrayList<>();
          StringBuilder content = new StringBuilder();
@@ -94,28 +100,74 @@ final class BedrockUiFeature {
          }
          form.content(content.toString());
 
-         form.validResultHandler((SimpleFormResponse response) -> {
-            int id = response.clickedButtonId();
-            if (id < 0 || id >= buttonSlots.size()) {
-               return;
-            }
-            int slot = buttonSlots.get(id);
-            ItemStack selected = inventory.getItem(slot);
-            if (selected == null) {
-               return;
-            }
-            ItemStack safeCopy = selected.clone();
-            this.plugin.getServer().getScheduler().runTask(this.plugin, () -> clickHandler.accept(slot, safeCopy));
-         });
-
-         if (closeHandler != null) {
-            form.closedOrInvalidResultHandler(() -> this.plugin.getServer().getScheduler().runTask(this.plugin, closeHandler));
-         }
+         bindInventoryResult(form, inventory, buttonSlots, clickHandler);
+         bindCloseHandler(form, closeHandler);
 
          GeyserApi api = GeyserApi.api();
          return api != null && api.sendForm(player.getUniqueId(), form.build());
       } catch (Throwable error) {
          this.plugin.getLogger().warning("Failed to open Bedrock form for " + player.getName() + ": " + error.getMessage());
+         return false;
+      }
+   }
+
+   private boolean showStatusMenu(
+      Player player,
+      String title,
+      Inventory inventory,
+      Predicate<ItemStack> actionable,
+      BiConsumer<Integer, ItemStack> clickHandler,
+      Runnable closeHandler
+   ) {
+      try {
+         List<Integer> buttonSlots = new ArrayList<>();
+         StringBuilder content = new StringBuilder();
+         int contentItems = 0;
+         SimpleForm.Builder form = SimpleForm.builder().title(clean(title));
+
+         for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack item = inventory.getItem(slot);
+            if (isEmptyOrFiller(item)) {
+               continue;
+            }
+
+            if (actionable != null && actionable.test(item)) {
+               String label = compactButtonText(item);
+               if (!label.isBlank()) {
+                  form.button(label);
+                  buttonSlots.add(slot);
+               }
+               continue;
+            }
+
+            if (contentItems >= MAX_STATUS_CONTENT_ITEMS) {
+               continue;
+            }
+
+            String line = compactStatusText(item);
+            if (line.isBlank()) {
+               continue;
+            }
+
+            if (!content.isEmpty()) {
+               content.append("\n");
+            }
+            content.append(line);
+            contentItems++;
+         }
+
+         if (content.isEmpty()) {
+            content.append("ステータス情報はありません。");
+         }
+
+         form.content(content.toString());
+         bindInventoryResult(form, inventory, buttonSlots, clickHandler);
+         bindCloseHandler(form, closeHandler);
+
+         GeyserApi api = GeyserApi.api();
+         return api != null && api.sendForm(player.getUniqueId(), form.build());
+      } catch (Throwable error) {
+         this.plugin.getLogger().warning("Failed to open Bedrock status form for " + player.getName() + ": " + error.getMessage());
          return false;
       }
    }
@@ -147,6 +199,38 @@ final class BedrockUiFeature {
       }
    }
 
+   private void bindInventoryResult(
+      SimpleForm.Builder form,
+      Inventory inventory,
+      List<Integer> buttonSlots,
+      BiConsumer<Integer, ItemStack> clickHandler
+   ) {
+      form.validResultHandler((SimpleFormResponse response) -> {
+         int id = response.clickedButtonId();
+         if (id < 0 || id >= buttonSlots.size()) {
+            return;
+         }
+         int slot = buttonSlots.get(id);
+         ItemStack selected = inventory.getItem(slot);
+         if (selected == null) {
+            return;
+         }
+         ItemStack safeCopy = selected.clone();
+         this.plugin.getServer().getScheduler().runTask(this.plugin, () -> clickHandler.accept(slot, safeCopy));
+      });
+   }
+
+   private void bindCloseHandler(SimpleForm.Builder form, Runnable closeHandler) {
+      if (closeHandler != null) {
+         form.closedOrInvalidResultHandler(() -> this.plugin.getServer().getScheduler().runTask(this.plugin, closeHandler));
+      }
+   }
+
+   private static boolean isStatusLikeTitle(String title) {
+      String cleaned = clean(title).toLowerCase();
+      return cleaned.contains("minerva status") || cleaned.contains("minerva friends") || cleaned.contains("ステータス");
+   }
+
    private static boolean isEmptyOrFiller(ItemStack item) {
       if (item == null || item.getType() == Material.AIR) {
          return true;
@@ -168,6 +252,15 @@ final class BedrockUiFeature {
       return text.toString().trim();
    }
 
+   private static String compactButtonText(ItemStack item) {
+      String name = itemName(item);
+      if (!name.isBlank()) {
+         return name;
+      }
+      List<String> lore = itemLore(item);
+      return lore.isEmpty() ? "選択" : lore.get(0);
+   }
+
    private static String contentText(ItemStack item) {
       StringBuilder text = new StringBuilder(itemName(item));
       for (String line : itemLore(item)) {
@@ -175,6 +268,30 @@ final class BedrockUiFeature {
             text.append("\n").append(line);
          }
       }
+      return text.toString().trim();
+   }
+
+   private static String compactStatusText(ItemStack item) {
+      String name = itemName(item);
+      List<String> lore = itemLore(item);
+      StringBuilder text = new StringBuilder();
+
+      if (!name.isBlank()) {
+         text.append("• ").append(name);
+      }
+
+      int lines = Math.min(MAX_STATUS_LORE_LINES, lore.size());
+      for (int i = 0; i < lines; i++) {
+         String line = lore.get(i);
+         if (line.isBlank()) {
+            continue;
+         }
+         if (!text.isEmpty()) {
+            text.append("  ");
+         }
+         text.append(line);
+      }
+
       return text.toString().trim();
    }
 
