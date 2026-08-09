@@ -20,6 +20,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.WeatherType;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -383,6 +384,9 @@ final class FfaFieldItemManager {
          case "rain":
             if (world != null) {
                int durationTicks = seconds * 20;
+               // Clear any forced-clear timer before starting the event. This keeps the
+               // server-side world weather in a genuine storm state for the full event.
+               world.setClearWeatherDuration(0);
                world.setStorm(true);
                world.setWeatherDuration(durationTicks);
                world.setThundering(false);
@@ -391,6 +395,9 @@ final class FfaFieldItemManager {
             this.startRainVisuals();
 
             for (Player player : this.ffaPlayers()) {
+               // Explicitly sync DOWNFALL to each FFA client. This fixes clients that
+               // remain visually clear even though the FFA world is storming.
+               player.setPlayerWeather(WeatherType.DOWNFALL);
                player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, seconds * 20, 0, false, false, true));
                player.setFireTicks(0);
             }
@@ -478,6 +485,10 @@ final class FfaFieldItemManager {
 
    private void stopRainWeather() {
       this.stopRainVisuals();
+      for (Player player : this.ffaPlayers()) {
+         // Return the client to the real world weather when the event ends.
+         player.resetPlayerWeather();
+      }
       World world = this.ffa.center() == null ? null : this.ffa.center().getWorld();
       if (world != null) {
          world.setStorm(false);
@@ -489,6 +500,12 @@ final class FfaFieldItemManager {
    }
 
    void applyActiveEventGear(Player player) {
+      if (this.activeEvents.containsValue("rain")) {
+         // Players joining FFA during an active rain event must receive the same
+         // client weather state as players who were present when it started.
+         player.setPlayerWeather(WeatherType.DOWNFALL);
+      }
+
       if (this.activeEvents.containsValue("one_shot_bow")) {
          this.giveOneShotBow(player);
       }
