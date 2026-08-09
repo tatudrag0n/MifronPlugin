@@ -5249,6 +5249,97 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
          );
    }
 
+   private void handleServerOrderCommand(CommandSender sender, String[] args) {
+      if (!sender.hasPermission("minerva.admin")) {
+         sender.sendMessage("§c権限がありません。");
+         return;
+      }
+      if (args.length < 3) {
+         sender.sendMessage("§e/mva serverorder <server-id> <position>");
+         sender.sendMessage("§7例: /mva serverorder survival 1");
+         return;
+      }
+
+      String key = args[1];
+      String path = "servers." + key;
+      if (!this.getConfig().isConfigurationSection(path)) {
+         sender.sendMessage("§cサーバーが見つかりません: " + key);
+         return;
+      }
+
+      int requested;
+      try {
+         requested = Integer.parseInt(args[2]);
+      } catch (NumberFormatException e) {
+         sender.sendMessage("§cposition は1以上の整数で指定してください。");
+         return;
+      }
+
+      ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
+      if (servers == null || servers.getKeys(false).isEmpty()) {
+         sender.sendMessage("§c登録済みサーバーがありません。");
+         return;
+      }
+
+      List<String> keys = new ArrayList<>(servers.getKeys(false));
+      Map<String, Integer> originalIndex = new HashMap<>();
+      for (int i = 0; i < keys.size(); i++) {
+         originalIndex.put(keys.get(i), i);
+      }
+      keys.sort((a, b) -> {
+         int ao = this.getConfig().getInt("servers." + a + ".order", originalIndex.get(a) + 1);
+         int bo = this.getConfig().getInt("servers." + b + ".order", originalIndex.get(b) + 1);
+         int order = Integer.compare(ao, bo);
+         return order != 0 ? order : Integer.compare(originalIndex.get(a), originalIndex.get(b));
+      });
+
+      keys.remove(key);
+      int position = Math.max(1, Math.min(requested, keys.size() + 1));
+      keys.add(position - 1, key);
+      for (int i = 0; i < keys.size(); i++) {
+         this.getConfig().set("servers." + keys.get(i) + ".order", i + 1);
+      }
+      this.saveConfig();
+
+      sender.sendMessage("§aテレポート先の表示順を変更しました: " + key + " → " + position + "番目");
+      sender.sendMessage("§7現在の順番: " + String.join(" → ", keys));
+      if (sender instanceof Player player) {
+         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7F, 1.2F);
+      }
+   }
+
+   private void handleServerIconCommand(CommandSender sender, String[] args) {
+      if (!sender.hasPermission("minerva.admin")) {
+         sender.sendMessage("§c権限がありません。");
+         return;
+      }
+      if (args.length < 3) {
+         sender.sendMessage("§e/mva servericon <server-id> <material>");
+         sender.sendMessage("§7例: /mva servericon survival grass_block");
+         return;
+      }
+
+      String key = args[1];
+      String path = "servers." + key;
+      if (!this.getConfig().isConfigurationSection(path)) {
+         sender.sendMessage("§cサーバーが見つかりません: " + key);
+         return;
+      }
+
+      Material icon = Material.matchMaterial(args[2]);
+      if (icon == null || !icon.isItem() || icon == Material.AIR) {
+         sender.sendMessage("§c有効なアイテムMaterialを指定してください: " + args[2]);
+         return;
+      }
+
+      this.getConfig().set(path + ".icon", icon.name().toLowerCase(Locale.ROOT));
+      this.saveConfig();
+      sender.sendMessage("§aテレポート先のアイコンを変更しました: " + key + " → " + icon.name().toLowerCase(Locale.ROOT));
+      if (sender instanceof Player player) {
+         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7F, 1.35F);
+      }
+   }
+
    private void applyWorldSpawnLocations() {
       ConfigurationSection spawns = this.getConfig().getConfigurationSection("world-rules.spawn");
       if (spawns != null) {
@@ -5935,7 +6026,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    private boolean handleMinervaCommand(CommandSender sender, String[] args) {
       if (args.length == 0) {
          sender.sendMessage(
-            "§e/minerva check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shelfshop|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|delserver|warning"
+            "§e/minerva check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shelfshop|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|serverorder|servericon|delserver|warning"
          );
          return true;
       } else if (!(sender instanceof Player player)
@@ -6177,6 +6268,14 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                }
 
                sender.sendMessage("§aサーバー移動先を設定しました: " + args[1] + (icon == null ? "" : "§7 / icon: " + icon.name().toLowerCase(Locale.ROOT)));
+               break;
+            case "serverorder":
+            case "servermove":
+               this.handleServerOrderCommand(sender, args);
+               break;
+            case "servericon":
+            case "setservericon":
+               this.handleServerIconCommand(sender, args);
                break;
             case "delserver":
             case "removeserver":

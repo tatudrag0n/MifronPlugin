@@ -530,6 +530,17 @@ final class ServerPortalFeature implements Listener {
          }
          destinations.add(new TeleportDestination(key, name, location));
       }
+      Map<String, Integer> fallbackOrder = new ConcurrentHashMap<>();
+      int fallbackIndex = 1;
+      for (String key : servers.getKeys(false)) {
+         fallbackOrder.put(key, fallbackIndex++);
+      }
+      destinations.sort((a, b) -> {
+         int ao = this.plugin.getConfig().getInt("servers." + a.key() + ".order", fallbackOrder.getOrDefault(a.key(), Integer.MAX_VALUE));
+         int bo = this.plugin.getConfig().getInt("servers." + b.key() + ".order", fallbackOrder.getOrDefault(b.key(), Integer.MAX_VALUE));
+         int order = Integer.compare(ao, bo);
+         return order != 0 ? order : a.key().compareToIgnoreCase(b.key());
+      });
       return destinations;
    }
 
