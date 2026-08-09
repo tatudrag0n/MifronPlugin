@@ -4866,6 +4866,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       }
    }
 
+   BedrockUiFeature bedrockUiFeature() {
+      return this.bedrockUiFeature;
+   }
+
    void teleportToConfigLocation(Player player, String path) {
       Location location = this.readLocation(path);
       if (location == null) {

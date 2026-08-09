@@ -49,10 +49,19 @@ final class UtilityItemsFeature implements Listener {
          )
       );
       this.updateOrGiveMinervaItem(player, "friend_book", this.createStatusBook());
-      this.giveMinervaItemIfMissing(
+      this.updateOrGiveMinervaItem(
          player,
          "teleporter",
-         this.createMinervaItem(Material.ENDER_EYE, "teleporter", ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "対応するエンドポータルフレームに使用して移動", ChatColor.DARK_GRAY + "投げることはできません"))
+         this.createMinervaItem(
+            Material.ENDER_EYE,
+            "teleporter",
+            ChatColor.LIGHT_PURPLE + "テレポーター",
+            List.of(
+               ChatColor.GRAY + "右クリック: テレポート先を選択",
+               ChatColor.GRAY + "エンドポータルフレームに使用: フレームの登録地点へ移動",
+               ChatColor.DARK_GRAY + "投げることはできません"
+            )
+         )
       );
    }
 

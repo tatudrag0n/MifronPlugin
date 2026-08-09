@@ -3,6 +3,7 @@ package org.server.minerva;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.ChatColor;
@@ -115,6 +116,33 @@ final class BedrockUiFeature {
          return api != null && api.sendForm(player.getUniqueId(), form.build());
       } catch (Throwable error) {
          this.plugin.getLogger().warning("Failed to open Bedrock form for " + player.getName() + ": " + error.getMessage());
+         return false;
+      }
+   }
+
+   boolean showButtons(Player player, String title, String content, List<String> buttons, IntConsumer clickHandler) {
+      if (!this.isBedrock(player) || buttons == null || buttons.isEmpty()) {
+         return false;
+      }
+
+      try {
+         SimpleForm.Builder form = SimpleForm.builder().title(clean(title)).content(content == null ? "" : clean(content));
+         for (String button : buttons) {
+            form.button(clean(button));
+         }
+
+         form.validResultHandler((SimpleFormResponse response) -> {
+            int id = response.clickedButtonId();
+            if (id < 0 || id >= buttons.size()) {
+               return;
+            }
+            this.plugin.getServer().getScheduler().runTask(this.plugin, () -> clickHandler.accept(id));
+         });
+
+         GeyserApi api = GeyserApi.api();
+         return api != null && api.sendForm(player.getUniqueId(), form.build());
+      } catch (Throwable error) {
+         this.plugin.getLogger().warning("Failed to open Bedrock button form for " + player.getName() + ": " + error.getMessage());
          return false;
       }
    }
