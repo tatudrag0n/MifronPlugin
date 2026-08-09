@@ -70,7 +70,13 @@ final class UtilityItemsFeature implements Listener {
          Material.BLAZE_ROD,
          "shelf_shop_wand",
          ChatColor.GOLD + "ショップワンド",
-         List.of(ChatColor.GRAY + "右クリック: 棚・樽をショップ化", ChatColor.GRAY + "左クリック: ショップ化を解除", ChatColor.DARK_GRAY + "樽ショップの商品はショップ化時に生成されます。")
+         List.of(
+            ChatColor.GRAY + "棚を右クリック: 番号順の順番配置",
+            ChatColor.GRAY + "棚をShift+右クリック: オフハンドの商品を指定枠へ配置",
+            ChatColor.GRAY + "指定配置でShift+左クリック: 選択枠を空欄化",
+            ChatColor.GRAY + "左クリック: ショップ化を解除",
+            ChatColor.DARK_GRAY + "棚商品の在庫は全棚で共有されます。"
+         )
       );
    }
 
@@ -97,7 +103,14 @@ final class UtilityItemsFeature implements Listener {
             Material.BLAZE_ROD,
             "shop_wand",
             ChatColor.GOLD + "ショップワンド",
-            List.of(ChatColor.GRAY + "種類: " + type.key(), ChatColor.GRAY + "右クリック: 対応ブロックをショップ化", ChatColor.GRAY + "左クリック: ショップ化を解除"),
+            type == ShopWandType.SHELF
+               ? List.of(
+                  ChatColor.GRAY + "右クリック: 番号順の順番配置",
+                  ChatColor.GRAY + "Shift+右クリック: オフハンドの商品を指定枠へ配置",
+                  ChatColor.GRAY + "Shift+左クリック: 指定枠を空欄化",
+                  ChatColor.GRAY + "左クリック: ショップ化を解除"
+               )
+               : List.of(ChatColor.GRAY + "種類: " + type.key(), ChatColor.GRAY + "右クリック: 対応ブロックをショップ化", ChatColor.GRAY + "左クリック: ショップ化を解除"),
             meta -> {
                PersistentDataContainer container = meta.getPersistentDataContainer();
                container.set(this.shopWandTypeKey, PersistentDataType.STRING, type.key());

@@ -1190,20 +1190,45 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       } else if (block.getType() == Material.BARREL) {
          this.handleBarrelShopWandClick(player, block, event, type);
       } else if (event.getAction().isRightClick()) {
-         this.setShelfShop(block, true);
-         this.setShopOwner(block, player.getUniqueId());
-         player.sendMessage("§a棚をショップ化しました。商品は固定カタログの番号順に表示され、在庫は全棚で共有されます。");
-         event.setCancelled(true);
-      } else {
-         if (event.getAction().isLeftClick()) {
-            if (this.setShelfShop(block, false)) {
-               player.sendMessage("§a棚のショップ化を解除しました。");
-            } else {
-               player.sendMessage("§eこの棚はショップ化されていません。");
+         if (player.isSneaking()) {
+            ItemStack specified = player.getInventory().getItemInOffHand();
+            Material material = specified == null ? Material.AIR : specified.getType();
+            if (material == Material.AIR || !this.isRandomShopItem(material) || this.utilityItemsFeature.getMinervaItemId(specified) != null) {
+               player.sendMessage("§e指定配置: オフハンドに販売したい通常アイテムを持ち、設定したい棚の枠をShift+右クリックしてください。");
+               event.setCancelled(true);
+               return;
             }
 
-            event.setCancelled(true);
+            int selectedSlot = this.selectedShelfSlot(player, block);
+            this.assignCustomShelfShopSlot(block, selectedSlot, material);
+            this.setShopOwner(block, player.getUniqueId());
+            player.sendMessage(
+               "§a指定配置に設定: 枠" + (selectedSlot + 1) + " → No." + String.format("%03d", this.shelfShopCatalogNumber(material)) + " " + this.japaneseItemName(material)
+            );
+         } else {
+            this.configureSequentialShelfShop(block);
+            this.setShopOwner(block, player.getUniqueId());
+            List<Material> materials = this.shelfShopRandomOffers(block);
+            if (materials.isEmpty()) {
+               player.sendMessage("§e順番配置の対象商品がありません。");
+            } else {
+               int first = this.shelfShopCatalogNumber(materials.get(0));
+               int last = this.shelfShopCatalogNumber(materials.get(materials.size() - 1));
+               player.sendMessage("§a順番配置に設定しました: No." + String.format("%03d", first) + "～No." + String.format("%03d", last));
+            }
          }
+         event.setCancelled(true);
+      } else if (event.getAction().isLeftClick()) {
+         if (player.isSneaking() && "custom".equals(this.shelfShopMode(block))) {
+            int selectedSlot = this.selectedShelfSlot(player, block);
+            this.clearCustomShelfShopSlot(block, selectedSlot);
+            player.sendMessage("§a指定配置の枠" + (selectedSlot + 1) + "を空欄にしました。");
+         } else if (this.setShelfShop(block, false)) {
+            player.sendMessage("§a棚のショップ化を解除しました。");
+         } else {
+            player.sendMessage("§eこの棚はショップ化されていません。");
+         }
+         event.setCancelled(true);
       }
    }
 
@@ -1336,32 +1361,33 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    private Minerva.ShelfShopOffer readShelfShopOffer(Player player, Block block) {
-      if (block == null || !this.isShelf(block.getType())) {
-         return null;
-      }
-
-      if (!this.isShelfShop(block)) {
+      if (block == null || !this.isShelf(block.getType()) || !this.isShelfShop(block)) {
          return null;
       }
 
       List<Material> configuredMaterials = this.shelfShopRandomOffers(block);
-      if (!this.isShelfShop(block)) {
-         Material shelfMaterial = this.shelfShopMaterial(block, this.selectedShelfSlot(player, block));
-         return shelfMaterial != null && shelfMaterial != Material.AIR && this.isPricedShopItem(shelfMaterial)
-            ? new Minerva.ShelfShopOffer(shelfMaterial, 1, Math.max(1, this.materialPrice(shelfMaterial)))
-            : null;
-      }
-
       if (configuredMaterials.isEmpty()) {
          return null;
       }
 
       Material configuredMaterial = this.materialForShelfSlot(configuredMaterials, this.selectedShelfSlot(player, block));
-      int price = Math.max(1, this.materialPrice(configuredMaterial));
+      if (configuredMaterial == null || configuredMaterial == Material.AIR || !this.isPricedShopItem(configuredMaterial)) {
+         return null;
+      }
+
+      int price = this.materialPrice(configuredMaterial);
       return price <= 0 ? null : new Minerva.ShelfShopOffer(configuredMaterial, 1, price);
    }
 
    private List<Material> shelfShopRandomOffers(Block block) {
+      if (block == null || !this.isShelfShop(block)) {
+         return List.of();
+      }
+
+      if ("custom".equals(this.shelfShopMode(block))) {
+         return this.customShelfShopMaterials(block);
+      }
+
       int order = this.data.getInt(this.shelfShopPath(block) + ".order", 0);
       if (order <= 0) {
          return List.of();
@@ -1370,6 +1396,92 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       List<Material> catalog = this.shelfShopCatalogMaterials();
       int start = (order - 1) * SHELF_SHOP_OFFER_SLOTS;
       return start >= catalog.size() ? List.of() : catalog.subList(start, Math.min(catalog.size(), start + SHELF_SHOP_OFFER_SLOTS));
+   }
+
+   private String shelfShopMode(Block block) {
+      if (block == null) {
+         return "sequential";
+      }
+      String mode = this.data.getString(this.shelfShopPath(block) + ".mode", "sequential");
+      return "custom".equalsIgnoreCase(mode) ? "custom" : "sequential";
+   }
+
+   private void configureSequentialShelfShop(Block block) {
+      if (block == null) {
+         return;
+      }
+      this.slotMachineManager.unregisterMachine(block);
+      String path = this.shelfShopPath(block);
+      int order = "sequential".equals(this.shelfShopMode(block)) ? this.data.getInt(path + ".order", 0) : 0;
+      if (order <= 0) {
+         order = this.nextSequentialShelfOrder();
+      }
+      this.data.set(path + ".enabled", true);
+      this.data.set(path + ".mode", "sequential");
+      this.data.set(path + ".order", order);
+      this.data.set(path + ".custom", null);
+      this.clearShelfShopRandomOffer(block);
+      this.displayShelfShopOffers(block, this.shelfShopRandomOffers(block));
+      this.saveData();
+   }
+
+   private int nextSequentialShelfOrder() {
+      int nextOrder = 1;
+      ConfigurationSection shops = this.data.getConfigurationSection("shelf-shops");
+      if (shops != null) {
+         for (String worldId : shops.getKeys(false)) {
+            ConfigurationSection worldShops = shops.getConfigurationSection(worldId);
+            if (worldShops == null) {
+               continue;
+            }
+            for (String coordinates : worldShops.getKeys(false)) {
+               String base = coordinates;
+               String mode = worldShops.getString(base + ".mode", "sequential");
+               if (!"custom".equalsIgnoreCase(mode) && worldShops.getBoolean(base + ".enabled", worldShops.getBoolean(base, false))) {
+                  nextOrder = Math.max(nextOrder, worldShops.getInt(base + ".order", 0) + 1);
+               }
+            }
+         }
+      }
+      return nextOrder;
+   }
+
+   private List<Material> customShelfShopMaterials(Block block) {
+      List<Material> materials = new ArrayList<>();
+      String base = this.shelfShopPath(block) + ".custom";
+      for (int slot = 0; slot < SHELF_SHOP_OFFER_SLOTS; slot++) {
+         String raw = this.data.getString(base + "." + slot, "");
+         Material material = raw.isBlank() ? Material.AIR : Material.matchMaterial(raw);
+         materials.add(material == null ? Material.AIR : material);
+      }
+      return materials;
+   }
+
+   private void assignCustomShelfShopSlot(Block block, int selectedSlot, Material material) {
+      if (block == null || material == null || selectedSlot < 0 || selectedSlot >= SHELF_SHOP_OFFER_SLOTS) {
+         return;
+      }
+      this.slotMachineManager.unregisterMachine(block);
+      String path = this.shelfShopPath(block);
+      if (!"custom".equals(this.shelfShopMode(block))) {
+         this.data.set(path + ".custom", null);
+      }
+      this.data.set(path + ".enabled", true);
+      this.data.set(path + ".mode", "custom");
+      this.data.set(path + ".order", null);
+      this.data.set(path + ".custom." + selectedSlot, material.name());
+      this.clearShelfShopRandomOffer(block);
+      this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
+      this.saveData();
+   }
+
+   private void clearCustomShelfShopSlot(Block block, int selectedSlot) {
+      if (block == null || selectedSlot < 0 || selectedSlot >= SHELF_SHOP_OFFER_SLOTS) {
+         return;
+      }
+      this.data.set(this.shelfShopPath(block) + ".custom." + selectedSlot, null);
+      this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
+      this.saveData();
    }
 
    private List<Material> shelfShopCatalogMaterials() {
@@ -1474,7 +1586,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                if (offers != null) {
                   for (String coordinates : offers.getKeys(false)) {
                      Block block = this.blockFromCoordinates(world, coordinates);
-                     if (block != null && this.isShelfShop(block) && this.isShelfShop(block)) {
+                     if (block != null && this.isShelfShop(block)) {
                         List<Material> materials = this.shelfShopRandomOffers(block);
                         if (materials.isEmpty()) {
                            this.clearShelfShopDisplay(block);
@@ -1515,20 +1627,16 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    private boolean displayShelfShopOffers(Block block, List<Material> materials) {
-      if (block != null && !materials.isEmpty() && block.getState() instanceof Shelf shelfState) {
+      if (block != null && materials != null && block.getState() instanceof Shelf shelfState) {
          Inventory inventory = shelfState.getInventory();
          inventory.clear();
-         int slots = Math.min(3, Math.min(inventory.getSize(), materials.size()));
+         int slots = Math.min(SHELF_SHOP_OFFER_SLOTS, Math.min(inventory.getSize(), materials.size()));
 
          for (int slot = 0; slot < slots; slot++) {
             Material material = materials.get(slot);
             if (material != null && material != Material.AIR) {
-               ItemStack displayItem = new ItemStack(material);
-               int stock = this.shelfShopStock(material);
-               if (stock > 0 && displayItem.getMaxStackSize() > 1) {
-                  displayItem.setAmount(Math.min(stock, displayItem.getMaxStackSize()));
-               }
-               inventory.setItem(slot, displayItem);
+               // This is a product sample only. Global stock is stored separately and never represented by stack size.
+               inventory.setItem(slot, new ItemStack(material, 1));
             }
          }
 
@@ -1631,43 +1739,14 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       String path = this.shelfShopPath(block);
       boolean existed = this.isShelfShop(block);
       if (enabled) {
-         this.slotMachineManager.unregisterMachine(block);
+         this.configureSequentialShelfShop(block);
+         return existed;
       }
 
-      if (enabled) {
-         this.clearShelfShopRandomOffer(block);
-      }
-
-      if (enabled && !existed) {
-         int nextOrder = 1;
-         ConfigurationSection shops = this.data.getConfigurationSection("shelf-shops");
-         if (shops != null) {
-            for (String worldId : shops.getKeys(false)) {
-               ConfigurationSection worldShops = shops.getConfigurationSection(worldId);
-               if (worldShops != null) {
-                  for (String coordinates : worldShops.getKeys(false)) {
-                     nextOrder = Math.max(nextOrder, worldShops.getInt(coordinates + ".order", 0) + 1);
-                  }
-               }
-            }
-         }
-
-         this.data.set(path + ".enabled", true);
-         this.data.set(path + ".order", nextOrder);
-      } else if (enabled) {
-         this.data.set(path + ".enabled", true);
-      } else {
-         this.data.set(path, null);
-      }
-
-      if (!enabled) {
-         this.clearShelfShopDisplay(block);
-         this.clearShopOwner(block);
-         this.clearShelfShopRandomOffer(block);
-      } else {
-         this.displayShelfShopOffers(block, this.shelfShopRandomOffers(block));
-      }
-
+      this.data.set(path, null);
+      this.clearShelfShopDisplay(block);
+      this.clearShopOwner(block);
+      this.clearShelfShopRandomOffer(block);
       this.saveData();
       return existed;
    }
