@@ -20,6 +20,19 @@ jobs:
       - name: Apply teleporter redesign
         run: python3 .github/scripts/restore_direct_teleporter_and_frame_names.py
 
+      - name: Normalize teleporter handler annotation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/main/java/org/server/minerva/ServerPortalFeature.java')
+          s = p.read_text(encoding='utf-8')
+          duplicate = '''   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)\n   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)\n   public void onTeleporterUse(PlayerInteractEvent event)'''
+          single = '''   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)\n   public void onTeleporterUse(PlayerInteractEvent event)'''
+          if duplicate not in s:
+              raise SystemExit('duplicate teleporter annotation pattern not found')
+          p.write_text(s.replace(duplicate, single, 1), encoding='utf-8')
+          PY
+
       - name: Set up Java 25
         uses: actions/setup-java@v4
         with:
