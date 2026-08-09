@@ -284,6 +284,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    private final FfaListener ffaListener = new FfaListener(this, this.ffaManager);
    private final SlotMachineManager slotMachineManager = new SlotMachineManager(this);
    private final AthleticManager athleticManager = new AthleticManager(this);
+   private final MinoruBridgeFeature minoruBridgeFeature = new MinoruBridgeFeature(this);
    private final Random random = new Random();
    private final Map<String, Integer> shopSalePrices = new HashMap<>();
    private final Map<String, Integer> shopBuyPrices = new HashMap<>();
@@ -337,6 +338,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("load shop prices", this::loadShopPrices);
       this.runStartupStep("apply economy price table", this::applyEconomyPriceTable);
       this.loadData();
+      this.runStartupStep("start Minoru bridge API", this.minoruBridgeFeature::start);
       this.runStartupStep("sync shelf shop displays", this::syncShelfShopDisplays);
       this.runStartupStep("load structures", this.structureManager::load);
       this.runStartupStep("load proposals", this.proposalManager::load);
@@ -395,6 +397,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
    public void onDisable() {
       this.cancelScheduledAutoShutdown("the plugin is disabling");
+      this.minoruBridgeFeature.stop();
 
       try {
          this.ffaManager.shutdown();
@@ -6008,6 +6011,14 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
       try {
+         if (("minerva".equalsIgnoreCase(command.getName()) || "mva".equalsIgnoreCase(command.getName()))
+            && args.length > 0 && ("link".equalsIgnoreCase(args[0]) || "discord".equalsIgnoreCase(args[0]))) {
+            if (!(sender instanceof Player player)) {
+               sender.sendMessage("§cこのコマンドはゲーム内プレイヤー専用です。");
+               return true;
+            }
+            return this.minoruBridgeFeature.handleCommand(player, args);
+         }
          if ("friend".equalsIgnoreCase(command.getName())) {
             return this.handleFriendCommand(sender, args);
          } else if ("status".equalsIgnoreCase(command.getName())) {
