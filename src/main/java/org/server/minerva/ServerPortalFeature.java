@@ -359,13 +359,14 @@ final class ServerPortalFeature implements Listener {
          right.normalize();
       }
 
-      // Keep many destinations visible at once. Up to eight destinations fit on one row;
-      // additional destinations wrap into a second/third row instead of wrapping every five.
+      // Arrange destinations as a HORIZONTAL arc around the player's view.
+      // The old vertical parabola pushed the outer options down and made them hard to aim at.
+      // Keep the arc shallow: outer options move slightly closer to the player instead of vertically away.
       int columns = Math.min(8, Math.max(1, destinations.size()));
       int rows = (destinations.size() + columns - 1) / columns;
-      double spacing = columns >= 7 ? 1.02 : 1.16;
-      Location center = eye.clone().add(forward.clone().multiply(3.25)).add(0.0, -0.30, 0.0);
-      Location origin = eye.clone().add(forward.clone().multiply(1.05)).add(0.0, -0.55, 0.0);
+      double spacing = columns >= 7 ? 0.96 : 1.10;
+      Location center = eye.clone().add(forward.clone().multiply(3.15)).add(0.0, -0.16, 0.0);
+      Location origin = eye.clone().add(forward.clone().multiply(1.05)).add(0.0, -0.38, 0.0);
       List<UUID> spawned = new ArrayList<>();
       List<TeleporterAnimatedEntity> animated = new ArrayList<>();
 
@@ -375,11 +376,18 @@ final class ServerPortalFeature implements Listener {
          int col = i % columns;
          int rowCount = Math.min(columns, destinations.size() - row * columns);
          double horizontal = (col - (rowCount - 1) / 2.0) * spacing;
-         // A subtle curved row makes the selector feel less like a chest-grid floating in space.
-         double curve = -0.055 * horizontal * horizontal;
-         double vertical = (rows - 1) * 0.72 - row * 1.42 + curve;
-         Location iconLocation = center.clone().add(right.clone().multiply(horizontal)).add(0.0, vertical, 0.0);
-         int delay = Math.min(6, col);
+
+         // Horizontal semicircle/fan: the center sits furthest forward and the left/right edges
+         // bend toward the player. Vertical placement stays almost flat for easy clicking.
+         double maxHalfWidth = Math.max(spacing, (rowCount - 1) * spacing / 2.0);
+         double normalized = Math.min(1.0, Math.abs(horizontal) / maxHalfWidth);
+         double depthTowardPlayer = 0.72 * normalized * normalized;
+         double vertical = (rows - 1) * 0.64 - row * 1.28;
+         Location iconLocation = center.clone()
+            .add(right.clone().multiply(horizontal))
+            .add(forward.clone().multiply(-depthTowardPlayer))
+            .add(0.0, vertical, 0.0);
+         int delay = Math.min(6, Math.min(col, rowCount - 1 - col));
 
          Interaction hitbox = (Interaction)player.getWorld().spawnEntity(origin, EntityType.INTERACTION);
          hitbox.setInteractionWidth(0.08F);
