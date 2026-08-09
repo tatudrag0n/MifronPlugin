@@ -262,6 +262,9 @@ final class UtilityItemsFeature implements Listener {
 
       for (ItemStack item : player.getInventory().getContents()) {
          if (this.isMinervaItem(item, id)) {
+            if (item.getType() != template.getType()) {
+               item.setType(template.getType());
+            }
             ItemMeta meta = item.getItemMeta();
             ItemMeta templateMeta = template.getItemMeta();
             meta.displayName(templateMeta.displayName());
@@ -293,16 +296,12 @@ final class UtilityItemsFeature implements Listener {
    }
 
    private ItemStack createStatusBook() {
-      ItemStack item = new ItemStack(Material.WRITTEN_BOOK);
-      BookMeta meta = (BookMeta)item.getItemMeta();
-      meta.setTitle("ステータス");
-      meta.setAuthor("Minerva");
-      meta.addPages(new Component[]{Component.text("Minerva Status UI\n右クリックで開きます。")});
-      meta.displayName(Component.text(ChatColor.GOLD + "ステータス"));
-      meta.lore(List.of(Component.text(ChatColor.GRAY + "右クリック: ステータス UI")));
-      meta.getPersistentDataContainer().set(this.minervaItemKey, PersistentDataType.STRING, "friend_book");
-      item.setItemMeta(meta);
-      return item;
+      return this.createMinervaItem(
+         Material.NETHER_STAR,
+         "friend_book",
+         ChatColor.GOLD + "ステータス",
+         List.of(ChatColor.GRAY + "右クリック: ステータス UI")
+      );
    }
 
    private ItemStack createMinervaItem(Material material, String id, String name, List<String> lore) {
