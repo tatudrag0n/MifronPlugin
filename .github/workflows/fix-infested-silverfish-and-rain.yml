@@ -1,0 +1,43 @@
+name: Fix Infested silverfish and rain visuals
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/run-fix-infested-silverfish-and-rain'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply Infested silverfish and rain fixes
+        run: python3 .github/scripts/fix_infested_silverfish_and_rain_visuals.py
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Build
+        run: mvn -B -DskipTests package
+
+      - name: Commit source changes
+        run: |
+          if git diff --quiet -- src/main/java/org/server/minerva/FfaManager.java src/main/java/org/server/minerva/FfaListener.java src/main/java/org/server/minerva/FfaFieldItemManager.java; then
+            echo "No source changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/java/org/server/minerva/FfaManager.java src/main/java/org/server/minerva/FfaListener.java src/main/java/org/server/minerva/FfaFieldItemManager.java
+          git commit -m "Fix Infested silverfish behavior and rain visuals"
+          git push
