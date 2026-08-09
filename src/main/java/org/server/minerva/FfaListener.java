@@ -11,6 +11,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -229,6 +230,11 @@ final class FfaListener implements Listener {
             }
          }
       }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onEntityChangeBlock(EntityChangeBlockEvent event) {
+      this.ffa.handleBugSilverfishBlockChange(event);
    }
 
    @EventHandler(ignoreCancelled = true)

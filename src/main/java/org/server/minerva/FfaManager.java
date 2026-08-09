@@ -45,6 +45,7 @@ import org.bukkit.entity.ThrownPotion;
 import org.bukkit.entity.Trident;
 import org.bukkit.entity.AbstractArrow.PickupStatus;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -1262,6 +1263,22 @@ final class FfaManager {
             }
          }
       }
+   }
+
+   void handleBugSilverfishBlockChange(EntityChangeBlockEvent event) {
+      Entity entity = event.getEntity();
+      if (entity.getType() != EntityType.SILVERFISH) {
+         return;
+      }
+
+      String kind = entity.getPersistentDataContainer().get(this.entityKindKey, PersistentDataType.STRING);
+      if (!"bug_silverfish".equals(kind)) {
+         return;
+      }
+
+      // Bug Mania silverfish are combat summons. Never allow them to disappear into
+      // stone-family blocks (or alter blocks while attempting the vanilla merge action).
+      event.setCancelled(true);
    }
 
    void handleEntityTarget(EntityTargetLivingEntityEvent event) {
