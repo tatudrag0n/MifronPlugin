@@ -1250,7 +1250,14 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                return;
             }
 
+            // Slot machines and shelf shops share the same physical shelf block type.
+            // Purge every shelf-shop marker before registering the slot machine so the
+            // machine cannot be treated as a numbered shop shelf later.
             this.setShelfShop(block, false);
+            this.data.set(this.shelfShopPath(block), null);
+            this.data.set(this.shelfShopOfferPath(block), null);
+            this.clearShopOwner(block);
+            this.saveData();
             if (!manager.registerMachine(block, difficulty)) {
                player.sendMessage("§cスロットマシンの初期化に失敗しました。");
                event.setCancelled(true);
@@ -1728,6 +1735,13 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
    boolean isShelfShop(Block block) {
       if (block == null) {
+         return false;
+      }
+
+      // Slot machines also use shelf blocks, but they are never shelf shops.
+      // This prevents slot shelves from receiving shelf-shop numbering,
+      // stock handling, action bars, or display synchronisation.
+      if (this.slotMachineManager != null && this.slotMachineManager.isMachine(block)) {
          return false;
       }
 
