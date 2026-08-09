@@ -20,6 +20,20 @@ jobs:
       - name: Apply world teleporter selector
         run: python3 .github/scripts/implement_world_teleporter_selector.py
 
+      - name: Normalize selector source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/main/java/org/server/minerva/ServerPortalFeature.java')
+          s = p.read_text(encoding='utf-8')
+          if 'import org.bukkit.Bukkit;' not in s:
+              s = s.replace('import org.bukkit.Axis;\n', 'import org.bukkit.Axis;\nimport org.bukkit.Bukkit;\n', 1)
+          duplicate = '   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)\n   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)\n'
+          while duplicate in s:
+              s = s.replace(duplicate, '   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)\n', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
       - name: Set up Java 25
         uses: actions/setup-java@v4
         with:
