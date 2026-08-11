@@ -6884,7 +6884,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       }
 
       if (args.length == 2 && this.isMinervaRootCommand(command) && "shelfshop".equalsIgnoreCase(args[0])) {
-         return List.of("reset");
+         return List.of("clearall", "clear", "reorder", "renumber", "resetstock", "reset");
       }
 
       if (args.length == 2 && this.isMinervaRootCommand(command) && "slotwand".equalsIgnoreCase(args[0])) {
