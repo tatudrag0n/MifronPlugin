@@ -1689,7 +1689,8 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       }
       int next = Math.max(0, this.shelfShopStock(material) + delta);
       this.data.set(this.shelfShopStockPath(material), next);
-      this.saveData();
+      // The surrounding purchase/sell transaction persists the complete data update.
+      // Avoiding a second synchronous YAML write keeps rapid shelf-shop selling responsive.
    }
 
    private void recordAcquiredItem(Player player, Material material) {
