@@ -1704,64 +1704,48 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       // No-op: catalog availability is independent of player acquisition history.
    }
 
+   private int clearAllShelfShopRegistrations() {
+      ConfigurationSection shops = this.data.getConfigurationSection("shelf-shops");
+      if (shops == null) {
+         this.data.set("shelf-shop-offers", null);
+         this.saveData();
+         return 0;
+      }
+
+      int registered = 0;
+      for (String worldId : new ArrayList<>(shops.getKeys(false))) {
+         ConfigurationSection worldShops = shops.getConfigurationSection(worldId);
+         if (worldShops == null) {
+            continue;
+         }
+
+         World world = this.worldFromId(worldId);
+         for (String coordinates : new ArrayList<>(worldShops.getKeys(false))) {
+            registered++;
+            Block block = world == null ? null : this.blockFromCoordinates(world, coordinates);
+            boolean slotMachine = block != null && this.slotMachineManager != null && this.slotMachineManager.isMachine(block);
+            if (block != null && !slotMachine) {
+               this.setShelfShop(block, false);
+            } else if (!slotMachine) {
+               this.data.set("shop-owners." + worldId + "." + coordinates, null);
+               this.data.set("shelf-shop-offers." + worldId + "." + coordinates, null);
+            }
+         }
+      }
+
+      this.data.set("shelf-shops", null);
+      this.data.set("shelf-shop-offers", null);
+      this.saveData();
+      return registered;
+   }
+
    private void handleShelfShopCommand(CommandSender sender, String[] args) {
       if (!sender.hasPermission("minerva.shop.admin") && !sender.hasPermission("minerva.admin")) {
          sender.sendMessage("§c権限がありません。");
-      } else if (args.length >= 2 && ("clearall".equalsIgnoreCase(args[1]) || "removeall".equalsIgnoreCase(args[1]) || "disableall".equalsIgnoreCase(args[1]))) {
-         ConfigurationSection shops = this.data.getConfigurationSection("shelf-shops");
-         List<Block> registeredShelves = new ArrayList<>();
-         int registered = 0;
-
-         if (shops != null) {
-            for (String worldId : new ArrayList<>(shops.getKeys(false))) {
-               ConfigurationSection worldShops = shops.getConfigurationSection(worldId);
-               if (worldShops == null) {
-                  continue;
-               }
-
-               World world = null;
-               try {
-                  world = Bukkit.getWorld(UUID.fromString(worldId));
-               } catch (IllegalArgumentException ignored) {
-               }
-
-               for (String coordinates : new ArrayList<>(worldShops.getKeys(false))) {
-                  boolean enabled = worldShops.getBoolean(coordinates, false) || worldShops.getBoolean(coordinates + ".enabled", false);
-                  if (!enabled) {
-                     continue;
-                  }
-
-                  registered++;
-                  if (world == null) {
-                     continue;
-                  }
-
-                  String[] parts = coordinates.split("_", 3);
-                  if (parts.length != 3) {
-                     continue;
-                  }
-
-                  try {
-                     int x = Integer.parseInt(parts[0]);
-                     int y = Integer.parseInt(parts[1]);
-                     int z = Integer.parseInt(parts[2]);
-                     registeredShelves.add(world.getBlockAt(x, y, z));
-                  } catch (NumberFormatException ignored) {
-                  }
-               }
-            }
-         }
-
-         for (Block shelf : registeredShelves) {
-            this.setShelfShop(shelf, false);
-         }
-
-         // Remove stale entries that could not be resolved to a currently loaded world.
-         this.data.set("shelf-shops", null);
-         this.data.set("shelf-shop-offers", null);
-         this.saveData();
-         sender.sendMessage("§a棚ショップを全解除しました: " + registered + "棚");
-         sender.sendMessage("§7棚ブロック自体とスロットマシン登録、共有在庫は維持されます。");
+      } else if (args.length >= 2 && ("clearall".equalsIgnoreCase(args[1]) || "removeall".equalsIgnoreCase(args[1]) || "disableall".equalsIgnoreCase(args[1]) || "clear".equalsIgnoreCase(args[1]))) {
+         int registered = this.clearAllShelfShopRegistrations();
+         sender.sendMessage("§a棚ショップを全解除しました: " + registered + "件");
+         sender.sendMessage("§7スロットマシンの登録と棚ブロック自体は維持されます。");
          if (sender instanceof Player player) {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.8F, 1.0F);
          }
