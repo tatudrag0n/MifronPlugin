@@ -1139,33 +1139,41 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    private boolean tryShopSell(Player player, Block block, ItemStack held) {
-      Minerva.ShelfShopOffer offer = this.readShelfShopOffer(player, block);
-      if (offer != null && held != null && held.getType() == offer.material()) {
-         int currentSellPrice = this.applyShopDiscount(player, offer.price());
-         int price = Math.max(0, Math.min(this.materialBuyPrice(offer.material()), currentSellPrice - 1));
-         if (price <= 0) {
-            this.showTemporaryActionBar(player, "このアイテムは買い取り対象外です。");
-            return true;
-         } else if (this.utilityItemsFeature.getMinervaItemId(held) == null && !this.isShopWand(held)) {
-            held.setAmount(held.getAmount() - 1);
-            this.changeShelfShopStock(offer.material(), 1);
-            this.depositEmeralds(player.getUniqueId(), price);
-            this.addPlayerStat(player.getUniqueId(), "total-trades", 1);
-            this.playPurchaseSound(player);
-            this.sendItemMessage(
-               player,
-               NamedTextColor.GREEN,
-               "買い取りました: ",
-               offer.material(),
-               " (" + this.formatNumber(price) + "MP / 在庫 " + this.formatNumber(this.shelfShopStock(offer.material())) + ")"
-            );
-            return true;
-         } else {
-            return true;
-         }
-      } else {
+      if (player == null || block == null || held == null || held.getAmount() <= 0) {
          return false;
       }
+
+      Minerva.ShelfShopOffer offer = this.readShelfShopOffer(player, block);
+      if (offer == null || offer.material() == null || held.getType() != offer.material()) {
+         return false;
+      }
+
+      Material material = offer.material();
+      int currentSellPrice = this.applyShopDiscount(player, offer.price());
+      int price = Math.max(0, Math.min(this.materialBuyPrice(material), currentSellPrice - 1));
+      if (price <= 0) {
+         this.showTemporaryActionBar(player, "このアイテムは買い取り対象外です。");
+         return true;
+      }
+
+      if (this.utilityItemsFeature.getMinervaItemId(held) != null || this.isShopWand(held)) {
+         return true;
+      }
+
+      held.setAmount(held.getAmount() - 1);
+      this.changeShelfShopStock(material, 1);
+      this.depositEmeralds(player.getUniqueId(), price, false);
+      this.addPlayerStat(player.getUniqueId(), "total-trades", 1, false);
+      this.saveData();
+      this.playPurchaseSound(player);
+      this.sendItemMessage(
+         player,
+         NamedTextColor.GREEN,
+         "買い取りました: ",
+         material,
+         " (" + this.formatNumber(price) + "MP / 在庫 " + this.formatNumber(this.shelfShopStock(material)) + ")"
+      );
+      return true;
    }
 
    private void handleShopWandClick(PlayerInteractEvent event) {
@@ -5748,12 +5756,18 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    void depositEmeralds(UUID uuid, int amount) {
+      this.depositEmeralds(uuid, amount, true);
+   }
+
+   private void depositEmeralds(UUID uuid, int amount, boolean persist) {
       if (amount > 0) {
          ConfigurationSection section = this.getPlayerSection(uuid);
          int added = Math.min(amount, 2000000000);
          section.set("emeralds", this.safeAdd(section.getInt("emeralds", 0), added));
          section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), added));
-         this.saveData();
+         if (persist) {
+            this.saveData();
+         }
       }
    }
 
@@ -5856,11 +5870,16 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    void addPlayerStat(UUID uuid, String key, int amount) {
+      this.addPlayerStat(uuid, key, amount, true);
+   }
+
+   private void addPlayerStat(UUID uuid, String key, int amount, boolean persist) {
       if (amount > 0) {
          ConfigurationSection section = this.getPlayerSection(uuid);
          section.set(key, this.safeAdd(section.getInt(key, 0), amount));
-         this.saveData();
-         this.questService.recordStat(uuid, key, amount);
+         if (persist) {
+            this.saveData();
+         }
       }
    }
 
