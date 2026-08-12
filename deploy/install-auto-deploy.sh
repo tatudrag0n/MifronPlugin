@@ -15,6 +15,17 @@ if [ ! -d "$REPO_DIR/.git" ]; then
   exit 1
 fi
 
+# The deploy service needs a Maven executable that is available non-interactively.
+# Prefer a project-local Maven/wrapper when present; otherwise install system Maven once.
+if [ ! -x "$REPO_DIR/mvnw" ] \
+   && [ ! -x "$REPO_DIR/apache-maven/bin/mvn" ] \
+   && [ ! -x "$DEPLOY_HOME/apache-maven/bin/mvn" ] \
+   && ! command -v mvn >/dev/null 2>&1; then
+  echo "Maven not found; installing system Maven..."
+  sudo apt-get update
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y maven
+fi
+
 sudo mkdir -p "$STATE_DIR"
 sudo chown "$DEPLOY_USER":"$DEPLOY_USER" "$STATE_DIR"
 
@@ -30,6 +41,30 @@ STATE_DIR='$STATE_DIR'
 
 run_user() {
   sudo -u "\$DEPLOY_USER" -H "\$@"
+}
+
+build_maven() {
+  if [ -x "\$REPO_DIR/mvnw" ]; then
+    run_user "\$REPO_DIR/mvnw" -B -DskipTests clean package
+    return
+  fi
+  if [ -x "\$REPO_DIR/apache-maven/bin/mvn" ]; then
+    run_user "\$REPO_DIR/apache-maven/bin/mvn" -B -DskipTests clean package
+    return
+  fi
+  if [ -x "\$DEPLOY_HOME/apache-maven/bin/mvn" ]; then
+    run_user "\$DEPLOY_HOME/apache-maven/bin/mvn" -B -DskipTests clean package
+    return
+  fi
+
+  MVN_BIN="\$(command -v mvn || true)"
+  if [ -n "\$MVN_BIN" ] && [ -x "\$MVN_BIN" ]; then
+    run_user "\$MVN_BIN" -B -DskipTests clean package
+    return
+  fi
+
+  echo "ERROR: Maven executable not found for deploy." >&2
+  exit 127
 }
 
 cd "\$REPO_DIR"
@@ -50,13 +85,7 @@ fi
 
 echo "Deploying MinervaPlugin: deployed=\${last_deployed:-none} -> remote=\$remote"
 run_user git reset --hard origin/main
-
-# Prefer Maven wrapper when present; otherwise use system Maven.
-if [ -x "\$REPO_DIR/mvnw" ]; then
-  run_user "\$REPO_DIR/mvnw" -B -DskipTests clean package
-else
-  run_user mvn -B -DskipTests clean package
-fi
+build_maven
 
 jar="\$(find "\$REPO_DIR/target" -maxdepth 1 -type f -name 'minervaplugin-*.jar' ! -name 'original-*' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
 test -n "\$jar"
