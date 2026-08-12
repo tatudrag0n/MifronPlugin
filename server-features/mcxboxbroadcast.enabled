@@ -1,0 +1,4 @@
+# Mifron feature flag
+# Keep this file to ensure MCXboxBroadcast is installed on the Geyser server.
+# The Xbox/Microsoft account used for the initial device-code login is joinMifron.
+enabled=true
