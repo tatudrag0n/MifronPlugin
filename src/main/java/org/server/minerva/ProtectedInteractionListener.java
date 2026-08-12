@@ -87,7 +87,7 @@ final class ProtectedInteractionListener implements Listener {
       }
    }
 
-   @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
+   @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
    public void onInteract(PlayerInteractEvent event) {
       Block block = event.getClickedBlock();
       if (block != null) {
