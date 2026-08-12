@@ -120,7 +120,7 @@ final class SlotMachineManager implements Listener {
       return block.getWorld().getUID() + ":" + block.getX() + ":" + block.getY() + ":" + block.getZ();
    }
 
-   @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
+   @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
    public void onPlayerInteract(PlayerInteractEvent event) {
       if (!event.getAction().isRightClick() || event.getClickedBlock() == null) {
          return;
