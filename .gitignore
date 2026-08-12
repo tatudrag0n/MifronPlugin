@@ -1,4 +1,3 @@
-```
 # Compiled and build artifacts
 *.class
 *.o
@@ -20,8 +19,43 @@ lib/
 .vscode/
 .idea/
 
-# Environment
+# Environment and credentials
 .env
 .env.local
 *.env.*
-```
+*.pem
+*.key
+*.p12
+*.jks
+*credentials*.json
+*service-account*.json
+
+# Runtime databases and player/server state
+*.db
+*.sqlite
+*.sqlite3
+*.mv.db
+server-config/logs/
+server-config/crash-reports/
+server-config/world/
+server-config/world_*/
+server-config/**/cache/
+server-config/**/sessions/
+server-config/**/tmp/
+server-config/**/auth.yml
+server-config/**/auth.yml.bak
+server-config/**/transactions.txt
+server-config/**/ffa-stats.yml
+server-config/**/minerva-data.yml
+server-config/**/data.yml
+server-config/**/proposals.yml
+server-config/ops.json
+server-config/whitelist.json
+server-config/banned-ips.json
+server-config/banned-players.json
+server-config/usercache.json
+
+# Sensitive plugin configs kept off GitHub
+server-config/plugins/DiscordSRV/
+server-config/plugins/MifronAuth/
+server-config/plugins/MifronMPBridge/
