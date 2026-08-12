@@ -364,8 +364,8 @@ final class ServerPortalFeature implements Listener {
       // Keep the arc shallow: outer options move slightly closer to the player instead of vertically away.
       int columns = Math.min(8, Math.max(1, destinations.size()));
       int rows = (destinations.size() + columns - 1) / columns;
-      double spacing = columns >= 7 ? 0.96 : 1.10;
-      Location center = eye.clone().add(forward.clone().multiply(3.15)).add(0.0, -0.16, 0.0);
+      double spacing = columns >= 7 ? 0.90 : 1.05;
+      Location center = eye.clone().add(forward.clone().multiply(3.05)).add(0.0, -0.28, 0.0);
       Location origin = eye.clone().add(forward.clone().multiply(1.05)).add(0.0, -0.38, 0.0);
       List<UUID> spawned = new ArrayList<>();
       List<TeleporterAnimatedEntity> animated = new ArrayList<>();
@@ -381,8 +381,10 @@ final class ServerPortalFeature implements Listener {
          // bend toward the player. Vertical placement stays almost flat for easy clicking.
          double maxHalfWidth = Math.max(spacing, (rowCount - 1) * spacing / 2.0);
          double normalized = Math.min(1.0, Math.abs(horizontal) / maxHalfWidth);
-         double depthTowardPlayer = 0.72 * normalized * normalized;
-         double vertical = (rows - 1) * 0.64 - row * 1.28;
+         double depthTowardPlayer = 1.10 * normalized * normalized;
+         // Raise the outer destinations slightly to make the curve visible and keep the
+         // middle destination aligned with the player's aim point.
+         double vertical = (rows - 1) * 0.64 - row * 1.28 + 0.38 * normalized * normalized;
          Location iconLocation = center.clone()
             .add(right.clone().multiply(horizontal))
             .add(forward.clone().multiply(-depthTowardPlayer))
@@ -396,7 +398,7 @@ final class ServerPortalFeature implements Listener {
          hitbox.getPersistentDataContainer().set(this.teleporterOptionKey, PersistentDataType.STRING, destination.key());
          hitbox.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
          spawned.add(hitbox.getUniqueId());
-         animated.add(new TeleporterAnimatedEntity(hitbox.getUniqueId(), origin.clone(), iconLocation.clone(), 0.92F, 1.12F, delay));
+         animated.add(new TeleporterAnimatedEntity(hitbox.getUniqueId(), origin.clone(), iconLocation.clone(), 1.18F, 1.38F, delay));
 
          ItemDisplay icon = (ItemDisplay)player.getWorld().spawnEntity(origin.clone().add(0.0, 0.18, 0.0), EntityType.ITEM_DISPLAY);
          icon.setItemStack(new ItemStack(this.teleporterIcon(destination)));
