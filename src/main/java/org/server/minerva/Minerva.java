@@ -302,6 +302,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    private final Map<UUID, String> temporaryActionBarMessages = new ConcurrentHashMap<>();
    private final Set<UUID> activeTutorials = ConcurrentHashMap.newKeySet();
    private final Map<UUID, Long> temporaryActionBarUntil = new ConcurrentHashMap<>();
+   private final Map<UUID, Long> shelfShopTransactionUntil = new ConcurrentHashMap<>();
    private final Map<UUID, Map<String, Minerva.KillRewardWindow>> mobRewardWindows = new ConcurrentHashMap<>();
    private final Map<UUID, Long> lastJumpPadUse = new ConcurrentHashMap<>();
    private final Map<UUID, Long> jumpPadFallProtectionUntil = new ConcurrentHashMap<>();
@@ -939,13 +940,22 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                && this.isShelf(event.getClickedBlock().getType())
                && this.isShelfShop(event.getClickedBlock())) {
                if (!this.slotMachineManager.isMachine(event.getClickedBlock())) {
+                  // Cancel the vanilla shelf interaction immediately so its use animation/inventory
+                  // handling cannot overlap the Minerva transaction. Bedrock clients can also emit
+                  // duplicate interact packets for one tap, so collapse only near-identical packets.
+                  event.setCancelled(true);
+                  long now = System.currentTimeMillis();
+                  long blockedUntil = this.shelfShopTransactionUntil.getOrDefault(player.getUniqueId(), 0L);
+                  if (now < blockedUntil) {
+                     return;
+                  }
+                  this.shelfShopTransactionUntil.put(player.getUniqueId(), now + 90L);
+
                   if (this.isMinervaItem(item, "emerald_bundle")) {
                      this.tryShopPayment(player, event.getClickedBlock());
                   } else {
                      this.tryShopSell(player, event.getClickedBlock(), item);
                   }
-
-                  event.setCancelled(true);
                }
             } else if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.isBarrelShop(event.getClickedBlock())) {
                if (event.getClickedBlock().getState() instanceof Barrel barrel) {
@@ -1128,13 +1138,14 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
          } else if (this.inventorySpaceFor(player, offer.material()) < offer.amount()) {
             this.showTemporaryActionBar(player, "インベントリに空きがありません。");
             return true;
-         } else if (!this.withdrawEmeralds(player.getUniqueId(), discountedPrice)) {
+         } else if (!this.withdrawEmeralds(player.getUniqueId(), discountedPrice, false)) {
             this.showTemporaryActionBar(player, "MPが不足しています：" + this.formatNumber(discountedPrice) + "MP");
             return true;
          } else {
             this.changeShelfShopStock(offer.material(), -offer.amount());
             this.giveShopPurchasedItems(player, offer.material(), offer.amount());
-            this.addPlayerStat(player.getUniqueId(), "total-trades", offer.amount());
+            this.addPlayerStat(player.getUniqueId(), "total-trades", offer.amount(), false);
+            this.queueDataSave();
             this.playPurchaseSound(player);
             this.sendItemMessage(
                player,
@@ -5784,6 +5795,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    boolean withdrawEmeralds(UUID uuid, int amount) {
+      return this.withdrawEmeralds(uuid, amount, true);
+   }
+
+   private boolean withdrawEmeralds(UUID uuid, int amount, boolean persist) {
       if (amount <= 0) {
          return false;
       }
@@ -5795,7 +5810,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       }
 
       section.set("emeralds", current - amount);
-      this.saveData();
+      if (persist) {
+            this.saveData();
+         }
       return true;
    }
 
