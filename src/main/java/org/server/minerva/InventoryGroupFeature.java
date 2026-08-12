@@ -155,13 +155,20 @@ public final class InventoryGroupFeature implements Listener {
       }
    }
 
-   private InventoryGroupFeature.Group groupOf(World var1) {
-      String var2 = var1 == null ? "" : var1.getName().toLowerCase(Locale.ROOT);
-      if ("survival".equals(var2)) {
+   private InventoryGroupFeature.Group groupOf(World world) {
+      String name = world == null ? "" : world.getName().toLowerCase(Locale.ROOT);
+
+      // survival, survival_nether and survival_the_end are one inventory domain.
+      // This also supports servers that use the common survival-nether / survival_the_end naming variants.
+      if (name.equals("survival")
+         || name.startsWith("survival_")
+         || name.startsWith("survival-")
+         || name.equals("survivalnether")
+         || name.equals("survivalend")) {
          return InventoryGroupFeature.Group.SURVIVAL;
-      } else {
-         return "ffa".equals(var2) ? InventoryGroupFeature.Group.FFA : InventoryGroupFeature.Group.NORMAL;
       }
+
+      return "ffa".equals(name) ? InventoryGroupFeature.Group.FFA : InventoryGroupFeature.Group.NORMAL;
    }
 
    private boolean hasSave(UUID var1, InventoryGroupFeature.Group var2) {
