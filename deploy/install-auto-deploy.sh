@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/tatudrag0n/MinervaPlugin.git}"
 INSTALL_ROOT="${INSTALL_ROOT:-/opt/mifron/minervaplugin}"
-PLUGINS_DIR="${PLUGINS_DIR:-$HOME/server/plugins}"
+PLUGINS_DIR="${PLUGINS_DIR:-$HOME/main-server/plugins}"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 INTERVAL="${INTERVAL:-60}"
 
@@ -30,7 +30,7 @@ mvn -B -DskipTests clean package
 jar="$(find target -maxdepth 1 -type f -name 'minervaplugin-*.jar' ! -name 'original-*' | head -n1)"
 test -n "$jar"
 mkdir -p "$PLUGINS_DIR"
-target="$PLUGINS_DIR/MinervaPlugin.jar"
+target="$PLUGINS_DIR/minervaplugin-26.1.2.jar"
 if [ -f "$target" ]; then cp -f "$target" "$target.bak"; fi
 install -m 0644 "$jar" "$target.new"
 mv -f "$target.new" "$target"
