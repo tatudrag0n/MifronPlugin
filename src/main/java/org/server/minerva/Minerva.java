@@ -306,6 +306,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    private final Map<UUID, Long> lastJumpPadUse = new ConcurrentHashMap<>();
    private final Map<UUID, Long> jumpPadFallProtectionUntil = new ConcurrentHashMap<>();
    private BukkitTask scheduledShutdownTask;
+   private BukkitTask pendingDataSaveTask;
    private final Object shutdownLock = new Object();
 
    public void onEnable() {
@@ -756,6 +757,17 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       }
    }
 
+   private void queueDataSave() {
+      if (this.pendingDataSaveTask != null && !this.pendingDataSaveTask.isCancelled()) {
+         return;
+      }
+
+      this.pendingDataSaveTask = Bukkit.getScheduler().runTaskLater(this, () -> {
+         this.pendingDataSaveTask = null;
+         this.saveData();
+      }, 1L);
+   }
+
    void saveData() {
       if (this.data != null && this.dataFile != null) {
          File parent = this.dataFile.getParentFile();
@@ -1164,7 +1176,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       this.changeShelfShopStock(material, 1);
       this.depositEmeralds(player.getUniqueId(), price, false);
       this.addPlayerStat(player.getUniqueId(), "total-trades", 1, false);
-      this.saveData();
+      this.queueDataSave();
       this.playPurchaseSound(player);
       this.sendItemMessage(
          player,
