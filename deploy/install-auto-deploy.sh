@@ -34,16 +34,21 @@ run_user() {
 
 cd "\$REPO_DIR"
 run_user git fetch origin main
-current="\$(run_user git rev-parse HEAD)"
 remote="\$(run_user git rev-parse origin/main)"
-
-# Also deploy if Git is current but the installed jar is absent.
 target="\$PLUGINS_DIR/minervaplugin-26.1.2.jar"
-if [ "\$current" = "\$remote" ] && [ -f "\$target" ]; then
+last_deployed=""
+if [ -f "\$STATE_DIR/last-deployed" ]; then
+  last_deployed="\$(tr -d '[:space:]' < "\$STATE_DIR/last-deployed")"
+fi
+
+# Deployment state is based on the commit actually installed into the server,
+# not the checkout's current HEAD. A manual git pull must never count as a deploy.
+if [ "\$last_deployed" = "\$remote" ] && [ -s "\$target" ]; then
+  echo "MinervaPlugin already deployed: \$remote"
   exit 0
 fi
 
-echo "Deploying MinervaPlugin: \$current -> \$remote"
+echo "Deploying MinervaPlugin: deployed=\${last_deployed:-none} -> remote=\$remote"
 run_user git reset --hard origin/main
 
 # Prefer Maven wrapper when present; otherwise use system Maven.
@@ -72,12 +77,13 @@ shopt -u nullglob
 install -m 0644 "\$jar" "\$target.new"
 mv -f "\$target.new" "\$target"
 
-# Root-owned service can restart Minecraft without nested sudo/password prompts.
 systemctl restart "\$SERVICE_NAME"
 sleep 3
 systemctl is-active --quiet "\$SERVICE_NAME"
 
-echo "\$remote" > "\$STATE_DIR/last-deployed"
+# Only mark the commit deployed after build, install, and restart all succeeded.
+printf '%s\n' "\$remote" > "\$STATE_DIR/last-deployed"
+printf '%s  %s\n' "\$(sha256sum "\$target" | awk '{print \$1}')" "\$target" > "\$STATE_DIR/last-deployed-jar.sha256"
 echo "MinervaPlugin deployment complete: \$remote"
 EOF
 sudo chmod 0755 /usr/local/sbin/minervaplugin-deploy
