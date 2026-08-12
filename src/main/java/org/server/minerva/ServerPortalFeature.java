@@ -382,9 +382,10 @@ final class ServerPortalFeature implements Listener {
          double maxHalfWidth = Math.max(spacing, (rowCount - 1) * spacing / 2.0);
          double normalized = Math.min(1.0, Math.abs(horizontal) / maxHalfWidth);
          double depthTowardPlayer = 1.10 * normalized * normalized;
-         // Raise the outer destinations slightly to make the curve visible and keep the
-         // middle destination aligned with the player's aim point.
-         double vertical = (rows - 1) * 0.64 - row * 1.28 + 0.38 * normalized * normalized;
+         // Keep every option in a row at exactly the same Y level.
+         // Curvature is depth-only, so the selector bends horizontally around the player
+         // without creating an unwanted vertical parabola.
+         double vertical = (rows - 1) * 0.64 - row * 1.28;
          Location iconLocation = center.clone()
             .add(right.clone().multiply(horizontal))
             .add(forward.clone().multiply(-depthTowardPlayer))
