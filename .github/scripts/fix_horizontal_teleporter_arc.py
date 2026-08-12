@@ -3,13 +3,20 @@ from pathlib import Path
 p = Path('src/main/java/org/server/minerva/ServerPortalFeature.java')
 s = p.read_text(encoding='utf-8')
 
-old = '''      // Keep many destinations visible at once. Up to eight destinations fit on one row;\n      // additional destinations wrap into a second/third row instead of wrapping every five.\n      int columns = Math.min(8, Math.max(1, destinations.size()));\n      int rows = (destinations.size() + columns - 1) / columns;\n      double spacing = columns >= 7 ? 1.02 : 1.16;\n      Location center = eye.clone().add(forward.clone().multiply(3.25)).add(0.0, -0.30, 0.0);\n      Location origin = eye.clone().add(forward.clone().multiply(1.05)).add(0.0, -0.55, 0.0);\n      List<UUID> spawned = new ArrayList<>();\n      List<TeleporterAnimatedEntity> animated = new ArrayList<>();\n\n      for (int i = 0; i < destinations.size(); i++) {\n         TeleportDestination destination = destinations.get(i);\n         int row = i / columns;\n         int col = i % columns;\n         int rowCount = Math.min(columns, destinations.size() - row * columns);\n         double horizontal = (col - (rowCount - 1) / 2.0) * spacing;\n         // A subtle curved row makes the selector feel less like a chest-grid floating in space.\n         double curve = -0.055 * horizontal * horizontal;\n         double vertical = (rows - 1) * 0.72 - row * 1.42 + curve;\n         Location iconLocation = center.clone().add(right.clone().multiply(horizontal)).add(0.0, vertical, 0.0);\n         int delay = Math.min(6, col);'''
+old = '''         // Raise the outer destinations slightly to make the curve visible and keep the
+         // middle destination aligned with the player's aim point.
+         double vertical = (rows - 1) * 0.64 - row * 1.28 + 0.38 * normalized * normalized;
+'''
 
-new = '''      // Arrange destinations as a HORIZONTAL arc around the player's view.\n      // The old vertical parabola pushed the outer options down and made them hard to aim at.\n      // Keep the arc shallow: outer options move slightly closer to the player instead of vertically away.\n      int columns = Math.min(8, Math.max(1, destinations.size()));\n      int rows = (destinations.size() + columns - 1) / columns;\n      double spacing = columns >= 7 ? 0.96 : 1.10;\n      Location center = eye.clone().add(forward.clone().multiply(3.15)).add(0.0, -0.16, 0.0);\n      Location origin = eye.clone().add(forward.clone().multiply(1.05)).add(0.0, -0.38, 0.0);\n      List<UUID> spawned = new ArrayList<>();\n      List<TeleporterAnimatedEntity> animated = new ArrayList<>();\n\n      for (int i = 0; i < destinations.size(); i++) {\n         TeleportDestination destination = destinations.get(i);\n         int row = i / columns;\n         int col = i % columns;\n         int rowCount = Math.min(columns, destinations.size() - row * columns);\n         double horizontal = (col - (rowCount - 1) / 2.0) * spacing;\n\n         // Horizontal semicircle/fan: the center sits furthest forward and the left/right edges\n         // bend toward the player. Vertical placement stays almost flat for easy clicking.\n         double maxHalfWidth = Math.max(spacing, (rowCount - 1) * spacing / 2.0);\n         double normalized = Math.min(1.0, Math.abs(horizontal) / maxHalfWidth);\n         double depthTowardPlayer = 0.72 * normalized * normalized;\n         double vertical = (rows - 1) * 0.64 - row * 1.28;\n         Location iconLocation = center.clone()\n            .add(right.clone().multiply(horizontal))\n            .add(forward.clone().multiply(-depthTowardPlayer))\n            .add(0.0, vertical, 0.0);\n         int delay = Math.min(6, Math.min(col, rowCount - 1 - col));'''
+new = '''         // Keep every option in a row at exactly the same Y level.
+         // Curvature is depth-only, so the selector bends horizontally around the player
+         // without creating an unwanted vertical parabola.
+         double vertical = (rows - 1) * 0.64 - row * 1.28;
+'''
 
 if old not in s:
-    raise SystemExit('target teleporter layout block not found')
+    raise SystemExit('current Y-axis teleporter curvature block not found')
 
 s = s.replace(old, new, 1)
 p.write_text(s, encoding='utf-8')
-print('converted teleporter layout to a horizontal arc')
+print('removed Y-axis curvature from teleporter selector')
