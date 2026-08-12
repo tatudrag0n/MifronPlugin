@@ -5,6 +5,7 @@ SERVER_DIR="${SERVER_DIR:-$HOME/main-server}"
 REPO_DIR="${REPO_DIR:-$HOME/MinervaPlugin}"
 SOURCE="$REPO_DIR/server-config"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
+FEATURE_DIR="$REPO_DIR/server-features"
 
 if [ ! -d "$SERVER_DIR" ]; then
   echo "ERROR: server directory not found: $SERVER_DIR"
@@ -25,6 +26,13 @@ if [ "$OLD_HEAD" = "$NEW_HEAD" ]; then
 fi
 
 git reset --hard origin/main
+
+# Feature management: Switch/Xbox friend-join broadcasting.
+if [ -f "$FEATURE_DIR/mcxboxbroadcast.enabled" ]; then
+  echo "FEATURE MCXboxBroadcast enabled"
+  PLUGINS_DIR="$SERVER_DIR/plugins" SERVICE_NAME="$SERVICE_NAME" \
+    bash "$REPO_DIR/deploy/install-mcxboxbroadcast.sh"
+fi
 
 if [ ! -d "$SOURCE" ]; then
   echo "No server-config directory in repository."
