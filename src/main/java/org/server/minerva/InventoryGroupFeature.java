@@ -81,10 +81,11 @@ public final class InventoryGroupFeature implements Listener {
          if (var1.isOnline()) {
             InventoryGroupFeature.Group var2 = this.groupOf(var1.getWorld());
             if (var2 != InventoryGroupFeature.Group.FFA) {
+               // Joining is not a group transition. If we have a Minerva snapshot, restore it;
+               // otherwise preserve Bukkit's already-restored inventory. Clearing here can destroy
+               // a legitimate survival inventory when a player reconnects inside the Nether/End.
                if (this.hasSave(var1.getUniqueId(), var2)) {
                   this.load(var1, var2);
-               } else if (var2 == InventoryGroupFeature.Group.SURVIVAL) {
-                  this.clearPlayerState(var1);
                }
 
                this.ensureInitialItems(var1, var2);
@@ -101,6 +102,7 @@ public final class InventoryGroupFeature implements Listener {
          InventoryGroupFeature.Group var4 = this.groupOf(var2.getWorld());
 
          try {
+            // Moving between survival's overworld, Nether and End must never touch inventory.
             if (var3 == var4) {
                return;
             }
@@ -120,6 +122,8 @@ public final class InventoryGroupFeature implements Listener {
                      if (this.hasSave(var2.getUniqueId(), var4)) {
                         this.load(var2, var4);
                      } else {
+                        // This is a real cross-group transition (for example hub -> survival),
+                        // so an empty target inventory is intentional when no snapshot exists.
                         this.clearPlayerState(var2);
                      }
 
@@ -156,19 +160,30 @@ public final class InventoryGroupFeature implements Listener {
    }
 
    private InventoryGroupFeature.Group groupOf(World world) {
-      String name = world == null ? "" : world.getName().toLowerCase(Locale.ROOT);
+      if (world == null) {
+         return InventoryGroupFeature.Group.NORMAL;
+      }
 
-      // survival, survival_nether and survival_the_end are one inventory domain.
-      // This also supports servers that use the common survival-nether / survival_the_end naming variants.
+      String name = world.getName().toLowerCase(Locale.ROOT);
+      if ("ffa".equals(name)) {
+         return InventoryGroupFeature.Group.FFA;
+      }
+
+      // Prefer explicit survival names, but do not depend on Multiverse/Paper's exact
+      // dimension naming convention. A survival Nether may be named survival_nether,
+      // world_nether, or something else entirely. In this server, Nether and End are
+      // survival dimensions and therefore share the same inventory domain.
       if (name.equals("survival")
          || name.startsWith("survival_")
          || name.startsWith("survival-")
          || name.equals("survivalnether")
-         || name.equals("survivalend")) {
+         || name.equals("survivalend")
+         || world.getEnvironment() == World.Environment.NETHER
+         || world.getEnvironment() == World.Environment.THE_END) {
          return InventoryGroupFeature.Group.SURVIVAL;
       }
 
-      return "ffa".equals(name) ? InventoryGroupFeature.Group.FFA : InventoryGroupFeature.Group.NORMAL;
+      return InventoryGroupFeature.Group.NORMAL;
    }
 
    private boolean hasSave(UUID var1, InventoryGroupFeature.Group var2) {
