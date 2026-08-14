@@ -8,26 +8,36 @@ PLUGINS_DIR="${PLUGINS_DIR:-$DEPLOY_HOME/main-server/plugins}"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 INTERVAL="${INTERVAL:-60}"
 STATE_DIR="${STATE_DIR:-/var/lib/minervaplugin-deploy}"
+ENV_FILE="${ENV_FILE:-/etc/minervaplugin-deploy.env}"
 
 if [ ! -d "$REPO_DIR/.git" ]; then
   echo "ERROR: Git checkout not found: $REPO_DIR" >&2
-  echo "Clone MinervaPlugin first as $DEPLOY_USER, then rerun this installer." >&2
   exit 1
 fi
 
-# The deploy service needs a Maven executable that is available non-interactively.
-# Prefer a project-local Maven/wrapper when present; otherwise install system Maven once.
 if [ ! -x "$REPO_DIR/mvnw" ] \
    && [ ! -x "$REPO_DIR/apache-maven/bin/mvn" ] \
    && [ ! -x "$DEPLOY_HOME/apache-maven/bin/mvn" ] \
    && ! command -v mvn >/dev/null 2>&1; then
-  echo "Maven not found; installing system Maven..."
   sudo apt-get update
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y maven
 fi
 
 sudo mkdir -p "$STATE_DIR"
 sudo chown "$DEPLOY_USER":"$DEPLOY_USER" "$STATE_DIR"
+
+if [ ! -f "$ENV_FILE" ]; then
+  sudo tee "$ENV_FILE" >/dev/null <<'EOF'
+# Optional. Keep secrets on the VM only.
+# DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+HEALTH_TIMEOUT=120
+MINECRAFT_HOST=127.0.0.1
+MINECRAFT_PORT=25565
+# Optional stronger check. Example:
+# EXTRA_HEALTHCHECK_CMD='curl -fsS http://127.0.0.1:8123/health >/dev/null'
+EOF
+  sudo chmod 600 "$ENV_FILE"
+fi
 
 sudo tee /usr/local/sbin/minervaplugin-deploy >/dev/null <<EOF
 #!/usr/bin/env bash
@@ -38,52 +48,112 @@ REPO_DIR='$REPO_DIR'
 PLUGINS_DIR='$PLUGINS_DIR'
 SERVICE_NAME='$SERVICE_NAME'
 STATE_DIR='$STATE_DIR'
+ENV_FILE='$ENV_FILE'
+
+[ -f "\$ENV_FILE" ] && . "\$ENV_FILE"
+HEALTH_TIMEOUT="\${HEALTH_TIMEOUT:-120}"
+MINECRAFT_HOST="\${MINECRAFT_HOST:-127.0.0.1}"
+MINECRAFT_PORT="\${MINECRAFT_PORT:-25565}"
+DISCORD_WEBHOOK_URL="\${DISCORD_WEBHOOK_URL:-}"
+EXTRA_HEALTHCHECK_CMD="\${EXTRA_HEALTHCHECK_CMD:-}"
+
+deploy_remote="unknown"
+installed_new=0
+rollback_file=""
 
 run_user() {
   sudo -u "\$DEPLOY_USER" -H "\$@"
 }
 
+notify() {
+  local status="\$1" message="\$2"
+  echo "[\$status] \$message"
+  [ -z "\$DISCORD_WEBHOOK_URL" ] && return 0
+  local payload
+  payload="\$(python3 - "\$status" "\$message" <<'PY'
+import json, sys
+print(json.dumps({"content": f"[MinervaPlugin deploy][{sys.argv[1]}] {sys.argv[2]}"}, ensure_ascii=False))
+PY
+)"
+  curl -fsS --max-time 10 -H 'Content-Type: application/json' -d "\$payload" "\$DISCORD_WEBHOOK_URL" >/dev/null || true
+}
+
 build_maven() {
   if [ -x "\$REPO_DIR/mvnw" ]; then
     run_user "\$REPO_DIR/mvnw" -B -DskipTests clean package
-    return
-  fi
-  if [ -x "\$REPO_DIR/apache-maven/bin/mvn" ]; then
+  elif [ -x "\$REPO_DIR/apache-maven/bin/mvn" ]; then
     run_user "\$REPO_DIR/apache-maven/bin/mvn" -B -DskipTests clean package
-    return
-  fi
-  if [ -x "\$DEPLOY_HOME/apache-maven/bin/mvn" ]; then
+  elif [ -x "\$DEPLOY_HOME/apache-maven/bin/mvn" ]; then
     run_user "\$DEPLOY_HOME/apache-maven/bin/mvn" -B -DskipTests clean package
-    return
+  else
+    local mvn_bin
+    mvn_bin="\$(command -v mvn || true)"
+    [ -n "\$mvn_bin" ] || return 127
+    run_user "\$mvn_bin" -B -DskipTests clean package
   fi
-
-  MVN_BIN="\$(command -v mvn || true)"
-  if [ -n "\$MVN_BIN" ] && [ -x "\$MVN_BIN" ]; then
-    run_user "\$MVN_BIN" -B -DskipTests clean package
-    return
-  fi
-
-  echo "ERROR: Maven executable not found for deploy." >&2
-  exit 127
 }
+
+port_open() {
+  timeout 2 bash -c "</dev/tcp/\$MINECRAFT_HOST/\$MINECRAFT_PORT" >/dev/null 2>&1
+}
+
+health_check() {
+  local started="\$(date +%s)"
+  while true; do
+    if systemctl is-active --quiet "\$SERVICE_NAME" && port_open; then
+      if [ -n "\$EXTRA_HEALTHCHECK_CMD" ]; then
+        if bash -lc "\$EXTRA_HEALTHCHECK_CMD"; then
+          return 0
+        fi
+      else
+        return 0
+      fi
+    fi
+    if [ "\$(( \$(date +%s) - started ))" -ge "\$HEALTH_TIMEOUT" ]; then
+      return 1
+    fi
+    sleep 2
+  done
+}
+
+rollback() {
+  [ "\$installed_new" -eq 1 ] || return 1
+  [ -n "\$rollback_file" ] && [ -s "\$rollback_file" ] || return 1
+  notify ROLLBACK "Health check failed for \$deploy_remote; restoring previous JAR"
+  cp -f "\$rollback_file" "\$target.new"
+  mv -f "\$target.new" "\$target"
+  systemctl restart "\$SERVICE_NAME"
+  if health_check; then
+    notify ROLLBACK_OK "Previous MinervaPlugin restored successfully"
+    return 0
+  fi
+  notify CRITICAL "Rollback completed but Minecraft health check still failed"
+  return 1
+}
+
+on_error() {
+  local code="\$?"
+  if [ "\$installed_new" -eq 1 ]; then
+    rollback || true
+  fi
+  notify FAILED "Deployment failed for \$deploy_remote (exit=\$code)"
+  exit "\$code"
+}
+trap on_error ERR
 
 cd "\$REPO_DIR"
 run_user git fetch origin main
-remote="\$(run_user git rev-parse origin/main)"
+deploy_remote="\$(run_user git rev-parse origin/main)"
 target="\$PLUGINS_DIR/minervaplugin-26.1.2.jar"
 last_deployed=""
-if [ -f "\$STATE_DIR/last-deployed" ]; then
-  last_deployed="\$(tr -d '[:space:]' < "\$STATE_DIR/last-deployed")"
-fi
+[ -f "\$STATE_DIR/last-deployed" ] && last_deployed="\$(tr -d '[:space:]' < "\$STATE_DIR/last-deployed")"
 
-# Deployment state is based on the commit actually installed into the server,
-# not the checkout's current HEAD. A manual git pull must never count as a deploy.
-if [ "\$last_deployed" = "\$remote" ] && [ -s "\$target" ]; then
-  echo "MinervaPlugin already deployed: \$remote"
+if [ "\$last_deployed" = "\$deploy_remote" ] && [ -s "\$target" ]; then
+  echo "MinervaPlugin already deployed: \$deploy_remote"
   exit 0
 fi
 
-echo "Deploying MinervaPlugin: deployed=\${last_deployed:-none} -> remote=\$remote"
+notify START "Deploying \${last_deployed:-none} -> \$deploy_remote"
 run_user git reset --hard origin/main
 build_maven
 
@@ -91,35 +161,41 @@ jar="\$(find "\$REPO_DIR/target" -maxdepth 1 -type f -name 'minervaplugin-*.jar'
 test -n "\$jar"
 test -s "\$jar"
 
-mkdir -p "\$PLUGINS_DIR"
-backup_dir="\$STATE_DIR/backups"
-mkdir -p "\$backup_dir"
+mkdir -p "\$PLUGINS_DIR" "\$STATE_DIR/backups"
+timestamp="\$(date +%Y%m%d-%H%M%S)"
+if [ -s "\$target" ]; then
+  rollback_file="\$STATE_DIR/backups/minervaplugin-previous-\$timestamp.jar"
+  cp -f "\$target" "\$rollback_file"
+fi
 
-# Back up currently installed Minerva jars, then remove stale duplicates.
 shopt -s nullglob
 for old in "\$PLUGINS_DIR"/minervaplugin-*.jar "\$PLUGINS_DIR"/MinervaPlugin-*.jar; do
-  cp -f "\$old" "\$backup_dir/\$(basename "\$old").\$(date +%Y%m%d-%H%M%S).bak"
+  [ "\$old" = "\$target" ] && continue
+  cp -f "\$old" "\$STATE_DIR/backups/\$(basename "\$old").\$timestamp.bak"
   rm -f "\$old"
 done
 shopt -u nullglob
 
 install -m 0644 "\$jar" "\$target.new"
 mv -f "\$target.new" "\$target"
-
+installed_new=1
 systemctl restart "\$SERVICE_NAME"
-sleep 3
-systemctl is-active --quiet "\$SERVICE_NAME"
+health_check
 
-# Only mark the commit deployed after build, install, and restart all succeeded.
-printf '%s\n' "\$remote" > "\$STATE_DIR/last-deployed"
+printf '%s\n' "\$deploy_remote" > "\$STATE_DIR/last-deployed"
 printf '%s  %s\n' "\$(sha256sum "\$target" | awk '{print \$1}')" "\$target" > "\$STATE_DIR/last-deployed-jar.sha256"
-echo "MinervaPlugin deployment complete: \$remote"
+
+# Keep the five newest rollback files.
+find "\$STATE_DIR/backups" -maxdepth 1 -type f -printf '%T@ %p\n' | sort -nr | tail -n +6 | cut -d' ' -f2- | xargs -r rm -f
+installed_new=0
+trap - ERR
+notify SUCCESS "MinervaPlugin deployed: \$deploy_remote"
 EOF
 sudo chmod 0755 /usr/local/sbin/minervaplugin-deploy
 
 sudo tee /etc/systemd/system/minervaplugin-deploy.service >/dev/null <<EOF
 [Unit]
-Description=Deploy latest MinervaPlugin from GitHub
+Description=Deploy latest MinervaPlugin from GitHub with rollback
 After=network-online.target
 Wants=network-online.target
 
@@ -127,6 +203,7 @@ Wants=network-online.target
 Type=oneshot
 User=root
 ExecStart=/usr/local/sbin/minervaplugin-deploy
+TimeoutStartSec=15min
 EOF
 
 sudo tee /etc/systemd/system/minervaplugin-deploy.timer >/dev/null <<EOF
@@ -147,7 +224,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now minervaplugin-deploy.timer
 sudo systemctl start minervaplugin-deploy.service
 
-echo "Installed MinervaPlugin auto deploy."
-echo "Timer:  systemctl status minervaplugin-deploy.timer --no-pager"
-echo "Deploy: systemctl status minervaplugin-deploy.service --no-pager"
-echo "Logs:   journalctl -u minervaplugin-deploy.service -n 100 --no-pager"
+echo "Installed safe MinervaPlugin auto deploy."
+echo "Optional notifications: edit $ENV_FILE and set DISCORD_WEBHOOK_URL."
+echo "Timer: systemctl status minervaplugin-deploy.timer --no-pager"
+echo "Logs:  journalctl -u minervaplugin-deploy.service -n 100 --no-pager"
