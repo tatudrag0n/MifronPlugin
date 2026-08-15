@@ -841,7 +841,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             List<String> steps = List.of(
                "§6Minervaへようこそ。まずは初期アイテムとウォレット（バンドル）を確認しましょう。",
                "§eウォレット§7: 左クリックでMP残高を確認できます。棚ショップやスロットでは、ウォレットを持って右クリックして使います。",
-               "§eMPの貯め方§7: 通常のエメラルドを拾うと、MPとして自動的に収納されます。ウォレットは残高確認やショップ・スロット操作に使います。",
+               "§eMPの貯め方§7: 通常のエメラルドはアイテムとして拾います。MPは報酬・クエスト・取引など各機能の案内を確認してください。",
                "§6ショップ・商人§7: 棚ショップではウォレットで購入、売りたいアイテムを持ってクリックすると売却できます。Minerva商人を右クリックすると、MPで購入・アイテムを売却できます。",
                "§dテレポーター§7: 対応するエンドポータルフレームを使うと、各ワールドへ移動できます。§6ステータス§7は右クリックで確認できます。",
                "§a保護§7: 拠点を守る場合は /mva protect でチャンク保護ビーコンを受け取り、設置してください。死亡時はFFA以外で所持MPの50%を失います。",
@@ -1022,12 +1022,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       if (event.getEntity() instanceof Player player) {
          ItemStack var4 = event.getItem().getItemStack();
          this.recordAcquiredItem(player, var4.getType());
-         if (var4.getType() == Material.EMERALD && this.hasMinervaItem(player, "emerald_bundle")) {
-            this.depositEmeralds(player.getUniqueId(), var4.getAmount());
-            event.getItem().remove();
-            event.setCancelled(true);
-            player.sendMessage("§aエメラルドを収納しました: +" + this.formatNumber(var4.getAmount()) + "MP");
-         }
+         // 通常のエメラルドはアイテムとして拾う。MPへの自動変換は行わない。
       }
    }
 
