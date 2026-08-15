@@ -3297,7 +3297,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       inventory.setItem(0, this.named(page == 0 ? Material.GREEN_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE,
          page == 0 ? "§a購入" : "§c売却",
          List.of("§7" + (page == 0 ? "商品をクリックして購入" : "アイテムをクリックして売却"))));
-      for (int i = 0; i < Math.min(7, offers.size()); i++) {
+      for (int i = 0; i < Math.min(6, offers.size()); i++) {
          inventory.setItem(i + 1, this.createMerchantOfferIcon(villager, offers.get(i), action));
       }
       inventory.setItem(7, this.createMerchantNavigationIcon(Material.ARROW, "§e購入一覧", "merchant_sell", villager.getUniqueId()));
