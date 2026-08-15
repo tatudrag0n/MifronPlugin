@@ -4839,7 +4839,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    void openTeleportUi(Player player) {
-      Inventory inventory = Bukkit.createInventory(player, 9, Component.text("§5Minerva Teleporter"));
+      Inventory inventory = Bukkit.createInventory(player, org.bukkit.event.inventory.InventoryType.DROPPER, Component.text("§5Minerva Teleporter"));
       inventory.setItem(0, this.actionItem(Material.GRASS_BLOCK, "§a中央広場", List.of("§7初期スポーンへ移動"), "teleport", "hub"));
       ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
       if (servers != null) {
@@ -4865,7 +4865,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    void openServerPortalTargetUi(Player player, String portalKey) {
-      Inventory inventory = Bukkit.createInventory(player, 9, Component.text("§5Minerva Teleporter"));
+      Inventory inventory = Bukkit.createInventory(player, org.bukkit.event.inventory.InventoryType.DROPPER, Component.text("§5Minerva Teleporter"));
       inventory.setItem(0, this.named(Material.ENDER_EYE, "§dポータル移動先設定", List.of("§7このポータルに触れた時の移動先を選択")));
       ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
       if (servers != null) {
