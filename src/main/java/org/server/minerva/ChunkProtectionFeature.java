@@ -86,11 +86,11 @@ final class ChunkProtectionFeature implements Listener {
             return;
          }
 
-         int maxClaims = Math.max(1, this.plugin.getConfig().getInt("protection.max-owned-chunks", 9));
          int ownedClaims = this.activeClaimCount(player.getUniqueId());
-         if (ownedClaims >= maxClaims) {
+         if (ownedClaims > 0 && this.plugin.getConfig().getBoolean("protection.require-adjacent-claim", true)
+            && !this.hasAdjacentOwnedClaim(player.getUniqueId(), chunk)) {
             event.setCancelled(true);
-            player.sendMessage(ChatColor.RED + "保護できるチャンク数の上限に達しています: " + maxClaims + "チャンク");
+            player.sendMessage(ChatColor.YELLOW + "新しい保護は、既存の自分の保護チャンクに隣接している必要があります。");
             return;
          }
 
@@ -99,7 +99,7 @@ final class ChunkProtectionFeature implements Listener {
          this.claimChunk(player, chunk);
          this.plugin.addPlayerStat(player.getUniqueId(), "total-blocks-placed", 1);
          this.plugin.recordQuestProgress(player, "protected_chunks", 1);
-         player.sendMessage(ChatColor.GREEN + "このチャンクを保護しました。 (" + (ownedClaims + 1) + "/" + maxClaims + ")");
+         player.sendMessage(ChatColor.GREEN + "このチャンクを保護しました。");
       } else {
          if (this.isWarningPlacement(event.getBlockPlaced().getType()) && !this.isChunkRegenerationSafe(event.getBlockPlaced().getChunk())) {
             this.sendChunkWarning(event.getPlayer(), event.getBlockPlaced().getChunk());
@@ -260,6 +260,16 @@ final class ChunkProtectionFeature implements Listener {
    private boolean isMarkedChunkProtectionBeacon(BlockState state) {
       return state instanceof TileState tileState
          && Boolean.TRUE.equals(tileState.getPersistentDataContainer().get(this.protectionBeaconKey, PersistentDataType.BOOLEAN));
+   }
+
+   private boolean hasAdjacentOwnedClaim(UUID owner, Chunk chunk) {
+      for (int[] offset : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+         Chunk adjacent = chunk.getWorld().getChunkAt(chunk.getX() + offset[0], chunk.getZ() + offset[1]);
+         if (owner.toString().equals(this.getActiveChunkOwner(adjacent))) {
+            return true;
+         }
+      }
+      return false;
    }
 
    private int activeClaimCount(UUID owner) {
