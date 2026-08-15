@@ -45,7 +45,7 @@ final class UtilityItemsFeature implements Listener {
          player,
          "emerald_bundle",
          this.createMinervaItem(
-            Material.BUNDLE, "emerald_bundle", ChatColor.GREEN + "ウォレット", List.of(ChatColor.GRAY + "左クリック: MP残高確認", ChatColor.GRAY + "棚ショップ・スロットに右クリック: 使用")
+            Material.BUNDLE, "emerald_bundle", ChatColor.GREEN + "ウォレット", List.of(ChatColor.GRAY + "左クリック: MP残高確認", ChatColor.GRAY + "棚ショップ・スロットに右クリック: 使用", ChatColor.GRAY + "アイテム収納不可")
          )
       );
       this.updateOrGiveMinervaItem(player, "friend_book", this.createStatusBook());
