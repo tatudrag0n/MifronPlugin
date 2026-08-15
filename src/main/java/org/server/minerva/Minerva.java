@@ -299,6 +299,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    private final Set<UUID> merchantTransactions = ConcurrentHashMap.newKeySet();
    private final Map<UUID, Long> lastMerchantTransaction = new ConcurrentHashMap<>();
    private final Map<UUID, UUID> activeMerchantViews = new ConcurrentHashMap<>();
+   private final Map<UUID, Integer> activeMerchantPages = new ConcurrentHashMap<>();
    private final Map<UUID, String> temporaryActionBarMessages = new ConcurrentHashMap<>();
    private final Set<UUID> activeTutorials = ConcurrentHashMap.newKeySet();
    private final Map<UUID, Long> temporaryActionBarUntil = new ConcurrentHashMap<>();
@@ -3276,7 +3277,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
    private void openMerchantUi(Player player, AbstractVillager villager) {
       this.activeMerchantViews.put(player.getUniqueId(), villager.getUniqueId());
-      Inventory inventory = Bukkit.createInventory(player, 18, Component.text("§6Minerva Merchant"));
+      this.renderMerchantUi(player, villager);
+   }
+
+   private void renderMerchantUi(Player player, AbstractVillager villager) {
       List<Minerva.MerchantOffer> sellOffers = this.readMerchantOffers(villager.getUniqueId(), "sell");
       List<Minerva.MerchantOffer> buyOffers = this.readMerchantOffers(villager.getUniqueId(), "buy");
       if (sellOffers.isEmpty() || buyOffers.isEmpty()) {
@@ -3285,18 +3289,20 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
          buyOffers = this.readMerchantOffers(villager.getUniqueId(), "buy");
       }
 
-      inventory.setItem(0, this.named(Material.GREEN_STAINED_GLASS_PANE, "§a購入", List.of("§7右側の商品をクリックで購入")));
-      inventory.setItem(9, this.named(Material.RED_STAINED_GLASS_PANE, "§c売却", List.of("§7右側の商品をクリックで売却")));
-
-      for (int i = 0; i < Math.min(8, sellOffers.size()); i++) {
-         inventory.setItem(i + 1, this.createMerchantOfferIcon(villager, sellOffers.get(i), "sell"));
+      int page = Math.max(0, Math.min(1, this.activeMerchantPages.getOrDefault(player.getUniqueId(), 0)));
+      this.activeMerchantPages.put(player.getUniqueId(), page);
+      Inventory inventory = Bukkit.createInventory(player, org.bukkit.event.inventory.InventoryType.DROPPER, Component.text(MERCHANT_UI_TITLE));
+      List<Minerva.MerchantOffer> offers = page == 0 ? sellOffers : buyOffers;
+      String action = page == 0 ? "sell" : "buy";
+      inventory.setItem(0, this.named(page == 0 ? Material.GREEN_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE,
+         page == 0 ? "§a購入" : "§c売却",
+         List.of("§7" + (page == 0 ? "商品をクリックして購入" : "アイテムをクリックして売却"))));
+      for (int i = 0; i < Math.min(7, offers.size()); i++) {
+         inventory.setItem(i + 1, this.createMerchantOfferIcon(villager, offers.get(i), action));
       }
+      inventory.setItem(7, this.createMerchantNavigationIcon(Material.ARROW, "§e購入一覧", "merchant_sell", villager.getUniqueId()));
+      inventory.setItem(8, this.createMerchantNavigationIcon(Material.ARROW, "§e売却一覧", "merchant_buy", villager.getUniqueId()));
 
-      for (int i = 0; i < Math.min(8, buyOffers.size()); i++) {
-         inventory.setItem(i + 10, this.createMerchantOfferIcon(villager, buyOffers.get(i), "buy"));
-      }
-
-      this.fillEmptyGuiSlots(inventory);
       if (this.bedrockUiFeature != null
          && this.bedrockUiFeature.showMenu(
             player,
@@ -3306,10 +3312,14 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             (slot, item) -> {
                if (this.isMerchantOffer(item)) {
                   this.buyMerchantOffer(player, item, false);
+               } else {
+                  this.handleMerchantNavigation(player, item);
                }
             },
             () -> {
-               UUID merchantId = this.activeMerchantViews.remove(player.getUniqueId());
+               this.activeMerchantPages.remove(player.getUniqueId());
+               this.activeMerchantPages.remove(player.getUniqueId());
+         UUID merchantId = this.activeMerchantViews.remove(player.getUniqueId());
                if (merchantId != null && !this.activeMerchantViews.containsValue(merchantId)) {
                   Entity entity = this.findEntity(merchantId);
                   if (entity instanceof AbstractVillager merchant && this.isMinervaMerchant(entity)) {
@@ -3322,6 +3332,35 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
          return;
       }
       player.openInventory(inventory);
+   }
+
+   private ItemStack createMerchantNavigationIcon(Material material, String name, String action, UUID merchantId) {
+      ItemStack item = this.named(material, name, List.of("§7クリックで切り替え"));
+      ItemMeta meta = item.getItemMeta();
+      PersistentDataContainer container = meta.getPersistentDataContainer();
+      container.set(this.uiActionKey, PersistentDataType.STRING, action);
+      container.set(this.uiTargetKey, PersistentDataType.STRING, merchantId.toString());
+      item.setItemMeta(meta);
+      return item;
+   }
+
+   private void handleMerchantNavigation(Player player, ItemStack clicked) {
+      String action = this.getUiAction(clicked);
+      if (!"merchant_sell".equals(action) && !"merchant_buy".equals(action)) {
+         return;
+      }
+      UUID merchantId = this.getUiTarget(clicked);
+      if (merchantId == null) {
+         return;
+      }
+      Entity entity = this.findEntity(merchantId);
+      if (!(entity instanceof AbstractVillager villager) || !this.isMinervaMerchant(entity)) {
+         player.sendMessage("§c商人が見つかりません。");
+         player.closeInventory();
+         return;
+      }
+      this.activeMerchantPages.put(player.getUniqueId(), "merchant_buy".equals(action) ? 1 : 0);
+      this.renderMerchantUi(player, villager);
    }
 
    private ItemStack createMerchantOfferIcon(AbstractVillager villager, Minerva.MerchantOffer offer, String action) {
@@ -5037,6 +5076,8 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                      this.buyMerchantOffer(
                         player, event.getCurrentItem(), event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT
                      );
+                  } else {
+                     this.handleMerchantNavigation(player, event.getCurrentItem());
                   }
                }
             }
@@ -5074,6 +5115,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    @EventHandler
    public void onInventoryClose(InventoryCloseEvent event) {
       if (event.getPlayer() instanceof Player player && "§6Minerva Merchant".equals(this.inventoryTitle(event.getView().title()))) {
+         this.activeMerchantPages.remove(player.getUniqueId());
          UUID merchantId = this.activeMerchantViews.remove(player.getUniqueId());
          if (merchantId != null && !this.activeMerchantViews.containsValue(merchantId)) {
             Entity entity = this.findEntity(merchantId);
