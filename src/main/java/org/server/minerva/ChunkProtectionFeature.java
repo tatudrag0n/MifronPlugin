@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import org.bukkit.Bukkit;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
@@ -33,6 +34,7 @@ final class ChunkProtectionFeature implements Listener {
    private final Minerva plugin;
    private final NamespacedKey protectionBeaconKey;
    private final Map<UUID, String> lastChunkWarning = new ConcurrentHashMap<>();
+   private final Map<UUID, Long> lastClaimAt = new ConcurrentHashMap<>();
 
    ChunkProtectionFeature(Minerva plugin) {
       this.plugin = plugin;
@@ -65,11 +67,39 @@ final class ChunkProtectionFeature implements Listener {
          event.setCancelled(true);
          event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
       } else if (event.getBlockPlaced().getType() == Material.BEACON && this.isChunkProtectionBeaconItem(event.getItemInHand())) {
+         Player player = event.getPlayer();
+         Chunk chunk = event.getBlockPlaced().getChunk();
+         String existingOwner = this.getActiveChunkOwner(chunk);
+         if (existingOwner != null) {
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.YELLOW + "このチャンクはすでに保護されています。");
+            return;
+         }
+
+         long cooldownMillis = Math.max(0L, this.plugin.getConfig().getLong("protection.claim-cooldown-seconds", 3L)) * 1000L;
+         long now = System.currentTimeMillis();
+         long last = this.lastClaimAt.getOrDefault(player.getUniqueId(), 0L);
+         if (now - last < cooldownMillis) {
+            event.setCancelled(true);
+            long remaining = Math.max(1L, (cooldownMillis - (now - last) + 999L) / 1000L);
+            player.sendMessage(ChatColor.YELLOW + "保護ビーコンの設置間隔が短すぎます。あと" + remaining + "秒待ってください。");
+            return;
+         }
+
+         int maxClaims = Math.max(1, this.plugin.getConfig().getInt("protection.max-owned-chunks", 9));
+         int ownedClaims = this.activeClaimCount(player.getUniqueId());
+         if (ownedClaims >= maxClaims) {
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.RED + "保護できるチャンク数の上限に達しています: " + maxClaims + "チャンク");
+            return;
+         }
+
+         this.lastClaimAt.put(player.getUniqueId(), now);
          this.markChunkProtectionBeacon(event.getBlockPlaced());
-         this.claimChunk(event.getPlayer(), event.getBlockPlaced().getChunk());
-         this.plugin.addPlayerStat(event.getPlayer().getUniqueId(), "total-blocks-placed", 1);
-         this.plugin.recordQuestProgress(event.getPlayer(), "protected_chunks", 1);
-         event.getPlayer().sendMessage(ChatColor.GREEN + "このチャンクを保護しました。");
+         this.claimChunk(player, chunk);
+         this.plugin.addPlayerStat(player.getUniqueId(), "total-blocks-placed", 1);
+         this.plugin.recordQuestProgress(player, "protected_chunks", 1);
+         player.sendMessage(ChatColor.GREEN + "このチャンクを保護しました。 (" + (ownedClaims + 1) + "/" + maxClaims + ")");
       } else {
          if (this.isWarningPlacement(event.getBlockPlaced().getType()) && !this.isChunkRegenerationSafe(event.getBlockPlaced().getChunk())) {
             this.sendChunkWarning(event.getPlayer(), event.getBlockPlaced().getChunk());
@@ -230,6 +260,37 @@ final class ChunkProtectionFeature implements Listener {
    private boolean isMarkedChunkProtectionBeacon(BlockState state) {
       return state instanceof TileState tileState
          && Boolean.TRUE.equals(tileState.getPersistentDataContainer().get(this.protectionBeaconKey, PersistentDataType.BOOLEAN));
+   }
+
+   private int activeClaimCount(UUID owner) {
+      int count = 0;
+      var section = this.plugin.data().getConfigurationSection("chunks");
+      if (section == null) {
+         return 0;
+      }
+
+      for (String key : section.getKeys(false)) {
+         if (!owner.toString().equals(section.getString(key))) {
+            continue;
+         }
+         String[] parts = key.split(",", 3);
+         if (parts.length != 3) {
+            continue;
+         }
+         World world = Bukkit.getWorld(parts[0]);
+         if (world == null) {
+            continue;
+         }
+         try {
+            Chunk chunk = world.getChunkAt(Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
+            if (this.chunkContainsProtectionBeacon(chunk)) {
+               count++;
+            }
+         } catch (NumberFormatException ignored) {
+            // Ignore malformed legacy keys.
+         }
+      }
+      return count;
    }
 
    private void claimChunk(Player player, Chunk chunk) {
