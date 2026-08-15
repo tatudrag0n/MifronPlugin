@@ -38,6 +38,7 @@ import org.bukkit.entity.AreaEffectCloud;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Horse;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -116,6 +117,7 @@ final class FfaManager {
    private final Map<UUID, UUID> bugOwners = new HashMap<>();
    private final Map<UUID, BukkitTask> bugExpiryTasks = new HashMap<>();
    private final Map<UUID, UUID> infestedBugOwners = new HashMap<>();
+   private final Map<UUID, UUID> knightHorses = new HashMap<>();
    private final Map<UUID, Long> infestedBugOwnerExpires = new HashMap<>();
    private final Map<UUID, Map<String, FfaManager.TrapState>> traps = new HashMap<>();
    private final Map<UUID, FfaManager.DamageCredit> damageCredits = new HashMap<>();
@@ -2011,6 +2013,9 @@ final class FfaManager {
       inventory.setArmorContents(null);
       inventory.setItemInOffHand(null);
       kit.applyTo(inventory, this.config, this.plugin);
+      if (kit == FfaKit.SPEAR) {
+         this.spawnKnightHorse(player);
+      }
       this.applyArmorBonus(player);
       this.tagOwnedKitItems(player);
       if (kit == FfaKit.NECROMANCER) {
@@ -2096,6 +2101,7 @@ final class FfaManager {
          summonRefills.values().forEach(BukkitTask::cancel);
       }
 
+      this.removeKnightHorse(uuid);
       this.revolverAmmo.remove(uuid);
       this.sniperAmmo.remove(uuid);
       this.sniperShotCooldownUntil.remove(uuid);
@@ -2122,6 +2128,41 @@ final class FfaManager {
       }
 
       this.clearCrossbowShotTick(uuid);
+   }
+
+   private void spawnKnightHorse(Player player) {
+      this.removeKnightHorse(player.getUniqueId());
+      Horse horse = (Horse)player.getWorld().spawnEntity(player.getLocation(), EntityType.HORSE);
+      horse.setAdult();
+      horse.setTamed(true);
+      horse.setOwner(player);
+      horse.setCanPickupItems(false);
+      horse.setInvulnerable(false);
+      horse.setGlowing(false);
+      horse.getInventory().setSaddle(new ItemStack(Material.SADDLE));
+      AttributeInstance health = horse.getAttribute(Attribute.MAX_HEALTH);
+      if (health != null) {
+         health.setBaseValue(Math.max(1.0, this.plugin.getConfig().getDouble("ffa.kits.spear.horse-max-health", 24.0)));
+      }
+      AttributeInstance speed = horse.getAttribute(Attribute.MOVEMENT_SPEED);
+      if (speed != null) {
+         speed.setBaseValue(Math.max(0.05, this.plugin.getConfig().getDouble("ffa.kits.spear.horse-speed", 0.22)));
+      }
+      horse.setJumpStrength(Math.max(0.4, this.plugin.getConfig().getDouble("ffa.kits.spear.horse-jump-strength", 0.65)));
+      horse.setHealth(Math.min(horse.getMaxHealth(), horse.getAttribute(Attribute.MAX_HEALTH).getValue()));
+      this.knightHorses.put(player.getUniqueId(), horse.getUniqueId());
+      horse.addPassenger(player);
+   }
+
+   private void removeKnightHorse(UUID uuid) {
+      UUID horseId = this.knightHorses.remove(uuid);
+      if (horseId == null) {
+         return;
+      }
+      Entity entity = this.entityById(horseId);
+      if (entity != null) {
+         entity.remove();
+      }
    }
 
    private void applyArmorBonus(Player player) {
