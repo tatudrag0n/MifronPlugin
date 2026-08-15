@@ -1,7 +1,7 @@
 local-chat-radius: 50.0
 hub-protection-radius-chunks: 4
 protection:
-  max-owned-chunks: 9
+  require-adjacent-claim: true
   claim-cooldown-seconds: 3
 warningDays: 7
 regenIntervalDays: 30
