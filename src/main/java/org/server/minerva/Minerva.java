@@ -839,11 +839,16 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             section.set("tutorial.last-started-at", System.currentTimeMillis());
             this.saveData();
             List<String> steps = List.of(
-               "§6MinerVaへようこそ。まずは初期アイテムを確認しましょう。",
-               "§eウォレット§7: MP残高の確認、ショップ購入、スロットに使います。拾ったエメラルドは自動でMPに収納されます。",
-               "§dテレポーター§7: 対応するエンドポータルフレームに使用すると、そのワールドへ移動できます。",
-               "§6ステータス§7: 右クリックでステータスUIを開けます。",
-               "§a保護したい拠点は /mva protect でチャンク保護ビーコンを受け取り、設置してください。",
+               "§6MinerVaへようこそ。初期アイテムとこの案内を確認しましょう。",
+               "§eMP§7: 拾ったエメラルドは自動でMPになります。MPはショップ、スロット、送金などに使えます。",
+               "§6ショップ§7: ショップブロック・棚ショップでアイテムを購入、売却できます。アイテムフレームではオークションも利用できます。",
+               "§d移動§7: 対応するエンドポータルフレームでワールド移動、ジャンプパッドで高速移動ができます。",
+               "§b便利機能§7: 右クリックでステータスUIを開き、/minerva quest でクエスト、実績達成で報酬を確認できます。",
+               "§cミニゲーム§7: /minerva ffa でFFA、/minerva minigame でミニゲームに参加できます。",
+               "§a拠点保護§7: /mva protect で保護ビーコンを受け取り、拠点に設置してください。",
+               "§d交流§7: /friend でフレンド追加・承認・削除・チャットができます。",
+               "§eMP送金§7: /minerva pay <player> <amount> で他のプレイヤーへMPを送れます。",
+               "§9Discord連携§7: /minoru link でコードを発行し、Discordの認証パネルから連携できます。MPはDiscordとMinecraftで同期されます。",
                "§aチュートリアル完了です。もう一度見たい場合は /tutorial を実行してください。"
             );
             player.sendMessage("§6=== MinerVa Tutorial ===");
