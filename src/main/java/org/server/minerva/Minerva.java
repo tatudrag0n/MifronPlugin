@@ -840,7 +840,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             this.saveData();
             List<String> steps = List.of(
                "§6Minervaへようこそ。まずは初期アイテムとウォレット（バンドル）を確認しましょう。",
-               "§eウォレット§7: 左クリックでMP残高を確認できます。棚ショップやスロットでは、ウォレットを持って右クリックして使います。",
+               "§eウォレット§7: 左クリックでMP残高を確認できます。棚ショップやスロットでは、ウォレットを持って右クリックして使います。アイテムの収納はできません。",
                "§eMPの貯め方§7: 通常のエメラルドはアイテムとして拾います。MPは報酬・クエスト・取引など各機能の案内を確認してください。",
                "§6ショップ・商人§7: 棚ショップではウォレットで購入、売りたいアイテムを持ってクリックすると売却できます。Minerva商人を右クリックすると、MPで購入・アイテムを売却できます。",
                "§dテレポーター§7: 対応するエンドポータルフレームを使うと、各ワールドへ移動できます。§6ステータス§7は右クリックで確認できます。",
@@ -987,6 +987,12 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                event.setCancelled(true);
             } else if (item != null) {
                if (this.isMinervaItem(item, "emerald_bundle")) {
+                  if (event.getAction().isRightClick() && event.getClickedBlock() == null) {
+                     player.sendMessage("§eウォレットはMP残高確認・ショップ操作専用です。アイテムは収納できません。");
+                     event.setCancelled(true);
+                     return;
+                  }
+
                   if (event.getAction().isLeftClick()) {
                      player.sendMessage("§a所持MP: " + this.formatNumber(this.getEmeralds(player.getUniqueId())));
                      event.setCancelled(true);
