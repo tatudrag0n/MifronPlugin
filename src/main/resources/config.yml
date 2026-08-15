@@ -280,23 +280,26 @@ ffa:
         chestplate: "iron_chestplate"
         leggings: "leather_leggings"
         boots: "chainmail_boots"
-      weapon: "stone_sword"
+      weapon: "iron_sword"
       shield: true
       food-items:
         - "pumpkin_pie:1"
       items: []
       potions: []
     spear:
-      display-name: "§e槍使い"
+      display-name: "§e騎士"
       icon: "iron_spear"
       armor-tier: "leather"
       armor:
         helmet: "leather_helmet"
         chestplate: "chainmail_chestplate"
         leggings: "none"
-        boots: "leather_boots"
+        boots: "iron_boots"
       weapon: "iron_spear"
       allow-fallback: false
+      horse-max-health: 24.0
+      horse-speed: 0.22
+      horse-jump-strength: 0.65
       weapon-enchantments: []
       food-items:
         - "baked_potato:1"
@@ -413,8 +416,8 @@ ffa:
       armor: { helmet: "none", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
       ammo-capacity: 1
       reload-ticks: 60
-      damage-multiplier: 3.0
-      crossbow-enchantments: [ "piercing:4" ]
+      damage-multiplier: 2.0
+      crossbow-enchantments: [ "piercing:3" ]
       food-items: [ "baked_potato:1" ]
       items: []
       potions: []
@@ -423,7 +426,7 @@ ffa:
       icon: "redstone"
       armor-tier: "leather"
       armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
-      lifesteal-percent: 50
+      lifesteal-percent: 25
       damage-per-strength-level: 100
       sun-damage: 2.0
       food-items: [ "cooked_beef:1" ]
@@ -451,6 +454,7 @@ ffa:
       icon: "zombie_spawn_egg"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
+      max-summons: 3
       food-items: [ "rotten_flesh:1" ]
       items: []
       potions: []
