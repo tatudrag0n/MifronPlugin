@@ -28,7 +28,7 @@ import org.bukkit.potion.PotionEffectType;
 enum FfaKit {
    AXE("axe", "§6戦士", Material.IRON_AXE, List.of("warrior")),
    BOW("bow", "§a狩人", Material.BOW, List.of("hunter", "archer")),
-   SPEAR("spear", "§e槍使い", Material.IRON_SPEAR, List.of()),
+   SPEAR("spear", "§e騎士", Material.IRON_SPEAR, List.of()),
    CROSSBOW("crossbow", "§dリボルバー", Material.CROSSBOW, List.of("revolver")),
    SWORD("sword", "§c剣士", Material.IRON_SWORD, List.of("swordsman", "swordman")),
    SHIELD("shield", "§9シールダー", Material.SHIELD, List.of("shielder")),
@@ -167,11 +167,11 @@ enum FfaKit {
             Material spear = this.spearMaterial(config, plugin, true);
             if (spear != null) {
                inventory.addItem(
-                  new ItemStack[]{kitItem(plugin, this, "spear", spear, "§e槍使いの鉄槍", 1, this.enchantments(config, "weapon-enchantments", Map.of("lunge", 2)))}
+                  new ItemStack[]{kitItem(plugin, this, "spear", spear, "§e騎士の鉄槍", 1, this.enchantments(config, "weapon-enchantments", Map.of("lunge", 2)))}
                );
             }
             Material spearBackup = material(this.configValue(config, "backup-weapon", "iron_sword"), Material.IRON_SWORD);
-            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "backup_weapon", spearBackup, "§e槍使いの鉄剣", 1, Map.of())});
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "backup_weapon", spearBackup, "§e騎士の鉄剣", 1, Map.of())});
             break;
          case CROSSBOW:
             inventory.addItem(
@@ -385,7 +385,7 @@ enum FfaKit {
       return switch (this) {
          case AXE -> "重い一撃の近接型";
          case BOW -> "遠距離特化";
-         case SPEAR -> "速度と間合いの中距離型";
+         case SPEAR -> "騎乗して間合いを取る近接型";
          case CROSSBOW -> "6発式の遠距離型";
          case SWORD -> "標準的な万能型";
          case SHIELD -> "盾を使う防御型";
@@ -441,7 +441,7 @@ enum FfaKit {
       return switch (this) {
          case AXE -> "近接の一撃が重い";
          case BOW -> "距離を取るほど強い";
-         case SPEAR -> "速度と射程がある";
+         case SPEAR -> "騎乗時の機動力とランジ";
          case CROSSBOW -> "撃ち切るまで連射できる";
          case SWORD -> "扱いやすく金リンゴを持つ";
          case SHIELD -> "正面防御に強い";
@@ -464,7 +464,7 @@ enum FfaKit {
       return switch (this) {
          case AXE -> "移動が遅い";
          case BOW -> "接近戦用武器がない";
-         case SPEAR -> "防具が薄い";
+         case SPEAR -> "馬を失うと機動力が落ちる";
          case CROSSBOW -> "リロードが長い";
          case SWORD -> "突出した強みはない";
          case SHIELD -> "火力が低め";
