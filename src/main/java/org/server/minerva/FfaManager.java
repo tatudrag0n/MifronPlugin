@@ -373,6 +373,7 @@ final class FfaManager {
 
    void join(Player player, FfaKit kit) {
       kit = this.sanitizeKit(kit);
+      this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
       FfaKit selectedKit = kit;
       if (!this.config.enabled()) {
          player.sendMessage("§cFFAは現在無効です。");

@@ -774,6 +774,11 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
       }, 1L);
    }
 
+   void trackAnalytics(Player player, String eventName, String dedupeKey) {
+      if (player == null) return;
+      this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey);
+   }
+
    void saveData() {
       if (this.data != null && this.dataFile != null) {
          File parent = this.dataFile.getParentFile();
