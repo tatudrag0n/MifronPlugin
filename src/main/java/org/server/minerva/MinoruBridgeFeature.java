@@ -4,6 +4,11 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -38,6 +43,9 @@ final class MinoruBridgeFeature {
    private final YamlConfiguration state;
    private HttpServer server;
    private String secret;
+   private String analyticsEndpoint;
+   private String analyticsSecret;
+   private final HttpClient analyticsClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
 
    MinoruBridgeFeature(Minerva plugin) {
       this.plugin = plugin;
@@ -54,6 +62,8 @@ final class MinoruBridgeFeature {
          this.plugin.getConfig().getString("minoru-bridge.secret"),
          this.plugin.getConfig().getString("serverSecret")
       );
+      this.analyticsEndpoint = this.plugin.getConfig().getString("analytics.endpoint", "http://127.0.0.1:8124/v1/analytics/events");
+      this.analyticsSecret = firstNonBlank(this.plugin.getConfig().getString("analytics.secret"));
       if (this.secret == null || this.secret.isBlank() || "change-this".equalsIgnoreCase(this.secret) || "CHANGE_ME".equalsIgnoreCase(this.secret)) {
          this.plugin.getLogger().warning("Minoru bridge API disabled: configure minoru-bridge.secret (or serverSecret) with a strong shared secret.");
          return;
@@ -71,6 +81,20 @@ final class MinoruBridgeFeature {
          this.plugin.getLogger().info("Minoru bridge API listening on " + bind + ":" + port);
       } catch (IOException error) {
          this.plugin.getLogger().severe("Failed to start Minoru bridge API: " + error.getMessage());
+      }
+   }
+
+   void sendAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey) {
+      if (player == null || this.analyticsSecret == null || this.analyticsSecret.isBlank() || this.analyticsEndpoint == null || this.analyticsEndpoint.isBlank()) return;
+      String uuid = player.getUniqueId().toString();
+      String payload = "{\"eventName\":\"" + escape(eventName) + "\",\"minecraftUuid\":\"" + escape(uuid) + "\",\"sessionId\":\"" + escape(sessionId) + "\",\"source\":\"minecraft\",\"dedupeKey\":\"" + escape(dedupeKey) + "\",\"metadata\":{\"world\":\"" + escape(player.getWorld().getName()) + "\"}}";
+      try {
+         HttpRequest request = HttpRequest.newBuilder(URI.create(this.analyticsEndpoint)).timeout(Duration.ofSeconds(3))
+            .header("Authorization", "Bearer " + this.analyticsSecret).header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8)).build();
+         this.analyticsClient.sendAsync(request, HttpResponse.BodyHandlers.discarding()).exceptionally(error -> null);
+      } catch (IllegalArgumentException ignored) {
+         this.plugin.getLogger().warning("Invalid analytics endpoint; event skipped.");
       }
    }
 

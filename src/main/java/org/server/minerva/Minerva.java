@@ -436,8 +436,12 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
    @EventHandler
    public void onPlayerQuit(PlayerQuitEvent event) {
+      Player player = event.getPlayer();
+      ConfigurationSection session = this.getPlayerSection(player.getUniqueId());
+      String sessionId = session.getString("analytics.session-id", "");
+      this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_end", sessionId, "session-end:" + (sessionId.isBlank() ? player.getUniqueId() + ":" + System.currentTimeMillis() : sessionId));
       if (this.getConfig().getBoolean("auto-shutdown.enabled", true)) {
-         long remaining = Bukkit.getOnlinePlayers().stream().filter(player -> !player.getUniqueId().equals(event.getPlayer().getUniqueId())).count();
+          long remaining = Bukkit.getOnlinePlayers().stream().filter(online -> !online.getUniqueId().equals(event.getPlayer().getUniqueId())).count();
          if (remaining == 0L) {
             this.scheduleAutoShutdown();
          }
@@ -804,6 +808,14 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    public void onJoin(PlayerJoinEvent event) {
       Player player = event.getPlayer();
       this.startPlayerSession(player);
+      ConfigurationSection session = this.getPlayerSection(player.getUniqueId());
+      String sessionId = player.getUniqueId() + ":" + System.currentTimeMillis();
+      session.set("analytics.session-id", sessionId);
+      session.set("analytics.session-start", System.currentTimeMillis());
+      boolean firstJoin = session.getInt("total-play-count", 0) == 1;
+      this.minoruBridgeFeature.sendAnalyticsEvent(player, firstJoin ? "first_join" : "return_join", sessionId, "join:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
+      this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_start", sessionId, "session-start:" + sessionId);
+      this.saveData();
       this.giveInitialItems(player);
       this.applyPendingAdvancementReset(player);
       this.handleLoginReward(player);
