@@ -3010,8 +3010,11 @@ final class FfaManager {
       if (session.kit == FfaKit.VAMPIRE && !event.isCancelled() && event.getDamage() > 0.0) {
          double multiplier = this.applyVampireProgression(attacker, event.getDamage());
          event.setDamage(event.getDamage() * multiplier);
-         double dealt = Math.min(husk.getHealth(), Math.max(0.0, event.getFinalDamage()));
-         this.applyVampireSteal(attacker, dealt);
+         double dealt = Math.max(0.0, event.getDamage());
+         int restored = Math.max(1, (int)Math.ceil(dealt * 0.5));
+         attacker.setFoodLevel(Math.min(20, attacker.getFoodLevel() + restored));
+         attacker.setSaturation(Math.min(20.0F, attacker.getSaturation() + Math.max(1.0F, restored * 0.5F)));
+         attacker.setExhaustion(Math.max(0.0F, attacker.getExhaustion() - Math.max(1.0F, restored * 0.5F)));
       }
 
    }
