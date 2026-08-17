@@ -751,3 +751,10 @@ auto-shutdown:
     instance: ""
     zone: ""
     project: ""
+
+# Local Minoru API. Keep the secret in the VM config only; never commit it.
+minoru-bridge:
+  enabled: true
+  bind: "127.0.0.1"
+  port: 8123
+  secret: ""
