@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 # Triggered follow-up balance repair.
-path = Path('src/main/java/org/server/minerva/FfaManager.java')
+path = Path('src/main/java/org/server/mifron/FfaManager.java')
 text = path.read_text(encoding='utf-8')
 
 # Fatal dagger: consume exactly once after a successful fatal hit.

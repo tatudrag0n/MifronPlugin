@@ -8,7 +8,7 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
         return text
     raise SystemExit(f"{label} block was not found")
 
-manager_path = Path("src/main/java/org/server/minerva/FfaManager.java")
+manager_path = Path("src/main/java/org/server/mifron/FfaManager.java")
 manager = manager_path.read_text(encoding="utf-8")
 
 manager = replace_once(
@@ -110,7 +110,7 @@ manager = replace_once(manager, old_target, new_target, "entity target protectio
 
 manager_path.write_text(manager, encoding="utf-8", newline="\n")
 
-kit_path = Path("src/main/java/org/server/minerva/FfaKit.java")
+kit_path = Path("src/main/java/org/server/mifron/FfaKit.java")
 kit = kit_path.read_text(encoding="utf-8")
 kit = replace_once(
     kit,

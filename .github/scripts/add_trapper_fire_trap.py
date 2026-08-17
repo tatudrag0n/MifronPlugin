@@ -19,7 +19,7 @@ def replace_method(source: str, signature: str, replacement: str) -> str:
 
 
 # Add the fourth Trapper item.
-kit_path = Path('src/main/java/org/server/minerva/FfaKit.java')
+kit_path = Path('src/main/java/org/server/mifron/FfaKit.java')
 kit = kit_path.read_text(encoding='utf-8')
 poison_item = '            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "trap_poison", Material.SPRUCE_PRESSURE_PLATE, "§2毒になる感圧板", 1, Map.of())});'
 fire_item = '            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "trap_fire", Material.CRIMSON_PRESSURE_PLATE, "§6火炎トラップ", 1, Map.of())});'
@@ -31,7 +31,7 @@ kit_path.write_text(kit, encoding='utf-8', newline='\n')
 
 
 # Add configurable fire-trap defaults without overwriting existing server tuning.
-config_path = Path('src/main/java/org/server/minerva/FfaConfig.java')
+config_path = Path('src/main/java/org/server/mifron/FfaConfig.java')
 config = config_path.read_text(encoding='utf-8')
 cooldown_line = '      this.setIfMissing(config, "ffa.kits.trapper.trap-cooldown-seconds", 20);'
 fire_defaults = '''      this.setIfMissing(config, "ffa.kits.trapper.fire-trap-initial-damage", 2.0);
@@ -44,7 +44,7 @@ if 'ffa.kits.trapper.fire-trap-initial-damage' not in config:
 config_path.write_text(config, encoding='utf-8', newline='\n')
 
 
-manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
+manager_path = Path('src/main/java/org/server/mifron/FfaManager.java')
 manager = manager_path.read_text(encoding='utf-8')
 
 trap_material = '''   private Material trapMaterial(String type) {

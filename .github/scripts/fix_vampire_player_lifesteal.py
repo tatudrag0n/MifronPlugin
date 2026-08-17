@@ -1,6 +1,6 @@
 from pathlib import Path
 
-path = Path('src/main/java/org/server/minerva/FfaManager.java')
+path = Path('src/main/java/org/server/mifron/FfaManager.java')
 text = path.read_text(encoding='utf-8')
 
 player_old = '''                  if (session.kit == FfaKit.VAMPIRE && event.getFinalDamage() > 0.0) {

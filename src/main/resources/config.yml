@@ -201,8 +201,8 @@ ffa:
     block-place: false
     restrict-commands: true
     allowed-commands:
-      - "/mva ffa leave"
-      - "/mva ffa stats"
+      - "/mf ffa leave"
+      - "/mf ffa stats"
   world-change:
     leave-on-exit: true
   respawn:

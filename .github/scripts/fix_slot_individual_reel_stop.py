@@ -20,7 +20,7 @@ def replace_method(source: str, signature: str, replacement: str) -> str:
     raise SystemExit(f"unclosed method: {signature}")
 
 
-path = Path("src/main/java/org/server/minerva/SlotMachineManager.java")
+path = Path("src/main/java/org/server/mifron/SlotMachineManager.java")
 text = path.read_text(encoding="utf-8")
 
 if "import java.util.Arrays;" not in text:
@@ -169,7 +169,7 @@ clicked_method = '''   private int clickedColumn(Block shelf, Vector clickedPosi
       };
       local = Math.max(0.0, Math.min(0.999999, local));
 
-      // Shelf inventory slots are displayed right-to-left. This is identical to Minerva.selectedShelfSlot().
+      // Shelf inventory slots are displayed right-to-left. This is identical to Mifron.selectedShelfSlot().
       if (local < 1.0 / 3.0) {
          return 2;
       }

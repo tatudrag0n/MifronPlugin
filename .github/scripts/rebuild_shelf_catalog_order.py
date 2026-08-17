@@ -1,6 +1,6 @@
 from pathlib import Path
 
-p = Path('src/main/java/org/server/minerva/Minerva.java')
+p = Path('src/main/java/org/server/mifron/Mifron.java')
 s = p.read_text(encoding='utf-8')
 
 
@@ -204,7 +204,7 @@ if 'private int shelfShopCategoryRank(Material material)' not in s:
     s = s.replace(anchor, helpers + anchor, 1)
 
 command = r'''   private void handleShelfShopCommand(CommandSender sender, String[] args) {
-      if (!sender.hasPermission("minerva.shop.admin") && !sender.hasPermission("minerva.admin")) {
+      if (!sender.hasPermission("mifron.shop.admin") && !sender.hasPermission("mifron.admin")) {
          sender.sendMessage("§c権限がありません。");
       } else if (args.length >= 2 && ("reorder".equalsIgnoreCase(args[1]) || "renumber".equalsIgnoreCase(args[1]) || "resetorder".equalsIgnoreCase(args[1]))) {
          ConfigurationSection shops = this.data.getConfigurationSection("shelf-shops");
@@ -239,8 +239,8 @@ command = r'''   private void handleShelfShopCommand(CommandSender sender, Strin
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7F, 0.8F);
          }
       } else {
-         sender.sendMessage("§e/mva shelfshop reorder §7- 順番配置の棚番号を1から振り直す");
-         sender.sendMessage("§e/mva shelfshop resetstock §7- 共有在庫を0にする");
+         sender.sendMessage("§e/mf shelfshop reorder §7- 順番配置の棚番号を1から振り直す");
+         sender.sendMessage("§e/mf shelfshop resetstock §7- 共有在庫を0にする");
       }
    }'''
 s = replace_method(s, '   private void handleShelfShopCommand(CommandSender sender, String[] args)', command)

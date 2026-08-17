@@ -1,4 +1,4 @@
-# Generated from MinerVa_経済ショップ報酬_クエスト詳細調整版.xlsx / QuestRewards_List.
+# Generated from Mifron_経済ショップ報酬_クエスト詳細調整版.xlsx / QuestRewards_List.
 quests:
   D01:
     type: "デイリー"
@@ -769,7 +769,7 @@ quests:
     intent: "CREWMATE的導線"
   S30:
     type: "スペシャル"
-    name: "MinerVaの伝説"
+    name: "Mifronの伝説"
     reset: "総合条件で発生"
     condition: "転生・進捗・討伐・建築・経済の複数条件を達成"
     base-reward-mp: 50000

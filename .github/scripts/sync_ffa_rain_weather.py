@@ -1,6 +1,6 @@
 from pathlib import Path
 
-p = Path('src/main/java/org/server/minerva/FfaFieldItemManager.java')
+p = Path('src/main/java/org/server/mifron/FfaFieldItemManager.java')
 s = p.read_text(encoding='utf-8')
 
 

@@ -1,4 +1,4 @@
-name: Build MinervaPlugin
+name: Build MifronPlugin
 
 on:
   pull_request:
@@ -38,9 +38,9 @@ jobs:
       - name: Upload plugin JAR
         uses: actions/upload-artifact@v4
         with:
-          name: minervaplugin
+          name: mifronplugin
           path: |
-            target/minervaplugin-*.jar
+            target/mifronplugin-*.jar
             !target/original-*.jar
           if-no-files-found: error
           retention-days: 14

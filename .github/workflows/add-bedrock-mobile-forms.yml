@@ -32,12 +32,12 @@ jobs:
 
       - name: Commit source changes
         run: |
-          if git diff --quiet -- pom.xml src/main/resources/plugin.yml src/main/java/org/server/minerva/Minerva.java src/main/java/org/server/minerva/BedrockUiFeature.java; then
+          if git diff --quiet -- pom.xml src/main/resources/plugin.yml src/main/java/org/server/mifron/Mifron.java src/main/java/org/server/mifron/BedrockUiFeature.java; then
             echo "No source changes to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pom.xml src/main/resources/plugin.yml src/main/java/org/server/minerva/Minerva.java src/main/java/org/server/minerva/BedrockUiFeature.java
+          git add pom.xml src/main/resources/plugin.yml src/main/java/org/server/mifron/Mifron.java src/main/java/org/server/mifron/BedrockUiFeature.java
           git commit -m "Add native Bedrock mobile forms UI"
           git push

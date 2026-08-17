@@ -19,7 +19,7 @@ def replace_method(source: str, signature: str, replacement: str) -> str:
 
 
 # ---------- FfaConfig: one-time migrated balance defaults ----------
-config_path = Path('src/main/java/org/server/minerva/FfaConfig.java')
+config_path = Path('src/main/java/org/server/mifron/FfaConfig.java')
 config = config_path.read_text(encoding='utf-8')
 
 migration_marker = '      boolean migratePermanentKits = config.getInt("ffa.kits.kit-balance-version", 0) < 4;'
@@ -97,7 +97,7 @@ config_path.write_text(config, encoding='utf-8', newline='\n')
 
 
 # ---------- FfaKit: give ranged basic kits dependable backup weapons ----------
-kit_path = Path('src/main/java/org/server/minerva/FfaKit.java')
+kit_path = Path('src/main/java/org/server/mifron/FfaKit.java')
 kit = kit_path.read_text(encoding='utf-8')
 
 if '§a狩人の石剣' not in kit:
@@ -122,7 +122,7 @@ kit_path.write_text(kit, encoding='utf-8', newline='\n')
 
 
 # ---------- FfaManager: enforce the approved risk/reward balance ----------
-manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
+manager_path = Path('src/main/java/org/server/mifron/FfaManager.java')
 manager = manager_path.read_text(encoding='utf-8')
 
 # Vampire: actual 2x natural regeneration, slower progression, speed only at max tier.

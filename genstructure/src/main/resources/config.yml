@@ -17,7 +17,7 @@ structures:
     max-y: 220
   safety:
     avoid-protected: true
-    avoid-minerva-protected: true
+    avoid-mifron-protected: true
     protected-chunks: []
     avoid-structure-overlap: true
     overlap-margin-blocks: 2

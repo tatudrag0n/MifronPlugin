@@ -26,10 +26,10 @@ def method_span(text: str, signature: str):
 
 
 root = Path('.')
-minerva_path = root / 'src/main/java/org/server/minerva/Minerva.java'
-portal_path = root / 'src/main/java/org/server/minerva/ServerPortalFeature.java'
+mifron_path = root / 'src/main/java/org/server/mifron/Mifron.java'
+portal_path = root / 'src/main/java/org/server/mifron/ServerPortalFeature.java'
 
-s = minerva_path.read_text(encoding='utf-8')
+s = mifron_path.read_text(encoding='utf-8')
 
 # Add command cases immediately before delserver so existing command behavior remains untouched.
 if 'case "serverorder":' not in s:
@@ -48,13 +48,13 @@ s = s.replace(
 if 'private void handleServerOrderCommand(CommandSender sender, String[] args)' not in s:
     anchor = '   private void applyWorldSpawnLocations() {'
     helpers = r'''   private void handleServerOrderCommand(CommandSender sender, String[] args) {
-      if (!sender.hasPermission("minerva.admin")) {
+      if (!sender.hasPermission("mifron.admin")) {
          sender.sendMessage("§c権限がありません。");
          return;
       }
       if (args.length < 3) {
-         sender.sendMessage("§e/mva serverorder <server-id> <position>");
-         sender.sendMessage("§7例: /mva serverorder survival 1");
+         sender.sendMessage("§e/mf serverorder <server-id> <position>");
+         sender.sendMessage("§7例: /mf serverorder survival 1");
          return;
       }
 
@@ -107,13 +107,13 @@ if 'private void handleServerOrderCommand(CommandSender sender, String[] args)' 
    }
 
    private void handleServerIconCommand(CommandSender sender, String[] args) {
-      if (!sender.hasPermission("minerva.admin")) {
+      if (!sender.hasPermission("mifron.admin")) {
          sender.sendMessage("§c権限がありません。");
          return;
       }
       if (args.length < 3) {
-         sender.sendMessage("§e/mva servericon <server-id> <material>");
-         sender.sendMessage("§7例: /mva servericon survival grass_block");
+         sender.sendMessage("§e/mf servericon <server-id> <material>");
+         sender.sendMessage("§7例: /mf servericon survival grass_block");
          return;
       }
 
@@ -141,7 +141,7 @@ if 'private void handleServerOrderCommand(CommandSender sender, String[] args)' 
 '''
     s = replace_once(s, anchor, helpers + anchor, 'server management helpers')
 
-minerva_path.write_text(s, encoding='utf-8')
+mifron_path.write_text(s, encoding='utf-8')
 
 # Make all teleporter destination consumers use the explicit configured order.
 s = portal_path.read_text(encoding='utf-8')

@@ -19,12 +19,12 @@
 ## S-CORE 基盤・起動
 
 - [ ] S-CORE-001 Paperサーバーが正常起動する
-- [ ] S-CORE-002 MinervaPluginがエラーなくEnableされる
+- [ ] S-CORE-002 MifronPluginがエラーなくEnableされる
 - [ ] S-CORE-003 最新mainのGitHub Actionsビルドが成功する
 - [ ] S-CORE-004 サーバー再起動後も主要データが保持される
 - [ ] S-CORE-005 plugin.ymlのコマンドが正常登録される
 - [ ] S-CORE-006 権限不足の一般プレイヤーが管理コマンドを実行できない
-- [ ] S-CORE-007 OP / minerva.admin が必要な管理操作を実行できる
+- [ ] S-CORE-007 OP / mifron.admin が必要な管理操作を実行できる
 - [ ] S-CORE-008 serverSecret等の本番用設定が初期値のままではない
 - [ ] S-CORE-009 重大エラー発生時にデータファイルが破損しない
 - [ ] S-CORE-010 バックアップから復元できることを確認する
@@ -37,7 +37,7 @@
 - [ ] S-JOIN-004 再参加時に異常な位置・状態にならない
 - [ ] S-JOIN-005 Java版で主要UIが操作できる
 - [ ] S-JOIN-006 Bedrock版で主要UIが操作できる
-- [ ] S-JOIN-007 Geyser未導入時にMinervaPlugin本体が異常終了しない
+- [ ] S-JOIN-007 Geyser未導入時にMifronPlugin本体が異常終了しない
 
 ## S-WORLD ワールド移動・ルール
 

@@ -1,9 +1,9 @@
 from pathlib import Path
 import re
 
-manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
-kit_path = Path('src/main/java/org/server/minerva/FfaKit.java')
-listener_path = Path('src/main/java/org/server/minerva/FfaListener.java')
+manager_path = Path('src/main/java/org/server/mifron/FfaManager.java')
+kit_path = Path('src/main/java/org/server/mifron/FfaKit.java')
+listener_path = Path('src/main/java/org/server/mifron/FfaListener.java')
 
 manager = manager_path.read_text(encoding='utf-8')
 kit = kit_path.read_text(encoding='utf-8')

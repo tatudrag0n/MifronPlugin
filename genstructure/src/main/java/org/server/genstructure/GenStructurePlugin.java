@@ -47,33 +47,33 @@ public final class GenStructurePlugin extends JavaPlugin implements TabExecutor 
         if (location == null) {
             return false;
         }
-        return isConfiguredProtectedChunk(location.getChunk()) || isMinervaProtected(location);
+        return isConfiguredProtectedChunk(location.getChunk()) || isMifronProtected(location);
     }
 
-    private void hookMinervaProtection() {
-        minervaPlugin = Bukkit.getPluginManager().getPlugin("minerva");
-        if (minervaPlugin == null) {
+    private void hookMifronProtection() {
+        mifronPlugin = Bukkit.getPluginManager().getPlugin("mifron");
+        if (mifronPlugin == null) {
             return;
         }
         try {
-            minervaProtectionMethod = minervaPlugin.getClass().getDeclaredMethod("isStructureProtectedLocation", Location.class);
-            minervaProtectionMethod.setAccessible(true);
-            getLogger().info("Linked Minerva protected-area checks.");
+            mifronProtectionMethod = mifronPlugin.getClass().getDeclaredMethod("isStructureProtectedLocation", Location.class);
+            mifronProtectionMethod.setAccessible(true);
+            getLogger().info("Linked Mifron protected-area checks.");
         } catch (ReflectiveOperationException e) {
-            getLogger().warning("Minerva was found, but protected-area checks are not available: " + e.getMessage());
-            minervaProtectionMethod = null;
+            getLogger().warning("Mifron was found, but protected-area checks are not available: " + e.getMessage());
+            mifronProtectionMethod = null;
         }
     }
 
-    private boolean isMinervaProtected(Location location) {
-        if (!getConfig().getBoolean("structures.safety.avoid-minerva-protected", true) || minervaProtectionMethod == null) {
+    private boolean isMifronProtected(Location location) {
+        if (!getConfig().getBoolean("structures.safety.avoid-mifron-protected", true) || mifronProtectionMethod == null) {
             return false;
         }
         try {
-            return Boolean.TRUE.equals(minervaProtectionMethod.invoke(minervaPlugin, location));
+            return Boolean.TRUE.equals(mifronProtectionMethod.invoke(mifronPlugin, location));
         } catch (ReflectiveOperationException e) {
-            getLogger().warning("Minerva protected-area check failed: " + e.getMessage());
-            minervaProtectionMethod = null;
+            getLogger().warning("Mifron protected-area check failed: " + e.getMessage());
+            mifronProtectionMethod = null;
             return false;
         }
     }

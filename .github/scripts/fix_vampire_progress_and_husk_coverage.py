@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 # Triggered repair: Vampire regeneration/progression and complete training-Husk coverage.
-manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
+manager_path = Path('src/main/java/org/server/mifron/FfaManager.java')
 manager = manager_path.read_text(encoding='utf-8')
 
 manager = manager.replace('player.setSaturatedRegenRate(3);', 'player.setSaturatedRegenRate(2);')

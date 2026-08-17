@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SERVER_DIR="${SERVER_DIR:-$HOME/main-server}"
-REPO_DIR="${REPO_DIR:-$HOME/MinervaPlugin}"
+REPO_DIR="${REPO_DIR:-$HOME/MifronPlugin}"
 DEST="$REPO_DIR/server-config"
 
 if [ ! -d "$SERVER_DIR" ]; then
@@ -36,11 +36,11 @@ FILES=(
   "plugins/WorldEditSelectionVisualizer/config.yml"
   "plugins/WorldGuard/config.yml"
   "plugins/floodgate/config.yml"
-  "plugins/minerva/config.yml"
-  "plugins/minerva/economy-price-table.yml"
-  "plugins/minerva/quests.yml"
-  "plugins/minerva/structures.yml"
-  "plugins/minerva/text-displays.yml"
+  "plugins/mifron/config.yml"
+  "plugins/mifron/economy-price-table.yml"
+  "plugins/mifron/quests.yml"
+  "plugins/mifron/structures.yml"
+  "plugins/mifron/text-displays.yml"
 )
 
 mkdir -p "$DEST"

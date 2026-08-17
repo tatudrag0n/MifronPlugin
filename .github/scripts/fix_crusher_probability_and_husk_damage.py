@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # Triggered repair: one probability roll per crusher damage event tick, and direct husk health damage.
-path = Path('src/main/java/org/server/minerva/FfaManager.java')
+path = Path('src/main/java/org/server/mifron/FfaManager.java')
 text = path.read_text(encoding='utf-8')
 
 field_marker = '   private final Set<UUID> crusherExplosionDamage = new HashSet<>();\n'

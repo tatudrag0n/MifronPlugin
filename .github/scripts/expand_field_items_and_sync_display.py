@@ -17,7 +17,7 @@ def replace_method(source: str, signature: str, replacement: str) -> str:
     raise SystemExit(f'unclosed method: {signature}')
 
 
-path = Path('src/main/java/org/server/minerva/FfaFieldItemManager.java')
+path = Path('src/main/java/org/server/mifron/FfaFieldItemManager.java')
 text = path.read_text(encoding='utf-8')
 
 # Keep the exact reward selected at spawn time, so the visible dropped item and

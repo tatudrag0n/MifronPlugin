@@ -1,6 +1,6 @@
 from pathlib import Path
 
-p = Path('src/main/java/org/server/minerva/Minerva.java')
+p = Path('src/main/java/org/server/mifron/Mifron.java')
 s = p.read_text(encoding='utf-8')
 
 old = '''   boolean isShelfShop(Block block) {

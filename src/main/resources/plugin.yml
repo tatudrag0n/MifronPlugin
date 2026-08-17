@@ -1,68 +1,68 @@
-name: minerva
+name: mifron
 version: 26.1.2-fixed-v15-inventory-groups
 
-main: org.server.minerva.Minerva
+main: org.server.mifron.Mifron
 api-version: '1.21'
 load: POSTWORLD
 softdepend:
   - WorldEdit
   - Geyser-Spigot
 commands:
-  minerva:
-    description: Minerva server management and player utilities.
-    usage: /minerva
-  mva:
-    description: Minerva server management and player utilities.
-    usage: /mva
+  mifron:
+    description: Mifron server management and player utilities.
+    usage: /mifron
+  mf:
+    description: Mifron server management and player utilities.
+    usage: /mf
   friend:
-    description: Minerva friend system.
+    description: Mifron friend system.
     usage: /friend
     aliases: [friends]
   status:
-    description: Reset Minerva status data.
+    description: Reset Mifron status data.
     usage: /status <player> reset
   tutorial:
-    description: Start the Minerva tutorial.
+    description: Start the Mifron tutorial.
     usage: /tutorial
 permissions:
-  minerva.admin:
-    description: Allows Minerva administrative commands and protected-area bypass.
+  mifron.admin:
+    description: Allows Mifron administrative commands and protected-area bypass.
     default: op
-  minerva.command.use:
-    description: Allows basic Minerva commands.
+  mifron.command.use:
+    description: Allows basic Mifron commands.
     default: true
-  minerva.command.chunk:
-    description: Allows /minerva chunk.
+  mifron.command.chunk:
+    description: Allows /mifron chunk.
     default: true
-  minerva.command.protect:
-    description: Allows /minerva protect.
+  mifron.command.protect:
+    description: Allows /mifron protect.
     default: true
-  minerva.command.status:
-    description: Allows /minerva status.
+  mifron.command.status:
+    description: Allows /mifron status.
     default: true
-  minerva.admin.regen.force:
+  mifron.admin.regen.force:
     default: op
-  minerva.reward.grant:
-    description: Allows granting Minerva rewards from minigame and athletic completion commands.
+  mifron.reward.grant:
+    description: Allows granting Mifron rewards from minigame and athletic completion commands.
     default: op
-  minerva.protect.bypass:
-    description: Allows bypassing MinerVa protected chunk interaction limits.
+  mifron.protect.bypass:
+    description: Allows bypassing Mifron protected chunk interaction limits.
     default: op
-  minerva.shop.admin:
-    description: Allows managing MinerVa shop blocks.
+  mifron.shop.admin:
+    description: Allows managing Mifron shop blocks.
     default: op
-  minerva.auction.admin:
-    description: Allows managing MinerVa item-frame auctions.
+  mifron.auction.admin:
+    description: Allows managing Mifron item-frame auctions.
     default: op
-  minerva.text.admin:
-    description: Allows managing MinerVa TextDisplay guide signs.
+  mifron.text.admin:
+    description: Allows managing Mifron TextDisplay guide signs.
     default: op
-  minerva.ffa.admin:
-    description: Allows managing MinerVa FFA minigame settings and kit stands.
+  mifron.ffa.admin:
+    description: Allows managing Mifron FFA minigame settings and kit stands.
     default: op
-  minerva.structure.admin:
-    description: Allows managing MinerVa custom structures.
+  mifron.structure.admin:
+    description: Allows managing Mifron custom structures.
     default: op
-  minerva.proposal.admin:
-    description: Allows reviewing MinerVa proposals.
+  mifron.proposal.admin:
+    description: Allows reviewing Mifron proposals.
     default: op

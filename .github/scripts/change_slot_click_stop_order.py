@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # Triggered change: stop reels from the shelf column the player right-clicked.
-path = Path('src/main/java/org/server/minerva/SlotMachineManager.java')
+path = Path('src/main/java/org/server/mifron/SlotMachineManager.java')
 text = path.read_text(encoding='utf-8')
 
 if 'import org.bukkit.util.Vector;' not in text:
@@ -9,7 +9,7 @@ if 'import org.bukkit.util.Vector;' not in text:
 
 old_interact = '''   @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
    public void onPlayerInteract(PlayerInteractEvent event) {
-      if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.plugin.isMinervaItem(event.getItem(), "emerald_bundle")) {
+      if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.plugin.isMifronItem(event.getItem(), "emerald_bundle")) {
          SlotMachineManager.Difficulty difficulty = this.difficultyAt(event.getClickedBlock());
          if (difficulty != null) {
             event.setCancelled(true);
@@ -37,7 +37,7 @@ new_interact = '''   @EventHandler(priority = EventPriority.HIGH, ignoreCancelle
          return;
       }
 
-      if (this.plugin.isMinervaItem(event.getItem(), "emerald_bundle")) {
+      if (this.plugin.isMifronItem(event.getItem(), "emerald_bundle")) {
          event.setCancelled(true);
          this.startSpin(event.getPlayer(), clicked, difficulty);
       }

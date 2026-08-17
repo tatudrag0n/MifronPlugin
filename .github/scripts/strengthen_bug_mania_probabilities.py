@@ -1,6 +1,6 @@
 from pathlib import Path
 
-manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
+manager_path = Path('src/main/java/org/server/mifron/FfaManager.java')
 manager = manager_path.read_text(encoding='utf-8')
 
 replacements = [
@@ -63,7 +63,7 @@ if 'private boolean rollBugManiaChance(' not in manager:
 
 manager_path.write_text(manager, encoding='utf-8', newline='\n')
 
-config_path = Path('src/main/java/org/server/minerva/FfaConfig.java')
+config_path = Path('src/main/java/org/server/mifron/FfaConfig.java')
 config = config_path.read_text(encoding='utf-8')
 
 config_marker = '      this.setIfMissing(config, "ffa.kits.bug_mania.max-global-silverfish", 30);'

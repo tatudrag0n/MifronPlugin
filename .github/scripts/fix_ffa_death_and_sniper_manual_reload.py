@@ -1,6 +1,6 @@
 from pathlib import Path
 
-manager = Path("src/main/java/org/server/minerva/FfaManager.java")
+manager = Path("src/main/java/org/server/mifron/FfaManager.java")
 text = manager.read_text(encoding="utf-8")
 
 old = """                     if (remaining > 0) {
@@ -21,7 +21,7 @@ elif new not in text:
 
 manager.write_text(text, encoding="utf-8", newline="\n")
 
-listener = Path("src/main/java/org/server/minerva/FfaListener.java")
+listener = Path("src/main/java/org/server/mifron/FfaListener.java")
 text = listener.read_text(encoding="utf-8")
 marker = """   @EventHandler(priority = EventPriority.HIGHEST)
    public void onDeath(PlayerDeathEvent var1) {"""

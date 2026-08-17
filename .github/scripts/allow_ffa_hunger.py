@@ -1,6 +1,6 @@
 from pathlib import Path
 
-path = Path('src/main/java/org/server/minerva/FfaListener.java')
+path = Path('src/main/java/org/server/mifron/FfaListener.java')
 text = path.read_text(encoding='utf-8')
 old = '''   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onFoodLevelChange(FoodLevelChangeEvent event) {

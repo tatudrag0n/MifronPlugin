@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 # Triggered repair: actually apply Vampire attack and movement progression.
-path = Path('src/main/java/org/server/minerva/FfaManager.java')
+path = Path('src/main/java/org/server/mifron/FfaManager.java')
 text = path.read_text(encoding='utf-8')
 
 helper = '''

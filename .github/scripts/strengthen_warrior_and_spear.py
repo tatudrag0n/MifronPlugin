@@ -1,6 +1,6 @@
 from pathlib import Path
 
-config_path = Path('src/main/java/org/server/minerva/FfaConfig.java')
+config_path = Path('src/main/java/org/server/mifron/FfaConfig.java')
 config = config_path.read_text(encoding='utf-8')
 
 replacements = [
@@ -38,7 +38,7 @@ for old, new, label in replacements:
 
 config_path.write_text(config, encoding='utf-8', newline='\n')
 
-kit_path = Path('src/main/java/org/server/minerva/FfaKit.java')
+kit_path = Path('src/main/java/org/server/mifron/FfaKit.java')
 kit = kit_path.read_text(encoding='utf-8')
 
 old_axe = '''                     material(this.configValue(config, "weapon", "iron_axe"), Material.IRON_AXE),

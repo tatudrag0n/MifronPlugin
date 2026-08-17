@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-$HOME/MinervaPlugin}"
+REPO_DIR="${REPO_DIR:-$HOME/MifronPlugin}"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 INTERVAL="${INTERVAL:-60}"
 

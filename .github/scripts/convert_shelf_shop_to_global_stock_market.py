@@ -1,6 +1,6 @@
 from pathlib import Path
 
-p = Path('src/main/java/org/server/minerva/Minerva.java')
+p = Path('src/main/java/org/server/mifron/Mifron.java')
 s = p.read_text(encoding='utf-8')
 
 def rep(old, new, label):
@@ -71,7 +71,7 @@ old = '''      if (offer != null && held != null && held.getType() == offer.mate
          if (price <= 0) {
             this.showTemporaryActionBar(player, "このアイテムは買い取り対象外です。");
             return true;
-         } else if (this.utilityItemsFeature.getMinervaItemId(held) == null && !this.isShopWand(held)) {
+         } else if (this.utilityItemsFeature.getMifronItemId(held) == null && !this.isShopWand(held)) {
             held.setAmount(held.getAmount() - 1);
             this.depositEmeralds(player.getUniqueId(), price);
             this.addPlayerStat(player.getUniqueId(), "total-trades", 1);
@@ -85,7 +85,7 @@ new = '''      if (offer != null && held != null && held.getType() == offer.mate
          if (price <= 0) {
             this.showTemporaryActionBar(player, "このアイテムは買い取り対象外です。");
             return true;
-         } else if (this.utilityItemsFeature.getMinervaItemId(held) == null && !this.isShopWand(held)) {
+         } else if (this.utilityItemsFeature.getMifronItemId(held) == null && !this.isShopWand(held)) {
             held.setAmount(held.getAmount() - 1);
             this.changeShelfShopStock(offer.material(), 1);
             this.depositEmeralds(player.getUniqueId(), price);
@@ -256,4 +256,4 @@ new = '''      if (enabled) {
 rep(old, new, 'legacy offer cleanup')
 
 p.write_text(s, encoding='utf-8')
-print('patched Minerva.java for global-stock shelf market')
+print('patched Mifron.java for global-stock shelf market')

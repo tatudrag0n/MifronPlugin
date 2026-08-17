@@ -33,17 +33,17 @@ def replace_method(text: str, signature: str, replacement: str) -> str:
 root = Path('.')
 
 # 1) Keep existing teleporter item, but restore direct-use guidance and update existing copies.
-p = root / 'src/main/java/org/server/minerva/UtilityItemsFeature.java'
+p = root / 'src/main/java/org/server/mifron/UtilityItemsFeature.java'
 s = p.read_text(encoding='utf-8')
-old = '''      this.giveMinervaItemIfMissing(
+old = '''      this.giveMifronItemIfMissing(
          player,
          "teleporter",
-         this.createMinervaItem(Material.ENDER_EYE, "teleporter", ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "対応するエンドポータルフレームに使用して移動", ChatColor.DARK_GRAY + "投げることはできません"))
+         this.createMifronItem(Material.ENDER_EYE, "teleporter", ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "対応するエンドポータルフレームに使用して移動", ChatColor.DARK_GRAY + "投げることはできません"))
       );'''
-new = '''      this.updateOrGiveMinervaItem(
+new = '''      this.updateOrGiveMifronItem(
          player,
          "teleporter",
-         this.createMinervaItem(
+         this.createMifronItem(
             Material.ENDER_EYE,
             "teleporter",
             ChatColor.LIGHT_PURPLE + "テレポーター",
@@ -58,7 +58,7 @@ s = replace_once(s, old, new, 'teleporter initial item')
 p.write_text(s, encoding='utf-8')
 
 # 2) Add a native Bedrock button-list helper. This keeps the teleporter completely free of chest UI on mobile.
-p = root / 'src/main/java/org/server/minerva/BedrockUiFeature.java'
+p = root / 'src/main/java/org/server/mifron/BedrockUiFeature.java'
 s = p.read_text(encoding='utf-8')
 if 'import java.util.function.IntConsumer;' not in s:
     s = s.replace('import java.util.function.BiConsumer;\n', 'import java.util.function.BiConsumer;\nimport java.util.function.IntConsumer;\n', 1)
@@ -96,7 +96,7 @@ if 'boolean showButtons(Player player, String title, String content, List<String
 p.write_text(s, encoding='utf-8')
 
 # 3) Expose the already optional Bedrock UI bridge to package features.
-p = root / 'src/main/java/org/server/minerva/Minerva.java'
+p = root / 'src/main/java/org/server/mifron/Mifron.java'
 s = p.read_text(encoding='utf-8')
 if 'BedrockUiFeature bedrockUiFeature()' not in s:
     anchor = '   void teleportToConfigLocation(Player player, String path) {'
@@ -109,12 +109,12 @@ if 'BedrockUiFeature bedrockUiFeature()' not in s:
 p.write_text(s, encoding='utf-8')
 
 # 4) Main teleporter/frame behavior.
-p = root / 'src/main/java/org/server/minerva/ServerPortalFeature.java'
+p = root / 'src/main/java/org/server/mifron/ServerPortalFeature.java'
 s = p.read_text(encoding='utf-8')
 
 # Imports.
 if 'io.papermc.paper.event.player.AsyncChatEvent;' not in s:
-    s = s.replace('package org.server.minerva;\n\n', 'package org.server.minerva;\n\nimport io.papermc.paper.event.player.AsyncChatEvent;\n', 1)
+    s = s.replace('package org.server.mifron;\n\n', 'package org.server.mifron;\n\nimport io.papermc.paper.event.player.AsyncChatEvent;\n', 1)
 if 'org.bukkit.Particle;' not in s:
     s = s.replace('import org.bukkit.NamespacedKey;\n', 'import org.bukkit.NamespacedKey;\nimport org.bukkit.Particle;\nimport org.bukkit.Sound;\n', 1)
 if 'org.bukkit.configuration.ConfigurationSection;' not in s:
@@ -175,7 +175,7 @@ new_on_use = '''   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancell
          return;
       }
 
-      // The Minerva Ender Eye is a UI item, never a throwable vanilla eye.
+      // The Mifron Ender Eye is a UI item, never a throwable vanilla eye.
       event.setCancelled(true);
       Player player = event.getPlayer();
       Block frame = event.getClickedBlock();

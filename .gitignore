@@ -46,7 +46,7 @@ server-config/**/auth.yml
 server-config/**/auth.yml.bak
 server-config/**/transactions.txt
 server-config/**/ffa-stats.yml
-server-config/**/minerva-data.yml
+server-config/**/mifron-data.yml
 server-config/**/data.yml
 server-config/**/proposals.yml
 server-config/ops.json

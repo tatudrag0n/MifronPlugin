@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SERVER_DIR="${SERVER_DIR:-$HOME/main-server}"
-REPO_DIR="${REPO_DIR:-$HOME/MinervaPlugin}"
+REPO_DIR="${REPO_DIR:-$HOME/MifronPlugin}"
 SOURCE="$REPO_DIR/server-config"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 FEATURE_DIR="$REPO_DIR/server-features"

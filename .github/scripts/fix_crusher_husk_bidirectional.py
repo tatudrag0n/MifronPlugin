@@ -1,8 +1,8 @@
 from pathlib import Path
 
 # Triggered repair for bidirectional Crusher testing against ordinary Husks.
-manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
-listener_path = Path('src/main/java/org/server/minerva/FfaListener.java')
+manager_path = Path('src/main/java/org/server/mifron/FfaManager.java')
+listener_path = Path('src/main/java/org/server/mifron/FfaListener.java')
 manager = manager_path.read_text(encoding='utf-8')
 listener = listener_path.read_text(encoding='utf-8')
 

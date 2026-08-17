@@ -1,6 +1,6 @@
 from pathlib import Path
 
-p = Path('src/main/java/org/server/minerva/ServerPortalFeature.java')
+p = Path('src/main/java/org/server/mifron/ServerPortalFeature.java')
 s = p.read_text(encoding='utf-8')
 
 old = '''         // Raise the outer destinations slightly to make the curve visible and keep the

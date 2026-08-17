@@ -9,18 +9,18 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 root = Path(".")
 
 # Utility item: keep the teleporter as an Ender Eye, but describe the new frame-based use.
-p = root / "src/main/java/org/server/minerva/UtilityItemsFeature.java"
+p = root / "src/main/java/org/server/mifron/UtilityItemsFeature.java"
 s = p.read_text(encoding="utf-8")
 s = replace_once(
     s,
-    'this.createMinervaItem(Material.ENDER_EYE, "teleporter", ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "右クリック: サーバーショートカット"))',
-    'this.createMinervaItem(Material.ENDER_EYE, "teleporter", ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "対応するエンドポータルフレームに使用して移動", ChatColor.DARK_GRAY + "投げることはできません"))',
+    'this.createMifronItem(Material.ENDER_EYE, "teleporter", ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "右クリック: サーバーショートカット"))',
+    'this.createMifronItem(Material.ENDER_EYE, "teleporter", ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "対応するエンドポータルフレームに使用して移動", ChatColor.DARK_GRAY + "投げることはできません"))',
     "teleporter lore",
 )
 p.write_text(s, encoding="utf-8")
 
-# Minerva: stop opening the old teleporter GUI; the ServerPortalFeature now handles frames.
-p = root / "src/main/java/org/server/minerva/Minerva.java"
+# Mifron: stop opening the old teleporter GUI; the ServerPortalFeature now handles frames.
+p = root / "src/main/java/org/server/mifron/Mifron.java"
 s = p.read_text(encoding="utf-8")
 s = replace_once(
     s,
@@ -36,15 +36,15 @@ s = replace_once(
 )
 s = replace_once(
     s,
-    '''                  if (this.isMinervaItem(item, "teleporter") && event.getAction().isRightClick()) {\n                     this.openTeleportUi(player);\n                     event.setCancelled(true);\n                  }\n''',
-    '''                  if (this.isMinervaItem(item, "teleporter") && event.getAction().isRightClick()) {\n                     // Teleporter use is handled by ServerPortalFeature. Cancelling here also\n                     // prevents the custom Ender Eye from being thrown in the air.\n                     event.setCancelled(true);\n                  }\n''',
+    '''                  if (this.isMifronItem(item, "teleporter") && event.getAction().isRightClick()) {\n                     this.openTeleportUi(player);\n                     event.setCancelled(true);\n                  }\n''',
+    '''                  if (this.isMifronItem(item, "teleporter") && event.getAction().isRightClick()) {\n                     // Teleporter use is handled by ServerPortalFeature. Cancelling here also\n                     // prevents the custom Ender Eye from being thrown in the air.\n                     event.setCancelled(true);\n                  }\n''',
     "disable old teleporter UI",
 )
 p.write_text(s, encoding="utf-8")
 
-# Inventory groups: the survival inventory can replace the inventory after Minerva's join handler.
+# Inventory groups: the survival inventory can replace the inventory after Mifron's join handler.
 # Re-ensure the fixed initial items after the survival inventory has been restored/created.
-p = root / "src/main/java/org/server/minerva/InventoryGroupFeature.java"
+p = root / "src/main/java/org/server/mifron/InventoryGroupFeature.java"
 s = p.read_text(encoding="utf-8")
 s = replace_once(
     s,
@@ -61,14 +61,14 @@ s = replace_once(
 s = replace_once(
     s,
     '''   private InventoryGroupFeature.Group groupOf(World var1) {\n''',
-    '''   private void ensureInitialItems(Player player, InventoryGroupFeature.Group group) {\n      if (group == InventoryGroupFeature.Group.SURVIVAL && this.plugin instanceof Minerva minerva) {\n         minerva.giveInitialItemsAfterInventoryRestore(player);\n      }\n   }\n\n   private InventoryGroupFeature.Group groupOf(World var1) {\n''',
+    '''   private void ensureInitialItems(Player player, InventoryGroupFeature.Group group) {\n      if (group == InventoryGroupFeature.Group.SURVIVAL && this.plugin instanceof Mifron mifron) {\n         mifron.giveInitialItemsAfterInventoryRestore(player);\n      }\n   }\n\n   private InventoryGroupFeature.Group groupOf(World var1) {\n''',
     "ensure initial items helper",
 )
 p.write_text(s, encoding="utf-8")
 
 # ServerPortalFeature: server wand can bind an End Portal Frame to an existing destination,
 # and the custom teleporter eye uses that frame. The eye is visual only and is cleared next tick.
-p = root / "src/main/java/org/server/minerva/ServerPortalFeature.java"
+p = root / "src/main/java/org/server/mifron/ServerPortalFeature.java"
 s = p.read_text(encoding="utf-8")
 s = replace_once(
     s,
@@ -88,7 +88,7 @@ new = '''         } else if (block.getType() == Material.END_PORTAL_FRAME) {\n  
 s = replace_once(s, old, new, "server wand frame binding")
 
 handler_anchor = '''   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)\n   public void onServerPortalTeleport(PlayerTeleportEvent event) {\n'''
-handler = '''   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)\n   public void onTeleporterUse(PlayerInteractEvent event) {\n      if (event.getHand() != EquipmentSlot.HAND || !event.getAction().isRightClick()) {\n         return;\n      }\n\n      ItemStack item = event.getItem();\n      if (!this.isTeleporter(item)) {\n         return;\n      }\n\n      // Always cancel vanilla Ender Eye behaviour: the Minerva teleporter can never be thrown.\n      event.setCancelled(true);\n      Block frame = event.getClickedBlock();\n      if (frame == null || frame.getType() != Material.END_PORTAL_FRAME) {\n         return;\n      }\n\n      String target = this.serverPortalTarget(frame);\n      if (target == null || target.isBlank()) {\n         event.getPlayer().sendMessage(ChatColor.YELLOW + "このエンドポータルフレームには移動先が設定されていません。");\n         return;\n      }\n\n      this.setFrameEye(frame, true);\n      event.getPlayer().playSound(event.getPlayer().getLocation(), org.bukkit.Sound.BLOCK_END_PORTAL_FRAME_FILL, 0.8F, 1.1F);\n      this.plugin.teleportToConfigLocation(event.getPlayer(), target);\n\n      // The inserted eye is only a short visual cue. It must never remain in the frame.\n      this.plugin.getServer().getScheduler().runTask(this.plugin, () -> this.setFrameEye(frame, false));\n   }\n\n   private boolean isTeleporter(ItemStack item) {\n      return item != null\n         && item.hasItemMeta()\n         && "teleporter".equals(item.getItemMeta().getPersistentDataContainer().get(this.minervaItemKey, PersistentDataType.STRING));\n   }\n\n   private void setFrameEye(Block frame, boolean eye) {\n      if (frame != null && frame.getType() == Material.END_PORTAL_FRAME && frame.getBlockData() instanceof EndPortalFrame data) {\n         data.setEye(eye);\n         frame.setBlockData(data, false);\n      }\n   }\n\n'''
+handler = '''   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)\n   public void onTeleporterUse(PlayerInteractEvent event) {\n      if (event.getHand() != EquipmentSlot.HAND || !event.getAction().isRightClick()) {\n         return;\n      }\n\n      ItemStack item = event.getItem();\n      if (!this.isTeleporter(item)) {\n         return;\n      }\n\n      // Always cancel vanilla Ender Eye behaviour: the Mifron teleporter can never be thrown.\n      event.setCancelled(true);\n      Block frame = event.getClickedBlock();\n      if (frame == null || frame.getType() != Material.END_PORTAL_FRAME) {\n         return;\n      }\n\n      String target = this.serverPortalTarget(frame);\n      if (target == null || target.isBlank()) {\n         event.getPlayer().sendMessage(ChatColor.YELLOW + "このエンドポータルフレームには移動先が設定されていません。");\n         return;\n      }\n\n      this.setFrameEye(frame, true);\n      event.getPlayer().playSound(event.getPlayer().getLocation(), org.bukkit.Sound.BLOCK_END_PORTAL_FRAME_FILL, 0.8F, 1.1F);\n      this.plugin.teleportToConfigLocation(event.getPlayer(), target);\n\n      // The inserted eye is only a short visual cue. It must never remain in the frame.\n      this.plugin.getServer().getScheduler().runTask(this.plugin, () -> this.setFrameEye(frame, false));\n   }\n\n   private boolean isTeleporter(ItemStack item) {\n      return item != null\n         && item.hasItemMeta()\n         && "teleporter".equals(item.getItemMeta().getPersistentDataContainer().get(this.mifronItemKey, PersistentDataType.STRING));\n   }\n\n   private void setFrameEye(Block frame, boolean eye) {\n      if (frame != null && frame.getType() == Material.END_PORTAL_FRAME && frame.getBlockData() instanceof EndPortalFrame data) {\n         data.setEye(eye);\n         frame.setBlockData(data, false);\n      }\n   }\n\n'''
 s = replace_once(s, handler_anchor, handler + handler_anchor, "teleporter interaction handler")
 
 s = replace_once(

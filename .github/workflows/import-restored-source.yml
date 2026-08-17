@@ -54,7 +54,7 @@ jobs:
           set -euo pipefail
           java_count="$(find src/main/java -type f -name '*.java' | wc -l)"
           test "$java_count" -eq 32
-          test -f src/main/java/org/server/minerva/InventoryGroupFeature.java
+          test -f src/main/java/org/server/mifron/InventoryGroupFeature.java
           test -f src/main/resources/plugin.yml
           test -f src/main/resources/config.yml
           echo "Imported Java source files: $java_count"

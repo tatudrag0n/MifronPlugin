@@ -8,7 +8,7 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
         raise SystemExit(f"missing patch target: {label}")
     return text.replace(old, new, 1)
 
-manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
+manager_path = Path('src/main/java/org/server/mifron/FfaManager.java')
 manager = manager_path.read_text(encoding='utf-8')
 
 if 'import org.bukkit.event.entity.EntityChangeBlockEvent;' not in manager:
@@ -44,7 +44,7 @@ if 'void handleBugSilverfishBlockChange(EntityChangeBlockEvent event)' not in ma
 
 manager_path.write_text(manager, encoding='utf-8', newline='\n')
 
-listener_path = Path('src/main/java/org/server/minerva/FfaListener.java')
+listener_path = Path('src/main/java/org/server/mifron/FfaListener.java')
 listener = listener_path.read_text(encoding='utf-8')
 
 if 'import org.bukkit.event.entity.EntityChangeBlockEvent;' not in listener:

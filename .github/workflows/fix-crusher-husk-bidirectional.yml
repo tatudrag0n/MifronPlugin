@@ -32,6 +32,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/main/java/org/server/minerva/FfaManager.java src/main/java/org/server/minerva/FfaListener.java
+          git add src/main/java/org/server/mifron/FfaManager.java src/main/java/org/server/mifron/FfaListener.java
           git commit -m "Fix Crusher explosions against and from training Husks"
           git push

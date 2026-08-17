@@ -65,8 +65,8 @@ p.write_text(s, encoding='utf-8')
 
 # New mobile UI bridge. It converts the plugin's existing inventory-menu models to native Bedrock Forms,
 # so the same action items and server logic are reused rather than duplicated.
-p = root / 'src/main/java/org/server/minerva/BedrockUiFeature.java'
-p.write_text(r'''package org.server.minerva;
+p = root / 'src/main/java/org/server/mifron/BedrockUiFeature.java'
+p.write_text(r'''package org.server.mifron;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -85,9 +85,9 @@ import org.geysermc.geyser.api.GeyserApi;
 
 final class BedrockUiFeature {
    private static final int MAX_CONTENT_ITEMS = 36;
-   private final Minerva plugin;
+   private final Mifron plugin;
 
-   BedrockUiFeature(Minerva plugin) {
+   BedrockUiFeature(Mifron plugin) {
       this.plugin = plugin;
    }
 
@@ -247,8 +247,8 @@ final class BedrockUiFeature {
 }
 ''', encoding='utf-8')
 
-# Minerva integration.
-p = root / 'src/main/java/org/server/minerva/Minerva.java'
+# Mifron integration.
+p = root / 'src/main/java/org/server/mifron/Mifron.java'
 s = p.read_text(encoding='utf-8')
 
 # Field (nullable when Geyser is not installed).
@@ -276,7 +276,7 @@ s = replace_in_method(
     '   private void openFriendUi(Player player)',
     '      player.openInventory(inventory);',
     '''      if (this.bedrockUiFeature != null
-         && this.bedrockUiFeature.showMenu(player, "Minerva Friends / Status", inventory, item -> this.getUiAction(item) != null, (slot, item) -> this.handleFriendUiClick(player, item))) {
+         && this.bedrockUiFeature.showMenu(player, "Mifron Friends / Status", inventory, item -> this.getUiAction(item) != null, (slot, item) -> this.handleFriendUiClick(player, item))) {
          return;
       }
       player.openInventory(inventory);''',
@@ -288,7 +288,7 @@ s = replace_in_method(
     '   private void openStatusUi(Player player, String tab)',
     '      player.openInventory(inventory);',
     '''      if (this.bedrockUiFeature != null
-         && this.bedrockUiFeature.showMenu(player, "Minerva Status", inventory, item -> this.getUiAction(item) != null, (slot, item) -> this.handleStatusUiClick(player, item))) {
+         && this.bedrockUiFeature.showMenu(player, "Mifron Status", inventory, item -> this.getUiAction(item) != null, (slot, item) -> this.handleStatusUiClick(player, item))) {
          return;
       }
       player.openInventory(inventory);''',
@@ -301,7 +301,7 @@ s = replace_in_method(
     '   void openServerPortalTargetUi(Player player, String portalKey)',
     '      player.openInventory(inventory);',
     '''      if (this.bedrockUiFeature != null
-         && this.bedrockUiFeature.showMenu(player, "Minerva Teleporter", inventory, item -> this.getUiAction(item) != null, (slot, item) -> this.handleTeleporterUiItem(player, item))) {
+         && this.bedrockUiFeature.showMenu(player, "Mifron Teleporter", inventory, item -> this.getUiAction(item) != null, (slot, item) -> this.handleTeleporterUiItem(player, item))) {
          return;
       }
       player.openInventory(inventory);''',
@@ -363,7 +363,7 @@ new_barrel = '''            } else if (event.getAction().isRightClick() && event
                   if (this.bedrockUiFeature == null
                      || !this.bedrockUiFeature.showMenu(
                         player,
-                        "Minerva Barrel Shop",
+                        "Mifron Barrel Shop",
                         barrelInventory,
                         itemx -> itemx != null && itemx.getType() != Material.AIR,
                         (slot, itemx) -> {
@@ -371,7 +371,7 @@ new_barrel = '''            } else if (event.getAction().isRightClick() && event
                            if (player.isOnline() && this.bedrockUiFeature != null) {
                               this.bedrockUiFeature.showMenu(
                                  player,
-                                 "Minerva Barrel Shop",
+                                 "Mifron Barrel Shop",
                                  barrelInventory,
                                  next -> next != null && next.getType() != Material.AIR,
                                  (nextSlot, nextItem) -> this.buyBarrelOffer(player, nextItem, nextSlot, barrelInventory)
@@ -394,7 +394,7 @@ s = replace_in_method(
     '''      if (this.bedrockUiFeature != null
          && this.bedrockUiFeature.showMenu(
             player,
-            "Minerva Merchant",
+            "Mifron Merchant",
             inventory,
             this::isMerchantOffer,
             (slot, item) -> {
@@ -406,7 +406,7 @@ s = replace_in_method(
                UUID merchantId = this.activeMerchantViews.remove(player.getUniqueId());
                if (merchantId != null && !this.activeMerchantViews.containsValue(merchantId)) {
                   Entity entity = this.findEntity(merchantId);
-                  if (entity instanceof AbstractVillager merchant && this.isMinervaMerchant(entity)) {
+                  if (entity instanceof AbstractVillager merchant && this.isMifronMerchant(entity)) {
                      merchant.setAI(true);
                      merchant.setInvulnerable(false);
                   }

@@ -39,11 +39,11 @@ jobs:
               return text[:pos] + new + text[pos + len(old):]
 
           files = {
-              "src/main/java/org/server/minerva/AthleticManager.java": [
+              "src/main/java/org/server/mifron/AthleticManager.java": [
                   ("for (String index : new ArrayList(points.getKeys(false))) {",
                    "for (String index : new ArrayList<String>(points.getKeys(false))) {")
               ],
-              "src/main/java/org/server/minerva/Minerva.java": [
+              "src/main/java/org/server/mifron/Mifron.java": [
                   ("for (String criterion : new ArrayList(progress.getAwardedCriteria())) {",
                    "for (String criterion : new ArrayList<String>(progress.getAwardedCriteria())) {"),
                   ("for (String criterion : new ArrayList(progress.getRemainingCriteria())) {",
@@ -58,8 +58,8 @@ jobs:
                    "int winReward = this.applyIncomeBonus(player.getUniqueId(), 10);\n               this.depositEmeralds(player.getUniqueId(), winReward);\n               this.addPlayerStat(player.getUniqueId(), \"minigame-wins\", 1);\n               player.sendMessage(\"§aミニゲーム勝利報酬: +\" + this.formatNumber(winReward) + \"MP\");"),
                   ("case \"clear\":\n               int count = 0;",
                    "case \"clear\":\n               int clearedCount = 0;"),
-                  ("entity.remove();\n                        count++;\n                     }\n                  }\n               }\n\n               player.sendMessage(\"§aMinerva商人を削除しました: \" + count + \"体\");",
-                   "entity.remove();\n                        clearedCount++;\n                     }\n                  }\n               }\n\n               player.sendMessage(\"§aMinerva商人を削除しました: \" + clearedCount + \"体\");"),
+                  ("entity.remove();\n                        count++;\n                     }\n                  }\n               }\n\n               player.sendMessage(\"§aMifron商人を削除しました: \" + count + \"体\");",
+                   "entity.remove();\n                        clearedCount++;\n                     }\n                  }\n               }\n\n               player.sendMessage(\"§aMifron商人を削除しました: \" + clearedCount + \"体\");"),
                   ("OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);\n               if (target != null) {\n                  this.acceptFriendRequest(player, target);",
                    "OfflinePlayer acceptTarget = this.resolveKnownPlayer(player, args[1]);\n               if (acceptTarget != null) {\n                  this.acceptFriendRequest(player, acceptTarget);"),
                   ("OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);\n               if (target != null) {\n                  this.removeFriend(player, target);",
@@ -67,7 +67,7 @@ jobs:
                   ("OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);\n               if (target != null) {\n                  String message = this.sanitizeTextInput(String.join(\" \", List.of(args).subList(2, args.length)), 256);\n                  this.sendFriendChat(player, target, message);",
                    "OfflinePlayer chatTarget = this.resolveKnownPlayer(player, args[1]);\n               if (chatTarget != null) {\n                  String message = this.sanitizeTextInput(String.join(\" \", List.of(args).subList(2, args.length)), 256);\n                  this.sendFriendChat(player, chatTarget, message);")
               ],
-              "src/main/java/org/server/minerva/FfaManager.java": [
+              "src/main/java/org/server/mifron/FfaManager.java": [
                   ("for (Player player : new ArrayList(this.plugin.getServer().getOnlinePlayers())) {",
                    "for (Player player : new ArrayList<Player>(this.plugin.getServer().getOnlinePlayers())) {"),
                   ("int count = this.stands.removeKitStands();\n            sender.sendMessage(\"§eFFAキット防具立てを削除しました: \" + count + \"体\");",
@@ -86,7 +86,7 @@ jobs:
               text = path.read_text(encoding="utf-8")
               for old, new in replacements:
                   text = replace_optional(text, old, new, filename)
-              if filename.endswith("Minerva.java"):
+              if filename.endswith("Mifron.java"):
                   old = "wand = this.createShopWand(type);\n               }\n\n               Map<Integer, ItemStack> leftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{wand});\n               if (!leftovers.isEmpty()) {"
                   new = "slotWand = this.createShopWand(type);\n               }\n\n               Map<Integer, ItemStack> slotLeftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{slotWand});\n               if (!slotLeftovers.isEmpty()) {"
                   text = replace_last(text, old, new, filename)

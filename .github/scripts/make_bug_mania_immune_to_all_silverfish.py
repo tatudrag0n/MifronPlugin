@@ -1,6 +1,6 @@
 from pathlib import Path
 
-listener_path = Path('src/main/java/org/server/minerva/FfaListener.java')
+listener_path = Path('src/main/java/org/server/mifron/FfaListener.java')
 listener = listener_path.read_text(encoding='utf-8')
 
 old_damage = '''      } else if (event.getEntity() instanceof Player victim) {
@@ -20,7 +20,7 @@ if old_damage not in listener:
 listener = listener.replace(old_damage, new_damage, 1)
 listener_path.write_text(listener, encoding='utf-8', newline='\n')
 
-manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
+manager_path = Path('src/main/java/org/server/mifron/FfaManager.java')
 manager = manager_path.read_text(encoding='utf-8')
 
 old_target = '''   void handleEntityTarget(EntityTargetLivingEntityEvent event) {

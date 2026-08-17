@@ -24,7 +24,7 @@ def replace_method(source: str, signature: str, replacement: str) -> str:
     return source[:start] + replacement + source[end:]
 
 
-manager_path = Path("src/main/java/org/server/minerva/FfaManager.java")
+manager_path = Path("src/main/java/org/server/mifron/FfaManager.java")
 manager = manager_path.read_text(encoding="utf-8")
 
 replacement = '''   void handleEntityTarget(EntityTargetLivingEntityEvent event) {

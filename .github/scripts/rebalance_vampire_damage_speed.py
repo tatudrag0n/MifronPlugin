@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # Trigger Vampire damage-focused rebalance.
-path = Path('src/main/java/org/server/minerva/FfaManager.java')
+path = Path('src/main/java/org/server/mifron/FfaManager.java')
 text = path.read_text(encoding='utf-8')
 
 old_damage = 'double damagePerTier = Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "damage-buff-per-tier-percent"), 10.0));'

@@ -1,8 +1,8 @@
 # Trigger workflow after workflow file creation.
 from pathlib import Path
 
-manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
-listener_path = Path('src/main/java/org/server/minerva/FfaListener.java')
+manager_path = Path('src/main/java/org/server/mifron/FfaManager.java')
+listener_path = Path('src/main/java/org/server/mifron/FfaListener.java')
 manager = manager_path.read_text(encoding='utf-8')
 listener = listener_path.read_text(encoding='utf-8')
 

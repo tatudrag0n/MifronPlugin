@@ -33,7 +33,7 @@ def replace_method(text: str, signature: str, replacement: str) -> str:
 # FfaManager: track the Bug Mania owner behind the vanilla INFESTED effect and
 # adopt silverfish spawned with SpawnReason.POTION_EFFECT into bug_silverfish.
 # -----------------------------------------------------------------------------
-p = Path('src/main/java/org/server/minerva/FfaManager.java')
+p = Path('src/main/java/org/server/mifron/FfaManager.java')
 s = p.read_text(encoding='utf-8')
 
 field_anchor = '   private final Map<UUID, BukkitTask> bugExpiryTasks = new HashMap<>();'
@@ -160,7 +160,7 @@ p.write_text(s, encoding='utf-8', newline='\n')
 # FfaListener: Paper 26.1.2 exposes POTION_EFFECT as the exact spawn reason for
 # creatures created by effects such as INFESTED. Route only those silverfish.
 # -----------------------------------------------------------------------------
-p = Path('src/main/java/org/server/minerva/FfaListener.java')
+p = Path('src/main/java/org/server/mifron/FfaListener.java')
 s = p.read_text(encoding='utf-8')
 if 'import org.bukkit.event.entity.CreatureSpawnEvent;' not in s:
     s = s.replace('import org.bukkit.event.entity.EntityChangeBlockEvent;\n', 'import org.bukkit.event.entity.CreatureSpawnEvent;\nimport org.bukkit.event.entity.EntityChangeBlockEvent;\n', 1)
@@ -185,7 +185,7 @@ p.write_text(s, encoding='utf-8', newline='\n')
 # FfaFieldItemManager: real weather remains enabled, but also render explicit
 # rain particles around FFA players so dry biomes still visibly look rainy.
 # -----------------------------------------------------------------------------
-p = Path('src/main/java/org/server/minerva/FfaFieldItemManager.java')
+p = Path('src/main/java/org/server/mifron/FfaFieldItemManager.java')
 s = p.read_text(encoding='utf-8')
 if 'import org.bukkit.Particle;' not in s:
     s = s.replace('import org.bukkit.NamespacedKey;\n', 'import org.bukkit.NamespacedKey;\nimport org.bukkit.Particle;\n', 1)

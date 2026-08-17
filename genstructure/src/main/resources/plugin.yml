@@ -5,7 +5,7 @@ api-version: '1.21'
 load: POSTWORLD
 softdepend:
   - WorldEdit
-  - minerva
+  - mifron
 commands:
   genstructure:
     description: Saves and generates custom structures.

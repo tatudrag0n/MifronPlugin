@@ -1,4 +1,4 @@
-# Generated from MinerVa_経済ショップ報酬_クエスト詳細調整版.xlsx / PriceTable.
+# Generated from Mifron_経済ショップ報酬_クエスト詳細調整版.xlsx / PriceTable.
 # Auction_Allowed is preserved when present; this workbook version omits it, so safe derived values are used.
 price-table:
   AXOLOTL_BUCKET:

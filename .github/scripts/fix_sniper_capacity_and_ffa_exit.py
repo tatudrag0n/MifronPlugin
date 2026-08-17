@@ -11,7 +11,7 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
         raise SystemExit(f"{label}: target found {count} times")
     return text.replace(old, new, 1)
 
-kit = Path("src/main/java/org/server/minerva/FfaKit.java")
+kit = Path("src/main/java/org/server/mifron/FfaKit.java")
 text = kit.read_text(encoding="utf-8")
 text = replace_once(
     text,
@@ -22,7 +22,7 @@ text = replace_once(
 text = text.replace('case SNIPER -> "2発式クロスボウ";', 'case SNIPER -> "単発式クロスボウ";')
 kit.write_text(text, encoding="utf-8", newline="\n")
 
-manager = Path("src/main/java/org/server/minerva/FfaManager.java")
+manager = Path("src/main/java/org/server/mifron/FfaManager.java")
 text = manager.read_text(encoding="utf-8")
 text = text.replace(
     'this.handleAmmoCrossbow(event, player, FfaKit.SNIPER, this.sniperAmmo, this.sniperReloadTasks, 2, "スナイパー", "sniper");',
@@ -30,7 +30,7 @@ text = text.replace(
 )
 manager.write_text(text, encoding="utf-8", newline="\n")
 
-listener = Path("src/main/java/org/server/minerva/FfaListener.java")
+listener = Path("src/main/java/org/server/mifron/FfaListener.java")
 text = listener.read_text(encoding="utf-8")
 text = replace_once(
     text,

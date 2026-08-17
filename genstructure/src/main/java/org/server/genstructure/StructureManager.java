@@ -690,7 +690,7 @@ final class StructureManager implements Listener {
         setIfMissing("structures.sky.min-y", 120);
         setIfMissing("structures.sky.max-y", 220);
         setIfMissing("structures.safety.avoid-protected", true);
-        setIfMissing("structures.safety.avoid-minerva-protected", true);
+        setIfMissing("structures.safety.avoid-mifron-protected", true);
         setIfMissing("structures.safety.protected-chunks", List.of());
         setIfMissing("structures.safety.avoid-structure-overlap", true);
         setIfMissing("structures.safety.overlap-margin-blocks", 2);

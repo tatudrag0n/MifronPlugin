@@ -26,7 +26,7 @@ def replace_method(text, signature, replacement):
     a, b = method_span(text, signature)
     return text[:a] + replacement + text[b:]
 
-p = Path('src/main/java/org/server/minerva/ServerPortalFeature.java')
+p = Path('src/main/java/org/server/mifron/ServerPortalFeature.java')
 s = p.read_text(encoding='utf-8')
 
 # imports
@@ -212,7 +212,7 @@ if 'this.closeWorldTeleporter(event.getPlayer());' not in s:
     s = replace_once(s, quit_anchor, quit_anchor + '      this.closeWorldTeleporter(event.getPlayer());\n', 'quit menu cleanup')
 
 # Utility item lore: new operation hint
-up = Path('src/main/java/org/server/minerva/UtilityItemsFeature.java')
+up = Path('src/main/java/org/server/mifron/UtilityItemsFeature.java')
 us = up.read_text(encoding='utf-8')
 us = us.replace('ChatColor.GRAY + "右クリック: テレポート先を選択",', 'ChatColor.GRAY + "右クリック: 目の前に移動先を表示",\n               ChatColor.GRAY + "表示されたアイテムを左クリック: テレポート",', 1)
 up.write_text(us, encoding='utf-8')

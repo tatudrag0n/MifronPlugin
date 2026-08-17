@@ -6,7 +6,7 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
         raise SystemExit(f"missing patch target: {label}")
     return text.replace(old, new, 1)
 
-p = Path("src/main/java/org/server/minerva/ServerPortalFeature.java")
+p = Path("src/main/java/org/server/mifron/ServerPortalFeature.java")
 s = p.read_text(encoding="utf-8")
 
 s = replace_once(
@@ -18,14 +18,14 @@ s = replace_once(
 
 s = replace_once(
     s,
-    '   private final NamespacedKey minervaItemKey;\n',
-    '   private final NamespacedKey minervaItemKey;\n   private final NamespacedKey frameLabelKey;\n',
+    '   private final NamespacedKey mifronItemKey;\n',
+    '   private final NamespacedKey mifronItemKey;\n   private final NamespacedKey frameLabelKey;\n',
     'label key field',
 )
 s = replace_once(
     s,
-    '      this.minervaItemKey = new NamespacedKey(plugin, "item");\n',
-    '      this.minervaItemKey = new NamespacedKey(plugin, "item");\n      this.frameLabelKey = new NamespacedKey(plugin, "teleporter_frame_label");\n',
+    '      this.mifronItemKey = new NamespacedKey(plugin, "item");\n',
+    '      this.mifronItemKey = new NamespacedKey(plugin, "item");\n      this.frameLabelKey = new NamespacedKey(plugin, "teleporter_frame_label");\n',
     'label key constructor',
 )
 

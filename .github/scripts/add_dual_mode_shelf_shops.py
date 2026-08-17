@@ -31,7 +31,7 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 root = Path('.')
-p = root / 'src/main/java/org/server/minerva/Minerva.java'
+p = root / 'src/main/java/org/server/mifron/Mifron.java'
 s = p.read_text(encoding='utf-8')
 
 s = replace_method(s, '   private void handleShopWandClick(PlayerInteractEvent event)', r'''   private void handleShopWandClick(PlayerInteractEvent event) {
@@ -62,7 +62,7 @@ s = replace_method(s, '   private void handleShopWandClick(PlayerInteractEvent e
          if (player.isSneaking()) {
             ItemStack specified = player.getInventory().getItemInOffHand();
             Material material = specified == null ? Material.AIR : specified.getType();
-            if (material == Material.AIR || !this.isRandomShopItem(material) || this.utilityItemsFeature.getMinervaItemId(specified) != null) {
+            if (material == Material.AIR || !this.isRandomShopItem(material) || this.utilityItemsFeature.getMifronItemId(specified) != null) {
                player.sendMessage("§e指定配置: オフハンドに販売したい通常アイテムを持ち、設定したい棚の枠をShift+右クリックしてください。");
                event.setCancelled(true);
                return;
@@ -101,7 +101,7 @@ s = replace_method(s, '   private void handleShopWandClick(PlayerInteractEvent e
       }
    }''')
 
-s = replace_method(s, '   private Minerva.ShelfShopOffer readShelfShopOffer(Player player, Block block)', r'''   private Minerva.ShelfShopOffer readShelfShopOffer(Player player, Block block) {
+s = replace_method(s, '   private Mifron.ShelfShopOffer readShelfShopOffer(Player player, Block block)', r'''   private Mifron.ShelfShopOffer readShelfShopOffer(Player player, Block block) {
       if (block == null || !this.isShelf(block.getType()) || !this.isShelfShop(block)) {
          return null;
       }
@@ -117,7 +117,7 @@ s = replace_method(s, '   private Minerva.ShelfShopOffer readShelfShopOffer(Play
       }
 
       int price = this.materialPrice(configuredMaterial);
-      return price <= 0 ? null : new Minerva.ShelfShopOffer(configuredMaterial, 1, price);
+      return price <= 0 ? null : new Mifron.ShelfShopOffer(configuredMaterial, 1, price);
    }''')
 
 s = replace_method(s, '   private List<Material> shelfShopRandomOffers(Block block)', r'''   private List<Material> shelfShopRandomOffers(Block block) {
@@ -273,7 +273,7 @@ s = s.replace('if (block != null && this.isShelfShop(block) && this.isShelfShop(
 p.write_text(s, encoding='utf-8')
 
 # Update wand lore so both placement modes are discoverable.
-p = root / 'src/main/java/org/server/minerva/UtilityItemsFeature.java'
+p = root / 'src/main/java/org/server/mifron/UtilityItemsFeature.java'
 s = p.read_text(encoding='utf-8')
 old = 'List.of(ChatColor.GRAY + "右クリック: 棚・樽をショップ化", ChatColor.GRAY + "左クリック: ショップ化を解除", ChatColor.DARK_GRAY + "樽ショップの商品はショップ化時に生成されます。")'
 new = '''List.of(

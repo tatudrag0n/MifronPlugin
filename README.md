@@ -1,22 +1,22 @@
-# MinerVa Plugin
+# Mifron Plugin
 
-MinerVa command aliases:
+Mifron command aliases:
 
-- `/minerva`
-- `/mva`
+- `/mifron`
+- `/mf`
 
-`/mv` is reserved for Multiverse-Core and is not registered by MinerVa. For example, use Multiverse-Core commands such as `/mv create` only for world management provided by Multiverse-Core.
+`/mv` is reserved for Multiverse-Core and is not registered by Mifron. For example, use Multiverse-Core commands such as `/mv create` only for world management provided by Multiverse-Core.
 
-Recommended MinerVa world/admin command style:
+Recommended Mifron world/admin command style:
 
-- `/mva check`
-- `/mva list`
-- `/mva tp <worldKey>`
-- `/mva gamerules <world>`
-- `/mva info`
-- `/mva reload`
+- `/mf check`
+- `/mf list`
+- `/mf tp <worldKey>`
+- `/mf gamerules <world>`
+- `/mf info`
+- `/mf reload`
 
-The current plugin command implementation keeps existing `/minerva` subcommands and exposes them through `/mva` as the short alias.
+The current plugin command implementation keeps existing `/mifron` subcommands and exposes them through `/mf` as the short alias.
 
 ## Spawn Protection
 
@@ -28,7 +28,7 @@ Recommended `server.properties` setting:
 spawn-protection=0
 ```
 
-Use MinerVa's `ProtectionService` and central-area protection instead. Protected spawn/central chunks still block normal building, doors, trapdoors, containers, item frames, armor stands, signs, and hopper movement, while explicitly allowing MinerVa shop purchases, auction bids, status-book UI, teleporter UI, and admin shop-wand actions.
+Use Mifron's `ProtectionService` and central-area protection instead. Protected spawn/central chunks still block normal building, doors, trapdoors, containers, item frames, armor stands, signs, and hopper movement, while explicitly allowing Mifron shop purchases, auction bids, status-book UI, teleporter UI, and admin shop-wand actions.
 
 ## Shops
 
@@ -41,7 +41,7 @@ Normal block breaking, explosions, pistons, liquids, and burning do not break sh
 
 ## Stored Data and Privacy
 
-MinerVa stores server-side gameplay data in the plugin data folder. Treat these files as private server data and do not publish them.
+Mifron stores server-side gameplay data in the plugin data folder. Treat these files as private server data and do not publish them.
 
 - `data.yml`: player UUIDs, names, MP balances, status/progression data, friend relationships, friend requests, and limited offline friend messages.
 - `proposals.yml`: pending/reviewed proposal metadata, which may include Discord user IDs when imported by external tooling.
@@ -51,6 +51,6 @@ To remove a player's stored data, delete that player's UUID section from the rel
 
 ## Legal Notes
 
-MinerVa is an unofficial Minecraft server plugin and is not affiliated with, endorsed by, or approved by Mojang or Microsoft.
+Mifron is an unofficial Minecraft server plugin and is not affiliated with, endorsed by, or approved by Mojang or Microsoft.
 
-Do not sell or exchange MinerVa MP or other in-game rewards for real-world money or transferable value. If the server is monetized, keep rewards compliant with the current Minecraft EULA and Usage Guidelines.
+Do not sell or exchange Mifron MP or other in-game rewards for real-world money or transferable value. If the server is monetized, keep rewards compliant with the current Minecraft EULA and Usage Guidelines.

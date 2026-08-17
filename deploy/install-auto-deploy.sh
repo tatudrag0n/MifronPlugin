@@ -3,12 +3,12 @@ set -euo pipefail
 
 DEPLOY_USER="${DEPLOY_USER:-${SUDO_USER:-$USER}}"
 DEPLOY_HOME="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
-REPO_DIR="${REPO_DIR:-$DEPLOY_HOME/MinervaPlugin}"
+REPO_DIR="${REPO_DIR:-$DEPLOY_HOME/MifronPlugin}"
 PLUGINS_DIR="${PLUGINS_DIR:-$DEPLOY_HOME/main-server/plugins}"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 INTERVAL="${INTERVAL:-60}"
-STATE_DIR="${STATE_DIR:-/var/lib/minervaplugin-deploy}"
-ENV_FILE="${ENV_FILE:-/etc/minervaplugin-deploy.env}"
+STATE_DIR="${STATE_DIR:-/var/lib/mifronplugin-deploy}"
+ENV_FILE="${ENV_FILE:-/etc/mifronplugin-deploy.env}"
 
 if [ ! -d "$REPO_DIR/.git" ]; then
   echo "ERROR: Git checkout not found: $REPO_DIR" >&2
@@ -39,7 +39,7 @@ EOF
   sudo chmod 600 "$ENV_FILE"
 fi
 
-sudo tee /usr/local/sbin/minervaplugin-deploy >/dev/null <<EOF
+sudo tee /usr/local/sbin/mifronplugin-deploy >/dev/null <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 DEPLOY_USER='$DEPLOY_USER'
@@ -72,7 +72,7 @@ notify() {
   local payload
   payload="\$(python3 - "\$status" "\$message" <<'PY'
 import json, sys
-print(json.dumps({"content": f"[MinervaPlugin deploy][{sys.argv[1]}] {sys.argv[2]}"}, ensure_ascii=False))
+print(json.dumps({"content": f"[MifronPlugin deploy][{sys.argv[1]}] {sys.argv[2]}"}, ensure_ascii=False))
 PY
 )"
   curl -fsS --max-time 10 -H 'Content-Type: application/json' -d "\$payload" "\$DISCORD_WEBHOOK_URL" >/dev/null || true
@@ -124,7 +124,7 @@ rollback() {
   mv -f "\$target.new" "\$target"
   systemctl restart "\$SERVICE_NAME"
   if health_check; then
-    notify ROLLBACK_OK "Previous MinervaPlugin restored successfully"
+    notify ROLLBACK_OK "Previous MifronPlugin restored successfully"
     return 0
   fi
   notify CRITICAL "Rollback completed but Minecraft health check still failed"
@@ -144,12 +144,12 @@ trap on_error ERR
 cd "\$REPO_DIR"
 run_user git fetch origin main
 deploy_remote="\$(run_user git rev-parse origin/main)"
-target="\$PLUGINS_DIR/minervaplugin-26.1.2.jar"
+target="\$PLUGINS_DIR/mifronplugin-26.1.2.jar"
 last_deployed=""
 [ -f "\$STATE_DIR/last-deployed" ] && last_deployed="\$(tr -d '[:space:]' < "\$STATE_DIR/last-deployed")"
 
 if [ "\$last_deployed" = "\$deploy_remote" ] && [ -s "\$target" ]; then
-  echo "MinervaPlugin already deployed: \$deploy_remote"
+  echo "MifronPlugin already deployed: \$deploy_remote"
   exit 0
 fi
 
@@ -157,19 +157,19 @@ notify START "Deploying \${last_deployed:-none} -> \$deploy_remote"
 run_user git reset --hard origin/main
 build_maven
 
-jar="\$(find "\$REPO_DIR/target" -maxdepth 1 -type f -name 'minervaplugin-*.jar' ! -name 'original-*' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+jar="\$(find "\$REPO_DIR/target" -maxdepth 1 -type f -name 'mifronplugin-*.jar' ! -name 'original-*' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
 test -n "\$jar"
 test -s "\$jar"
 
 mkdir -p "\$PLUGINS_DIR" "\$STATE_DIR/backups"
 timestamp="\$(date +%Y%m%d-%H%M%S)"
 if [ -s "\$target" ]; then
-  rollback_file="\$STATE_DIR/backups/minervaplugin-previous-\$timestamp.jar"
+  rollback_file="\$STATE_DIR/backups/mifronplugin-previous-\$timestamp.jar"
   cp -f "\$target" "\$rollback_file"
 fi
 
 shopt -s nullglob
-for old in "\$PLUGINS_DIR"/minervaplugin-*.jar "\$PLUGINS_DIR"/MinervaPlugin-*.jar; do
+for old in "\$PLUGINS_DIR"/mifronplugin-*.jar "\$PLUGINS_DIR"/MifronPlugin-*.jar; do
   [ "\$old" = "\$target" ] && continue
   cp -f "\$old" "\$STATE_DIR/backups/\$(basename "\$old").\$timestamp.bak"
   rm -f "\$old"
@@ -189,42 +189,42 @@ printf '%s  %s\n' "\$(sha256sum "\$target" | awk '{print \$1}')" "\$target" > "\
 find "\$STATE_DIR/backups" -maxdepth 1 -type f -printf '%T@ %p\n' | sort -nr | tail -n +6 | cut -d' ' -f2- | xargs -r rm -f
 installed_new=0
 trap - ERR
-notify SUCCESS "MinervaPlugin deployed: \$deploy_remote"
+notify SUCCESS "MifronPlugin deployed: \$deploy_remote"
 EOF
-sudo chmod 0755 /usr/local/sbin/minervaplugin-deploy
+sudo chmod 0755 /usr/local/sbin/mifronplugin-deploy
 
-sudo tee /etc/systemd/system/minervaplugin-deploy.service >/dev/null <<EOF
+sudo tee /etc/systemd/system/mifronplugin-deploy.service >/dev/null <<EOF
 [Unit]
-Description=Deploy latest MinervaPlugin from GitHub with rollback
+Description=Deploy latest MifronPlugin from GitHub with rollback
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
 User=root
-ExecStart=/usr/local/sbin/minervaplugin-deploy
+ExecStart=/usr/local/sbin/mifronplugin-deploy
 TimeoutStartSec=15min
 EOF
 
-sudo tee /etc/systemd/system/minervaplugin-deploy.timer >/dev/null <<EOF
+sudo tee /etc/systemd/system/mifronplugin-deploy.timer >/dev/null <<EOF
 [Unit]
-Description=Check MinervaPlugin updates
+Description=Check MifronPlugin updates
 
 [Timer]
 OnBootSec=30s
 OnUnitActiveSec=${INTERVAL}s
 Persistent=true
-Unit=minervaplugin-deploy.service
+Unit=mifronplugin-deploy.service
 
 [Install]
 WantedBy=timers.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now minervaplugin-deploy.timer
-sudo systemctl start minervaplugin-deploy.service
+sudo systemctl enable --now mifronplugin-deploy.timer
+sudo systemctl start mifronplugin-deploy.service
 
-echo "Installed safe MinervaPlugin auto deploy."
+echo "Installed safe MifronPlugin auto deploy."
 echo "Optional notifications: edit $ENV_FILE and set DISCORD_WEBHOOK_URL."
-echo "Timer: systemctl status minervaplugin-deploy.timer --no-pager"
-echo "Logs:  journalctl -u minervaplugin-deploy.service -n 100 --no-pager"
+echo "Timer: systemctl status mifronplugin-deploy.timer --no-pager"
+echo "Logs:  journalctl -u mifronplugin-deploy.service -n 100 --no-pager"

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # Triggered repair: Crusher explosions must damage every valid nearby entity.
-path = Path('src/main/java/org/server/minerva/FfaManager.java')
+path = Path('src/main/java/org/server/mifron/FfaManager.java')
 text = path.read_text(encoding='utf-8')
 
 

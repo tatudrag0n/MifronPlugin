@@ -26,7 +26,7 @@ jobs:
           python3 <<'PY'
           from pathlib import Path
 
-          java_path = Path('src/main/java/org/server/minerva/FfaManager.java')
+          java_path = Path('src/main/java/org/server/mifron/FfaManager.java')
           text = java_path.read_text(encoding='utf-8')
 
           replacements = [
@@ -92,6 +92,6 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/main/java/org/server/minerva/FfaManager.java src/main/resources/config.yml
+          git add src/main/java/org/server/mifron/FfaManager.java src/main/resources/config.yml
           git commit -m 'Simplify sniper reload and add reload audio feedback'
           git push origin HEAD:main

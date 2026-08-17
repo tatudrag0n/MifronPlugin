@@ -32,12 +32,12 @@ jobs:
 
       - name: Commit source changes
         run: |
-          if git diff --quiet -- src/main/java/org/server/minerva/FfaFieldItemManager.java; then
+          if git diff --quiet -- src/main/java/org/server/mifron/FfaFieldItemManager.java; then
             echo "No source changes to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/main/java/org/server/minerva/FfaFieldItemManager.java
+          git add src/main/java/org/server/mifron/FfaFieldItemManager.java
           git commit -m "Sync FFA rain event with player weather"
           git push
