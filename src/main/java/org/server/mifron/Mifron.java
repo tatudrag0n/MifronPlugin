@@ -865,7 +865,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                "§a保護§7: 拠点を守る場合は /mf protect でチャンク保護ビーコンを受け取り、設置してください。死亡時はFFA以外で所持MPの50%を失います。",
                "§aチュートリアル完了です。もう一度見たい場合は /tutorial を実行してください。"
             );
-            player.sendMessage("§6=== MinerVa Tutorial ===");
+            player.sendMessage("§6=== Mifron Tutorial ===");
 
             for (int i = 0; i < steps.size(); i++) {
                int index = i;
@@ -6482,15 +6482,15 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             World world = Bukkit.getWorld(args[1]);
             sender.sendMessage(world == null ? "§cワールドが見つかりません: " + args[1] : "§aゲームルールを適用しました: " + world.getName());
          } else {
-            sender.sendMessage("§a全ワールドへMinerVaゲームルールを適用しました。");
+            sender.sendMessage("§a全ワールドへMifronゲームルールを適用しました。");
          }
       }
    }
 
    private void handleInfoCommand(CommandSender sender) {
-      sender.sendMessage("§aMinerVa " + this.getDescription().getVersion());
+      sender.sendMessage("§aMifron " + this.getDescription().getVersion());
       sender.sendMessage("§7Commands: /mifron, /mf");
-      sender.sendMessage("§7/mv はMultiverse-Core専用です。MinerVaは登録しません。");
+      sender.sendMessage("§7/mv はMultiverse-Core専用です。Mifronは登録しません。");
    }
 
    private void handleReloadCommand(CommandSender sender) {
@@ -6506,7 +6506,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          this.structureManager.load();
          this.proposalManager.load();
          this.ffaManager.load();
-         sender.sendMessage("§aMinerVa設定、価格表、クエスト定義を再読込しました。");
+         sender.sendMessage("§aMifron設定、価格表、クエスト定義を再読込しました。");
       }
    }
 
@@ -6521,7 +6521,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private void handleMifronStatusCommand(Player player, String[] args) {
       if (args.length < 2 || !"reset".equalsIgnoreCase(args[1])) {
          ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
-         player.sendMessage("§aMinerVaステータス");
+         player.sendMessage("§aMifronステータス");
          player.sendMessage("§7MFL: " + this.getMfl(player.getUniqueId()) + " / ランク: " + this.getMflRank(player.getUniqueId()));
          player.sendMessage("§7所持MP: " + this.formatNumber(this.getEmeralds(player.getUniqueId())) + "MP");
          player.sendMessage("§7転生ボーナス: +" + this.getReincarnationBonus(player.getUniqueId()) + "%");
@@ -6531,7 +6531,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          player.sendMessage("§cステータスリセットは管理者のみ実行できます。");
       } else {
          this.resetStatusData(player.getUniqueId());
-         player.sendMessage("§a自分のMinerVaステータスをリセットしました。");
+         player.sendMessage("§a自分のMifronステータスをリセットしました。");
       }
    }
 
