@@ -26,16 +26,13 @@ commands:
     usage: /tutorial
 permissions:
   mifron.admin:
-    description: Allows Mifron administrative commands and protected-area bypass.
+    description: Allows Mifron administrative commands and server-area bypass.
     default: op
   mifron.command.use:
     description: Allows basic Mifron commands.
     default: true
   mifron.command.chunk:
     description: Allows /mifron chunk.
-    default: true
-  mifron.command.protect:
-    description: Allows /mifron protect.
     default: true
   mifron.command.status:
     description: Allows /mifron status.

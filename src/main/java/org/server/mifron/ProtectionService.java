@@ -1,6 +1,7 @@
 package org.server.mifron;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
@@ -52,6 +53,10 @@ final class ProtectionService {
       } else {
          return false;
       }
+   }
+
+   boolean isSurvivalHazardBlocked(Location location, Material material) {
+      return this.chunkProtection.isSurvivalHazardBlocked(location, material);
    }
 
    private boolean hasBypass(Player player) {

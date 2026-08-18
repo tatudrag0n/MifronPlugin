@@ -390,19 +390,6 @@ quests:
     progress-key: monthly_complete
     required: 9
     intent: "月間完走報酬"
-  S01:
-    type: "スペシャル"
-    name: "初めての拠点"
-    reset: "条件達成で発生"
-    condition: "初めてビーコン保護チャンクを作成"
-    base-reward-mp: 5000
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: BEACON
-    progress-key: protected_chunks
-    required: 1
-    intent: "保護システムの導線"
   S02:
     type: "スペシャル"
     name: "村の救世主"

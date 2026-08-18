@@ -1,8 +1,9 @@
 local-chat-radius: 50.0
 hub-protection-radius-chunks: 4
-protection:
-  require-adjacent-claim: true
-  claim-cooldown-seconds: 3
+survival-safety:
+  disable-tnt: true
+  disable-lava: true
+  allow-admin-bypass: true
 warningDays: 7
 regenIntervalDays: 30
 backupBeforeRegen: true
@@ -81,14 +82,13 @@ proposals:
   require-admin-approval: true
 
 messages:
-  unprotectedChunk: "このチャンクは保護されていません。次回の自然再生で再生成される可能性があります。"
-  scheduledRegen: "このチャンクは未保護のため、次回メンテナンス時に自然再生されます。"
-  protectPrompt: "建築物やアイテムを残したい場合は、ビーコンでチャンク保護してください。"
+  unprotectedChunk: "このチャンクは自然再生成の許可リストに入っています。"
+  scheduledRegen: "このチャンクは自然再生成の許可リストに入っているため、次回メンテナンスの対象です。"
 
 regen:
-  nation-chunks: []
-  public-facility-chunks: []
-  staff-excluded-chunks: []
+  # 空の場合、自然再生成はどのチャンクにも実行されません。
+  # 形式: survival,チャンクX,チャンクZ
+  allowed-chunks: []
 
 hub:
   world: world

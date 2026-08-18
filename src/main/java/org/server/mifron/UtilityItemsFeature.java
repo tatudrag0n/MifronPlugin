@@ -22,7 +22,7 @@ import org.bukkit.persistence.PersistentDataType;
 final class UtilityItemsFeature implements Listener {
    private static final Set<String> INITIAL_ITEM_IDS = Set.of("emerald_bundle", "friend_book", "teleporter");
    private static final Set<String> FIXED_ITEM_IDS = Set.of(
-      "emerald_bundle", "friend_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand", "chunk_protection_beacon"
+      "emerald_bundle", "friend_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand"
    );
    private static final int MAX_JUMP_PAD_POWER = 100;
    private final NamespacedKey mifronItemKey;
@@ -156,15 +156,6 @@ final class UtilityItemsFeature implements Listener {
             meta.getPersistentDataContainer().set(this.jumpPadVerticalPowerKey, PersistentDataType.INTEGER, safeVerticalPower);
             meta.getPersistentDataContainer().set(this.jumpPadHorizontalPowerKey, PersistentDataType.INTEGER, safeHorizontalPower);
          }
-      );
-   }
-
-   ItemStack createChunkProtectionBeacon() {
-      return this.createMifronItem(
-         Material.BEACON,
-         "chunk_protection_beacon",
-         ChatColor.AQUA + "チャンク保護ビーコン",
-         List.of(ChatColor.GRAY + "設置したチャンクを保護します。", ChatColor.GRAY + "通常ビーコンとは別の保護用ビーコンです。")
       );
    }
 

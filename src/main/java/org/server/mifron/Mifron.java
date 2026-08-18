@@ -862,7 +862,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                "§eMPの注意§7: 通常のエメラルドを拾ってもMPにはなりません。エメラルドはアイテムとして残り、MPは報酬・クエスト・取引などで受け取ります。",
                "§6最初に遊ぶ§7: テレポーターで移動先を表示し、FFAでは中央のキット選択から好きなキットを選んで参加します。退出は /mf ffa leave、戦績は /mf ffa stats です。",
                "§dステータスと移動§7: ステータス（ネザースター）を右クリックすると案内を確認できます。テレポーターの表示アイテムを左クリックすると移動できます。",
-               "§a建築するなら§7: 拠点を作る前に /mf protect で保護ビーコンを受け取り、守りたい場所に設置してください。詳しい案内は /tutorial で再表示できます。"
+               "§a建築の注意§7: SurvivalではTNTと溶岩を使えません。自然再生成は管理者が許可したチャンクだけで実行されます。詳しい案内は /tutorial で再表示できます。"
             );
             player.sendMessage("§6=== Mifron Tutorial ===");
 
@@ -909,10 +909,6 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private ItemStack createJumpPadWand(int verticalPower, int horizontalPower) {
       return this.utilityItemsFeature.createJumpPadWand(verticalPower, horizontalPower);
-   }
-
-   ItemStack createChunkProtectionBeacon() {
-      return this.utilityItemsFeature.createChunkProtectionBeacon();
    }
 
    boolean isMifronItem(ItemStack item, String id) {
@@ -6130,7 +6126,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private boolean handleMifronCommand(CommandSender sender, String[] args) {
       if (args.length == 0) {
          sender.sendMessage(
-            "§e/mifron check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shelfshop|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|serverorder|servericon|delserver|warning"
+            "§e/mifron check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|status|tutorial|shelfshop|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|serverorder|servericon|delserver|warning"
          );
          return true;
       } else if (!(sender instanceof Player player)
@@ -6208,11 +6204,6 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             case "chunk":
                if (this.hasPermission(sender, "mifron.command.chunk")) {
                   this.handleChunkCommand((Player)sender);
-               }
-               break;
-            case "protect":
-               if (this.hasPermission(sender, "mifron.command.protect")) {
-                  this.handleProtectCommand((Player)sender);
                }
                break;
             case "status":
@@ -6413,7 +6404,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                break;
             default:
                sender.sendMessage(
-                  "§e/mifron check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shelfshop|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|delserver|warning"
+                  "§e/mifron check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|status|tutorial|shelfshop|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|delserver|warning"
                );
          }
 
@@ -6511,10 +6502,6 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private void handleChunkCommand(Player player) {
       this.chunkProtectionFeature.handleChunkCommand(player);
-   }
-
-   private void handleProtectCommand(Player player) {
-      this.chunkProtectionFeature.handleProtectCommand(player);
    }
 
    private void handleMifronStatusCommand(Player player, String[] args) {
@@ -6957,7 +6944,6 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             "mp",
             "regen",
             "chunk",
-            "protect",
             "status",
             "tutorial",
             "shelfshop",
@@ -7023,7 +7009,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          }
 
          if (args.length == 2 && this.isMifronRootCommand(command) && "regen".equalsIgnoreCase(args[0])) {
-            return List.of("0", "1", "2", "4", "force");
+            return List.of("allow", "deny", "list", "0", "1", "2", "4", "force");
          }
 
          if (args.length == 3 && this.isMifronRootCommand(command) && "regen".equalsIgnoreCase(args[0]) && "force".equalsIgnoreCase(args[1])) {

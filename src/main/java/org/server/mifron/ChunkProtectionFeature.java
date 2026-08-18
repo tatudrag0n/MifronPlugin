@@ -7,18 +7,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
-import org.bukkit.Bukkit;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
+import org.bukkit.block.Block;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.TileState;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -27,18 +23,13 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 
 final class ChunkProtectionFeature implements Listener {
    private final Mifron plugin;
-   private final NamespacedKey protectionBeaconKey;
    private final Map<UUID, String> lastChunkWarning = new ConcurrentHashMap<>();
-   private final Map<UUID, Long> lastClaimAt = new ConcurrentHashMap<>();
 
    ChunkProtectionFeature(Mifron plugin) {
       this.plugin = plugin;
-      this.protectionBeaconKey = new NamespacedKey(plugin, "chunk_protection_beacon");
    }
 
    @EventHandler
@@ -48,60 +39,20 @@ final class ChunkProtectionFeature implements Listener {
          event.setDropItems(false);
          event.setExpToDrop(0);
          event.getPlayer().sendMessage(ChatColor.YELLOW + "ショップ化されたブロックはショップワンドで解除してください。");
-      } else if (this.isProtected(event.getPlayer(), event.getBlock().getLocation())) {
-         event.setCancelled(true);
-         event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
       } else {
-         if (event.getBlock().getType() == Material.BEACON && this.isMarkedChunkProtectionBeacon(event.getBlock().getState())) {
-            event.setDropItems(false);
-            event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation(), this.plugin.createChunkProtectionBeacon());
-         }
-
          this.plugin.addPlayerStat(event.getPlayer().getUniqueId(), "total-blocks-broken", 1);
       }
    }
 
    @EventHandler
    public void onBlockPlace(BlockPlaceEvent event) {
-      if (this.isProtected(event.getPlayer(), event.getBlockPlaced().getLocation())) {
+      Location location = event.getBlockPlaced().getLocation();
+      if (this.isSurvivalHazardBlocked(location, event.getBlockPlaced().getType())
+         && !this.isProtectionAdmin(event.getPlayer())) {
          event.setCancelled(true);
-         event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
-      } else if (event.getBlockPlaced().getType() == Material.BEACON && this.isChunkProtectionBeaconItem(event.getItemInHand())) {
-         Player player = event.getPlayer();
-         Chunk chunk = event.getBlockPlaced().getChunk();
-         String existingOwner = this.getActiveChunkOwner(chunk);
-         if (existingOwner != null) {
-            event.setCancelled(true);
-            player.sendMessage(ChatColor.YELLOW + "このチャンクはすでに保護されています。");
-            return;
-         }
-
-         long cooldownMillis = Math.max(0L, this.plugin.getConfig().getLong("protection.claim-cooldown-seconds", 3L)) * 1000L;
-         long now = System.currentTimeMillis();
-         long last = this.lastClaimAt.getOrDefault(player.getUniqueId(), 0L);
-         if (now - last < cooldownMillis) {
-            event.setCancelled(true);
-            long remaining = Math.max(1L, (cooldownMillis - (now - last) + 999L) / 1000L);
-            player.sendMessage(ChatColor.YELLOW + "保護ビーコンの設置間隔が短すぎます。あと" + remaining + "秒待ってください。");
-            return;
-         }
-
-         int ownedClaims = this.activeClaimCount(player.getUniqueId());
-         if (ownedClaims > 0 && this.plugin.getConfig().getBoolean("protection.require-adjacent-claim", true)
-            && !this.hasAdjacentOwnedClaim(player.getUniqueId(), chunk)) {
-            event.setCancelled(true);
-            player.sendMessage(ChatColor.YELLOW + "新しい保護は、既存の自分の保護チャンクに隣接している必要があります。");
-            return;
-         }
-
-         this.lastClaimAt.put(player.getUniqueId(), now);
-         this.markChunkProtectionBeacon(event.getBlockPlaced());
-         this.claimChunk(player, chunk);
-         this.plugin.addPlayerStat(player.getUniqueId(), "total-blocks-placed", 1);
-         this.plugin.recordQuestProgress(player, "protected_chunks", 1);
-         player.sendMessage(ChatColor.GREEN + "このチャンクを保護しました。");
+         event.getPlayer().sendMessage(ChatColor.RED + this.survivalHazardMessage(event.getBlockPlaced().getType()));
       } else {
-         if (this.isWarningPlacement(event.getBlockPlaced().getType()) && !this.isChunkRegenerationSafe(event.getBlockPlaced().getChunk())) {
+         if (this.isWarningPlacement(event.getBlockPlaced().getType()) && this.isChunkRegenerationAllowed(event.getBlockPlaced().getChunk())) {
             this.sendChunkWarning(event.getPlayer(), event.getBlockPlaced().getChunk());
          }
 
@@ -111,16 +62,40 @@ final class ChunkProtectionFeature implements Listener {
 
    @EventHandler
    public void onEntityExplode(EntityExplodeEvent event) {
-      event.blockList().removeIf(block -> this.isBuildProtectedChunk(block.getChunk()) || this.plugin.isShopBlock(block));
+      event.blockList().removeIf(this.plugin::isShopBlock);
    }
 
    @EventHandler
    public void onBlockExplode(BlockExplodeEvent event) {
-      event.blockList().removeIf(block -> this.isBuildProtectedChunk(block.getChunk()) || this.plugin.isShopBlock(block));
+      event.blockList().removeIf(this.plugin::isShopBlock);
    }
 
    void handleRegenCommand(CommandSender sender, String[] args) {
       if (this.plugin.hasPermission(sender, "mifron.admin.regen.force") && sender instanceof Player player) {
+         if (args.length >= 2 && ("allow".equalsIgnoreCase(args[1]) || "deny".equalsIgnoreCase(args[1]))) {
+            if (!"survival".equalsIgnoreCase(player.getWorld().getName())) {
+               sender.sendMessage(ChatColor.RED + "自然再生成の許可リストを設定できるのはSurvivalワールド内だけです。");
+               return;
+            }
+            String key = this.chunkKey(player.getLocation().getChunk());
+            java.util.List<String> allowed = new java.util.ArrayList<>(this.plugin.getConfig().getStringList("regen.allowed-chunks"));
+            boolean allow = "allow".equalsIgnoreCase(args[1]);
+            if (allow && !allowed.contains(key)) {
+               allowed.add(key);
+               this.plugin.getConfig().set("regen.allowed-chunks", allowed);
+               this.plugin.saveConfig();
+            } else if (!allow && allowed.remove(key)) {
+               this.plugin.getConfig().set("regen.allowed-chunks", allowed);
+               this.plugin.saveConfig();
+            }
+            sender.sendMessage((allow ? ChatColor.GREEN + "自然再生成を許可しました: " : ChatColor.YELLOW + "自然再生成の許可を解除しました: ") + key);
+            return;
+         }
+         if (args.length >= 2 && "list".equalsIgnoreCase(args[1])) {
+            java.util.List<String> allowed = this.plugin.getConfig().getStringList("regen.allowed-chunks");
+            sender.sendMessage(ChatColor.GREEN + "自然再生成の許可チャンク: " + (allowed.isEmpty() ? "なし" : String.join(" / ", allowed)));
+            return;
+         }
          int radiusArgIndex = args.length >= 2 && "force".equalsIgnoreCase(args[1]) ? 2 : 1;
          if (args.length > radiusArgIndex && !args[radiusArgIndex].matches("\\d+")) {
             sender.sendMessage(ChatColor.RED + "/mifron regen [radius]");
@@ -152,26 +127,10 @@ final class ChunkProtectionFeature implements Listener {
       this.sendChunkInfo(player, player.getLocation().getChunk(), false);
    }
 
-   void handleProtectCommand(Player player) {
-      ItemStack beacon = this.plugin.createChunkProtectionBeacon();
-      Map<Integer, ItemStack> leftovers = player.getInventory().addItem(new ItemStack[]{beacon});
-      if (!leftovers.isEmpty()) {
-         player.sendMessage(ChatColor.RED + "インベントリに空きがありません。");
-      } else {
-         player.sendMessage(ChatColor.YELLOW + "保護したいチャンク内にチャンク保護ビーコンを設置してください。");
-         player.sendMessage(ChatColor.YELLOW + "通常ビーコンではチャンク保護されません。");
-         player.sendMessage(ChatColor.YELLOW + "チャンク保護ビーコンが存在するチャンクは、設置者以外が変更できず、自然再生対象から外れます。");
-         player.sendMessage(ChatColor.RED + "保護していない建築物・チェスト・地下施設は、警告後に削除される可能性があります。");
-      }
-   }
-
    private void sendChunkInfo(Player player, Chunk chunk, boolean admin) {
       String key = this.chunkKey(chunk);
       player.sendMessage(ChatColor.GREEN + "チャンク情報: " + key);
-      player.sendMessage(
-         ChatColor.GRAY + "ビーコン保護: " + (this.isActiveProtectedChunk(chunk.getBlock(0, chunk.getWorld().getMinHeight(), 0).getLocation()) ? "あり" : "なし")
-      );
-      player.sendMessage(ChatColor.GRAY + "再生成対象外: " + (this.isChunkRegenerationSafe(chunk) ? "はい" : "いいえ"));
+      player.sendMessage(ChatColor.GRAY + "自然再生成許可: " + (this.isChunkRegenerationAllowed(chunk) ? "はい" : "いいえ"));
       long scheduledAt = this.plugin.data().getLong("regen." + key + ".regenScheduledAt", 0L);
       if (scheduledAt > 0L) {
          player.sendMessage(ChatColor.RED + "自然再生予定: " + this.formatDateTime(scheduledAt));
@@ -180,19 +139,13 @@ final class ChunkProtectionFeature implements Listener {
       }
 
       player.sendMessage(ChatColor.GRAY + "再生成回数: " + this.plugin.data().getInt("regen." + key + ".regenCount", 0));
-      if (!admin && !this.isChunkRegenerationSafe(chunk)) {
-         player.sendMessage(ChatColor.YELLOW + "建築物やアイテムを残したい場合は、ビーコンで保護してください。");
+      if (!admin && this.isChunkRegenerationAllowed(chunk)) {
+         player.sendMessage(ChatColor.YELLOW + "このチャンクは自然再生成の許可リストに入っています。");
       }
    }
 
    private boolean isProtected(Player player, Location location) {
-      if (!player.hasPermission("mifron.admin") && !player.hasPermission("mifron.protect.bypass")) {
-         Chunk chunk = location.getChunk();
-         String owner = this.getActiveChunkOwner(chunk);
-         return owner != null ? !this.isTrusted(player, location) : this.isCentralProtectedChunk(chunk) || this.isConfiguredProtectedChunk(chunk);
-      } else {
-         return false;
-      }
+      return location != null && !this.isProtectionAdmin(player) && this.isBuildProtectedChunk(location.getChunk());
    }
 
    boolean isProtectedLocation(Location location) {
@@ -204,109 +157,15 @@ final class ChunkProtectionFeature implements Listener {
    }
 
    boolean isTrusted(Player player, Location location) {
-      if (player != null && location != null) {
-         Chunk chunk = location.getChunk();
-         String owner = this.getActiveChunkOwner(chunk);
-         if (owner == null) {
-            return player.hasPermission("mifron.admin") || player.hasPermission("mifron.protect.bypass");
-         } else {
-            return owner.equals(player.getUniqueId().toString())
-               ? true
-               : this.plugin.data().getStringList("chunk-trust." + this.chunkKey(chunk)).contains(player.getUniqueId().toString());
-         }
-      } else {
-         return false;
-      }
+      return player != null && location != null && !this.isProtected(player, location);
    }
 
    boolean isSpawnProtected(Location location) {
       return location != null && this.isCentralProtectedChunk(location.getChunk());
    }
 
-   private boolean isActiveProtectedChunk(Location location) {
-      return this.getActiveChunkOwner(location.getChunk()) != null;
-   }
-
    private boolean isBuildProtectedChunk(Chunk chunk) {
-      return this.getActiveChunkOwner(chunk) != null || this.isCentralProtectedChunk(chunk) || this.isConfiguredProtectedChunk(chunk);
-   }
-
-   private String getActiveChunkOwner(Chunk chunk) {
-      String owner = this.plugin.data().getString("chunks." + this.chunkKey(chunk));
-      return owner != null && this.chunkContainsProtectionBeacon(chunk) ? owner : null;
-   }
-
-   private boolean chunkContainsProtectionBeacon(Chunk chunk) {
-      for (BlockState state : chunk.getTileEntities()) {
-         if (state.getType() == Material.BEACON && this.isMarkedChunkProtectionBeacon(state)) {
-            return true;
-         }
-      }
-
-      return false;
-   }
-
-   private boolean isChunkProtectionBeaconItem(ItemStack item) {
-      return this.plugin.isMifronItem(item, "chunk_protection_beacon");
-   }
-
-   private void markChunkProtectionBeacon(Block block) {
-      if (block.getState() instanceof TileState tileState) {
-         tileState.getPersistentDataContainer().set(this.protectionBeaconKey, PersistentDataType.BOOLEAN, true);
-         tileState.update(true, false);
-      }
-   }
-
-   private boolean isMarkedChunkProtectionBeacon(BlockState state) {
-      return state instanceof TileState tileState
-         && Boolean.TRUE.equals(MifronPdc.get(tileState.getPersistentDataContainer(), this.protectionBeaconKey, PersistentDataType.BOOLEAN));
-   }
-
-   private boolean hasAdjacentOwnedClaim(UUID owner, Chunk chunk) {
-      for (int[] offset : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-         Chunk adjacent = chunk.getWorld().getChunkAt(chunk.getX() + offset[0], chunk.getZ() + offset[1]);
-         if (owner.toString().equals(this.getActiveChunkOwner(adjacent))) {
-            return true;
-         }
-      }
-      return false;
-   }
-
-   private int activeClaimCount(UUID owner) {
-      int count = 0;
-      var section = this.plugin.data().getConfigurationSection("chunks");
-      if (section == null) {
-         return 0;
-      }
-
-      for (String key : section.getKeys(false)) {
-         if (!owner.toString().equals(section.getString(key))) {
-            continue;
-         }
-         String[] parts = key.split(",", 3);
-         if (parts.length != 3) {
-            continue;
-         }
-         World world = Bukkit.getWorld(parts[0]);
-         if (world == null) {
-            continue;
-         }
-         try {
-            Chunk chunk = world.getChunkAt(Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
-            if (this.chunkContainsProtectionBeacon(chunk)) {
-               count++;
-            }
-         } catch (NumberFormatException ignored) {
-            // Ignore malformed legacy keys.
-         }
-      }
-      return count;
-   }
-
-   private void claimChunk(Player player, Chunk chunk) {
-      this.plugin.data().set("chunks." + this.chunkKey(chunk), player.getUniqueId().toString());
-      this.clearRegenSchedule(chunk);
-      this.plugin.saveData();
+      return this.isCentralProtectedChunk(chunk) || this.isConfiguredProtectedChunk(chunk);
    }
 
    private String chunkKey(Chunk chunk) {
@@ -314,10 +173,36 @@ final class ChunkProtectionFeature implements Listener {
    }
 
    private boolean isChunkRegenerationSafe(Chunk chunk) {
-      return this.isActiveProtectedChunk(chunk.getBlock(0, chunk.getWorld().getMinHeight(), 0).getLocation())
-         || this.isCentralProtectedChunk(chunk)
-         || this.isConfiguredProtectedChunk(chunk)
-         || this.plugin.data().getBoolean("regen." + this.chunkKey(chunk) + ".excluded", false);
+      return !this.isChunkRegenerationAllowed(chunk);
+   }
+
+   private boolean isChunkRegenerationAllowed(Chunk chunk) {
+      if (chunk == null || chunk.getWorld() == null || !"survival".equalsIgnoreCase(chunk.getWorld().getName())) {
+         return false;
+      }
+      return this.plugin.getConfig().getStringList("regen.allowed-chunks").contains(this.chunkKey(chunk));
+   }
+
+   boolean isSurvivalHazardBlocked(Location location, Material material) {
+      if (location == null || location.getWorld() == null || !"survival".equalsIgnoreCase(location.getWorld().getName())) {
+         return false;
+      }
+      if (material == Material.TNT) {
+         return this.plugin.getConfig().getBoolean("survival-safety.disable-tnt", true);
+      }
+      if (material == Material.LAVA || material == Material.LAVA_BUCKET) {
+         return this.plugin.getConfig().getBoolean("survival-safety.disable-lava", true);
+      }
+      return false;
+   }
+
+   private boolean isProtectionAdmin(Player player) {
+      return player != null && this.plugin.getConfig().getBoolean("survival-safety.allow-admin-bypass", true)
+         && (player.hasPermission("mifron.admin") || player.hasPermission("mifron.protect.bypass"));
+   }
+
+   private String survivalHazardMessage(Material material) {
+      return material == Material.TNT ? "SurvivalではTNTを使用できません。" : "Survivalでは溶岩を使用できません。";
    }
 
    private boolean isCentralProtectedChunk(Chunk chunk) {
@@ -363,13 +248,11 @@ final class ChunkProtectionFeature implements Listener {
       if (!warningKey.equals(this.lastChunkWarning.get(player.getUniqueId()))) {
          this.lastChunkWarning.put(player.getUniqueId(), warningKey);
          if (this.isRegenScheduled(chunk)) {
-            player.sendMessage(ChatColor.RED + this.plugin.getConfig().getString("messages.scheduledRegen", "このチャンクは未保護のため、次回メンテナンス時に自然再生されます。"));
-            player.sendMessage(ChatColor.RED + "保護しない場合、設置物・チェスト・地下施設は削除されます。");
+            player.sendMessage(ChatColor.RED + this.plugin.getConfig().getString("messages.scheduledRegen", "このチャンクは自然再生成の許可リストに入っているため、次回メンテナンスの対象です。"));
          } else {
-            player.sendMessage(ChatColor.YELLOW + this.plugin.getConfig().getString("messages.unprotectedChunk", "このチャンクは保護されていません。次回の自然再生で再生成される可能性があります。"));
+            player.sendMessage(ChatColor.YELLOW + this.plugin.getConfig().getString("messages.unprotectedChunk", "このチャンクは自然再生成の許可リストに入っています。"));
          }
 
-         player.sendMessage(ChatColor.YELLOW + this.plugin.getConfig().getString("messages.protectPrompt", "建築物やアイテムを残したい場合は、ビーコンでチャンク保護してください。"));
       }
    }
 

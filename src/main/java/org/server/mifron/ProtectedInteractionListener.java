@@ -17,6 +17,7 @@ import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockDispenseEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.SignChangeEvent;
@@ -28,6 +29,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -50,11 +52,19 @@ final class ProtectedInteractionListener implements Listener {
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onEntityExplode(EntityExplodeEvent event) {
+      if (this.protection.isSurvivalHazardBlocked(event.getLocation(), Material.TNT)) {
+         event.setCancelled(true);
+         return;
+      }
       event.blockList().removeIf(block -> this.plugin.isShopBlock(block) || this.protection.isProtected(block.getLocation()));
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onBlockExplode(BlockExplodeEvent event) {
+      if (this.protection.isSurvivalHazardBlocked(event.getBlock().getLocation(), Material.TNT)) {
+         event.setCancelled(true);
+         return;
+      }
       event.blockList().removeIf(block -> this.plugin.isShopBlock(block) || this.protection.isProtected(block.getLocation()));
    }
 
@@ -82,7 +92,30 @@ final class ProtectedInteractionListener implements Listener {
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onLiquidFlow(BlockFromToEvent event) {
       Block target = event.getToBlock();
+      if (event.getBlock().getType() == Material.LAVA
+         && this.protection.isSurvivalHazardBlocked(event.getBlock().getLocation(), Material.LAVA)) {
+         event.setCancelled(true);
+         return;
+      }
       if (this.plugin.isShopBlock(target) || this.protection.isProtected(target.getLocation())) {
+         event.setCancelled(true);
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onLavaBucketEmpty(PlayerBucketEmptyEvent event) {
+      if (event.getBucket() == Material.LAVA
+         && this.protection.isSurvivalHazardBlocked(event.getBlock().getLocation(), Material.LAVA_BUCKET)) {
+         event.setCancelled(true);
+         event.getPlayer().sendMessage(ChatColor.RED + "Survivalでは溶岩を使用できません。");
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onHazardDispense(BlockDispenseEvent event) {
+      Material material = event.getItem().getType();
+      if ((material == Material.LAVA_BUCKET || material == Material.TNT)
+         && this.protection.isSurvivalHazardBlocked(event.getBlock().getLocation(), material == Material.TNT ? Material.TNT : Material.LAVA_BUCKET)) {
          event.setCancelled(true);
       }
    }
