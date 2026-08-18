@@ -223,7 +223,7 @@ final class UtilityItemsFeature implements Listener {
 
    ShopWandType getShopWandType(ItemStack item) {
       if (this.isShopWand(item) && item != null && item.hasItemMeta()) {
-         String raw = (String)item.getItemMeta().getPersistentDataContainer().get(this.shopWandTypeKey, PersistentDataType.STRING);
+         String raw = (String)MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.shopWandTypeKey, PersistentDataType.STRING);
          return ShopWandType.fromKey(raw);
       } else {
          return null;
@@ -233,7 +233,7 @@ final class UtilityItemsFeature implements Listener {
    String getMifronItemId(ItemStack item) {
       if (item != null && item.hasItemMeta()) {
          PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
-         return (String)container.get(this.mifronItemKey, PersistentDataType.STRING);
+         return (String)MifronPdc.get(container, this.mifronItemKey, PersistentDataType.STRING);
       } else {
          return null;
       }

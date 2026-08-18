@@ -91,7 +91,7 @@ final class ServerPortalFeature implements Listener {
 
    boolean isServerWand(ItemStack item) {
       return item != null && item.hasItemMeta()
-         ? "server_wand".equals(item.getItemMeta().getPersistentDataContainer().get(this.mifronItemKey, PersistentDataType.STRING))
+         ? "server_wand".equals(MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.mifronItemKey, PersistentDataType.STRING))
          : false;
    }
 
@@ -251,8 +251,8 @@ final class ServerPortalFeature implements Listener {
       if (!(event.getDamager() instanceof Player player) || !(event.getEntity() instanceof Interaction interaction)) {
          return;
       }
-      String owner = interaction.getPersistentDataContainer().get(this.teleporterOwnerKey, PersistentDataType.STRING);
-      String key = interaction.getPersistentDataContainer().get(this.teleporterOptionKey, PersistentDataType.STRING);
+      String owner = MifronPdc.get(interaction.getPersistentDataContainer(), this.teleporterOwnerKey, PersistentDataType.STRING);
+      String key = MifronPdc.get(interaction.getPersistentDataContainer(), this.teleporterOptionKey, PersistentDataType.STRING);
       if (owner == null || key == null || !owner.equals(player.getUniqueId().toString())) {
          return;
       }
@@ -273,7 +273,7 @@ final class ServerPortalFeature implements Listener {
       if (!(event.getRightClicked() instanceof Interaction interaction)) {
          return;
       }
-      String owner = interaction.getPersistentDataContainer().get(this.teleporterOwnerKey, PersistentDataType.STRING);
+      String owner = MifronPdc.get(interaction.getPersistentDataContainer(), this.teleporterOwnerKey, PersistentDataType.STRING);
       if (owner != null && owner.equals(event.getPlayer().getUniqueId().toString())) {
          event.setCancelled(true);
          event.getPlayer().sendActionBar(Component.text("左クリックでテレポート", NamedTextColor.GRAY));
@@ -647,7 +647,7 @@ final class ServerPortalFeature implements Listener {
    private boolean isTeleporter(ItemStack item) {
       return item != null
          && item.hasItemMeta()
-         && "teleporter".equals(item.getItemMeta().getPersistentDataContainer().get(this.mifronItemKey, PersistentDataType.STRING));
+         && "teleporter".equals(MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.mifronItemKey, PersistentDataType.STRING));
    }
 
    private void setFrameEye(Block frame, boolean eye) {
