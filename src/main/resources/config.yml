@@ -99,6 +99,30 @@ hub:
   pitch: 0.0
 
 servers:
+  main:
+    icon: compass
+    world: world
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    yaw: 0.0
+    pitch: 0.0
+  build:
+    icon: bricks
+    world: build
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    yaw: 0.0
+    pitch: 0.0
+  market:
+    icon: emerald
+    world: market
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    yaw: 0.0
+    pitch: 0.0
   athletic:
     icon: elytra
     world: athletic
@@ -115,15 +139,14 @@ servers:
     z: 0.0
     yaw: 0.0
     pitch: 0.0
-  modhub:
-    icon: compass
-    world: world
+  survival:
+    icon: grass_block
+    world: survival
     x: 0.0
-    y: 0.0
+    y: 101.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0
-
 warning-servers:
   basic:
     world: world
