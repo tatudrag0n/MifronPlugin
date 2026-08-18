@@ -2038,6 +2038,9 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.clearShopOwner(block);
       this.clearShelfShopRandomOffer(block);
       this.saveData();
+      // Removing a sequential shelf must also compact the remaining order values.
+      // Otherwise the next shelf can inherit a stale high number from deleted data.
+      this.renumberSequentialShelfShops();
       return existed;
    }
 
@@ -6466,15 +6469,23 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private void handleGamerulesCommand(CommandSender sender, String[] args) {
       if (!sender.hasPermission("mifron.admin")) {
          sender.sendMessage("§c権限がありません。");
-      } else {
-         this.worldRulesFeature.apply();
-         if (args.length >= 2) {
-            World world = Bukkit.getWorld(args[1]);
-            sender.sendMessage(world == null ? "§cワールドが見つかりません: " + args[1] : "§aゲームルールを適用しました: " + world.getName());
-         } else {
-            sender.sendMessage("§a全ワールドへMifronゲームルールを適用しました。");
-         }
+         return;
       }
+
+      if (args.length >= 2) {
+         World world = Bukkit.getWorld(args[1]);
+         if (world == null) {
+            sender.sendMessage("§cワールドが見つかりません: " + args[1]);
+            return;
+         }
+
+         this.worldRulesFeature.apply(world);
+         sender.sendMessage("§aゲームルールを適用しました: " + world.getName());
+         return;
+      }
+
+      this.worldRulesFeature.apply();
+      sender.sendMessage("§a全ワールドへMifronゲームルールを適用しました。");
    }
 
    private void handleInfoCommand(CommandSender sender) {

@@ -21,14 +21,31 @@ final class WorldRulesFeature {
       boolean defaultPvp = this.plugin.getConfig().getBoolean("world-rules.pvp.default", false);
 
       for (World world : Bukkit.getWorlds()) {
-         world.setGameRule(GameRules.KEEP_INVENTORY, true);
-         boolean pvpEnabled = defaultPvp || pvpWorlds.contains(world.getName().toLowerCase(Locale.ROOT));
-         world.setGameRule(GameRules.PVP, pvpEnabled);
-         world.setPVP(pvpEnabled);
-         if (fixedDayWorlds.contains(world.getName().toLowerCase(Locale.ROOT))) {
-            world.setGameRule(GameRules.ADVANCE_TIME, false);
-            world.setTime(6000L);
-         }
+         this.apply(world, fixedDayWorlds, pvpWorlds, defaultPvp);
+      }
+   }
+
+   void apply(World world) {
+      if (world == null) {
+         return;
+      }
+
+      this.apply(
+         world,
+         this.fixedDayWorldNames(),
+         this.pvpWorldNames(),
+         this.plugin.getConfig().getBoolean("world-rules.pvp.default", false)
+      );
+   }
+
+   private void apply(World world, Set<String> fixedDayWorlds, Set<String> pvpWorlds, boolean defaultPvp) {
+      world.setGameRule(GameRules.KEEP_INVENTORY, true);
+      boolean pvpEnabled = defaultPvp || pvpWorlds.contains(world.getName().toLowerCase(Locale.ROOT));
+      world.setGameRule(GameRules.PVP, pvpEnabled);
+      world.setPVP(pvpEnabled);
+      if (fixedDayWorlds.contains(world.getName().toLowerCase(Locale.ROOT))) {
+         world.setGameRule(GameRules.ADVANCE_TIME, false);
+         world.setTime(FIXED_DAY_TIME);
       }
    }
 
