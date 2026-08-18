@@ -259,7 +259,7 @@ final class ChunkProtectionFeature implements Listener {
 
    private boolean isMarkedChunkProtectionBeacon(BlockState state) {
       return state instanceof TileState tileState
-         && Boolean.TRUE.equals(tileState.getPersistentDataContainer().get(this.protectionBeaconKey, PersistentDataType.BOOLEAN));
+         && Boolean.TRUE.equals(MifronPdc.get(tileState.getPersistentDataContainer(), this.protectionBeaconKey, PersistentDataType.BOOLEAN));
    }
 
    private boolean hasAdjacentOwnedClaim(UUID owner, Chunk chunk) {

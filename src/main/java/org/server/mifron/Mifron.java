@@ -934,7 +934,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private boolean isReincarnationStar(ItemStack item) {
       return item != null
          && item.hasItemMeta()
-         && Boolean.TRUE.equals(item.getItemMeta().getPersistentDataContainer().get(this.reincarnationStarKey, PersistentDataType.BOOLEAN));
+         && Boolean.TRUE.equals(MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.reincarnationStarKey, PersistentDataType.BOOLEAN));
    }
 
    private void consumeOne(ItemStack item) {

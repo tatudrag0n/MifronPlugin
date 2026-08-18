@@ -154,7 +154,7 @@ final class AthleticManager implements Listener {
    public void onInteract(PlayerInteractEvent event) {
       ItemStack item = event.getItem();
       if (item != null && item.hasItemMeta()) {
-         String action = (String)item.getItemMeta().getPersistentDataContainer().get(this.controlKey, PersistentDataType.STRING);
+         String action = (String)MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.controlKey, PersistentDataType.STRING);
          if (action != null && event.getAction().isRightClick()) {
             event.setCancelled(true);
             Player player = event.getPlayer();
@@ -411,7 +411,7 @@ final class AthleticManager implements Listener {
 
    private void removeControlItems(Player player) {
       for (ItemStack item : player.getInventory().getContents()) {
-         if (item != null && item.hasItemMeta() && item.getItemMeta().getPersistentDataContainer().has(this.controlKey, PersistentDataType.STRING)) {
+         if (item != null && item.hasItemMeta() && MifronPdc.has(item.getItemMeta().getPersistentDataContainer(), this.controlKey, PersistentDataType.STRING)) {
             item.setAmount(0);
          }
       }

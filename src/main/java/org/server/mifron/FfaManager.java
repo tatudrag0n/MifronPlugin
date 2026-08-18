@@ -519,7 +519,7 @@ final class FfaManager {
    boolean isFfaItem(ItemStack item) {
       return item != null
          && item.hasItemMeta()
-         && Boolean.TRUE.equals(item.getItemMeta().getPersistentDataContainer().get(this.itemKey, PersistentDataType.BOOLEAN));
+         && Boolean.TRUE.equals(MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.itemKey, PersistentDataType.BOOLEAN));
    }
 
    boolean handleFieldItemPickup(EntityPickupItemEvent event) {
@@ -2047,7 +2047,7 @@ final class FfaManager {
          return "";
       }
 
-      String value = (String)item.getItemMeta().getPersistentDataContainer().get(this.itemKindKey, PersistentDataType.STRING);
+      String value = (String)MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.itemKindKey, PersistentDataType.STRING);
       return value == null ? "" : value;
    }
 
@@ -2056,7 +2056,7 @@ final class FfaManager {
          return "";
       }
 
-      String value = (String)item.getItemMeta().getPersistentDataContainer().get(this.abilityKey, PersistentDataType.STRING);
+      String value = (String)MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.abilityKey, PersistentDataType.STRING);
       return value == null ? this.itemKind(item) : value;
    }
 
@@ -2499,7 +2499,7 @@ final class FfaManager {
 
    private FfaKit kitFromSelectorItem(ItemStack item) {
       if (item != null && item.getType() != Material.AIR && item.hasItemMeta()) {
-         String key = (String)item.getItemMeta().getPersistentDataContainer().get(this.selectorKitKey, PersistentDataType.STRING);
+         String key = (String)MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.selectorKitKey, PersistentDataType.STRING);
          return FfaKit.fromKey(key);
       } else {
          return null;

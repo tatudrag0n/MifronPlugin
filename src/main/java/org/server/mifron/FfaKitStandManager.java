@@ -75,7 +75,7 @@ final class FfaKitStandManager {
       if (!(entity instanceof ArmorStand)) {
          return false;
       } else {
-         return Boolean.TRUE.equals(entity.getPersistentDataContainer().get(this.selectorKey, PersistentDataType.BOOLEAN))
+         return Boolean.TRUE.equals(MifronPdc.get(entity.getPersistentDataContainer(), this.selectorKey, PersistentDataType.BOOLEAN))
             ? true
             : entity.getScoreboardTags().contains("mifron_ffa_kit_selector")
                || entity.getScoreboardTags().contains("mifron_ffa_kit_stand")
@@ -108,7 +108,7 @@ final class FfaKitStandManager {
          return null;
       }
 
-      String kit = (String)entity.getPersistentDataContainer().get(this.kitKey, PersistentDataType.STRING);
+      String kit = (String)MifronPdc.get(entity.getPersistentDataContainer(), this.kitKey, PersistentDataType.STRING);
       if (kit == null && entity.getScoreboardTags().contains("mifron_ffa_kit_stand")) {
          kit = entity.getScoreboardTags()
             .stream()
