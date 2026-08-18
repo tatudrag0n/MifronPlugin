@@ -118,7 +118,8 @@ final class MinoruBridgeFeature {
       long expiresAt = System.currentTimeMillis() + CODE_TTL_MILLIS;
       this.linkCodes.put(code, new LinkCode(player.getUniqueId(), player.getName(), expiresAt));
       player.sendMessage("§b[Mifron] §fDiscord連携コード: §e§l" + code);
-      player.sendMessage("§7MinoruのMinecraft連携パネルで、ユーザー名とこの6桁コードを入力してください。");
+      player.sendMessage("§7Discordの認証チャンネルへ、この6桁コードだけを送信してください。");
+      player.sendMessage("§7認証チャンネルID: 1539107105477234738");
       player.sendMessage("§7有効期限: 10分 / 一度使用すると無効になります。");
       return true;
    }
