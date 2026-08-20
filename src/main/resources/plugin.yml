@@ -6,6 +6,9 @@ api-version: '1.21'
 load: POSTWORLD
 softdepend:
   - WorldEdit
+  - WorldGuard
+  - LuckPerms
+  - Multiverse-Core
   - Geyser-Spigot
 commands:
   mifron:

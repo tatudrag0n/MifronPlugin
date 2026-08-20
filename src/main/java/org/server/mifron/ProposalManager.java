@@ -45,7 +45,7 @@ final class ProposalManager {
       }
 
       if (args.length < 2) {
-         sender.sendMessage(ChatColor.YELLOW + "/mf proposal list|review|approve|reject|reload");
+         sender.sendMessage(ChatColor.YELLOW + "/mf proposal list|review|approve|forceapprove|reject|reload");
          return true;
       }
 
@@ -55,6 +55,7 @@ final class ProposalManager {
          case "list" -> this.list(sender);
          case "review" -> this.review(sender, args);
          case "approve" -> this.approve(sender, args);
+         case "forceapprove", "force-approve" -> this.forceApprove(sender, args);
          case "reject" -> this.reject(sender, args);
          case "reload" -> {
             this.load();
@@ -62,7 +63,7 @@ final class ProposalManager {
             yield true;
          }
          default -> {
-            sender.sendMessage(ChatColor.YELLOW + "/mf proposal list|review|approve|reject|reload");
+            sender.sendMessage(ChatColor.YELLOW + "/mf proposal list|review|approve|forceapprove|reject|reload");
             yield true;
          }
       };
@@ -70,8 +71,8 @@ final class ProposalManager {
 
    List<String> tabComplete(String[] args) {
       if (args.length == 2) {
-         return List.of("list", "review", "approve", "reject", "reload");
-      } else if (args.length == 3 && List.of("review", "approve", "reject").contains(args[1].toLowerCase(Locale.ROOT))) {
+         return List.of("list", "review", "approve", "forceapprove", "reject", "reload");
+      } else if (args.length == 3 && List.of("review", "approve", "forceapprove", "force-approve", "reject").contains(args[1].toLowerCase(Locale.ROOT))) {
          ConfigurationSection pending = this.data == null ? null : this.data.getConfigurationSection("proposals.pending");
          return pending == null ? List.of() : new ArrayList<>(pending.getKeys(false));
       } else {
@@ -138,6 +139,27 @@ final class ProposalManager {
       this.save();
       this.plugin.saveConfig();
       sender.sendMessage(ChatColor.GREEN + "Proposal を承認し、設定へ反映しました: " + id);
+      return true;
+   }
+
+   private boolean forceApprove(CommandSender sender, String[] args) {
+      ConfigurationSection section = this.pending(sender, args);
+      if (section == null) {
+         return true;
+      }
+      String id = args[2];
+      if (!this.applyProposal(sender, id, section)) {
+         return true;
+      }
+      this.move("proposals.pending." + id, "proposals.approved." + id);
+      String path = "proposals.approved." + id;
+      this.data.set(path + ".approved-at", System.currentTimeMillis());
+      this.data.set(path + ".forced-approval", true);
+      this.data.set(path + ".forced-by", sender.getName());
+      this.data.set(path + ".forced-reason", args.length >= 4 ? String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length)) : "管理者による強制承認");
+      this.save();
+      this.plugin.saveConfig();
+      sender.sendMessage(ChatColor.GREEN + "Proposalを強制承認し、設定へ反映しました: " + id);
       return true;
    }
 
@@ -219,6 +241,16 @@ final class ProposalManager {
       if (material != null && material.isItem()) {
          String path = "custom-items." + id;
          this.plugin.getConfig().set(path + ".material", material.name().toLowerCase(Locale.ROOT));
+         String baseMaterial = section.getString("base-material", material.name());
+         Material base = Material.matchMaterial(baseMaterial);
+         if (base == null || !base.isItem()) {
+            sender.sendMessage(ChatColor.RED + "custom item の base-material が不正です: " + baseMaterial);
+            return false;
+         }
+         double conversionChance = Math.max(0.0, Math.min(0.01, section.getDouble("conversion-chance", 0.001)));
+         this.plugin.getConfig().set(path + ".base-material", base.name().toLowerCase(Locale.ROOT));
+         this.plugin.getConfig().set(path + ".conversion-chance", conversionChance);
+         this.plugin.getConfig().set(path + ".conversion-enabled", section.getBoolean("conversion-enabled", true));
          this.plugin.getConfig().set(path + ".display-name", section.getString("display-name", section.getString("name", id)));
          this.plugin.getConfig().set(path + ".lore", section.getStringList("lore"));
          this.plugin.getConfig().set(path + ".glint", section.getBoolean("glint", false));

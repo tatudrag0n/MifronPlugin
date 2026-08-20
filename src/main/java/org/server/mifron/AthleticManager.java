@@ -8,6 +8,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.Map.Entry;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -50,6 +52,7 @@ final class AthleticManager implements Listener {
    }
 
    void load() {
+      this.ensureConfigDefaults();
       this.updateAllPanels();
       if (this.ticker != null) {
          this.ticker.cancel();
@@ -72,6 +75,69 @@ final class AthleticManager implements Listener {
    }
 
    boolean handleCommand(Player player, String[] args) {
+      if (args.length >= 2 && "ranking".equalsIgnoreCase(args[1])) {
+         if (args.length < 3 || !this.validName(args[2])) {
+            player.sendMessage(ChatColor.YELLOW + "/mf athletic ranking <name> [monthly|alltime]");
+         } else {
+            this.showRanking(player, args[2].toLowerCase(Locale.ROOT), args.length >= 4 ? args[3] : "alltime");
+         }
+         return true;
+      }
+
+      if (args.length >= 2 && "reward".equalsIgnoreCase(args[1])) {
+         if (!player.hasPermission("mifron.admin")) {
+            player.sendMessage(ChatColor.RED + "権限がありません。");
+            return true;
+         }
+         if (args.length < 5 || !this.validName(args[2])) {
+            player.sendMessage(ChatColor.YELLOW + "/mf athletic reward <name> <clear-mp> <best-mp> [item] [amount]");
+            return true;
+         }
+         try {
+            int clear = Math.max(0, Integer.parseInt(args[3]));
+            int best = Math.max(0, Integer.parseInt(args[4]));
+            String path = "athletic.runs." + args[2].toLowerCase(Locale.ROOT) + ".rewards";
+            this.plugin.data().set(path + ".clear-mp", Math.min(clear, 2000000000));
+            this.plugin.data().set(path + ".personal-best-mp", Math.min(best, 2000000000));
+            if (args.length >= 6) {
+               Material material = Material.matchMaterial(args[5]);
+               if (material == null || material.isAir()) {
+                  player.sendMessage(ChatColor.RED + "アイテム名が不正です。");
+                  return true;
+               }
+               this.plugin.data().set(path + ".item.material", material.name());
+               this.plugin.data().set(path + ".item.amount", args.length >= 7 ? Math.max(1, Math.min(64, Integer.parseInt(args[6]))) : 1);
+            }
+            this.plugin.saveData();
+            player.sendMessage(ChatColor.GREEN + "アスレチック報酬を設定しました。");
+         } catch (NumberFormatException ex) {
+            player.sendMessage(ChatColor.RED + "報酬量は整数で指定してください。");
+         }
+         return true;
+      }
+
+      if (args.length >= 2 && "size".equalsIgnoreCase(args[1])) {
+         if (!player.hasPermission("mifron.admin")) {
+            player.sendMessage(ChatColor.RED + "権限がありません。");
+            return true;
+         }
+         if (args.length < 6 || !this.validName(args[2])) {
+            player.sendMessage(ChatColor.YELLOW + "/mf athletic size <name> <x> <y> <z>");
+            return true;
+         }
+         try {
+            String path = "athletic.runs." + args[2].toLowerCase(Locale.ROOT) + ".size";
+            this.plugin.data().set(path + ".x", this.validSize(Integer.parseInt(args[3])));
+            this.plugin.data().set(path + ".y", this.validSize(Integer.parseInt(args[4])));
+            this.plugin.data().set(path + ".z", this.validSize(Integer.parseInt(args[5])));
+            this.plugin.saveData();
+            player.sendMessage(ChatColor.GREEN + "アスレチック規格サイズを記録しました。");
+         } catch (NumberFormatException ex) {
+            player.sendMessage(ChatColor.RED + "サイズは整数で指定してください。");
+         }
+         return true;
+      }
+
       if (args.length >= 2 && ("start".equalsIgnoreCase(args[1]) || "goal".equalsIgnoreCase(args[1]) || "panel".equalsIgnoreCase(args[1]))) {
          if (!player.hasPermission("mifron.admin")) {
             player.sendMessage(ChatColor.RED + "権限がありません。");
@@ -123,9 +189,13 @@ final class AthleticManager implements Listener {
 
    List<String> tabComplete(String[] args) {
       if (args.length == 2) {
-         return List.of("start", "goal", "panel", "complete");
+         return List.of("start", "goal", "panel", "ranking", "reward", "size", "complete");
       } else if (args.length != 3 || !"start".equalsIgnoreCase(args[1]) && !"goal".equalsIgnoreCase(args[1]) && !"panel".equalsIgnoreCase(args[1])) {
-         return args.length == 3 && "complete".equalsIgnoreCase(args[1]) ? List.of("easy", "normal", "hard", "hardcore") : List.of();
+         if (args.length == 3 && "ranking".equalsIgnoreCase(args[1])) {
+            return this.runNames();
+         }
+         return args.length == 4 && "ranking".equalsIgnoreCase(args[1]) ? List.of("monthly", "alltime")
+            : args.length == 3 && "complete".equalsIgnoreCase(args[1]) ? List.of("easy", "normal", "hard", "hardcore") : List.of();
       } else {
          return List.of("remove");
       }
@@ -190,17 +260,59 @@ final class AthleticManager implements Listener {
       long elapsed = Math.max(0L, System.currentTimeMillis() - run.startedAt());
       this.activeRuns.remove(player.getUniqueId());
       this.removeControlItems(player);
-      String path = "athletic.runs." + run.name() + ".scores." + player.getUniqueId();
-      long previous = this.plugin.data().getLong(path, Long.MAX_VALUE);
-      if (elapsed < previous) {
-         this.plugin.data().set(path, elapsed);
-         this.plugin.data().set("athletic.runs." + run.name() + ".names." + player.getUniqueId(), player.getName());
-         this.plugin.saveData();
-         this.updatePanels(run.name());
+      this.settlePreviousMonth(run.name());
+
+      String base = "athletic.runs." + run.name();
+      String uuid = player.getUniqueId().toString();
+      long previous = this.plugin.data().getLong(base + ".scores." + uuid, Long.MAX_VALUE);
+      boolean personalBest = elapsed < previous;
+      List<AthleticManager.Score> before = this.scores(run.name(), "alltime");
+      String oldLeader = before.isEmpty() ? null : before.get(0).uuid();
+      if (personalBest) {
+         this.plugin.data().set(base + ".scores." + uuid, elapsed);
+         this.plugin.data().set(base + ".names." + uuid, player.getName());
       }
 
-      this.showRanking(player, run.name());
+      String month = this.currentMonth();
+      long monthlyPrevious = this.plugin.data().getLong(base + ".monthly." + month + ".scores." + uuid, Long.MAX_VALUE);
+      boolean monthlyBest = elapsed < monthlyPrevious;
+      if (monthlyBest) {
+         this.plugin.data().set(base + ".monthly." + month + ".scores." + uuid, elapsed);
+         this.plugin.data().set(base + ".monthly." + month + ".names." + uuid, player.getName());
+      }
+      this.plugin.saveData();
+      this.updatePanels(run.name());
+
+      int clearReward = this.plugin.data().getInt(base + ".rewards.clear-mp", this.plugin.getConfig().getInt("athletic.defaults.clear-reward-mp", 50));
+      int paid = this.plugin.applyIncomeBonus(player.getUniqueId(), clearReward);
+      this.plugin.depositEmeralds(player.getUniqueId(), paid);
+      this.giveConfiguredItem(player, base + ".rewards.item");
+      if (personalBest) {
+         int bestReward = this.plugin.data().getInt(base + ".rewards.personal-best-mp", this.plugin.getConfig().getInt("athletic.defaults.best-time-reward-mp", 100));
+         this.plugin.depositEmeralds(player.getUniqueId(), this.plugin.applyIncomeBonus(player.getUniqueId(), bestReward));
+         this.plugin.recordQuestProgress(player, "athletic_personal_bests", 1);
+         this.plugin.recordQuestProgress(player, "athletic_" + run.name() + "_personal_bests", 1);
+      }
+      this.plugin.recordQuestProgress(player, "athletic_clears", 1);
+      this.plugin.recordQuestProgress(player, "athletic_" + run.name() + "_clears", 1);
+
+      List<AthleticManager.Score> after = this.scores(run.name(), "alltime");
+      if (!after.isEmpty() && after.get(0).uuid() != null && !after.get(0).uuid().equals(oldLeader)
+         && after.get(0).uuid().equals(uuid)) {
+         int firstReward = this.plugin.getConfig().getInt("athletic.defaults.all-time-first-place-reward-mp", 1000);
+         this.plugin.depositEmeralds(player.getUniqueId(), this.plugin.applyIncomeBonus(player.getUniqueId(), firstReward));
+      }
+      if (!after.isEmpty() && after.get(0).uuid() != null && after.get(0).uuid().equals(uuid)) {
+         int leaderBonus = Math.max(0, this.plugin.getConfig().getInt("athletic.defaults.leader-bonus-percent", 25));
+         int bonus = Math.min(2000000000, (int)Math.min(2000000000L, (long)paid * leaderBonus / 100L));
+         if (bonus > 0) {
+            this.plugin.depositEmeralds(player.getUniqueId(), bonus);
+         }
+      }
+
+      this.showRanking(player, run.name(), "alltime");
       player.sendMessage(ChatColor.GOLD + "ゴール！ タイム: " + this.formatTime(elapsed));
+      player.sendMessage(ChatColor.GREEN + "通常報酬: +" + paid + "MP" + (personalBest ? " / 自己ベスト更新報酬あり" : ""));
    }
 
    private void tick() {
@@ -355,12 +467,13 @@ final class AthleticManager implements Listener {
       display.text(Component.text(this.rankingText(name)));
    }
 
-   private void showRanking(Player player, String name) {
+   private void showRanking(Player player, String name, String period) {
       player.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
       Scoreboard board = player.getScoreboard();
-      Objective objective = board.registerNewObjective("athletic", "dummy", "§bアスレチック " + name);
+      String normalized = "monthly".equalsIgnoreCase(period) ? "monthly" : "alltime";
+      Objective objective = board.registerNewObjective("athletic", "dummy", "§bアスレチック " + name + ("monthly".equals(normalized) ? " 月間" : " 累計"));
       objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-      List<AthleticManager.Score> scores = this.scores(name);
+      List<AthleticManager.Score> scores = this.scores(name, normalized);
       int score = scores.size();
 
       for (AthleticManager.Score entry : scores) {
@@ -369,10 +482,10 @@ final class AthleticManager implements Listener {
    }
 
    private String rankingText(String name) {
-      StringBuilder text = new StringBuilder("§bアスレチック " + name + "\n§7ランキング\n");
+      StringBuilder text = new StringBuilder("§bアスレチック " + name + "\n§7累計ランキング\n");
       int rank = 1;
 
-      for (AthleticManager.Score score : this.scores(name)) {
+      for (AthleticManager.Score score : this.scores(name, "alltime")) {
          text.append("§e").append(rank++).append(". §f").append(score.name()).append(" §7").append(this.formatTime(score.time())).append("\n");
       }
 
@@ -383,8 +496,12 @@ final class AthleticManager implements Listener {
       return text.toString();
    }
 
-   private List<AthleticManager.Score> scores(String name) {
-      ConfigurationSection scores = this.plugin.data().getConfigurationSection("athletic.runs." + name + ".scores");
+   private List<AthleticManager.Score> scores(String name, String period) {
+      String path = "athletic.runs." + name + ".scores";
+      if ("monthly".equalsIgnoreCase(period)) {
+         path = "athletic.runs." + name + ".monthly." + this.currentMonth() + ".scores";
+      }
+      ConfigurationSection scores = this.plugin.data().getConfigurationSection(path);
       List<AthleticManager.Score> result = new ArrayList<>();
       if (scores == null) {
          return result;
@@ -392,12 +509,102 @@ final class AthleticManager implements Listener {
 
       for (String uuid : scores.getKeys(false)) {
          long time = scores.getLong(uuid, Long.MAX_VALUE);
-         String playerName = this.plugin.data().getString("athletic.runs." + name + ".names." + uuid, uuid);
-         result.add(new AthleticManager.Score(playerName, time));
+         String namesPath = "athletic.runs." + name + ".names.";
+         if ("monthly".equalsIgnoreCase(period)) {
+            namesPath = "athletic.runs." + name + ".monthly." + this.currentMonth() + ".names.";
+         }
+         String playerName = this.plugin.data().getString(namesPath + uuid, uuid);
+         result.add(new AthleticManager.Score(uuid, playerName, time));
       }
 
       result.sort(Comparator.comparingLong(AthleticManager.Score::time));
       return result.subList(0, Math.min(10, result.size()));
+   }
+
+   private void ensureConfigDefaults() {
+      this.plugin.getConfig().addDefault("athletic.defaults.clear-reward-mp", 50);
+      this.plugin.getConfig().addDefault("athletic.defaults.best-time-reward-mp", 100);
+      this.plugin.getConfig().addDefault("athletic.defaults.all-time-first-place-reward-mp", 1000);
+      this.plugin.getConfig().addDefault("athletic.defaults.leader-bonus-percent", 25);
+      this.plugin.getConfig().addDefault("athletic.defaults.timezone", "Asia/Tokyo");
+      this.plugin.getConfig().addDefault("athletic.defaults.monthly-rank-rewards", List.of(500, 300, 150));
+      this.plugin.getConfig().options().copyDefaults(true);
+      this.plugin.saveConfig();
+   }
+
+   private String currentMonth() {
+      String zone = this.plugin.getConfig().getString("athletic.defaults.timezone", "Asia/Tokyo");
+      try {
+         return YearMonth.now(ZoneId.of(zone)).toString();
+      } catch (Exception ignored) {
+         return YearMonth.now(ZoneId.of("Asia/Tokyo")).toString();
+      }
+   }
+
+   private void settlePreviousMonth(String name) {
+      String zone = this.plugin.getConfig().getString("athletic.defaults.timezone", "Asia/Tokyo");
+      YearMonth current;
+      try {
+         current = YearMonth.now(ZoneId.of(zone));
+      } catch (Exception ignored) {
+         current = YearMonth.now(ZoneId.of("Asia/Tokyo"));
+      }
+      String previous = current.minusMonths(1).toString();
+      String path = "athletic.runs." + name + ".monthly." + previous;
+      if (!this.plugin.data().isConfigurationSection(path) || this.plugin.data().getBoolean(path + ".settled", false)) {
+         return;
+      }
+      List<AthleticManager.Score> scores = this.scoresForMonth(name, previous);
+      List<Integer> rewards = this.plugin.getConfig().getIntegerList("athletic.defaults.monthly-rank-rewards");
+      for (int index = 0; index < Math.min(scores.size(), rewards.size()); index++) {
+         String uuid = scores.get(index).uuid();
+         if (uuid == null) {
+            continue;
+         }
+         try {
+            this.plugin.depositEmeralds(UUID.fromString(uuid), this.plugin.applyIncomeBonus(UUID.fromString(uuid), Math.max(0, rewards.get(index))));
+         } catch (IllegalArgumentException ignored) {
+         }
+      }
+      this.plugin.data().set(path + ".settled", true);
+      this.plugin.data().set(path + ".settled-at", System.currentTimeMillis());
+      this.plugin.saveData();
+   }
+
+   private List<AthleticManager.Score> scoresForMonth(String name, String month) {
+      ConfigurationSection scores = this.plugin.data().getConfigurationSection("athletic.runs." + name + ".monthly." + month + ".scores");
+      List<AthleticManager.Score> result = new ArrayList<>();
+      if (scores == null) {
+         return result;
+      }
+      for (String uuid : scores.getKeys(false)) {
+         result.add(new AthleticManager.Score(uuid, this.plugin.data().getString("athletic.runs." + name + ".monthly." + month + ".names." + uuid, uuid), scores.getLong(uuid, Long.MAX_VALUE)));
+      }
+      result.sort(Comparator.comparingLong(AthleticManager.Score::time));
+      return result.subList(0, Math.min(10, result.size()));
+   }
+
+   private void giveConfiguredItem(Player player, String path) {
+      String raw = this.plugin.data().getString(path + ".material");
+      if (raw == null || raw.isBlank()) {
+         return;
+      }
+      Material material = Material.matchMaterial(raw);
+      if (material == null || material.isAir()) {
+         return;
+      }
+      int amount = Math.max(1, Math.min(64, this.plugin.data().getInt(path + ".amount", 1)));
+      Map<Integer, ItemStack> leftovers = player.getInventory().addItem(new ItemStack(material, amount));
+      leftovers.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+   }
+
+   private List<String> runNames() {
+      ConfigurationSection runs = this.plugin.data().getConfigurationSection("athletic.runs");
+      return runs == null ? List.of() : new ArrayList<>(runs.getKeys(false));
+   }
+
+   private int validSize(int value) {
+      return Math.max(1, Math.min(256, value));
    }
 
    private ItemStack controlItem(String action, Material material, String name) {
@@ -435,6 +642,6 @@ final class AthleticManager implements Listener {
    private record Run(String name, Location start, long startedAt) {
    }
 
-   private record Score(String name, long time) {
+   private record Score(String uuid, String name, long time) {
    }
 }

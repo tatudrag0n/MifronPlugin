@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -16,6 +17,7 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
+import org.bukkit.block.Container;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -23,7 +25,14 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 
 final class StructureManager implements Listener {
    private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z0-9_-]{1,48}");
@@ -57,24 +66,31 @@ final class StructureManager implements Listener {
    }
 
    boolean handleCommand(CommandSender sender, String[] args) {
+      if (args.length < 2) {
+         sender.sendMessage("§e/mf structure submit|submissions|register|generate|approve|reject|install|delete <name>");
+         return true;
+      }
+
+      this.ensureLoaded();
+      String action = args[1].toLowerCase(Locale.ROOT);
+      if ("submit".equals(action)) {
+         return this.handleSubmit(sender, args);
+      }
       if (!sender.hasPermission("mifron.admin")) {
          sender.sendMessage("§c権限がありません。");
          return true;
       }
 
-      if (args.length < 2) {
-         sender.sendMessage("§e/mf structure register|generate|delete <name>");
-         return true;
-      }
-
-      this.ensureLoaded();
-
-      return switch (args[1].toLowerCase(Locale.ROOT)) {
+      return switch (action) {
          case "register" -> this.handleRegister(sender, args);
          case "generate" -> this.handleGenerate(sender, args);
+         case "submissions" -> this.handleSubmissions(sender);
+         case "approve" -> this.handleSubmissionStatus(sender, args, "APPROVED");
+         case "reject" -> this.handleSubmissionStatus(sender, args, "REJECTED");
+         case "install" -> this.handleInstall(sender, args);
          case "delete", "delate" -> this.handleDelete(sender, args);
          default -> {
-            sender.sendMessage("§e/mf structure register|generate|delete <name>");
+            sender.sendMessage("§e/mf structure submit|submissions|register|generate|approve|reject|install|delete <name>");
             yield true;
          }
       };
@@ -82,12 +98,217 @@ final class StructureManager implements Listener {
 
    List<String> tabComplete(String[] args) {
       if (args.length == 2) {
-         return List.of("register", "generate", "delete", "delate");
+         return List.of("submit", "submissions", "register", "generate", "approve", "reject", "install", "delete", "delate");
       } else if (args.length == 4 && "register".equalsIgnoreCase(args[1])) {
          return List.of("clipboard", "range");
+      } else if (args.length == 3 && ("approve".equalsIgnoreCase(args[1]) || "reject".equalsIgnoreCase(args[1]) || "install".equalsIgnoreCase(args[1]))) {
+         ConfigurationSection submissions = this.data == null ? null : this.data.getConfigurationSection("structures.submissions");
+         return submissions == null ? List.of() : new ArrayList<>(submissions.getKeys(false));
       } else {
          return args.length == 5 && "generate".equalsIgnoreCase(args[1]) ? List.of("underground", "semiunderground", "ground", "sky", "range") : List.of();
       }
+   }
+
+   boolean isInstalledProtected(Location location) {
+      if (location == null) {
+         return false;
+      }
+      ConfigurationSection installed = this.data == null ? null : this.data.getConfigurationSection("structures.installed");
+      if (installed == null) {
+         return false;
+      }
+      for (String id : installed.getKeys(false)) {
+         String path = "structures.installed." + id;
+         if (!location.getWorld().getName().equalsIgnoreCase(this.data.getString(path + ".world", ""))) {
+            continue;
+         }
+         int x = this.data.getInt(path + ".x", Integer.MIN_VALUE);
+         int y = this.data.getInt(path + ".y", Integer.MIN_VALUE);
+         int z = this.data.getInt(path + ".z", Integer.MIN_VALUE);
+         int sizeX = Math.max(1, this.data.getInt(path + ".size.x", 1));
+         int sizeY = Math.max(1, this.data.getInt(path + ".size.y", 1));
+         int sizeZ = Math.max(1, this.data.getInt(path + ".size.z", 1));
+         if (x != Integer.MIN_VALUE && location.getBlockX() >= x && location.getBlockX() < x + sizeX
+            && location.getBlockY() >= y && location.getBlockY() < y + sizeY
+            && location.getBlockZ() >= z && location.getBlockZ() < z + sizeZ) {
+            return true;
+         }
+      }
+      return false;
+   }
+
+   private boolean isStructureAdmin(Player player) {
+      return player != null && (player.hasPermission("mifron.admin") || player.hasPermission("mifron.protect.bypass"));
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledBlockBreak(BlockBreakEvent event) {
+      if (this.isInstalledProtected(event.getBlock().getLocation()) && !this.isStructureAdmin(event.getPlayer())) {
+         event.setCancelled(true);
+         event.getPlayer().sendMessage("§c運営設置建築は保護されています。");
+      }
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledBlockPlace(BlockPlaceEvent event) {
+      if (this.isInstalledProtected(event.getBlock().getLocation()) && !this.isStructureAdmin(event.getPlayer())) {
+         event.setCancelled(true);
+         event.getPlayer().sendMessage("§c運営設置建築の範囲には建築できません。");
+      }
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledBlockExplode(BlockExplodeEvent event) {
+      event.blockList().removeIf(block -> this.isInstalledProtected(block.getLocation()));
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledEntityExplode(EntityExplodeEvent event) {
+      event.blockList().removeIf(block -> this.isInstalledProtected(block.getLocation()));
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledContainerInteract(PlayerInteractEvent event) {
+      if (event.getClickedBlock() == null || !this.isInstalledProtected(event.getClickedBlock().getLocation())
+         || this.isStructureAdmin(event.getPlayer()) || !(event.getClickedBlock().getState() instanceof Container)) {
+         return;
+      }
+      event.setCancelled(true);
+      event.getPlayer().sendMessage("§c運営設置建築内の収納は保護されています。");
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledPistonExtend(BlockPistonExtendEvent event) {
+      if (event.getBlocks().stream().anyMatch(block -> this.isInstalledProtected(block.getLocation())
+         || this.isInstalledProtected(block.getLocation().clone().add(event.getDirection().getDirection())))) {
+         event.setCancelled(true);
+      }
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledPistonRetract(BlockPistonRetractEvent event) {
+      if (event.getBlocks().stream().anyMatch(block -> this.isInstalledProtected(block.getLocation()))) {
+         event.setCancelled(true);
+      }
+   }
+
+   private boolean handleSubmit(CommandSender sender, String[] args) {
+      if (!(sender instanceof Player player)) {
+         sender.sendMessage("§cプレイヤーのみ実行できます。");
+         return true;
+      }
+      if (!this.plugin.isPlayerBuildWorld(player)) {
+         sender.sendMessage("§cBuildワールド内でのみschematicを提出できます。");
+         return true;
+      }
+      if (args.length < 3 || !this.isSafeName(args[2])) {
+         sender.sendMessage("§e/mf structure submit <name> [用途]");
+         return true;
+      }
+
+      String name = args[2].toLowerCase(Locale.ROOT);
+      String id = player.getUniqueId().toString().replace("-", "") + "_" + name;
+      String fileName = "submission_" + id + ".schem";
+      File schematic = this.structureFile(fileName);
+      if (!this.worldEdit.available() || !this.worldEdit.savePlayerClipboard(player, schematic)) {
+         sender.sendMessage("§cWorldEditのclipboard保存に失敗しました。選択範囲を確認してください。");
+         return true;
+      }
+
+      String path = "structures.submissions." + id;
+      this.data.set(path + ".name", name);
+      this.data.set(path + ".author-uuid", player.getUniqueId().toString());
+      this.data.set(path + ".author-name", player.getName());
+      this.data.set(path + ".usage", args.length >= 4 ? String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length)) : "未指定");
+      this.data.set(path + ".status", "PENDING");
+      this.data.set(path + ".file", schematic.getName());
+      this.data.set(path + ".created-at", System.currentTimeMillis());
+      int[] size = this.worldEdit.readSchematicSize(schematic);
+      if (size != null) {
+         this.data.set(path + ".size.x", size[0]);
+         this.data.set(path + ".size.y", size[1]);
+         this.data.set(path + ".size.z", size[2]);
+      }
+      this.save();
+      sender.sendMessage("§a建築schematicを提出しました: " + id);
+      sender.sendMessage("§7運営審査後、承認されたものだけSurvivalへ設置されます。");
+      return true;
+   }
+
+   private boolean handleSubmissions(CommandSender sender) {
+      ConfigurationSection submissions = this.data.getConfigurationSection("structures.submissions");
+      if (submissions == null || submissions.getKeys(false).isEmpty()) {
+         sender.sendMessage("§7提出済みのschematicはありません。");
+         return true;
+      }
+      sender.sendMessage("§6Schematic提出一覧");
+      for (String id : submissions.getKeys(false).stream().sorted().toList()) {
+         sender.sendMessage("§e" + id + " §7" + this.data.getString("structures.submissions." + id + ".status", "PENDING") + " / " + this.data.getString("structures.submissions." + id + ".name", id));
+      }
+      return true;
+   }
+
+   private boolean handleSubmissionStatus(CommandSender sender, String[] args, String status) {
+      if (args.length < 3) {
+         sender.sendMessage("§e/mf structure " + ("APPROVED".equals(status) ? "approve" : "reject") + " <submission-id>");
+         return true;
+      }
+      String path = "structures.submissions." + args[2];
+      if (!this.data.contains(path)) {
+         sender.sendMessage("§c提出が見つかりません: " + args[2]);
+         return true;
+      }
+      this.data.set(path + ".status", status);
+      this.data.set(path + ".reviewed-at", System.currentTimeMillis());
+      this.data.set(path + ".reviewed-by", sender.getName());
+      this.save();
+      sender.sendMessage("§aSchematicの状態を変更しました: " + status);
+      return true;
+   }
+
+   private boolean handleInstall(CommandSender sender, String[] args) {
+      if (args.length < 7) {
+         sender.sendMessage("§e/mf structure install <submission-id> <world> <x> <y> <z>");
+         return true;
+      }
+      String id = args[2];
+      String path = "structures.submissions." + id;
+      if (!"APPROVED".equalsIgnoreCase(this.data.getString(path + ".status", ""))) {
+         sender.sendMessage("§c承認済みのSchematicだけ設置できます。");
+         return true;
+      }
+      World world = Bukkit.getWorld(args[3]);
+      World survival = Bukkit.getWorld(this.plugin.getConfig().getString("servers.survival.world", "survival"));
+      if (world == null || survival == null || !world.equals(survival)) {
+         sender.sendMessage("§c設置先はSurvivalワールドに限定されます。");
+         return true;
+      }
+      int x = this.parseInt(args[4], Integer.MIN_VALUE);
+      int y = this.parseInt(args[5], Integer.MIN_VALUE);
+      int z = this.parseInt(args[6], Integer.MIN_VALUE);
+      File file = this.structureFile(this.data.getString(path + ".file", ""));
+      if (file == null || !file.exists() || x == Integer.MIN_VALUE || y == Integer.MIN_VALUE || z == Integer.MIN_VALUE) {
+         sender.sendMessage("§c提出ファイルまたは座標が不正です。");
+         return true;
+      }
+      if (!this.worldEdit.pasteSchematic(file, new Location(world, x, y, z))) {
+         sender.sendMessage("§cSchematicの設置に失敗しました。");
+         return true;
+      }
+      String installed = "structures.installed." + id;
+      this.data.set(installed + ".world", world.getName());
+      this.data.set(installed + ".x", x);
+      this.data.set(installed + ".y", y);
+      this.data.set(installed + ".z", z);
+      this.data.set(installed + ".size.x", this.data.getInt(path + ".size.x", 1));
+      this.data.set(installed + ".size.y", this.data.getInt(path + ".size.y", 1));
+      this.data.set(installed + ".size.z", this.data.getInt(path + ".size.z", 1));
+      this.data.set(installed + ".installed-at", System.currentTimeMillis());
+      this.data.set(installed + ".installed-by", sender.getName());
+      this.data.set(path + ".status", "INSTALLED");
+      this.save();
+      sender.sendMessage("§a承認済みSchematicをSurvivalへ設置し、保護しました: " + id);
+      return true;
    }
 
    @EventHandler

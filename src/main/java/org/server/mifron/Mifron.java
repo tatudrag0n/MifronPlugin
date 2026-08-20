@@ -276,6 +276,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private BedrockUiFeature bedrockUiFeature;
    private final TextDisplayFeature textDisplayFeature = new TextDisplayFeature(this);
    private final AuctionFeature auctionFeature = new AuctionFeature(this, this.economyPriceTable);
+   private final BuildWorldManager buildWorldManager = new BuildWorldManager(this);
    private final StructureManager structureManager = new StructureManager(this);
    private final ProposalManager proposalManager = new ProposalManager(this);
    private final QuestProgressListener questProgressListener = new QuestProgressListener(this, this.questService);
@@ -341,6 +342,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("load shop prices", this::loadShopPrices);
       this.runStartupStep("apply economy price table", this::applyEconomyPriceTable);
       this.loadData();
+      this.runStartupStep("load build worlds", this.buildWorldManager::load);
       this.runStartupStep("start Minoru bridge API", this.minoruBridgeFeature::start);
       this.runStartupStep("sync shelf shop displays", this::syncShelfShopDisplays);
       this.runStartupStep("load structures", this.structureManager::load);
@@ -354,6 +356,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("register quest progress events", () -> Bukkit.getPluginManager().registerEvents(this.questProgressListener, this));
       this.runStartupStep("register auction events", () -> Bukkit.getPluginManager().registerEvents(this.auctionFeature, this));
       this.runStartupStep("register structure events", () -> Bukkit.getPluginManager().registerEvents(this.structureManager, this));
+      this.runStartupStep("register build world events", () -> Bukkit.getPluginManager().registerEvents(this.buildWorldManager, this));
       this.runStartupStep("register FFA events", () -> Bukkit.getPluginManager().registerEvents(this.ffaListener, this));
       this.runStartupStep("register text display events", () -> Bukkit.getPluginManager().registerEvents(this.textDisplayFeature, this));
       this.runStartupStep("register server portal events", () -> Bukkit.getPluginManager().registerEvents(this.serverPortalFeature, this));
@@ -413,6 +416,13 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          this.athleticManager.shutdown();
       } catch (Throwable e) {
          this.getLogger().severe("Failed to disable athletic cleanly.");
+         e.printStackTrace();
+      }
+
+      try {
+         this.buildWorldManager.shutdown();
+      } catch (Throwable e) {
+         this.getLogger().severe("Failed to disable build worlds cleanly.");
          e.printStackTrace();
       }
 
@@ -553,6 +563,11 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       } else {
          return null;
       }
+   }
+
+   /** Returns whether the player is currently in their own private Build world. */
+   boolean isPlayerBuildWorld(Player player) {
+      return player != null && this.buildWorldManager.isOwner(player, player.getWorld());
    }
 
    private static String firstNonBlank(String... values) {
@@ -1040,8 +1055,36 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    public void onPickupItem(EntityPickupItemEvent event) {
       if (event.getEntity() instanceof Player player) {
          ItemStack var4 = event.getItem().getItemStack();
+         this.tryConvertProposedItem(event, var4);
          this.recordAcquiredItem(player, var4.getType());
          // 通常のエメラルドはアイテムとして拾う。MPへの自動変換は行わない。
+      }
+   }
+
+   private void tryConvertProposedItem(EntityPickupItemEvent event, ItemStack source) {
+      ConfigurationSection proposals = this.getConfig().getConfigurationSection("custom-items");
+      if (proposals == null || source == null || source.getAmount() <= 0) {
+         return;
+      }
+      for (String id : proposals.getKeys(false)) {
+         String path = "custom-items." + id;
+         if (!this.getConfig().getBoolean(path + ".conversion-enabled", true)) {
+            continue;
+         }
+         Material base = Material.matchMaterial(this.getConfig().getString(path + ".base-material", ""));
+         Material result = Material.matchMaterial(this.getConfig().getString(path + ".material", ""));
+         double chance = Math.max(0.0, Math.min(0.01, this.getConfig().getDouble(path + ".conversion-chance", 0.001)));
+         if (base == null || result == null || base == result || source.getType() != base || chance <= 0.0 || this.random.nextDouble() >= chance) {
+            continue;
+         }
+         ItemStack converted = this.named(result, this.getConfig().getString(path + ".display-name", id), this.getConfig().getStringList(path + ".lore"));
+         ItemMeta meta = converted.getItemMeta();
+         meta.setEnchantmentGlintOverride(this.getConfig().getBoolean(path + ".glint", false));
+         converted.setItemMeta(meta);
+         source.setAmount(source.getAmount() - 1);
+         event.getItem().getWorld().dropItem(event.getItem().getLocation(), converted);
+         event.getItem().setItemStack(source);
+         break;
       }
    }
 
@@ -5616,16 +5659,8 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             }
          });
       } else {
-         event.renderer(
-            (source, sourceDisplayName, message, viewer) -> this.titlePrefix(source).append(sourceDisplayName).append(Component.text(": ")).append(message)
-         );
-         double radius = this.getConfig().getDouble("local-chat-radius", 50.0);
-         event.viewers()
-            .removeIf(
-               viewer -> !(viewer instanceof Player receiver)
-                  ? false
-                  : !receiver.getWorld().equals(sender.getWorld()) || receiver.getLocation().distanceSquared(sender.getLocation()) > radius * radius
-            );
+         event.setCancelled(true);
+         Bukkit.getScheduler().runTask(this, () -> sender.sendMessage("§7通常チャットはDiscordでご利用ください。サーバーからのシステム通知は引き続き表示されます。"));
       }
    }
 
@@ -5885,7 +5920,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       return (int)Math.min(2000000000L, result);
    }
 
-   private int applyIncomeBonus(UUID uuid, int base) {
+   int applyIncomeBonus(UUID uuid, int base) {
       if (base <= 0) {
          return 0;
       }
@@ -6129,7 +6164,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private boolean handleMifronCommand(CommandSender sender, String[] args) {
       if (args.length == 0) {
          sender.sendMessage(
-            "§e/mifron check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|status|tutorial|shelfshop|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|serverorder|servericon|delserver|warning"
+            "§e/mifron check|list|tp|text|ffa|structure|build|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|status|tutorial|shelfshop|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|serverorder|servericon|delserver|warning"
          );
          return true;
       } else if (!(sender instanceof Player player)
@@ -6158,6 +6193,9 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                break;
             case "structure":
                this.structureManager.handleCommand(sender, args);
+               break;
+            case "build":
+               this.buildWorldManager.handleCommand(sender, args);
                break;
             case "proposal":
                this.proposalManager.handleCommand(sender, args);
@@ -6940,6 +6978,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             "text",
             "ffa",
             "structure",
+            "build",
             "proposal",
             "gamerules",
             "info",
@@ -6979,6 +7018,10 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
       if (args.length >= 2 && this.isMifronRootCommand(command) && "structure".equalsIgnoreCase(args[0])) {
          return this.structureManager.tabComplete(args);
+      }
+
+      if (args.length >= 2 && this.isMifronRootCommand(command) && "build".equalsIgnoreCase(args[0])) {
+         return this.buildWorldManager.tabComplete(args);
       }
 
       if (args.length >= 2 && this.isMifronRootCommand(command) && "proposal".equalsIgnoreCase(args[0])) {
