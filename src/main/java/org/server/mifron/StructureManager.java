@@ -23,6 +23,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -30,9 +31,13 @@ import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
+import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 
 final class StructureManager implements Listener {
    private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z0-9_-]{1,48}");
@@ -188,6 +193,36 @@ final class StructureManager implements Listener {
    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
    public void onInstalledPistonRetract(BlockPistonRetractEvent event) {
       if (event.getBlocks().stream().anyMatch(block -> this.isInstalledProtected(block.getLocation()))) {
+         event.setCancelled(true);
+      }
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledFluidFlow(BlockFromToEvent event) {
+      if (this.isInstalledProtected(event.getBlock().getLocation()) || this.isInstalledProtected(event.getToBlock().getLocation())) {
+         event.setCancelled(true);
+      }
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledItemPickup(EntityPickupItemEvent event) {
+      if (event.getEntity() instanceof Player player && this.isInstalledProtected(event.getItem().getLocation()) && !this.isStructureAdmin(player)) {
+         event.setCancelled(true);
+      }
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledEntityInteract(PlayerInteractEntityEvent event) {
+      if (event.getRightClicked() instanceof ItemFrame && this.isInstalledProtected(event.getRightClicked().getLocation())
+         && !this.isStructureAdmin(event.getPlayer())) {
+         event.setCancelled(true);
+      }
+   }
+
+   @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInstalledEntityDamage(EntityDamageByEntityEvent event) {
+      if (event.getEntity() instanceof ItemFrame && this.isInstalledProtected(event.getEntity().getLocation())
+         && event.getDamager() instanceof Player player && !this.isStructureAdmin(player)) {
          event.setCancelled(true);
       }
    }
