@@ -332,7 +332,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.uiActionKey = new NamespacedKey(this, "ui_action");
       this.uiTargetKey = new NamespacedKey(this, "ui_target");
       this.saveDefaultConfig();
-      this.getConfig().addDefault("advancement-rewards.multiplier", 2.0D);
+      this.getConfig().addDefault("advancement-rewards.multiplier", 5.0D);
       this.getConfig().options().copyDefaults(true);
       this.saveConfig();
       this.runStartupStep("migrate barrel shop offer slots", this::migrateBarrelShopOfferSlots);
@@ -5693,7 +5693,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                this.applyUnlocks(player, special);
             }
 
-            double multiplier = Math.max(0.0D, Math.min(10.0D, this.getConfig().getDouble("advancement-rewards.multiplier", 2.0D)));
+            double multiplier = Math.max(0.0D, Math.min(10.0D, this.getConfig().getDouble("advancement-rewards.multiplier", 5.0D)));
             reward = (int)Math.min(2000000000L, Math.max(0L, Math.round(reward * multiplier)));
 
             int paidReward = this.applyIncomeBonus(player.getUniqueId(), reward);
