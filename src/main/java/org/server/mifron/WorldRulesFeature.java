@@ -38,6 +38,16 @@ final class WorldRulesFeature {
       );
    }
 
+   void enforceFixedDayWorlds() {
+      Set<String> fixedDayWorlds = this.fixedDayWorldNames();
+      for (World world : Bukkit.getWorlds()) {
+         if (fixedDayWorlds.contains(world.getName().toLowerCase(Locale.ROOT))) {
+            world.setGameRule(GameRules.ADVANCE_TIME, false);
+            world.setTime(FIXED_DAY_TIME);
+         }
+      }
+   }
+
    private void apply(World world, Set<String> fixedDayWorlds, Set<String> pvpWorlds, boolean defaultPvp) {
       world.setGameRule(GameRules.KEEP_INVENTORY, true);
       boolean pvpEnabled = defaultPvp || pvpWorlds.contains(world.getName().toLowerCase(Locale.ROOT));
@@ -53,6 +63,7 @@ final class WorldRulesFeature {
       Set<String> names = new HashSet<>();
       this.addWorldName(names, "athletic");
       this.addWorldName(names, "minigame");
+      this.addWorldName(names, "market");
       this.addWorldName(names, this.plugin.getConfig().getString("servers.athletic.world"));
       this.addWorldName(names, this.plugin.getConfig().getString("servers.minigame.world"));
 

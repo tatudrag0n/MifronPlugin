@@ -379,6 +379,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("apply world rules", this.worldRulesFeature::apply);
       this.runStartupStep("apply world spawn locations", this::applyWorldSpawnLocations);
       this.runStartupStep("normalize merchants", this::normalizeMerchants);
+      Bukkit.getScheduler().runTaskTimer(this, this.worldRulesFeature::enforceFixedDayWorlds, 1L, 100L);
       Bukkit.getScheduler().runTaskTimer(this, this::grantPlaytimeRewards, 1200L, 1200L);
       Bukkit.getScheduler().runTaskTimer(this, this::tickMerchants, 1200L, 1200L);
       Bukkit.getScheduler().runTaskTimer(this, this::tickShelfShopActionBars, 10L, 10L);
@@ -1805,7 +1806,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          return 0;
       }
 
-      int registered = 0;
+      List<String> removablePaths = new ArrayList<>();
       for (String worldId : new ArrayList<>(shops.getKeys(false))) {
          ConfigurationSection worldShops = shops.getConfigurationSection(worldId);
          if (worldShops == null) {
@@ -1814,22 +1815,40 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
          World world = this.worldFromId(worldId);
          for (String coordinates : new ArrayList<>(worldShops.getKeys(false))) {
-            registered++;
             Block block = world == null ? null : this.blockFromCoordinates(world, coordinates);
-            boolean slotMachine = block != null && this.slotMachineManager != null && this.slotMachineManager.isMachine(block);
-            if (block != null && !slotMachine) {
-               this.setShelfShop(block, false);
-            } else if (!slotMachine) {
-               this.data.set("shop-owners." + worldId + "." + coordinates, null);
-               this.data.set("shelf-shop-offers." + worldId + "." + coordinates, null);
+            boolean slotMachine = !this.data.getString("slot-machines." + worldId + "." + coordinates + ".difficulty", "").isBlank();
+            if (!slotMachine && block != null && this.slotMachineManager != null) {
+               slotMachine = this.slotMachineManager.isMachine(block);
+            }
+            if (slotMachine) {
+               // Slot machines may share the same storage namespace. They are not
+               // shelf shops and must survive a bulk shelf-shop clear.
+               continue;
+            }
+
+            removablePaths.add(worldId + "." + coordinates);
+            if (block != null) {
+               try {
+                  this.clearShelfShopDisplay(block);
+               } catch (Throwable e) {
+                  this.getLogger().warning("棚ショップ表示の解除に失敗しました: " + worldId + " " + coordinates + " (metadata will still be cleared)");
+               }
             }
          }
       }
 
-      this.data.set("shelf-shops", null);
-      this.data.set("shelf-shop-offers", null);
+      // Do not call setShelfShop() here. It saves and renumbers while the same
+      // ConfigurationSection is being traversed, which can corrupt the YAML
+      // section or crash the server on a large/partially stale registration set.
+      // Remove all entries first, then persist and refresh displays exactly once.
+      for (String path : removablePaths) {
+         this.data.set("shelf-shops." + path, null);
+         this.data.set("shop-owners." + path, null);
+         this.data.set("shelf-shop-offers." + path, null);
+      }
       this.saveData();
-      return registered;
+      this.syncShelfShopDisplays();
+      return removablePaths.size();
    }
 
    private void handleShelfShopCommand(CommandSender sender, String[] args) {

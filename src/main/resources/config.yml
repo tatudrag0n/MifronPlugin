@@ -15,6 +15,7 @@ world-rules:
   fixed-day-worlds:
     - athletic
     - minigame
+    - market
   spawn:
     main:
       world: world
