@@ -390,7 +390,7 @@ enum FfaKit {
          case SWORD -> "標準的な万能型";
          case SHIELD -> "盾を使う防御型";
          case TRIDENT -> "天候で変化する中距離型";
-         case MACE -> "高低差を使う重装型";
+         case MACE -> "高低差とウィンドチャージを使う近接型";
          case GAMBLER -> "運で火力と報酬が揺れる型";
          case WIZARD -> "再使用型ポーション妨害";
          case SNIPER -> "高倍率クロスボウ狙撃";
@@ -406,11 +406,11 @@ enum FfaKit {
 
    private String mainWeaponLabel() {
       return switch (this) {
-         case AXE -> "鉄の斧";
-         case BOW -> "弓";
-         case SPEAR -> "鉄の槍";
-         case CROSSBOW -> "6発式クロスボウ";
-         case SWORD -> "鉄の剣";
+         case AXE -> "ダイヤの斧";
+         case BOW -> "弓 / 石の剣";
+         case SPEAR -> "鉄の槍 / 鉄の剣";
+         case CROSSBOW -> "6発式クロスボウ / 石の剣";
+         case SWORD -> "鉄の剣 / 金リンゴ";
          case SHIELD -> "盾 / 石の剣";
          case TRIDENT -> "トライデント";
          case MACE -> "メイス";
@@ -419,9 +419,9 @@ enum FfaKit {
          case SNIPER -> "単発式クロスボウ";
          case VAMPIRE -> "鉄の剣";
          case GRAPPLER -> "素手";
-         case ASSASSIN -> "致命の剣 / 毒の剣";
-         case NECROMANCER -> "召喚卵 / 木の剣";
-         case TRAPPER -> "罠 / 石の剣";
+         case ASSASSIN -> "致命の短剣 / 毒の短剣";
+         case NECROMANCER -> "7種の召喚卵 / 木の剣";
+         case TRAPPER -> "4種の罠 / 石の剣";
          case BUG_MANIA -> "虫食いの剣";
          case CRUSHER -> "クラッシャーアックス";
       };
@@ -430,10 +430,10 @@ enum FfaKit {
    private String defenseLabel() {
       return switch (this) {
          case AXE, SWORD, SHIELD, TRIDENT -> "標準";
-         case BOW, WIZARD, SNIPER, ASSASSIN, NECROMANCER -> "かなり低い";
+         case BOW, WIZARD, SNIPER, NECROMANCER -> "かなり低い";
+         case ASSASSIN, GRAPPLER -> "なし";
          case SPEAR, CROSSBOW, GAMBLER, VAMPIRE, TRAPPER, BUG_MANIA, CRUSHER -> "低め";
          case MACE -> "高め";
-         case GRAPPLER -> "なし";
       };
    }
 
@@ -447,13 +447,13 @@ enum FfaKit {
          case SHIELD -> "正面防御に強い";
          case TRIDENT -> "雨や雷雨で性能が変わる";
          case MACE -> "落下攻撃とウィンドチャージ";
-         case GAMBLER -> "高倍率を引くと強い";
+         case GAMBLER -> "攻撃ダメージが-10〜20で抽選される";
          case WIZARD -> "複数の妨害ポーション";
          case SNIPER -> "当たれば高火力";
-         case VAMPIRE -> "与ダメージで回復する";
+         case VAMPIRE -> "与ダメージの30%だけ体力と満腹度を回復";
          case GRAPPLER -> "速く素手火力が高い";
          case ASSASSIN -> "致命の剣でHPを削れる";
-         case NECROMANCER -> "召喚で人数差を作る";
+         case NECROMANCER -> "上限なしの召喚で人数差を作る";
          case TRAPPER -> "踏ませれば強い";
          case BUG_MANIA -> "虫食いと虫で妨害";
          case CRUSHER -> "被弾時と攻撃時に爆発を起こす";
@@ -463,34 +463,40 @@ enum FfaKit {
    private String weaknessLabel() {
       return switch (this) {
          case AXE -> "移動が遅い";
-         case BOW -> "接近戦用武器がない";
+         case BOW -> "防具が薄く、接近戦火力が低い";
          case SPEAR -> "馬を失うと機動力が落ちる";
          case CROSSBOW -> "リロードが長い";
          case SWORD -> "突出した強みはない";
          case SHIELD -> "火力が低め";
          case TRIDENT -> "投擲中に隙ができる";
-         case MACE -> "機動の難度が高い";
-         case GAMBLER -> "自傷の危険がある";
+         case MACE -> "チャージ枯渇後は補充まで8秒かかる";
+         case GAMBLER -> "負の抽選では相手を回復する";
          case WIZARD -> "防具が薄い";
-         case SNIPER -> "移動が遅く近接に弱い";
-         case VAMPIRE -> "常時弱体化";
+         case SNIPER -> "単発で、手動リロード中は大幅に遅い";
+         case VAMPIRE -> "常時弱体化し、直射日光でダメージを受ける";
          case GRAPPLER -> "武器防具を使えない";
          case ASSASSIN -> "致命の剣は一度きり";
-         case NECROMANCER -> "本体が脆い";
+         case NECROMANCER -> "本体が脆く、召喚は20秒で消える";
          case TRAPPER -> "設置に隙がある";
          case BUG_MANIA -> "火力は控えめ";
-         case CRUSHER -> "爆発は確率発動";
+         case CRUSHER -> "爆発は50%で不発になる";
       };
    }
 
    private String foodLabel(FfaConfig config) {
+      if (this == NECROMANCER) {
+         return "腐肉 x1";
+      }
+      if (this == VAMPIRE) {
+         return "なし";
+      }
       List<String> foods = foodSummaries(config, this);
       return foods.isEmpty() ? "なし" : String.join(", ", foods);
    }
 
    private String defaultArmorTier() {
       return switch (this) {
-         case AXE, SWORD -> "chainmail";
+         case AXE, SWORD -> "iron";
          case MACE -> "iron";
          case GRAPPLER -> "none";
          default -> "leather";

@@ -25,7 +25,6 @@ final class ProposalManager {
    }
 
    void load() {
-      this.ensureConfigDefaults();
       this.file = new File(this.plugin.getDataFolder(), "proposals.yml");
       if (!this.file.exists()) {
          this.data = new YamlConfiguration();
@@ -287,18 +286,6 @@ final class ProposalManager {
       if (this.data == null) {
          this.load();
       }
-   }
-
-   private void ensureConfigDefaults() {
-      if (!this.plugin.getConfig().contains("proposals.enabled")) {
-         this.plugin.getConfig().set("proposals.enabled", true);
-      }
-
-      if (!this.plugin.getConfig().contains("proposals.require-admin-approval")) {
-         this.plugin.getConfig().set("proposals.require-admin-approval", true);
-      }
-
-      this.plugin.saveConfig();
    }
 
    private void save() {

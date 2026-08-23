@@ -104,7 +104,6 @@ final class FfaManager {
    private final Map<UUID, Long> wizardPotionCooldownUntil = new HashMap<>();
    private final Map<UUID, UUID> wizardPotionOwners = new ConcurrentHashMap<>();
    private final Map<UUID, Set<UUID>> trackedTridents = new HashMap<>();
-   private final Set<UUID> gamblerSelfDamage = new HashSet<>();
    private final Set<UUID> crusherExplosionDamage = new HashSet<>();
    private final Map<UUID, Long> crusherExplosionAttemptTick = new HashMap<>();
    private final Map<UUID, Double> vampireDamage = new HashMap<>();
@@ -1859,38 +1858,7 @@ final class FfaManager {
                   }
 
                   ItemStack mainHand = attacker.getInventory().getItemInMainHand();
-                  if (!this.applyGamblerOutgoing(event, attacker, victim, session, mainHand)
-                     && session.kit == FfaKit.GAMBLER
-                     && this.isFfaItem(mainHand)
-                     && "weapon".equals(this.itemKind(mainHand))
-                     && event.getFinalDamage() > 0.0) {
-                     double min = this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.GAMBLER, "min-damage-multiplier"), -10.0);
-                     double max = this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.GAMBLER, "max-damage-multiplier"), 15.0);
-                     int steps = (int)Math.round((Math.max(min, max) - Math.min(min, max)) / 0.5);
-                     double multiplier = Math.min(min, max) + ThreadLocalRandom.current().nextInt(steps + 1) * 0.5;
-                     attacker.playSound(
-                        attacker.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.55F, multiplier < 0.0 ? 0.6F : Math.min(2.0F, 0.9F + (float)multiplier / 20.0F)
-                     );
-                     if (multiplier == 15.0) {
-                        attacker.playSound(attacker.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0F, 1.2F);
-                        this.plugin.unlockTitle(attacker, "ラッキーパンチ");
-                     }
-
-                     if (multiplier < 0.0) {
-                        event.setCancelled(true);
-                        if (this.gamblerSelfDamage.add(attacker.getUniqueId())) {
-                           try {
-                              attacker.damage(event.getDamage() * Math.abs(multiplier), attacker);
-                           } finally {
-                              this.gamblerSelfDamage.remove(attacker.getUniqueId());
-                           }
-                        }
-
-                        return;
-                     }
-
-                     event.setDamage(event.getDamage() * multiplier);
-                  }
+                  this.applyGamblerOutgoing(event, attacker, victim, session, mainHand);
 
                   if (session.kit == FfaKit.ASSASSIN && this.isFfaItem(mainHand) && event.getFinalDamage() > 0.0) {
                      String kind = this.itemKind(mainHand);
@@ -2106,7 +2074,6 @@ final class FfaManager {
       this.revolverAmmo.remove(uuid);
       this.sniperAmmo.remove(uuid);
       this.sniperShotCooldownUntil.remove(uuid);
-      this.gamblerSelfDamage.remove(uuid);
       this.vampireDamage.remove(uuid);
       this.wizardPotionCooldownUntil.remove(uuid);
       this.wizardPotionOwners.entrySet().removeIf(entry -> uuid.equals(entry.getValue()));
@@ -2972,19 +2939,6 @@ final class FfaManager {
 
       ItemStack mainHand = attacker.getInventory().getItemInMainHand();
       String itemKind = this.itemKind(mainHand);
-      if (session.kit == FfaKit.GAMBLER && this.isFfaItem(mainHand) && "weapon".equals(itemKind)) {
-         double min = this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.GAMBLER, "min-damage-multiplier"), -10.0);
-         double max = this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.GAMBLER, "max-damage-multiplier"), 15.0);
-         int steps = (int)Math.round((Math.max(min, max) - Math.min(min, max)) / 0.5);
-         double multiplier = Math.min(min, max) + ThreadLocalRandom.current().nextInt(steps + 1) * 0.5;
-         if (multiplier < 0.0) {
-            event.setCancelled(true);
-            husk.setHealth(Math.min(husk.getAttribute(Attribute.MAX_HEALTH).getValue(), husk.getHealth() + Math.abs(multiplier)));
-         } else {
-            event.setDamage(event.getDamage() * multiplier);
-         }
-      }
-
       if (session.kit == FfaKit.ASSASSIN && this.isFfaItem(mainHand)) {
          if ("fatal_sword".equals(itemKind) || "fatal_dagger".equals(itemKind)) {
             event.setDamage(0.0);

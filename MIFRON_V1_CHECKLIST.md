@@ -161,7 +161,7 @@
 
 - [ ] FFA-KIT-001 Axe / 戦士
 - [ ] FFA-KIT-002 Bow / 狩人
-- [ ] FFA-KIT-003 Spear / 槍使い
+- [ ] FFA-KIT-003 Spear / 騎士
 - [ ] FFA-KIT-004 Crossbow / リボルバー
 - [ ] FFA-KIT-005 Sword / 剣士
 - [ ] FFA-KIT-006 Shield / シールダー
@@ -185,7 +185,7 @@
 - [ ] FFA-GAM-001 与ダメージ倍率の抽選範囲が仕様通り
 - [ ] FFA-GAM-002 マイナスダメージ時の処理が仕様通り
 - [ ] FFA-GAM-003 被ダメージ側のランダム補正が仕様通り
-- [ ] FFA-GAM-004 表示位置がレベルバー上のみになっている
+- [ ] FFA-GAM-004 攻撃抽選はアクションバー、防御補正はチャットへ表示される
 - [ ] FFA-GAM-005 Jackpot回数上限が正常
 - [ ] FFA-GAM-006 Mob相手でも想定通り動作する
 

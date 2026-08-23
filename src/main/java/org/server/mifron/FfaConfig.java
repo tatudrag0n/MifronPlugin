@@ -50,7 +50,6 @@ final class FfaConfig {
       );
       this.setIfMissingOrForce(config, "ffa.kits.bow.weapon", "stone_sword", migratePermanentKits);
       this.setIfMissing(config, "ffa.kits.bow.bow", true);
-      this.setIfMissing(config, "ffa.kits.bow.food", 16);
       this.setIfMissingOrForce(config, "ffa.kits.bow.arrows", 1, migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.bow.food-items", List.of("cooked_chicken:8"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.bow.items", List.of(), migratePermanentKits);
@@ -61,7 +60,6 @@ final class FfaConfig {
       this.setIfMissingOrForce(config, "ffa.kits.sword.armor-tier", "iron", migratePermanentKits);
       this.setArmorDefault(config, "sword", migrateBalancedArmor || migratePermanentKits, "iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots");
       this.setIfMissingOrForce(config, "ffa.kits.sword.weapon", "iron_sword", migratePermanentKits);
-      this.setIfMissing(config, "ffa.kits.sword.food", 16);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.sword.food-items", List.of("cooked_beef:6"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.sword.items", List.of(), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.sword.potions", List.of(), migratePermanentKits);
@@ -74,7 +72,6 @@ final class FfaConfig {
       );
       this.setIfMissingOrForce(config, "ffa.kits.shield.weapon", "stone_sword", migratePermanentKits);
       this.setIfMissing(config, "ffa.kits.shield.shield", true);
-      this.setIfMissing(config, "ffa.kits.shield.food", 16);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.shield.food-items", List.of("cooked_beef:5"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.shield.items", List.of(), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.shield.potions", List.of(), migratePermanentKits);
@@ -82,27 +79,23 @@ final class FfaConfig {
       this.setIfMissing(config, "ffa.kits.spear.icon", "iron_spear");
       this.setIfMissing(config, "ffa.kits.spear.armor-tier", "chainmail");
       this.setArmorDefault(
-         config, "spear", true, "chainmail_helmet", "iron_chestplate", "iron_leggings", "chainmail_boots"
+         config, "spear", migrateBalancedArmor || migratePermanentKits, "chainmail_helmet", "iron_chestplate", "iron_leggings", "chainmail_boots"
       );
       this.setIfMissing(config, "ffa.kits.spear.weapon", "iron_spear");
-      this.setIfMissingOrForce(config, "ffa.kits.spear.backup-weapon", "iron_sword", true);
-      this.setIfMissing(config, "ffa.kits.spear.allow-fallback", false);
-      this.setIfMissing(config, "ffa.kits.spear.fallback-weapon", "trident");
-      this.setIfMissing(config, "ffa.kits.spear.food", 16);
+      this.setIfMissing(config, "ffa.kits.spear.backup-weapon", "iron_sword");
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.spear.food-items", List.of("baked_potato:10"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.spear.items", List.of(), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.spear.potions", List.of(), migratePermanentKits);
-      this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.spear.weapon-enchantments", List.of("lunge:2"), true);
+      this.setListIfMissingOrEmpty(config, "ffa.kits.spear.weapon-enchantments", List.of("lunge:2"));
       this.setDisplayName(config, "ffa.kits.axe.display-name", "§6ウォリアー", "§6斧キット");
       this.setIfMissingOrForce(config, "ffa.kits.axe.icon", "iron_axe", migratePermanentKits);
       this.setIfMissingOrForce(config, "ffa.kits.axe.armor-tier", "iron", migratePermanentKits);
-      this.setArmorDefault(config, "axe", true, "iron_helmet", "diamond_chestplate", "iron_leggings", "iron_boots");
-      this.setIfMissingOrForce(config, "ffa.kits.axe.weapon", "diamond_axe", true);
-      this.setIfMissing(config, "ffa.kits.axe.food", 16);
+      this.setArmorDefault(config, "axe", migrateBalancedArmor || migratePermanentKits, "iron_helmet", "diamond_chestplate", "iron_leggings", "iron_boots");
+      this.setIfMissingOrForce(config, "ffa.kits.axe.weapon", "diamond_axe", migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.food-items", List.of("cooked_porkchop:5"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.items", List.of(), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.potions", List.of(), migratePermanentKits);
-      this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.weapon-enchantments", List.of("sharpness:2"), true);
+      this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.weapon-enchantments", List.of("sharpness:2"), migratePermanentKits);
       this.setIfMissing(config, "ffa.kits.axe.slowness-amplifier", 0);
       this.setDisplayName(config, "ffa.kits.crossbow.display-name", "§dリボルバー", "§dクロスボウキット");
       this.setIfMissing(config, "ffa.kits.crossbow.icon", "crossbow");
@@ -111,15 +104,9 @@ final class FfaConfig {
          config, "crossbow", migrateBalancedArmor || migratePermanentKits, "chainmail_helmet", "chainmail_chestplate", "chainmail_leggings", "chainmail_boots"
       );
       this.setIfMissingOrForce(config, "ffa.kits.crossbow.weapon", "stone_sword", migratePermanentKits);
-      this.setIfMissing(config, "ffa.kits.crossbow.loaded-crossbows", 6);
-      this.setIfMissing(config, "ffa.kits.crossbow.arrows", 64);
-      this.setIfMissing(config, "ffa.kits.crossbow.quick-charge-level", 1);
-      this.setIfMissing(config, "ffa.kits.crossbow.multishot", false);
-      this.setIfMissing(config, "ffa.kits.crossbow.piercing-level", 0);
       this.setIfMissing(config, "ffa.kits.crossbow.ammo-capacity", 6);
       this.setIfMissing(config, "ffa.kits.crossbow.reload-ticks", 75);
       this.setIfMissing(config, "ffa.kits.crossbow.damage-multiplier", 0.7);
-      this.setIfMissing(config, "ffa.kits.crossbow.food", 16);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.crossbow.food-items", List.of("bread:8"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.crossbow.items", List.of(), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.crossbow.potions", List.of(), migratePermanentKits);
@@ -130,7 +117,6 @@ final class FfaConfig {
          config, "wizard", migrateBalancedArmor || migratePermanentKits, "golden_helmet", "golden_chestplate", "golden_leggings", "golden_boots"
       );
       this.setIfMissingOrForce(config, "ffa.kits.wizard.weapon", "wooden_sword", migratePermanentKits);
-      this.setIfMissing(config, "ffa.kits.wizard.food", 16);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.wizard.food-items", List.of("bread:8"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.wizard.items", List.of(), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(
@@ -139,7 +125,6 @@ final class FfaConfig {
          List.of("splash_harm:1:1:2", "splash_poison:1:10:1", "splash_slowness:1:15:1", "splash_heal:1:1:2"),
          migratePermanentKits
       );
-      this.setIfMissing(config, "ffa.kits.wizard.potion-cooldown-ticks", 60);
       this.setDisplayName(config, "ffa.kits.trident.display-name", "§bトライデント", "§bトライデント");
       this.setIfMissing(config, "ffa.kits.trident.icon", "trident");
       this.setIfMissingOrForce(config, "ffa.kits.trident.armor-tier", "chainmail", migratePermanentKits);
@@ -147,7 +132,6 @@ final class FfaConfig {
          config, "trident", migrateBalancedArmor || migratePermanentKits, "turtle_helmet", "iron_chestplate", "chainmail_leggings", "iron_boots"
       );
       this.setIfMissingOrForce(config, "ffa.kits.trident.weapon", "trident", migratePermanentKits);
-      this.setIfMissing(config, "ffa.kits.trident.food", 16);
       this.setListIfMissingOrEmpty(config, "ffa.kits.trident.weapon-enchantments", List.of("loyalty:3"));
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.trident.food-items", List.of("cooked_salmon:7"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.trident.items", List.of(), migratePermanentKits);
@@ -161,7 +145,6 @@ final class FfaConfig {
       this.setIfMissingOrForce(config, "ffa.kits.mace.weapon", "mace", migratePermanentKits);
       this.setIfMissing(config, "ffa.kits.mace.wind-charge", 3);
       this.setIfMissing(config, "ffa.kits.mace.max-final-damage", 12.0);
-      this.setIfMissing(config, "ffa.kits.mace.food", 16);
       this.setListIfMissingOrEmpty(config, "ffa.kits.mace.boots-enchantments", List.of("feather_falling:4"));
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.mace.food-items", List.of("cooked_beef:5"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.mace.items", List.of(), migratePermanentKits);
@@ -459,7 +442,7 @@ final class FfaConfig {
          "leather_chestplate",
          "chainmail_leggings",
          "none",
-         "cooked_beef:1",
+         null,
          forceArmor,
          forceKitBalance
       );
@@ -488,7 +471,7 @@ final class FfaConfig {
          "leather_chestplate",
          "none",
          "leather_boots",
-         "rotten_flesh:1",
+         null,
          forceArmor,
          forceKitBalance
       );
@@ -542,9 +525,8 @@ final class FfaConfig {
       this.setIfMissingOrForce(config, "ffa.kits.crossbow.ammo-capacity", 6, forceKitBalance);
       this.setIfMissingOrForce(config, "ffa.kits.crossbow.reload-ticks", 75, forceKitBalance);
       this.setIfMissing(config, "ffa.kits.crossbow.damage-multiplier", 0.7);
-      this.setIfMissingOrForce(config, "ffa.kits.sniper.ammo-capacity", 2, forceKitBalance);
       this.setIfMissingOrForce(config, "ffa.kits.sniper.reload-ticks", 125, forceKitBalance);
-      this.setIfMissingOrForce(config, "ffa.kits.sniper.damage-multiplier", 3.0, true);
+      this.setIfMissingOrForce(config, "ffa.kits.sniper.damage-multiplier", 3.0, forceKitBalance);
       this.setListIfMissingOrEmpty(config, "ffa.kits.sniper.crossbow-enchantments", List.of("piercing:4"));
       this.setDisplayName(config, "ffa.kits.assassin.display-name", "§5アサシン", "§0アサシン");
       this.setIfMissingOrLegacy(config, "ffa.kits.assassin.icon", "golden_sword", "iron_sword");
@@ -553,7 +535,6 @@ final class FfaConfig {
       this.setIfMissingOrForce(config, "ffa.kits.assassin.armor.chestplate", "none", true);
       this.setIfMissingOrForce(config, "ffa.kits.assassin.armor.leggings", "none", true);
       this.setIfMissingOrForce(config, "ffa.kits.assassin.armor.boots", "none", true);
-      this.setListIfMissingOrEmpty(config, "ffa.kits.assassin.fatal-sword-enchantments", List.of("unbreaking:1"));
       this.setIfMissingOrForce(config, "ffa.kits.assassin.poison-duration-seconds", 4, true);
       this.setIfMissingOrForce(config, "ffa.kits.mace.wind-charge", 10, forceKitBalance);
       this.setIfMissing(config, "ffa.kits.mace.wind-charge-refill-seconds", 10);
@@ -561,13 +542,13 @@ final class FfaConfig {
       this.setIfMissing(config, "ffa.kits.sword.golden-apple-cooldown-seconds", 100);
       this.setIfMissing(config, "ffa.kits.food-cooldown-seconds", 15);
       this.setIfMissing(config, "ffa.kits.vampire.lifesteal-percent", 50);
-      this.setIfMissing(config, "ffa.kits.vampire.damage-per-strength-level", 100);
       this.setIfMissingOrForce(config, "ffa.kits.vampire.sun-damage", 2.0, forceVampireBalance);
-      this.setIfMissingOrForce(config, "ffa.kits.gambler.min-damage-multiplier", -10.0, true);
-      this.setIfMissingOrForce(config, "ffa.kits.gambler.max-damage-multiplier", 15.0, true);
+      this.setIfMissing(config, "ffa.kits.gambler.min-random-damage", -10);
+      this.setIfMissing(config, "ffa.kits.gambler.max-random-damage", 20);
+      this.setIfMissing(config, "ffa.kits.gambler.min-incoming-reduction", -5);
+      this.setIfMissing(config, "ffa.kits.gambler.max-incoming-reduction", 5);
       this.setIfMissingFromLegacy(config, "ffa.kits.gambler.mp-min", "ffa.kits.gambler.em-min", -10);
       this.setIfMissingFromLegacy(config, "ffa.kits.gambler.mp-max", "ffa.kits.gambler.em-max", 10);
-      this.setIfMissing(config, "ffa.kits.necromancer.max-summons", 5);
       this.setIfMissing(config, "ffa.kits.trapper.trap-duration-seconds", 30);
       this.setIfMissing(config, "ffa.kits.trapper.trap-cooldown-seconds", 20);
       this.setIfMissing(config, "ffa.kits.trapper.fire-trap-initial-damage", 2.0);
@@ -680,7 +661,9 @@ final class FfaConfig {
       this.setIfMissing(config, "ffa.kits." + key + ".icon", icon);
       this.setIfMissingOrForce(config, "ffa.kits." + key + ".armor-tier", armorTier, forceKitBalance);
       this.setArmorDefault(config, key, forceArmor, helmet, chestplate, leggings, boots);
-      this.setListIfMissingOrEmptyOrForce(config, "ffa.kits." + key + ".food-items", List.of(food), forceKitBalance);
+      if (food != null && !food.isBlank()) {
+         this.setListIfMissingOrEmptyOrForce(config, "ffa.kits." + key + ".food-items", List.of(food), forceKitBalance);
+      }
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits." + key + ".items", List.of(), forceKitBalance);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits." + key + ".potions", List.of(), forceKitBalance);
    }
@@ -727,30 +710,12 @@ final class FfaConfig {
          || !config.contains(path + "helmet")
          || !config.contains(path + "chestplate")
          || !config.contains(path + "leggings")
-         || !config.contains(path + "boots")
-         || this.isUniformArmorSet(config, path)) {
+         || !config.contains(path + "boots")) {
          config.set(path + "helmet", helmet);
          config.set(path + "chestplate", chestplate);
          config.set(path + "leggings", leggings);
          config.set(path + "boots", boots);
       }
-   }
-
-   private boolean isUniformArmorSet(FileConfiguration config, String path) {
-      String helmet = config.getString(path + "helmet", "").toLowerCase(Locale.ROOT);
-      String chestplate = config.getString(path + "chestplate", "").toLowerCase(Locale.ROOT);
-      String leggings = config.getString(path + "leggings", "").toLowerCase(Locale.ROOT);
-      String boots = config.getString(path + "boots", "").toLowerCase(Locale.ROOT);
-
-      for (String tier : List.of("leather", "chainmail", "iron", "golden", "diamond", "netherite")) {
-         if (helmet.equals(tier + "_helmet") && chestplate.equals(tier + "_chestplate") && leggings.equals(tier + "_leggings") && boots.equals(tier + "_boots")
-            )
-          {
-            return true;
-         }
-      }
-
-      return false;
    }
 
    private void setDisplayName(FileConfiguration config, String path, String value, String legacyValue) {

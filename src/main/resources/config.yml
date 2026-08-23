@@ -1,15 +1,28 @@
-local-chat-radius: 50.0
 hub-protection-radius-chunks: 4
 survival-safety:
   disable-tnt: true
   disable-lava: true
   allow-admin-bypass: true
-warningDays: 7
-regenIntervalDays: 30
 backupBeforeRegen: true
 customOreGeneration: true
 serverSecret: "change-this"
 vanillaOreMode: "reduce"
+
+build-world:
+  enabled: true
+  world-prefix: "mifron_build_"
+  spawn-y: 64
+  border-size: 256
+  platform-radius: 16
+
+athletic:
+  defaults:
+    clear-reward-mp: 50
+    best-time-reward-mp: 100
+    all-time-first-place-reward-mp: 1000
+    leader-bonus-percent: 25
+    timezone: "Asia/Tokyo"
+    monthly-rank-rewards: [ 500, 300, 150 ]
 
 world-rules:
   fixed-day-worlds:
@@ -43,15 +56,8 @@ world-rules:
     enabled-worlds:
       - minigame
 
-shopwand:
-  enabled: true
-  random-sale:
-    mode: "fixed-on-create"
-    reroll-minutes: 60
-
 structures:
   enabled: true
-  worldedit-softdepend: true
   ratio-percent:
     1: 0.2
     2: 0.4
@@ -77,10 +83,6 @@ structures:
       ground: 0.2
       semiunderground: 0.7
       underground: 1.0
-
-proposals:
-  enabled: true
-  require-admin-approval: true
 
 messages:
   unprotectedChunk: "このチャンクは自然再生成の許可リストに入っています。"
@@ -191,7 +193,6 @@ advancement-rewards:
     bonus-percent: 5
 
 quests:
-  enabled: true
   reward:
     apply-reincarnation-bonus: true
     reincarnation-bonus-compression-percent: 25
@@ -201,19 +202,13 @@ quests:
     repeated-block-window-seconds: 30
     repeated-block-max-count: 2
 
-protection:
-  block-shop-drops: true
-  allow-shop-interactions-in-spawn: true
-
 barrel-shop:
   offer-slots: 27
   bargain-slots: 3
 
 auction:
-  fee-percent: 5
   bid-step: 100
   sneak-bid-step: 1000
-  fallback-allow-priced-low-risk-items: true
 
 ffa:
   enabled: true
@@ -242,6 +237,7 @@ ffa:
     armor-points-bonus: 3.0
     vampire-balance-version: 1
     kit-balance-version: 4
+    gameplay-balance-version: 1
     default: "sword"
     enabled:
       - "axe"
@@ -271,12 +267,12 @@ ffa:
         helmet: "leather_helmet"
         chestplate: "chainmail_chestplate"
         leggings: "leather_leggings"
-        boots: "none"
-      weapon: "none"
+        boots: "leather_boots"
+      weapon: "stone_sword"
       bow: true
       arrows: 1
       bow-enchantments:
-        - "power:1"
+        - "power:2"
         - "infinity:1"
       food-items:
         - "cooked_rabbit:1"
@@ -288,11 +284,11 @@ ffa:
       armor-tier: "chainmail"
       armor:
         helmet: "iron_helmet"
-        chestplate: "chainmail_chestplate"
+        chestplate: "iron_chestplate"
         leggings: "iron_leggings"
-        boots: "none"
+        boots: "iron_boots"
       weapon: "iron_sword"
-      golden-apple-cooldown-seconds: 100
+      golden-apple-cooldown-seconds: 90
       weapon-enchantments:
         - "sharpness:1"
       food-items:
@@ -306,9 +302,9 @@ ffa:
       armor:
         helmet: "chainmail_helmet"
         chestplate: "iron_chestplate"
-        leggings: "leather_leggings"
+        leggings: "chainmail_leggings"
         boots: "chainmail_boots"
-      weapon: "iron_sword"
+      weapon: "stone_sword"
       shield: true
       food-items:
         - "pumpkin_pie:1"
@@ -321,10 +317,10 @@ ffa:
       armor:
         helmet: "leather_helmet"
         chestplate: "chainmail_chestplate"
-        leggings: "none"
-        boots: "iron_boots"
+        leggings: "chainmail_leggings"
+        boots: "leather_boots"
       weapon: "iron_spear"
-      allow-fallback: false
+      backup-weapon: "iron_sword"
       horse-max-health: 24.0
       horse-speed: 0.22
       horse-jump-strength: 0.65
@@ -338,13 +334,13 @@ ffa:
       icon: "iron_axe"
       armor-tier: "chainmail"
       armor:
-        helmet: "none"
+        helmet: "iron_helmet"
         chestplate: "iron_chestplate"
-        leggings: "chainmail_leggings"
+        leggings: "iron_leggings"
         boots: "iron_boots"
-      weapon: "iron_axe"
+      weapon: "diamond_axe"
       weapon-enchantments:
-        - "sharpness:1"
+        - "sharpness:2"
       slowness-amplifier: 0
       food-items:
         - "cooked_porkchop:1"
@@ -357,12 +353,12 @@ ffa:
       armor:
         helmet: "leather_helmet"
         chestplate: "chainmail_chestplate"
-        leggings: "none"
+        leggings: "chainmail_leggings"
         boots: "chainmail_boots"
-      weapon: "none"
+      weapon: "stone_sword"
       ammo-capacity: 6
-      reload-ticks: 75
-      damage-multiplier: 0.7
+      reload-ticks: 65
+      damage-multiplier: 0.85
       food-items:
         - "bread:1"
       items: []
@@ -378,11 +374,11 @@ ffa:
         boots: "none"
       weapon: "wooden_sword"
       potion-cooldowns:
-        slow: 12
-        harm: 15
-        poison: 18
-        weakness: 15
-        blindness: 25
+        slow: 10
+        harm: 13
+        poison: 16
+        weakness: 13
+        blindness: 22
       food-items:
         - "honey_bottle:1"
       items: []
@@ -400,7 +396,7 @@ ffa:
         helmet: "turtle_helmet"
         chestplate: "chainmail_chestplate"
         leggings: "chainmail_leggings"
-        boots: "none"
+        boots: "iron_boots"
       weapon: "trident"
       weapon-enchantments:
         - "loyalty:3"
@@ -415,12 +411,13 @@ ffa:
       armor:
         helmet: "chainmail_helmet"
         chestplate: "iron_chestplate"
-        leggings: "iron_leggings"
-        boots: "chainmail_boots"
+        leggings: "chainmail_leggings"
+        boots: "leather_boots"
       weapon: "mace"
       wind-charge: 10
-      wind-charge-refill-seconds: 10
-      max-final-damage: 12.0
+      wind-charge-refill-seconds: 8
+      max-final-damage: 10.0
+      boots-enchantments: [ "feather_falling:4" ]
       food-items:
         - "cooked_beef:1"
       items: []
@@ -430,8 +427,10 @@ ffa:
       icon: "golden_sword"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
-      min-damage-multiplier: -10.0
-      max-damage-multiplier: 15.0
+      min-random-damage: -10
+      max-random-damage: 20
+      min-incoming-reduction: -5
+      max-incoming-reduction: 5
       mp-min: -10
       mp-max: 10
       food-items: [ "cookie:1" ]
@@ -442,10 +441,9 @@ ffa:
       icon: "crossbow"
       armor-tier: "leather"
       armor: { helmet: "none", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
-      ammo-capacity: 1
-      reload-ticks: 60
-      damage-multiplier: 2.0
-      crossbow-enchantments: [ "piercing:3" ]
+      reload-ticks: 100
+      damage-multiplier: 2.5
+      crossbow-enchantments: [ "piercing:4" ]
       food-items: [ "baked_potato:1" ]
       items: []
       potions: []
@@ -454,10 +452,12 @@ ffa:
       icon: "redstone"
       armor-tier: "leather"
       armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
-      lifesteal-percent: 25
-      damage-per-strength-level: 100
+      lifesteal-percent: 30
+      hunger-steal-percent: 30
+      damage-buff-threshold: 60.0
+      max-damage-buff-tier: 4
+      damage-buff-per-tier-percent: 12.5
       sun-damage: 2.0
-      food-items: [ "cooked_beef:1" ]
       items: []
       potions: []
     grappler:
@@ -473,7 +473,7 @@ ffa:
       icon: "golden_sword"
       armor-tier: "none"
       armor: { helmet: "none", chestplate: "none", leggings: "none", boots: "none" }
-      fatal-sword-enchantments: [ "unbreaking:1" ]
+      poison-duration-seconds: 4
       food-items: [ "sweet_berries:1" ]
       items: []
       potions: []
@@ -482,8 +482,6 @@ ffa:
       icon: "zombie_spawn_egg"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
-      max-summons: 3
-      food-items: [ "rotten_flesh:1" ]
       items: []
       potions: []
     trapper:
@@ -492,7 +490,10 @@ ffa:
       armor-tier: "leather"
       armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
       trap-duration-seconds: 30
-      trap-cooldown-seconds: 20
+      trap-cooldown-seconds: 16
+      fire-trap-initial-damage: 2.0
+      fire-trap-burn-seconds: 6
+      fire-trap-radius: 2.5
       food-items: [ "baked_potato:1" ]
       items: []
       potions: []
@@ -501,8 +502,11 @@ ffa:
       icon: "silverfish_spawn_egg"
       armor-tier: "leather"
       armor: { helmet: "leather_helmet", chestplate: "chainmail_chestplate", leggings: "leather_leggings", boots: "none" }
-      max-owned-silverfish: 6
+      max-owned-silverfish: 5
       max-global-silverfish: 30
+      attack-summon-chance-percent: 15
+      counter-infestation-chance-percent: 20
+      silverfish-death-infestation-chance-percent: 10
       food-items: [ "spider_eye:1" ]
       items: []
       potions: []
@@ -511,6 +515,7 @@ ffa:
       icon: "tnt"
       armor-tier: "leather"
       armor: { helmet: "leather_helmet", chestplate: "leather_chestplate", leggings: "leather_leggings", boots: "leather_boots" }
+      activation-cooldown-ticks: 30
       food-items: [ "cooked_beef:1" ]
       items: []
       potions: []
@@ -524,6 +529,14 @@ ffa:
     loot-despawn-seconds: 90
     event-interval-min-seconds: 150
     event-interval-max-seconds: 240
+    max-active:
+      small: 3
+      medium: 5
+      large: 7
+    spawn-intervals:
+      small: { min-seconds: 35, max-seconds: 55 }
+      medium: { min-seconds: 25, max-seconds: 40 }
+      large: { min-seconds: 18, max-seconds: 32 }
     spawnpoints: []
     rarities:
       common: 50
