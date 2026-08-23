@@ -118,6 +118,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private static final String MERCHANT_UI_TITLE = "§6Mifron Merchant";
    private static final long MERCHANT_REROLL_MILLIS = 3600000L;
    private static final long MERCHANT_TRANSACTION_COOLDOWN_MILLIS = 150L;
+   private static final long SHOP_WAND_ACTION_COOLDOWN_MILLIS = 400L;
    private static final long JUMP_PAD_COOLDOWN_MILLIS = 650L;
    private static final long JUMP_PAD_FALL_PROTECTION_MILLIS = 60000L;
    private static final int MAX_JUMP_PAD_POWER = 100;
@@ -305,11 +306,15 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private final Set<UUID> activeTutorials = ConcurrentHashMap.newKeySet();
    private final Map<UUID, Long> temporaryActionBarUntil = new ConcurrentHashMap<>();
    private final Map<UUID, Long> shelfShopTransactionUntil = new ConcurrentHashMap<>();
+   private final Map<UUID, Long> shopWandActionUntil = new ConcurrentHashMap<>();
    private final Map<UUID, Map<String, Mifron.KillRewardWindow>> mobRewardWindows = new ConcurrentHashMap<>();
    private final Map<UUID, Long> lastJumpPadUse = new ConcurrentHashMap<>();
    private final Map<UUID, Long> jumpPadFallProtectionUntil = new ConcurrentHashMap<>();
    private BukkitTask scheduledShutdownTask;
    private BukkitTask pendingDataSaveTask;
+   private List<Material> shelfShopCatalog = List.of();
+   private Map<Material, Integer> shelfShopCatalogNumbers = Map.of();
+   private boolean shelfShopCatalogReady;
    private final Object shutdownLock = new Object();
 
    public void onEnable() {
@@ -344,6 +349,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("load quest definitions", this.questService::load);
       this.runStartupStep("load shop prices", this::loadShopPrices);
       this.runStartupStep("apply economy price table", this::applyEconomyPriceTable);
+      this.runStartupStep("cache shelf shop catalog", this::rebuildShelfShopCatalog);
       this.loadData();
       this.runStartupStep("load build worlds", this.buildWorldManager::load);
       this.runStartupStep("start Minoru bridge API", this.minoruBridgeFeature::start);
@@ -451,6 +457,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    @EventHandler
    public void onPlayerQuit(PlayerQuitEvent event) {
       Player player = event.getPlayer();
+      this.shopWandActionUntil.remove(player.getUniqueId());
       ConfigurationSection session = this.getPlayerSection(player.getUniqueId());
       String sessionId = session.getString("analytics.session-id", "");
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_end", sessionId, "session-end:" + (sessionId.isBlank() ? player.getUniqueId() + ":" + System.currentTimeMillis() : sessionId));
@@ -790,7 +797,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.pendingDataSaveTask = Bukkit.getScheduler().runTaskLater(this, () -> {
          this.pendingDataSaveTask = null;
          this.saveData();
-      }, 1L);
+      }, 20L);
    }
 
    void trackAnalytics(Player player, String eventName, String dedupeKey) {
@@ -839,7 +846,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       boolean firstJoin = session.getInt("total-play-count", 0) == 1;
       this.minoruBridgeFeature.sendAnalyticsEvent(player, firstJoin ? "first_join" : "return_join", sessionId, "join:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_start", sessionId, "session-start:" + sessionId);
-      this.saveData();
+      this.queueDataSave();
       this.giveInitialItems(player);
       this.applyPendingAdvancementReset(player);
       this.handleLoginReward(player);
@@ -856,7 +863,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       section.set("session-minutes", 0);
       section.set("session-playtime-rewards", 0);
       section.set("total-play-count", this.safeAdd(section.getInt("total-play-count", 0), 1));
-      this.saveData();
+      this.queueDataSave();
    }
 
    private boolean isFirstJoin(Player player) {
@@ -874,7 +881,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
             section.set("tutorial.started", true);
             section.set("tutorial.last-started-at", System.currentTimeMillis());
-            this.saveData();
+            this.queueDataSave();
             List<String> steps = List.of(
                "§6Mifronへようこそ。まずは配布された3つのアイテムを確認しましょう。",
                "§eウォレット§7: 左クリックでMP残高を確認します。棚ショップ・スロットでは持って右クリックします。アイテム収納はできません。",
@@ -896,7 +903,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                      if (index == steps.size() - 1) {
                         this.getPlayerSection(player.getUniqueId()).set("tutorial.completed", true);
                         this.getPlayerSection(player.getUniqueId()).set("tutorial.completed-at", System.currentTimeMillis());
-                        this.saveData();
+                        this.queueDataSave();
                         this.activeTutorials.remove(player.getUniqueId());
                      }
                   }
@@ -1164,7 +1171,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       Set<String> killed = new HashSet<>(this.getPlayerSection(uuid).getStringList("killed-mobs"));
       if (killed.add(type.name())) {
          this.getPlayerSection(uuid).set("killed-mobs", new ArrayList<>(killed));
-         this.saveData();
+         this.queueDataSave();
       }
    }
 
@@ -1265,6 +1272,13 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       Player player = event.getPlayer();
       Block block = event.getClickedBlock();
       ItemStack wand = event.getItem();
+      long now = System.currentTimeMillis();
+      long blockedUntil = this.shopWandActionUntil.getOrDefault(player.getUniqueId(), 0L);
+      if (blockedUntil > now) {
+         event.setCancelled(true);
+         return;
+      }
+      this.shopWandActionUntil.put(player.getUniqueId(), now + SHOP_WAND_ACTION_COOLDOWN_MILLIS);
       ShopWandType type = this.shopWandType(wand);
       if (type == null) {
          player.sendMessage("§cこのワンドの種類を判別できません。再発行してください。");
@@ -1353,7 +1367,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             this.data.set(this.shelfShopPath(block), null);
             this.data.set(this.shelfShopOfferPath(block), null);
             this.clearShopOwner(block);
-            this.saveData();
+            this.queueDataSave();
             if (!manager.registerMachine(block, difficulty)) {
                player.sendMessage("§cスロットマシンの初期化に失敗しました。");
                event.setCancelled(true);
@@ -1525,7 +1539,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.data.set(path + ".custom", null);
       this.clearShelfShopRandomOffer(block);
       this.displayShelfShopOffers(block, this.shelfShopRandomOffers(block));
-      this.saveData();
+      this.queueDataSave();
    }
 
    private int nextSequentialShelfOrder() {
@@ -1575,7 +1589,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.data.set(path + ".custom." + selectedSlot, material.name());
       this.clearShelfShopRandomOffer(block);
       this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
-      this.saveData();
+      this.queueDataSave();
    }
 
    private void clearCustomShelfShopSlot(Block block, int selectedSlot) {
@@ -1584,10 +1598,17 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
       this.data.set(this.shelfShopPath(block) + ".custom." + selectedSlot, null);
       this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
-      this.saveData();
+      this.queueDataSave();
    }
 
    private List<Material> shelfShopCatalogMaterials() {
+      if (!this.shelfShopCatalogReady) {
+         this.rebuildShelfShopCatalog();
+      }
+      return this.shelfShopCatalog;
+   }
+
+   private void rebuildShelfShopCatalog() {
       List<Material> materials = new ArrayList<>();
       for (Material material : Material.values()) {
          if (this.isRandomShopItem(material)) {
@@ -1605,7 +1626,15 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          int family = this.shelfShopFamilyKey(a).compareTo(this.shelfShopFamilyKey(b));
          return family != 0 ? family : a.name().compareTo(b.name());
       });
-      return materials;
+
+      Map<Material, Integer> catalogNumbers = new HashMap<>();
+      for (int index = 0; index < materials.size(); index++) {
+         catalogNumbers.put(materials.get(index), index + 1);
+      }
+      this.shelfShopCatalog = List.copyOf(materials);
+      this.shelfShopCatalogNumbers = Map.copyOf(catalogNumbers);
+      this.shelfShopCatalogReady = true;
+      this.getLogger().info("Cached " + materials.size() + " shelf shop catalog entries.");
    }
 
    private int shelfShopCategoryRank(Material material) {
@@ -1755,7 +1784,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       for (int i = 0; i < paths.size(); i++) {
          this.data.set("shelf-shops." + paths.get(i) + ".order", i + 1);
       }
-      this.saveData();
+      this.queueDataSave();
       this.syncShelfShopDisplays();
    }
 
@@ -1763,9 +1792,10 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       if (material == null) {
          return 0;
       }
-      List<Material> catalog = this.shelfShopCatalogMaterials();
-      int index = catalog.indexOf(material);
-      return index < 0 ? 0 : index + 1;
+      if (!this.shelfShopCatalogReady) {
+         this.rebuildShelfShopCatalog();
+      }
+      return this.shelfShopCatalogNumbers.getOrDefault(material, 0);
    }
 
    private String shelfShopStockPath(Material material) {
@@ -1915,7 +1945,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.data.set(path + ".materials", materials.stream().map(Enum::name).toList());
       this.data.set(path + ".created-at", System.currentTimeMillis());
       this.displayShelfShopOffers(block, materials);
-      this.saveData();
+      this.queueDataSave();
    }
 
    private void clearShelfShopRandomOffer(Block block) {
@@ -2102,7 +2132,6 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.clearShelfShopDisplay(block);
       this.clearShopOwner(block);
       this.clearShelfShopRandomOffer(block);
-      this.saveData();
       // Removing a sequential shelf must also compact the remaining order values.
       // Otherwise the next shelf can inherit a stale high number from deleted data.
       this.renumberSequentialShelfShops();
@@ -2128,7 +2157,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private void setShopOwner(Block block, UUID owner) {
       this.data.set(this.shopOwnerPath(block), owner.toString());
-      this.saveData();
+      this.queueDataSave();
    }
 
    private void clearShopOwner(Block block) {
@@ -2168,7 +2197,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          this.clearBarrelShopMeta(block);
       }
 
-      this.saveData();
+      this.queueDataSave();
       return existed;
    }
 
@@ -2203,7 +2232,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.data.set(path + ".type", ShopWandType.BARREL.key());
       this.data.set(path + ".category", null);
       this.data.set(path + ".created-at", System.currentTimeMillis());
-      this.saveData();
+      this.queueDataSave();
    }
 
    private void clearBarrelShopMeta(Block block) {
@@ -2832,7 +2861,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private void saveMerchantOffers(UUID merchantId, List<Mifron.MerchantOffer> sellOffers, List<Mifron.MerchantOffer> buyOffers) {
       this.data.set("merchants." + merchantId + ".sell", this.serializeMerchantOffers(sellOffers));
       this.data.set("merchants." + merchantId + ".buy", this.serializeMerchantOffers(buyOffers));
-      this.saveData();
+      this.queueDataSave();
    }
 
    private List<String> serializeMerchantOffers(List<Mifron.MerchantOffer> offers) {
@@ -4346,7 +4375,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
       if (!newlyUnlocked.isEmpty()) {
          section.set("unlocked-titles", new ArrayList<>(notified));
-         this.saveData();
+         this.queueDataSave();
          newlyUnlocked.stream().sorted().forEach(titlex -> player.sendMessage("§6称号を獲得しました: §e" + titlex));
          player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8F, 1.2F);
       }
@@ -4358,7 +4387,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       if (!notified.contains(title)) {
          notified.add(title);
          section.set("unlocked-titles", new ArrayList<>(notified));
-         this.saveData();
+         this.queueDataSave();
          player.sendMessage("§6称号を獲得しました：§e" + title);
          player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8F, 1.2F);
       }
@@ -5346,7 +5375,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                String title = this.getUiTargetString(clicked);
                if (title != null && this.canUseTitle(player, title)) {
                   this.getPlayerSection(player.getUniqueId()).set("selected-title", title);
-                  this.saveData();
+                  this.queueDataSave();
                   this.refreshPlayerName(player);
                   player.sendMessage("§a称号を選択しました: " + title);
                   this.openStatusUi(player, "titles:0");
@@ -5354,7 +5383,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                break;
             case "clear_title":
                this.getPlayerSection(player.getUniqueId()).set("selected-title", null);
-               this.saveData();
+               this.queueDataSave();
                this.refreshPlayerName(player);
                player.sendMessage("§a称号を外しました。");
                this.openStatusUi(player, "titles:0");
@@ -5698,7 +5727,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          this.notifyUnlockedTitles(player, completed);
          Set<String> rewarded = new HashSet<>(this.getPlayerSection(player.getUniqueId()).getStringList("rewarded-advancements"));
          if (!rewarded.add(fullKey)) {
-            this.saveData();
+            this.queueDataSave();
          } else {
             this.getPlayerSection(player.getUniqueId()).set("rewarded-advancements", new ArrayList<>(rewarded));
             String key = advancement.getKey().getKey();
@@ -5778,7 +5807,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          }
 
          this.updateAdvancementBonus(player.getUniqueId(), completed);
-         this.saveData();
+         this.queueDataSave();
          this.checkAllAdvancementsCompleted(player);
          this.notifyUnlockedTitles(player, completed);
          this.refreshPlayerName(player);
@@ -5799,7 +5828,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             this.depositEmeralds(player.getUniqueId(), paidReward);
             this.updateAdvancementBonus(player.getUniqueId(), new HashSet<>(section.getStringList("completed-advancements")));
             section.set("all-advancements-rewarded", true);
-            this.saveData();
+            this.queueDataSave();
             player.sendMessage("§6全進捗達成報酬: +" + this.formatNumber(paidReward) + "MP / 転生タブから転生できます。");
          }
       }
@@ -5820,7 +5849,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          }
       }
 
-      this.saveData();
+      this.queueDataSave();
    }
 
    private void handleLoginReward(Player player) {
@@ -5845,7 +5874,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
          this.depositEmeralds(player.getUniqueId(), reward);
          player.sendMessage("§aログイン報酬: +" + this.formatNumber(reward) + "MP");
-         this.saveData();
+         this.queueDataSave();
       }
    }
 
@@ -5871,7 +5900,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          }
       }
 
-      this.saveData();
+      this.queueDataSave();
    }
 
    private void routeByWarningLevel(Player player) {
@@ -5908,7 +5937,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          section.set("emeralds", this.safeAdd(section.getInt("emeralds", 0), added));
          section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), added));
          if (persist) {
-            this.saveData();
+            this.queueDataSave();
          }
       }
    }
@@ -5930,8 +5959,8 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
       section.set("emeralds", current - amount);
       if (persist) {
-            this.saveData();
-         }
+         this.queueDataSave();
+      }
       return true;
    }
 
@@ -5999,7 +6028,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       int bonus = this.calculateAdvancementBonus(completed);
       section.set("advancement-bonus-percent", bonus);
       section.set("income-bonus-percent", null);
-      this.saveData();
+      this.queueDataSave();
       return bonus;
    }
 
@@ -6014,7 +6043,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private void addReincarnationBonus(UUID uuid, int percent) {
       ConfigurationSection section = this.getPlayerSection(uuid);
       section.set("reincarnation-bonus-percent", this.getReincarnationBonus(uuid) + Math.max(0, percent));
-      this.saveData();
+      this.queueDataSave();
    }
 
    void addPlayerStat(UUID uuid, String key, int amount) {
@@ -6026,7 +6055,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          ConfigurationSection section = this.getPlayerSection(uuid);
          section.set(key, this.safeAdd(section.getInt(key, 0), amount));
          if (persist) {
-            this.saveData();
+            this.queueDataSave();
          }
       }
    }
@@ -6054,7 +6083,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
       if (title != null && !title.isBlank()) {
          this.getPlayerSection(player.getUniqueId()).set("selected-title", null);
-         this.saveData();
+         this.queueDataSave();
       }
 
       return "";
@@ -6127,7 +6156,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
 
       section.set("pending-advancement-reset", true);
-      this.saveData();
+      this.queueDataSave();
    }
 
    private ConfigurationSection getPlayerSection(UUID uuid) {
@@ -6158,7 +6187,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private void setUuidSet(UUID owner, String key, Set<UUID> values) {
       this.getPlayerSection(owner).set(key, values.stream().map(UUID::toString).toList());
-      this.saveData();
+      this.queueDataSave();
    }
 
    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -6566,6 +6595,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          this.questService.load();
          this.loadShopPrices();
          this.applyEconomyPriceTable();
+         this.rebuildShelfShopCatalog();
          this.syncShelfShopDisplays();
          this.structureManager.load();
          this.proposalManager.load();
