@@ -368,7 +368,7 @@ quests:
     type: "マンスリー"
     name: "共同開拓"
     reset: "毎月リセット"
-    condition: "運営が共同参加進捗を1以上付与"
+    condition: "ミニゲーム解放へ1MP以上を納品"
     base-reward-mp: 8000
     display: "10件固定表示"
     reincarnation-bonus: true
@@ -394,7 +394,7 @@ quests:
     type: "スペシャル"
     name: "村の救世主"
     reset: "進捗/条件達成で発生"
-    condition: "運営がゾンビ村人治療・取引の進捗を1以上付与"
+    condition: "ゾンビ村人を治療し、進捗を達成"
     base-reward-mp: 7000
     display: "条件発生"
     reincarnation-bonus: true
@@ -433,7 +433,7 @@ quests:
     type: "スペシャル"
     name: "古代都市調査"
     reset: "条件達成で発生"
-    condition: "運営が古代都市調査の進捗を1以上付与"
+    condition: "スカルクの振動を回避する進捗を達成"
     base-reward-mp: 12000
     display: "条件発生"
     reincarnation-bonus: true
@@ -459,7 +459,7 @@ quests:
     type: "スペシャル"
     name: "砦の略奪者"
     reset: "条件達成で発生"
-    condition: "運営がピグリン要塞探索の進捗を1以上付与"
+    condition: "ピグリン要塞を発見する進捗を達成"
     base-reward-mp: 10000
     display: "条件発生"
     reincarnation-bonus: true
@@ -485,7 +485,7 @@ quests:
     type: "スペシャル"
     name: "バベルの挑戦者"
     reset: "エリア解放後に発生"
-    condition: "運営がバベル踏破進捗を10以上付与"
+    condition: "babel_towerワールドへ到達"
     base-reward-mp: 12000
     display: "条件発生"
     reincarnation-bonus: true
@@ -498,7 +498,7 @@ quests:
     type: "スペシャル"
     name: "深淵到達"
     reset: "エリア解放後に発生"
-    condition: "運営がギンヌンガガプ到達進捗を1以上付与"
+    condition: "ginnungagapワールドへ到達"
     base-reward-mp: 12000
     display: "条件発生"
     reincarnation-bonus: true
@@ -511,7 +511,7 @@ quests:
     type: "スペシャル"
     name: "地下帝国の客人"
     reset: "エリア解放後に発生"
-    condition: "運営がアガルタ訪問進捗を1以上付与"
+    condition: "agarthaワールドへ到達"
     base-reward-mp: 15000
     display: "条件発生"
     reincarnation-bonus: true
@@ -524,7 +524,7 @@ quests:
     type: "スペシャル"
     name: "エリシオン巡礼"
     reset: "エリア解放後に発生"
-    condition: "運営がエリシオン巡回進捗を1以上付与"
+    condition: "elysionワールドへ到達"
     base-reward-mp: 12000
     display: "条件発生"
     reincarnation-bonus: true
@@ -628,7 +628,7 @@ quests:
     type: "スペシャル"
     name: "国家の礎"
     reset: "国家で発生"
-    condition: "運営が国家活動進捗を1以上付与"
+    condition: "nationまたはnationsワールドへ到達"
     base-reward-mp: 10000
     display: "条件発生"
     reincarnation-bonus: true
@@ -641,11 +641,11 @@ quests:
     type: "スペシャル"
     name: "建築コンテスト参加"
     reset: "イベントで発生"
-    condition: "運営が建築イベント参加進捗を1以上付与"
+    condition: "Buildワールドからschematicを1件提出"
     base-reward-mp: 15000
     display: "イベント時のみ"
     reincarnation-bonus: true
-    repeat-limit: "イベントごと1回"
+    repeat-limit: "1回限り"
     icon: BRICKS
     progress-key: build_event_participation
     required: 1
@@ -654,11 +654,11 @@ quests:
     type: "スペシャル"
     name: "ミニゲーム王者"
     reset: "イベント/条件で発生"
-    condition: "運営がミニゲーム大会進捗を1以上付与"
+    condition: "ミニゲームで1回勝利"
     base-reward-mp: 20000
     display: "イベント時のみ"
     reincarnation-bonus: true
-    repeat-limit: "イベントごと1回"
+    repeat-limit: "1回限り"
     icon: GOLDEN_HELMET
     progress-key: minigame_champion
     required: 1
@@ -667,7 +667,7 @@ quests:
     type: "スペシャル"
     name: "アスレ覇者"
     reset: "条件達成で発生"
-    condition: "運営がハードコアアスレ進捗を1以上付与"
+    condition: "hardcore設定のアスレチックを1回完走"
     base-reward-mp: 25000
     display: "条件発生"
     reincarnation-bonus: true
@@ -680,7 +680,7 @@ quests:
     type: "スペシャル"
     name: "釣り名人"
     reset: "条件達成で発生"
-    condition: "運営がレア釣果進捗を1以上付与"
+    condition: "釣りで弓・エンチャント本・釣竿・名札・オウムガイ・鞍のいずれかを獲得"
     base-reward-mp: 8000
     display: "条件発生"
     reincarnation-bonus: true
@@ -693,7 +693,7 @@ quests:
     type: "スペシャル"
     name: "農業王"
     reset: "条件達成で発生"
-    condition: "運営が農業納品進捗を1以上付与"
+    condition: "棚ショップまたは商人へ農作物を1回売却"
     base-reward-mp: 10000
     display: "条件発生"
     reincarnation-bonus: true
@@ -706,7 +706,7 @@ quests:
     type: "スペシャル"
     name: "鍛冶の探究者"
     reset: "条件達成で発生"
-    condition: "運営が鍛冶テンプレート収集進捗を1以上付与"
+    condition: "鍛冶型を1個拾得"
     base-reward-mp: 15000
     display: "条件発生"
     reincarnation-bonus: true
@@ -736,7 +736,7 @@ quests:
     base-reward-mp: 25000
     display: "条件発生"
     reincarnation-bonus: true
-    repeat-limit: "解放ごと1回"
+    repeat-limit: "1回限り"
     icon: BEACON
     progress-key: server_unlock_contribution
     required: 1
@@ -745,7 +745,7 @@ quests:
     type: "スペシャル"
     name: "クリエイターの第一歩"
     reset: "審査通過で発生"
-    condition: "運営がクリエイター承認進捗を1以上付与"
+    condition: "提出したschematicが1件承認される"
     base-reward-mp: 15000
     display: "条件発生"
     reincarnation-bonus: true

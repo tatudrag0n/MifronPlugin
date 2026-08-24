@@ -359,6 +359,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("load text displays", this.textDisplayFeature::load);
       this.runStartupStep("load FFA", this.ffaManager::load);
       this.runStartupStep("load athletic", this.athleticManager::load);
+      this.runStartupStep("start auction settlement", this.auctionFeature::start);
       this.runStartupStep("register Mifron events", () -> Bukkit.getPluginManager().registerEvents(this, this));
       this.runStartupStep("register chunk protection events", () -> Bukkit.getPluginManager().registerEvents(this.chunkProtectionFeature, this));
       this.runStartupStep("register protected interaction events", () -> Bukkit.getPluginManager().registerEvents(this.protectedInteractionListener, this));
@@ -414,6 +415,13 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    public void onDisable() {
       this.cancelScheduledAutoShutdown("the plugin is disabling");
       this.minoruBridgeFeature.stop();
+
+      try {
+         this.auctionFeature.shutdown();
+      } catch (Throwable e) {
+         this.getLogger().severe("Failed to disable auction settlement cleanly.");
+         e.printStackTrace();
+      }
 
       try {
          this.ffaManager.shutdown();
@@ -1256,6 +1264,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.changeShelfShopStock(material, 1);
       this.depositEmeralds(player.getUniqueId(), price, false);
       this.addPlayerStat(player.getUniqueId(), "total-trades", 1, false);
+      this.recordFarmingSubmission(player, material);
       this.queueDataSave();
       this.playPurchaseSound(player);
       this.sendItemMessage(
@@ -2186,6 +2195,34 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    void recordQuestProgress(Player player, String progressKey, int amount) {
       this.questService.addProgress(player, progressKey, amount);
+   }
+
+   void recordSpecialQuestProgress(UUID uuid, String progressKey, int amount) {
+      this.questService.addSpecialProgress(uuid, progressKey, amount);
+   }
+
+   void completeSpecialQuestProgress(UUID uuid, String progressKey) {
+      this.questService.completeSpecialProgress(uuid, progressKey);
+   }
+
+   private void recordFarmingSubmission(Player player, Material material) {
+      if (material != null && Set.of(
+            Material.WHEAT,
+            Material.CARROT,
+            Material.POTATO,
+            Material.BEETROOT,
+            Material.NETHER_WART,
+            Material.MELON_SLICE,
+            Material.PUMPKIN,
+            Material.SUGAR_CANE,
+            Material.BAMBOO,
+            Material.CACTUS,
+            Material.SWEET_BERRIES,
+            Material.GLOW_BERRIES,
+            Material.COCOA_BEANS
+         ).contains(material)) {
+         this.recordQuestProgress(player, "farming_submission", 1);
+      }
    }
 
    boolean setBarrelShop(Block block, boolean enabled) {
@@ -3542,6 +3579,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                   } else {
                      this.depositEmeralds(player.getUniqueId(), sale.totalPrice());
                      this.addPlayerStat(player.getUniqueId(), "total-trades", sale.quantity());
+                     this.recordFarmingSubmission(player, material);
                      this.markMerchantTraded((String)container.get(this.merchantOfferMerchantKey, PersistentDataType.STRING));
                      this.playPurchaseSound(player);
                      this.sendItemMessage(
@@ -5930,6 +5968,14 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.depositEmeralds(uuid, amount, true);
    }
 
+   void refundEmeralds(UUID uuid, int amount) {
+      if (uuid != null && amount > 0) {
+         ConfigurationSection section = this.getPlayerSection(uuid);
+         section.set("emeralds", this.safeAdd(section.getInt("emeralds", 0), amount));
+         this.queueDataSave();
+      }
+   }
+
    private void depositEmeralds(UUID uuid, int amount, boolean persist) {
       if (amount > 0) {
          ConfigurationSection section = this.getPlayerSection(uuid);
@@ -6054,6 +6100,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       if (amount > 0) {
          ConfigurationSection section = this.getPlayerSection(uuid);
          section.set(key, this.safeAdd(section.getInt(key, 0), amount));
+         this.questService.recordStat(uuid, key, amount);
          if (persist) {
             this.queueDataSave();
          }
@@ -6664,6 +6711,9 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                int reward = this.applyIncomeBonus(player.getUniqueId(), Math.max(0, base - misses));
                this.depositEmeralds(player.getUniqueId(), reward);
                this.addPlayerStat(player.getUniqueId(), "athletic-clears", 1);
+               if ("hardcore".equals(difficulty) || "ハードコア".equals(difficulty)) {
+                  this.recordQuestProgress(player, "hardcore_athletic", 1);
+               }
                player.sendMessage("§aアスレチック報酬: +" + this.formatNumber(reward) + "MP");
             }
          } else {
@@ -6695,6 +6745,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                int winReward = this.applyIncomeBonus(player.getUniqueId(), 10);
                this.depositEmeralds(player.getUniqueId(), winReward);
                this.addPlayerStat(player.getUniqueId(), "minigame-wins", 1);
+               this.recordQuestProgress(player, "minigame_champion", 1);
                player.sendMessage("§aミニゲーム勝利報酬: +" + this.formatNumber(winReward) + "MP");
                break;
             case "unlock":
@@ -6719,6 +6770,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                int donated = this.safeAdd(this.data.getInt(path, 0), amount);
                this.data.set(path, donated);
                this.recordQuestProgress(player, "community_donations", amount);
+               this.recordQuestProgress(player, "community_participation", 1);
                this.recordQuestProgress(player, "server_unlock_contribution", amount);
                int required = this.getConfig().getInt("minigame-unlocks." + key + ".required-emeralds", 0);
                if (required > 0 && donated >= required) {

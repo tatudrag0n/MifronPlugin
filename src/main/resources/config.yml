@@ -204,12 +204,33 @@ quests:
   anti-abuse:
     repeated-block-window-seconds: 30
     repeated-block-max-count: 2
+  automatic:
+    hardcore-athletic-runs:
+      - hardcore
+    world-progress:
+      babel_floors:
+        worlds:
+          - babel_tower
+      abyss_depth:
+        worlds:
+          - ginnungagap
+      agartha_visit:
+        worlds:
+          - agartha
+      elysion_visits:
+        worlds:
+          - elysion
+      nation_activity:
+        worlds:
+          - nation
+          - nations
 
 barrel-shop:
   offer-slots: 27
   bargain-slots: 3
 
 auction:
+  duration-minutes: 1440
   bid-step: 100
   sneak-bid-step: 1000
 

@@ -61,7 +61,7 @@ final class QuestService {
                      section.getString(path + "name", id),
                      section.getString(path + "reset", ""),
                      section.getString(path + "condition", ""),
-                     Math.max(0, section.getInt(path + "base-reward-em", 0)),
+                     Math.max(0, section.getInt(path + "base-reward-mp", section.getInt(path + "base-reward-em", 0))),
                      section.getString(path + "display", ""),
                      section.getBoolean(path + "reincarnation-bonus", true),
                      section.getString(path + "repeat-limit", ""),
@@ -239,6 +239,34 @@ final class QuestService {
       }
    }
 
+   void addSpecialProgress(UUID uuid, String progressKey, int amount) {
+      if (uuid != null && amount > 0 && progressKey != null && !progressKey.isBlank() && this.hasQuestWithProgressKey(QuestType.SPECIAL, progressKey)) {
+         if (this.addProgressAt(uuid, this.questBase(QuestType.SPECIAL) + ".progress." + progressKey, amount)) {
+            this.plugin.saveData();
+         }
+      }
+   }
+
+   void completeSpecialProgress(UUID uuid, String progressKey) {
+      if (uuid == null || progressKey == null || progressKey.isBlank()) {
+         return;
+      }
+      int required = this.definitions.values().stream()
+         .filter(definition -> definition.type() == QuestType.SPECIAL && definition.progressKey().equals(progressKey))
+         .mapToInt(QuestDefinition::required)
+         .max()
+         .orElse(0);
+      if (required <= 0) {
+         return;
+      }
+      String path = this.questBase(QuestType.SPECIAL) + ".progress." + progressKey;
+      ConfigurationSection section = this.playerSection(uuid);
+      if (section.getInt(path, 0) < required) {
+         section.set(path, required);
+         this.plugin.saveData();
+      }
+   }
+
    void setQuestProgress(Player player, String questId, int amount) {
       QuestDefinition definition = this.definitions.get(questId);
       if (definition == null) {
@@ -380,6 +408,15 @@ final class QuestService {
       this.setSpecialProgressAtLeast(section, "mob_catalog", section.getStringList("killed-mobs").size());
       if (completedAdvancements.contains("minecraft:end/elytra") || completedAdvancements.contains("minecraft:end/find_end_city")) {
          this.setSpecialProgressAtLeast(section, "elytra_obtained", 1);
+      }
+      if (completedAdvancements.contains("minecraft:story/cure_zombie_villager")) {
+         this.setSpecialProgressAtLeast(section, "cured_villager_trades", 1);
+      }
+      if (completedAdvancements.contains("minecraft:adventure/avoid_vibration")) {
+         this.setSpecialProgressAtLeast(section, "ancient_city", 1);
+      }
+      if (completedAdvancements.contains("minecraft:nether/find_bastion")) {
+         this.setSpecialProgressAtLeast(section, "bastion_deliveries", 1);
       }
 
       if (section.getInt("reincarnations", 0) >= 2

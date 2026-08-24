@@ -295,6 +295,9 @@ final class AthleticManager implements Listener {
       }
       this.plugin.recordQuestProgress(player, "athletic_clears", 1);
       this.plugin.recordQuestProgress(player, "athletic_" + run.name() + "_clears", 1);
+      if (this.isHardcoreRun(run.name())) {
+         this.plugin.recordQuestProgress(player, "hardcore_athletic", 1);
+      }
 
       List<AthleticManager.Score> after = this.scores(run.name(), "alltime");
       if (!after.isEmpty() && after.get(0).uuid() != null && !after.get(0).uuid().equals(oldLeader)
@@ -327,6 +330,14 @@ final class AthleticManager implements Listener {
             this.activeRuns.remove(entry.getKey());
          }
       }
+   }
+
+   private boolean isHardcoreRun(String name) {
+      if (name == null) {
+         return false;
+      }
+      String normalized = name.toLowerCase(Locale.ROOT);
+      return this.plugin.getConfig().getStringList("quests.automatic.hardcore-athletic-runs").stream().map(value -> value.toLowerCase(Locale.ROOT)).anyMatch(normalized::equals);
    }
 
    private void savePoint(String name, String type, Location location) {

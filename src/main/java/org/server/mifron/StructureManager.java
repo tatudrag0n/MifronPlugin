@@ -265,6 +265,7 @@ final class StructureManager implements Listener {
          this.data.set(path + ".size.z", size[2]);
       }
       this.save();
+      this.plugin.recordQuestProgress(player, "build_event_participation", 1);
       sender.sendMessage("§a建築schematicを提出しました: " + id);
       sender.sendMessage("§7運営審査後、承認されたものだけSurvivalへ設置されます。");
       return true;
@@ -297,6 +298,14 @@ final class StructureManager implements Listener {
       this.data.set(path + ".reviewed-at", System.currentTimeMillis());
       this.data.set(path + ".reviewed-by", sender.getName());
       this.save();
+      if ("APPROVED".equals(status)) {
+         String author = this.data.getString(path + ".author-uuid", "");
+         try {
+            this.plugin.recordSpecialQuestProgress(UUID.fromString(author), "creator_approved", 1);
+         } catch (IllegalArgumentException ignored) {
+            this.plugin.getLogger().warning("Approved schematic has an invalid author UUID: " + args[2]);
+         }
+      }
       sender.sendMessage("§aSchematicの状態を変更しました: " + status);
       return true;
    }

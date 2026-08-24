@@ -13,8 +13,10 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -26,7 +28,9 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityBreedEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -52,6 +56,12 @@ final class QuestProgressListener implements Listener {
    @EventHandler
    public void onJoin(PlayerJoinEvent event) {
       this.quests.ensurePeriods(event.getPlayer());
+      this.awardWorldProgress(event.getPlayer());
+   }
+
+   @EventHandler
+   public void onChangedWorld(PlayerChangedWorldEvent event) {
+      this.awardWorldProgress(event.getPlayer());
    }
 
    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
@@ -102,6 +112,16 @@ final class QuestProgressListener implements Listener {
       if (event.getState() == State.CAUGHT_FISH) {
          this.quests.addProgress(event.getPlayer(), "fishing_collecting", 1);
          this.quests.addProgress(event.getPlayer(), "life_actions", 17);
+         if (event.getCaught() instanceof Item item && this.isRareFishingLoot(item.getItemStack().getType())) {
+            this.quests.addProgress(event.getPlayer(), "rare_fishing", 1);
+         }
+      }
+   }
+
+   @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+   public void onPickup(EntityPickupItemEvent event) {
+      if (event.getEntity() instanceof Player player && event.getItem().getItemStack().getType().name().endsWith("_SMITHING_TEMPLATE")) {
+         this.quests.addProgress(player, "smithing_templates", 1);
       }
    }
 
@@ -170,7 +190,39 @@ final class QuestProgressListener implements Listener {
          if ("end/elytra".equals(key) || "end/find_end_city".equals(key)) {
             this.quests.addProgress(player, "elytra_obtained", 1);
          }
+
+         switch (key) {
+            case "story/cure_zombie_villager" -> this.quests.addProgress(player, "cured_villager_trades", 1);
+            case "adventure/avoid_vibration" -> this.quests.addProgress(player, "ancient_city", 1);
+            case "nether/find_bastion" -> this.quests.addProgress(player, "bastion_deliveries", 1);
+            default -> {
+            }
+         }
       }
+   }
+
+   private void awardWorldProgress(Player player) {
+      ConfigurationSection mappings = this.plugin.getConfig().getConfigurationSection("quests.automatic.world-progress");
+      if (mappings == null) {
+         return;
+      }
+      String world = player.getWorld().getName();
+      for (String progressKey : mappings.getKeys(false)) {
+         if (mappings.getStringList(progressKey + ".worlds").stream().anyMatch(world::equalsIgnoreCase)) {
+            this.plugin.completeSpecialQuestProgress(player.getUniqueId(), progressKey);
+         }
+      }
+   }
+
+   private boolean isRareFishingLoot(Material material) {
+      return Set.of(
+         Material.BOW,
+         Material.ENCHANTED_BOOK,
+         Material.FISHING_ROD,
+         Material.NAME_TAG,
+         Material.NAUTILUS_SHELL,
+         Material.SADDLE
+      ).contains(material);
    }
 
    private void grantBossParticipation(LivingEntity entity, Map<UUID, QuestProgressListener.DamageParticipation> participation, Player killer) {
