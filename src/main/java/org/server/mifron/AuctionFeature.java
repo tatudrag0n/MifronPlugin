@@ -89,7 +89,7 @@ final class AuctionFeature implements Listener {
             this.plugin.data().set(path + ".created-at", System.currentTimeMillis());
             this.plugin.saveData();
             this.plugin.recordQuestProgress(player, "auctions", 1);
-            player.sendMessage(ChatColor.GREEN + "額縁をオークション化しました。EMバンドルで右クリックすると入札できます。");
+            player.sendMessage(ChatColor.GREEN + "額縁をオークション化しました。ウォレットで右クリックすると入札できます。");
          }
       }
    }
@@ -114,12 +114,12 @@ final class AuctionFeature implements Listener {
       int ownBid = this.plugin.data().getInt(path + ".bids." + player.getUniqueId(), 0);
       int nextBid = ownBid + step;
       if (this.plugin.getEmeralds(player.getUniqueId()) < nextBid) {
-         player.sendMessage(ChatColor.RED + "所持EMを超える入札はできません。必要: " + this.formatNumber(nextBid) + "EM");
+         player.sendMessage(ChatColor.RED + "所持MPを超える入札はできません。必要: " + this.formatNumber(nextBid) + "MP");
       } else {
          this.plugin.data().set(path + ".bids." + player.getUniqueId(), nextBid);
          this.updateHighestBid(path);
          this.plugin.saveData();
-         player.sendMessage(ChatColor.GREEN + "入札しました: " + this.formatNumber(nextBid) + "EM");
+         player.sendMessage(ChatColor.GREEN + "入札しました: " + this.formatNumber(nextBid) + "MP");
          player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7F, 1.4F);
          this.showAuctionInfo(player, frame);
       }
@@ -149,7 +149,7 @@ final class AuctionFeature implements Listener {
       ItemStack item = frame.getItem();
       String itemName = item != null && item.getType() != Material.AIR ? item.getType().name() : "なし";
       player.sendMessage(
-         ChatColor.GOLD + "オークション: " + itemName + ChatColor.GRAY + " / 最高入札: " + this.formatNumber(highest) + "EM / 自分: " + this.formatNumber(own) + "EM"
+         ChatColor.GOLD + "オークション: " + itemName + ChatColor.GRAY + " / 最高入札: " + this.formatNumber(highest) + "MP / 自分: " + this.formatNumber(own) + "MP"
       );
    }
 

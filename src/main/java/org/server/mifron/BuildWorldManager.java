@@ -118,7 +118,7 @@ final class BuildWorldManager implements Listener {
       player.sendMessage("§a専用Buildワールドへ移動しました。");
       player.sendMessage("§7WorldEditが使用できます。完成した建築は /mf structure submit <名前> で提出できます。");
       if (!this.isOwner(player, world)) {
-         player.sendMessage("§e運営確認用のBuildワールドを表示しています。編集は所有者本人のみ可能です。");
+         player.sendMessage("§e運営確認用に他プレイヤーのBuildワールドを開いています。管理者権限では編集も可能です。");
       }
    }
 

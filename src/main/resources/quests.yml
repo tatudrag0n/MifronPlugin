@@ -25,7 +25,7 @@ quests:
     icon: BRICKS
     progress-key: building_blocks
     required: 200
-    intent: "建築勢にもEM導線を作る"
+    intent: "建築勢にもMP導線を作る"
   D03:
     type: "デイリー"
     name: "小規模討伐"
@@ -43,7 +43,7 @@ quests:
     type: "デイリー"
     name: "農作業日和"
     reset: "毎日リセット"
-    condition: "農作物を150個収穫、または動物を20回繁殖"
+    condition: "生活ポイントを150獲得（対象作物・自然物の採集1、釣り成功17、繁殖8）"
     base-reward-mp: 250
     display: "10候補から5件抽選"
     reincarnation-bonus: true
@@ -64,12 +64,12 @@ quests:
     icon: EMERALD
     progress-key: trades
     required: 3
-    intent: "EMの使い道と循環を作る"
+    intent: "MPの使い道と循環を作る"
   D06:
     type: "デイリー"
     name: "軽い探索"
     reset: "毎日リセット"
-    condition: "未踏チャンクを20チャンク移動、または新規バイオーム1種到達"
+    condition: "初めて入るチャンクを20チャンク訪問"
     base-reward-mp: 300
     display: "10候補から5件抽選"
     reincarnation-bonus: true
@@ -95,7 +95,7 @@ quests:
     type: "デイリー"
     name: "ミニゲーム参加"
     reset: "毎日リセット"
-    condition: "ミニゲームを3回プレイ、または1回勝利"
+    condition: "ミニゲームの参加または勝利処理を合計3回"
     base-reward-mp: 350
     display: "10候補から5件抽選"
     reincarnation-bonus: true
@@ -108,7 +108,7 @@ quests:
     type: "デイリー"
     name: "釣りと収集"
     reset: "毎日リセット"
-    condition: "釣りを20回成功、または自然アイテムを100個収集"
+    condition: "釣り成功または対象作物・自然物の採集を合計20回"
     base-reward-mp: 250
     display: "10候補から5件抽選"
     reincarnation-bonus: true
@@ -142,7 +142,7 @@ quests:
     icon: DIAMOND_PICKAXE
     progress-key: mining_blocks
     required: 3000
-    intent: "本格採掘の価値をEM化"
+    intent: "本格採掘の価値をMP化"
   W02:
     type: "ウィークリー"
     name: "週間建築計画"
@@ -186,7 +186,7 @@ quests:
     type: "ウィークリー"
     name: "アスレ週間"
     reset: "毎週リセット"
-    condition: "アスレを合計10回クリア。ハード以上は2回分換算"
+    condition: "アスレを合計10回クリア（難易度による加算差なし）"
     base-reward-mp: 2000
     display: "10候補から5件抽選"
     reincarnation-bonus: true
@@ -199,7 +199,7 @@ quests:
     type: "ウィークリー"
     name: "ミニゲーム週間"
     reset: "毎週リセット"
-    condition: "ミニゲームを15回プレイ、または5回勝利"
+    condition: "ミニゲームの参加または勝利処理を合計15回"
     base-reward-mp: 2000
     display: "10候補から5件抽選"
     reincarnation-bonus: true
@@ -212,7 +212,7 @@ quests:
     type: "ウィークリー"
     name: "探索遠征"
     reset: "毎週リセット"
-    condition: "未踏チャンクを150チャンク移動、または異なるバイオーム5種到達"
+    condition: "初めて入るチャンクを150チャンク訪問"
     base-reward-mp: 1800
     display: "10候補から5件抽選"
     reincarnation-bonus: true
@@ -238,7 +238,7 @@ quests:
     type: "ウィークリー"
     name: "共同納品"
     reset: "毎週リセット"
-    condition: "サーバー解放/共同目標へ合計1,000MP相当を納品または指定資源を納品"
+    condition: "ミニゲーム解放へ合計1,000MPを納品"
     base-reward-mp: 1800
     display: "10候補から5件抽選"
     reincarnation-bonus: true
@@ -303,7 +303,7 @@ quests:
     type: "マンスリー"
     name: "月間商人"
     reset: "毎月リセット"
-    condition: "ショップ/商人/オークションで合計100回取引"
+    condition: "ショップまたは商人で合計100回取引"
     base-reward-mp: 8000
     display: "10件固定表示"
     reincarnation-bonus: true
@@ -316,7 +316,7 @@ quests:
     type: "マンスリー"
     name: "月間冒険者"
     reset: "毎月リセット"
-    condition: "未踏チャンク1,000チャンク移動、または主要エリア3か所到達"
+    condition: "初めて入るチャンクを1,000チャンク訪問"
     base-reward-mp: 8000
     display: "10件固定表示"
     reincarnation-bonus: true
@@ -329,7 +329,7 @@ quests:
     type: "マンスリー"
     name: "月間挑戦者"
     reset: "毎月リセット"
-    condition: "アスレ/ミニゲームを合計60回プレイ、または20回勝利/クリア"
+    condition: "アスレクリア・ミニゲーム参加・勝利処理を合計60回"
     base-reward-mp: 8500
     display: "10件固定表示"
     reincarnation-bonus: true
@@ -355,7 +355,7 @@ quests:
     type: "マンスリー"
     name: "生活基盤整備"
     reset: "毎月リセット"
-    condition: "農作物5,000収穫、動物300繁殖、釣り300成功のいずれか"
+    condition: "生活ポイントを5,000獲得（対象作物・自然物の採集1、釣り成功17、繁殖8）"
     base-reward-mp: 7000
     display: "10件固定表示"
     reincarnation-bonus: true
@@ -368,7 +368,7 @@ quests:
     type: "マンスリー"
     name: "共同開拓"
     reset: "毎月リセット"
-    condition: "共同納品/イベント/国家活動など運営指定目標に参加"
+    condition: "運営が共同参加進捗を1以上付与"
     base-reward-mp: 8000
     display: "10件固定表示"
     reincarnation-bonus: true
@@ -394,7 +394,7 @@ quests:
     type: "スペシャル"
     name: "村の救世主"
     reset: "進捗/条件達成で発生"
-    condition: "ゾンビ村人を治療し、取引を1回行う"
+    condition: "運営がゾンビ村人治療・取引の進捗を1以上付与"
     base-reward-mp: 7000
     display: "条件発生"
     reincarnation-bonus: true
@@ -407,7 +407,7 @@ quests:
     type: "スペシャル"
     name: "初ドラゴン討伐"
     reset: "条件達成で発生"
-    condition: "エンダードラゴン討伐に有効参加"
+    condition: "討伐前30秒以内に最大体力の20%以上を与えるか、とどめを刺してエンダードラゴン討伐に参加"
     base-reward-mp: 20000
     display: "条件発生"
     reincarnation-bonus: true
@@ -420,7 +420,7 @@ quests:
     type: "スペシャル"
     name: "初ウィザー討伐"
     reset: "条件達成で発生"
-    condition: "ウィザー討伐に有効参加"
+    condition: "討伐前30秒以内に最大体力の20%以上を与えるか、とどめを刺してウィザー討伐に参加"
     base-reward-mp: 18000
     display: "条件発生"
     reincarnation-bonus: true
@@ -433,7 +433,7 @@ quests:
     type: "スペシャル"
     name: "古代都市調査"
     reset: "条件達成で発生"
-    condition: "古代都市に到達し、指定アイテムを回収"
+    condition: "運営が古代都市調査の進捗を1以上付与"
     base-reward-mp: 12000
     display: "条件発生"
     reincarnation-bonus: true
@@ -446,7 +446,7 @@ quests:
     type: "スペシャル"
     name: "海底神殿制圧"
     reset: "条件達成で発生"
-    condition: "エルダーガーディアンを3体討伐"
+    condition: "各討伐前30秒以内に最大体力の20%以上を与えるか、とどめを刺してエルダーガーディアンを3体討伐"
     base-reward-mp: 10000
     display: "条件発生"
     reincarnation-bonus: true
@@ -459,7 +459,7 @@ quests:
     type: "スペシャル"
     name: "砦の略奪者"
     reset: "条件達成で発生"
-    condition: "ピグリン要塞を探索し、指定品を納品"
+    condition: "運営がピグリン要塞探索の進捗を1以上付与"
     base-reward-mp: 10000
     display: "条件発生"
     reincarnation-bonus: true
@@ -472,7 +472,7 @@ quests:
     type: "スペシャル"
     name: "エンドシティ到達"
     reset: "進捗達成で発生"
-    condition: "エンドシティに到達し、エリトラを入手"
+    condition: "エンドシティ発見またはエリトラ関連の進捗を達成"
     base-reward-mp: 15000
     display: "条件発生"
     reincarnation-bonus: true
@@ -485,7 +485,7 @@ quests:
     type: "スペシャル"
     name: "バベルの挑戦者"
     reset: "エリア解放後に発生"
-    condition: "バベルの塔10階層を突破"
+    condition: "運営がバベル踏破進捗を10以上付与"
     base-reward-mp: 12000
     display: "条件発生"
     reincarnation-bonus: true
@@ -498,7 +498,7 @@ quests:
     type: "スペシャル"
     name: "深淵到達"
     reset: "エリア解放後に発生"
-    condition: "ギンヌンガガプの指定深度へ到達"
+    condition: "運営がギンヌンガガプ到達進捗を1以上付与"
     base-reward-mp: 12000
     display: "条件発生"
     reincarnation-bonus: true
@@ -511,7 +511,7 @@ quests:
     type: "スペシャル"
     name: "地下帝国の客人"
     reset: "エリア解放後に発生"
-    condition: "アガルタ到達後、指定NPC/施設を確認"
+    condition: "運営がアガルタ訪問進捗を1以上付与"
     base-reward-mp: 15000
     display: "条件発生"
     reincarnation-bonus: true
@@ -524,7 +524,7 @@ quests:
     type: "スペシャル"
     name: "エリシオン巡礼"
     reset: "エリア解放後に発生"
-    condition: "エリシオンの主要地点を巡回"
+    condition: "運営がエリシオン巡回進捗を1以上付与"
     base-reward-mp: 12000
     display: "条件発生"
     reincarnation-bonus: true
@@ -615,7 +615,7 @@ quests:
     type: "スペシャル"
     name: "オークション参加者"
     reset: "オークションで発生"
-    condition: "初めてオークションに入札または落札"
+    condition: "オークション額縁を1回作成"
     base-reward-mp: 7000
     display: "条件発生"
     reincarnation-bonus: true
@@ -628,7 +628,7 @@ quests:
     type: "スペシャル"
     name: "国家の礎"
     reset: "国家で発生"
-    condition: "国家に加入、または国家関連活動に参加"
+    condition: "運営が国家活動進捗を1以上付与"
     base-reward-mp: 10000
     display: "条件発生"
     reincarnation-bonus: true
@@ -641,7 +641,7 @@ quests:
     type: "スペシャル"
     name: "建築コンテスト参加"
     reset: "イベントで発生"
-    condition: "運営開催の建築イベントに有効参加"
+    condition: "運営が建築イベント参加進捗を1以上付与"
     base-reward-mp: 15000
     display: "イベント時のみ"
     reincarnation-bonus: true
@@ -654,7 +654,7 @@ quests:
     type: "スペシャル"
     name: "ミニゲーム王者"
     reset: "イベント/条件で発生"
-    condition: "ミニゲーム大会で上位入賞、または指定勝利数達成"
+    condition: "運営がミニゲーム大会進捗を1以上付与"
     base-reward-mp: 20000
     display: "イベント時のみ"
     reincarnation-bonus: true
@@ -667,7 +667,7 @@ quests:
     type: "スペシャル"
     name: "アスレ覇者"
     reset: "条件達成で発生"
-    condition: "ハードコアアスレをノーミスクリア"
+    condition: "運営がハードコアアスレ進捗を1以上付与"
     base-reward-mp: 25000
     display: "条件発生"
     reincarnation-bonus: true
@@ -680,7 +680,7 @@ quests:
     type: "スペシャル"
     name: "釣り名人"
     reset: "条件達成で発生"
-    condition: "レア釣果を含む指定釣果リストを達成"
+    condition: "運営がレア釣果進捗を1以上付与"
     base-reward-mp: 8000
     display: "条件発生"
     reincarnation-bonus: true
@@ -693,7 +693,7 @@ quests:
     type: "スペシャル"
     name: "農業王"
     reset: "条件達成で発生"
-    condition: "全主要農作物を一定数納品"
+    condition: "運営が農業納品進捗を1以上付与"
     base-reward-mp: 10000
     display: "条件発生"
     reincarnation-bonus: true
@@ -706,7 +706,7 @@ quests:
     type: "スペシャル"
     name: "鍛冶の探究者"
     reset: "条件達成で発生"
-    condition: "鍛冶テンプレートを一定種類収集"
+    condition: "運営が鍛冶テンプレート収集進捗を1以上付与"
     base-reward-mp: 15000
     display: "条件発生"
     reincarnation-bonus: true
@@ -719,7 +719,7 @@ quests:
     type: "スペシャル"
     name: "全モブ観察"
     reset: "討伐/遭遇で発生"
-    condition: "指定Mobリストを一定数討伐または発見"
+    condition: "報酬対象Mobを1種類以上、直接攻撃で討伐"
     base-reward-mp: 20000
     display: "条件発生"
     reincarnation-bonus: true
@@ -732,7 +732,7 @@ quests:
     type: "スペシャル"
     name: "共同解放の功労者"
     reset: "サーバー解放で発生"
-    condition: "サーバー解放に一定以上MP/資源を納品"
+    condition: "ミニゲーム解放へ1MP以上を納品"
     base-reward-mp: 25000
     display: "条件発生"
     reincarnation-bonus: true
@@ -745,7 +745,7 @@ quests:
     type: "スペシャル"
     name: "クリエイターの第一歩"
     reset: "審査通過で発生"
-    condition: "スキン/ペット/カスタム品などが審査を通過"
+    condition: "運営がクリエイター承認進捗を1以上付与"
     base-reward-mp: 15000
     display: "条件発生"
     reincarnation-bonus: true
@@ -758,7 +758,7 @@ quests:
     type: "スペシャル"
     name: "Mifronの伝説"
     reset: "総合条件で発生"
-    condition: "転生・進捗・討伐・建築・経済の複数条件を達成"
+    condition: "転生2回・進捗75個・Mob討伐2,000体・ブロック設置20,000個・取引500回をすべて達成"
     base-reward-mp: 50000
     display: "条件発生"
     reincarnation-bonus: true

@@ -211,7 +211,7 @@ final class QuestService {
             this.plugin.saveData();
             int reward = this.effectiveReward(player, definition);
             this.plugin.depositEmeralds(player.getUniqueId(), reward);
-            player.sendMessage(ChatColor.GREEN + "クエスト報酬: " + definition.name() + " +" + this.formatNumber(reward) + "EM");
+            player.sendMessage(ChatColor.GREEN + "クエスト報酬: " + definition.name() + " +" + this.formatNumber(reward) + "MP");
             return true;
          }
       }

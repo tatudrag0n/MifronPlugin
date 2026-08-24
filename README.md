@@ -1,85 +1,70 @@
 # Mifron Plugin
 
-Mifron command aliases:
+Paper 1.21向けのMifronサーバー統合プラグインです。実装に基づくFFA以外の詳細仕様は [`docs/non-ffa-code-spec.md`](docs/non-ffa-code-spec.md) を参照してください。
 
-- `/mifron`
-- `/mf`
+## コマンド
 
-`/mv` is reserved for Multiverse-Core and is not registered by Mifron. For example, use Multiverse-Core commands such as `/mv create` only for world management provided by Multiverse-Core.
+- メイン: `/mifron`、短縮: `/mf`
+- プレイヤー向け: `/mf balance`、`/mf pay <player> <amount>`、`/mf build enter|exit`、`/mf athletic ranking <name> [monthly|alltime]`
+- `/mv` はMifronでは登録せず、Multiverse-Core専用です。
+- 管理系サブコマンドは原則 `mifron.admin` または個別権限が必要です。
 
-Recommended Mifron world/admin command style:
+## プレイヤー向け主要仕様
 
-- `/mf check`
-- `/mf list`
-- `/mf tp <worldKey>`
-- `/mf gamerules <world>`
-- `/mf info`
-- `/mf reload`
+- ウォレットは左クリックでMP残高を確認し、棚ショップ・スロット・オークションでは持って右クリックします。アイテム収納には使えません。
+- 通常のエメラルドはMPへ変換されません。FFA外で死亡すると所持MPの50%を失います。
+- テレポーターは右クリックで候補を展開し、表示アイテムを左クリックすると移動します。
+- 棚ショップの商品は見本で、在庫は同じ素材について全棚で共有されます。ウォレットで購入し、棚の商品と同じ通常アイテムを持って右クリックすると1個売却します。
+- 樽ショップは既定で27枠、先頭3枠が掘り出し物枠です。購入した枠だけ新しい商品へ入れ替わります。
+- SurvivalではTNTと溶岩が無効です。ショップ化ブロックと承認済み建築は通常破壊できません。
 
-The current plugin command implementation keeps existing `/mifron` subcommands and exposes them through `/mf` as the short alias.
+## 設定
 
-## Configuration
+`src/main/resources/config.yml` には現行コードが参照する設定だけを置きます。
 
-`src/main/resources/config.yml` contains only settings that are read by the current implementation. FFA defaults are already at the latest balance version, so a first startup does not silently replace the bundled values.
+- `build-world`: プレイヤー別Buildワールド、ワールド境界、初期足場。WorldEdit権限は滞在中だけ付与されます。
+- `athletic.defaults`: クリア、自己ベスト、歴代1位、月間順位の報酬。
+- `world-rules`: 全ワールドのKeepInventory、PvP、固定昼、スポーン位置。
+- `regen.allowed-chunks`: 警告と再生成候補の許可リスト。ただし現行Paper APIではチャンク再生成処理自体が無効です。
+- `regen.nation-chunks` / `public-facility-chunks` / `staff-excluded-chunks`: 中央範囲以外の保護チャンク。
+- `barrel-shop`: 商品枠と掘り出し物枠。
+- `auction`: 通常・スニーク時の入札加算額。手数料設定はありません。
+- `minoru-bridge`: ローカルAPIの有効化、待受、共有シークレット。`serverSecret` は旧設定からのフォールバックです。
 
-Important behavior:
+`backupBeforeRegen`、`customOreGeneration`、`vanillaOreMode` は、現行コードでは再生成が実行されないため削除しました。
 
-- `servers.*`, `hub`, `world-rules.spawn.*`: teleporter and spawn destinations. Coordinates can also be updated by commands.
-- `build-world`: per-player build-world creation, border, platform, and WorldEdit boundary settings.
-- `athletic.defaults`: default clear, record, and monthly ranking rewards.
-- `regen.allowed-chunks`: the only chunks eligible for natural regeneration. An empty list disables regeneration targets.
-- `barrel-shop`: offer and bargain slot counts.
-- `auction.bid-step` / `auction.sneak-bid-step`: normal and sneaking bid increments. There is no auction fee setting in the current code.
-- `ffa.kits.*`: equipment and active ability parameters. Sniper capacity is fixed to one shot, and Necromancer has no summon-count limit.
-- `minoru-bridge.secret`: must remain empty in the repository and be set only in the server-side config.
+## 保護の実装範囲
 
-Settings that do not affect runtime behavior are intentionally omitted rather than documented as configurable.
-
-## Spawn Protection
-
-Vanilla `spawn-protection` can conflict with custom shop interactions because it may cancel block interaction before shop logic can finish.
-
-Recommended `server.properties` setting:
+Vanillaの `spawn-protection` はカスタムショップ操作より先にイベントを止める可能性があるため、推奨値は `0` です。
 
 ```properties
 spawn-protection=0
 ```
 
-Use Mifron's `ProtectionService` and central-area protection instead. Protected spawn/central chunks still block normal building, doors, trapdoors, containers, item frames, armor stands, signs, and hopper movement, while explicitly allowing Mifron shop purchases, auction bids, status-book UI, teleporter UI, and admin shop-wand actions.
+Mifronの保護チャンクでは、扉・ボタン・コンテナ・額縁・防具立て・看板・ホッパー移送と、爆発・ピストン・液体・延焼を制限します。通常のブロック破壊・設置は現行の中央チャンク保護では止めていません。ショップ化ブロックとSurvivalへ設置した承認済み建築は別処理で破壊・設置から保護されます。
 
-## Shops
+## 現在未完了の機能
 
-Shopified shelves and barrels must be managed with the shop wand:
+- オークションは入札額の記録までで、終了、落札、精算、返金、手数料処理はありません。入札時点ではMPも引かれません。
+- Proposalはゲーム内作成・投票に対応せず、外部から `proposals.yml` へ入った提案を管理者が審査する機能です。
+- `/mf regen` は現行Paper APIで再生成できないため失敗します。
 
-- Right click: create shop
-- Left click: remove shop
+## 保存データ
 
-Normal block breaking, explosions, pistons, liquids, and burning do not break shop blocks or drop shop display/internal items.
+- `data.yml`: UUID、名前、MP、ステータス、フレンド、ショップ、オークション、各種進捗。
+- `quests.yml`: クエスト定義。デイリー・ウィークリーは各期間5件、マンスリーは固定表示、スペシャルは条件解放です。
+- `structures.yml`、`text-displays.yml`、`ffa-stats.yml`: 管理コンテンツ、設置記録、FFA戦績。
+- `proposals.yml`: 外部から投入された提案と審査結果。
+- `inventory-groups/*.dat`: Survival系と通常系のインベントリ、装備、オフハンド、選択スロット、XP、満腹度、隠し満腹度。
+- `minoru-bridge.yml`: API取引の重複防止状態。
+
+これらはサーバー固有データのため公開リポジトリへ追加しないでください。
 
 ## FFA
 
-The current implementation provides 18 kits. Kit behavior shown in the selector is generated from the code and active config. The detailed verification procedure is in [`docs/ffa-kits-field-items-manual-test.md`](docs/ffa-kits-field-items-manual-test.md).
+現行実装は18キットです。詳細は [`docs/ffa-kits-field-items-manual-test.md`](docs/ffa-kits-field-items-manual-test.md) を参照してください。
 
-Notable rules:
+## 法的注意
 
-- Sniper is single-shot and reloads manually with right click.
-- Necromancer has seven independently cooled-down summon eggs, no summon-count cap, and summons expire after 20 seconds.
-- Gambler rolls flat outgoing damage from -10 to 20; negative rolls heal the target. Incoming damage adjustment ranges from -5 to 5.
-- Crusher rolls on both outgoing and incoming hits: 50% no explosion, 24% 4 damage, 15% 8 damage, 10% 16 damage, and 1% 32 damage.
-- Vampire has no food item. Damage dealt restores health and hunger and builds an attack multiplier.
+MifronはMojangまたはMicrosoftの公式・公認サービスではありません。MPやゲーム内報酬を現実通貨や換金可能な価値と交換せず、収益化時はMinecraft EULAとUsage Guidelinesに従ってください。
 
-## Stored Data and Privacy
-
-Mifron stores server-side gameplay data in the plugin data folder. Treat these files as private server data and do not publish them.
-
-- `data.yml`: player UUIDs, names, MP balances, status/progression data, friend relationships, friend requests, and limited offline friend messages.
-- `proposals.yml`: pending/reviewed proposal metadata, which may include Discord user IDs when imported by external tooling.
-- `structures.yml`, `text-displays.yml`, `ffa-stats.yml`: admin-created server content, locations, generated-structure records, and FFA stats.
-
-To remove a player's stored data, delete that player's UUID section from the relevant YAML files while the server is stopped, or use the available admin reset commands where applicable.
-
-## Legal Notes
-
-Mifron is an unofficial Minecraft server plugin and is not affiliated with, endorsed by, or approved by Mojang or Microsoft.
-
-Do not sell or exchange Mifron MP or other in-game rewards for real-world money or transferable value. If the server is monetized, keep rewards compliant with the current Minecraft EULA and Usage Guidelines.

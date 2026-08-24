@@ -3,10 +3,9 @@ survival-safety:
   disable-tnt: true
   disable-lava: true
   allow-admin-bypass: true
-backupBeforeRegen: true
-customOreGeneration: true
+# Legacy fallback for minoru-bridge.secret. New deployments should set the
+# dedicated Minoru secret in the server-side config instead.
 serverSecret: "change-this"
-vanillaOreMode: "reduce"
 
 build-world:
   enabled: true
@@ -89,9 +88,13 @@ messages:
   scheduledRegen: "このチャンクは自然再生成の許可リストに入っているため、次回メンテナンスの対象です。"
 
 regen:
-  # 空の場合、自然再生成はどのチャンクにも実行されません。
+  # 自然再生成の候補リスト。現行Paper APIでは再生成処理自体が無効です。
   # 形式: survival,チャンクX,チャンクZ
   allowed-chunks: []
+  # 中央保護に加えて建築・操作を禁止するチャンク。
+  nation-chunks: []
+  public-facility-chunks: []
+  staff-excluded-chunks: []
 
 hub:
   world: world

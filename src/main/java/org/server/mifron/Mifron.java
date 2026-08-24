@@ -888,7 +888,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                "§eMPの注意§7: 通常のエメラルドを拾ってもMPにはなりません。エメラルドはアイテムとして残り、MPは報酬・クエスト・取引などで受け取ります。",
                "§6最初に遊ぶ§7: テレポーターで移動先を表示し、FFAでは中央のキット選択から好きなキットを選んで参加します。退出は /mf ffa leave、戦績は /mf ffa stats です。",
                "§dステータスと移動§7: ステータス（ネザースター）を右クリックすると案内を確認できます。テレポーターの表示アイテムを左クリックすると移動できます。",
-               "§a建築の注意§7: SurvivalではTNTと溶岩を使えません。自然再生成は管理者が許可したチャンクだけで実行されます。詳しい案内は /tutorial で再表示できます。"
+               "§a建築の注意§7: SurvivalではTNTと溶岩を使えません。中央広場などの保護チャンクではコンテナ・扉・額縁などを操作できません。詳しい案内は /tutorial で再表示できます。"
             );
             player.sendMessage("§6=== Mifron Tutorial ===");
 

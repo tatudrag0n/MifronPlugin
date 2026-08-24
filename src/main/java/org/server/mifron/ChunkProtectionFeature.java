@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.ChatColor;
@@ -14,7 +13,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.World;
-import org.bukkit.World.Environment;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -276,18 +274,10 @@ final class ChunkProtectionFeature implements Listener {
 
       long now = System.currentTimeMillis();
       String key = this.chunkKey(chunk);
-      if (this.plugin.getConfig().getBoolean("backupBeforeRegen", true)) {
-         this.plugin.getLogger().info("Forced regen backup marker: " + key + " at " + now);
-      }
-
       int regenCount = this.plugin.data().getInt("regen." + key + ".regenCount", 0) + 1;
       boolean regenerated = this.regenerateChunkUsingSupportedApi(sender, chunk);
       if (!regenerated) {
          return false;
-      }
-
-      if (this.plugin.getConfig().getBoolean("customOreGeneration", true)) {
-         this.applyCustomOreGeneration(chunk.getWorld().getChunkAt(chunk.getX(), chunk.getZ()), regenCount);
       }
 
       this.plugin.data().set("regen." + key + ".worldName", chunk.getWorld().getName());
@@ -309,112 +299,6 @@ final class ChunkProtectionFeature implements Listener {
          .getLogger()
          .warning("Chunk regeneration is disabled because World#regenerateChunk is deprecated for removal and unsupported in this API: " + this.chunkKey(chunk));
       return false;
-   }
-
-   private void applyCustomOreGeneration(Chunk chunk, int regenCount) {
-      this.reduceVanillaOres(chunk, regenCount);
-      this.placeOreVeins(chunk, regenCount, Material.COAL_ORE, 18, 8, -32, 96);
-      this.placeOreVeins(chunk, regenCount, Material.IRON_ORE, 16, 7, -48, 72);
-      this.placeOreVeins(chunk, regenCount, Material.COPPER_ORE, 14, 8, -16, 80);
-      this.placeOreVeins(chunk, regenCount, Material.REDSTONE_ORE, 8, 6, -64, 16);
-      this.placeOreVeins(chunk, regenCount, Material.GOLD_ORE, 7, 5, -64, 32);
-      this.placeOreVeins(chunk, regenCount, Material.LAPIS_ORE, 5, 5, -64, 32);
-      this.placeOreVeins(chunk, regenCount, Material.DIAMOND_ORE, 4, 4, -64, 8);
-      this.placeOreVeins(chunk, regenCount, Material.EMERALD_ORE, 3, 3, -32, 64);
-      if (chunk.getWorld().getEnvironment() == Environment.NETHER) {
-         this.placeOreVeins(chunk, regenCount, Material.ANCIENT_DEBRIS, 3, 2, 8, 24);
-      }
-   }
-
-   private void reduceVanillaOres(Chunk chunk, int regenCount) {
-      String mode = this.plugin.getConfig().getString("vanillaOreMode", "reduce");
-      if (!"keep".equalsIgnoreCase(mode)) {
-         Random oreRandom = new Random(this.oreSeed(chunk, regenCount, "vanilla_reduce"));
-
-         for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-               for (int y = chunk.getWorld().getMinHeight(); y < chunk.getWorld().getMaxHeight(); y++) {
-                  Block block = chunk.getBlock(x, y, z);
-                  if (this.isOre(block.getType()) && ("remove".equalsIgnoreCase(mode) || oreRandom.nextInt(100) < 70)) {
-                     block.setType(this.replacementStone(block.getType(), y), false);
-                  }
-               }
-            }
-         }
-      }
-   }
-
-   private void placeOreVeins(Chunk chunk, int regenCount, Material ore, int veins, int maxSize, int minY, int maxY) {
-      Random oreRandom = new Random(this.oreSeed(chunk, regenCount, ore.name()));
-      int worldMin = chunk.getWorld().getMinHeight();
-      int worldMax = chunk.getWorld().getMaxHeight() - 1;
-      int low = Math.max(worldMin, minY);
-      int high = Math.min(worldMax, maxY);
-      if (low <= high) {
-         for (int i = 0; i < veins; i++) {
-            int x = oreRandom.nextInt(16);
-            int y = low + oreRandom.nextInt(high - low + 1);
-            int z = oreRandom.nextInt(16);
-            int size = 1 + oreRandom.nextInt(Math.max(1, maxSize));
-
-            for (int n = 0; n < size; n++) {
-               int px = Math.max(0, Math.min(15, x + oreRandom.nextInt(3) - 1));
-               int py = Math.max(worldMin, Math.min(worldMax, y + oreRandom.nextInt(3) - 1));
-               int pz = Math.max(0, Math.min(15, z + oreRandom.nextInt(3) - 1));
-               Block block = chunk.getBlock(px, py, pz);
-               if (this.canReplaceWithOre(block.getType(), ore)) {
-                  block.setType(this.oreForBase(ore, block.getType()), false);
-               }
-            }
-         }
-      }
-   }
-
-   private long oreSeed(Chunk chunk, int regenCount, String oreType) {
-      String secret = this.plugin.getConfig().getString("serverSecret", "change-this");
-      if (secret == null || secret.isBlank() || "change-this".equals(secret)) {
-         secret = UUID.randomUUID().toString();
-         this.plugin.getConfig().set("serverSecret", secret);
-         this.plugin.saveConfig();
-         this.plugin.getLogger().warning("Generated a random serverSecret for ore regeneration seeds. Keep config.yml private.");
-      }
-
-      String input = secret + "|" + chunk.getWorld().getName() + "|" + chunk.getX() + "|" + chunk.getZ() + "|" + regenCount + "|" + oreType;
-      long hash = 1125899906842597L;
-
-      for (int i = 0; i < input.length(); i++) {
-         hash = 31L * hash + input.charAt(i);
-      }
-
-      return hash;
-   }
-
-   private boolean isOre(Material material) {
-      return material.name().endsWith("_ORE") || material == Material.ANCIENT_DEBRIS;
-   }
-
-   private Material replacementStone(Material ore, int y) {
-      String name = ore.name();
-      if (ore == Material.ANCIENT_DEBRIS) {
-         return Material.NETHERRACK;
-      } else {
-         return !name.startsWith("DEEPSLATE_") && y >= 0 ? Material.STONE : Material.DEEPSLATE;
-      }
-   }
-
-   private boolean canReplaceWithOre(Material base, Material ore) {
-      return ore == Material.ANCIENT_DEBRIS ? base == Material.NETHERRACK : base == Material.STONE || base == Material.DEEPSLATE;
-   }
-
-   private Material oreForBase(Material ore, Material base) {
-      if (base == Material.DEEPSLATE) {
-         Material deepslate = Material.matchMaterial("DEEPSLATE_" + ore.name());
-         if (deepslate != null) {
-            return deepslate;
-         }
-      }
-
-      return ore;
    }
 
    private int parsePositiveInt(String value, int fallback) {

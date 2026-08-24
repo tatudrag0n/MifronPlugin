@@ -61,11 +61,11 @@
 - [ ] S-INV-005 FFA → SurvivalでFFAアイテムを持ち出せない
 - [ ] S-INV-006 Armorがグループごとに正常保存される
 - [ ] S-INV-007 Offhandがグループごとに正常保存される
-- [ ] S-INV-008 XPの扱いが仕様通り
-- [ ] S-INV-009 HPの扱いが仕様通り
-- [ ] S-INV-010 Hungerの扱いが仕様通り
-- [ ] S-INV-011 Potion Effectの扱いが仕様通り
-- [ ] S-INV-012 EnderChestの扱いが仕様通り
+- [ ] S-INV-008 Level / XP / 選択スロットがグループごとに保存・復元される
+- [ ] S-INV-009 グループ読込時、HPが min(最大HP, 20) へ戻る
+- [ ] S-INV-010 Hunger / Saturationがグループごとに保存・復元される
+- [ ] S-INV-011 Potion Effectはインベントリグループ保存の対象外である
+- [ ] S-INV-012 EnderChestはインベントリグループ保存の対象外である
 - [ ] S-INV-013 死亡時に別グループのアイテムをドロップしない
 - [ ] S-INV-014 サーバー再起動後も各グループの所持品が保持される
 - [ ] S-INV-015 高速な連続ワールド移動でアイテム複製・消失が起きない
@@ -98,11 +98,12 @@
 - [ ] S-MP-012 Minecraft → MinoruのMP同期が正常
 - [ ] S-MP-013 Minoru → MinecraftのMP同期が必要なら正常
 - [ ] S-MP-014 同時更新時に残高が消失・上書きされない
+- [ ] S-MP-015 FFA外で死亡すると所持MPの50%（切り捨て）が失われる
 
 ## S-PROTECT 保護・不正持ち出し防止
 
-- [ ] S-PROT-001 Hub保護範囲で一般プレイヤーがブロック破壊できない
-- [ ] S-PROT-002 Hub保護範囲で一般プレイヤーがブロック設置できない
+- [ ] S-PROT-001 Hub保護範囲の通常Block Breakは現行コードで未制限のため、公開前に仕様を確定する
+- [ ] S-PROT-002 Hub保護範囲の通常Block Placeは現行コードで未制限のため、公開前に仕様を確定する
 - [ ] S-PROT-003 保護されたコンテナを不正に操作できない
 - [ ] S-PROT-004 Door / Trapdoor等の扱いが仕様通り
 - [ ] S-PROT-005 ItemFrameを不正破壊できない
@@ -301,15 +302,15 @@
 
 ## A-AUCTION
 
-- [ ] A-AUC-001 Auction出品が正常
-- [ ] A-AUC-002 通常入札が正常
-- [ ] A-AUC-003 Sneak入札が正常
-- [ ] A-AUC-004 残高不足時に入札できない
-- [ ] A-AUC-005 手数料計算が正常
-- [ ] A-AUC-006 同時入札で競合が起きない
-- [ ] A-AUC-007 ItemFrame破壊でAuctionが壊れない
-- [ ] A-AUC-008 再起動後も状態が整合する
-- [ ] A-AUC-009 オフラインPlayerへの精算が正常
+- [ ] A-AUC-001 旧Shop Wandで価格表上許可された額縁だけAuction化できる
+- [ ] A-AUC-002 Wallet右クリックで自分の累計入札がbid-stepだけ増える
+- [ ] A-AUC-003 Sneak+Wallet右クリックでsneak-bid-stepだけ増える
+- [ ] A-AUC-004 自分の累計入札が所持MPを超える場合は拒否される
+- [ ] A-AUC-005 入札時点ではMPが引かれない現行仕様を確認する
+- [ ] A-AUC-006 最高入札者・最高額が更新され再起動後も保持される
+- [ ] A-AUC-007 ItemFrameが通常操作・破壊から保護される
+- [ ] A-AUC-008 出品者または管理者だけが解除でき、全入札記録が削除される
+- [ ] A-AUC-009 終了・落札・受渡し・精算・返金・手数料が未実装であることを公開前に解消する
 
 ## A-QUEST
 
@@ -320,6 +321,8 @@
 - [ ] A-QUEST-005 Reincarnation bonusが正常
 - [ ] A-QUEST-006 Anti-abuseが正常
 - [ ] A-QUEST-007 再起動後に進捗が保持される
+- [ ] A-QUEST-008 quests.ymlのconditionが実際のprogress-key加算条件と一致する
+- [ ] A-QUEST-009 自動検出されないSpecial Questは運営付与と明記される
 
 ## A-FRIEND / STATUS
 
@@ -346,12 +349,11 @@
 
 ## A-PROPOSAL
 
-- [ ] A-PROP-001 Minecraft内からProposal作成できる
-- [ ] A-PROP-002 Proposalがproposals.ymlへ保存される
-- [ ] A-PROP-003 Admin approvalが正常
-- [ ] A-PROP-004 再起動後もProposalが保持される
-- [ ] A-PROP-005 Discord側との連携仕様を確定する
-- [ ] A-PROP-006 Minecraft投票とDiscord投票を同期するか決定する
+- [ ] A-PROP-001 外部ツールがproposals.ymlのpendingへ投入したProposalをlist / reviewできる
+- [ ] A-PROP-002 title / custom_itemだけをapprove / forceapproveでconfigへ反映できる
+- [ ] A-PROP-003 廃止済みshop_itemと未対応typeを承認しない
+- [ ] A-PROP-004 rejectでpendingからrejectedへ移動し、再起動後も保持される
+- [ ] A-PROP-005 ゲーム内Proposal作成・投票が現行コードに存在しないことを運用資料と一致させる
 
 ## A-MINORU
 
