@@ -46,6 +46,7 @@ import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -58,6 +59,7 @@ import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Shelf;
 import org.bukkit.block.data.Directional;
 import org.bukkit.command.Command;
@@ -92,6 +94,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -971,6 +974,139 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       item.setAmount(item.getAmount() - 1);
    }
 
+   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+   public void onWorldEditPasteCommand(PlayerCommandPreprocessEvent event) {
+      String command = event.getMessage().trim().toLowerCase(Locale.ROOT);
+      if (!command.equals("//paste") && !command.startsWith("//paste ")
+         && !command.equals("/worldedit:paste") && !command.startsWith("/worldedit:paste ")) {
+         return;
+      }
+
+      Player player = event.getPlayer();
+      if (!this.canCreateShop(player)) {
+         return;
+      }
+      Mifron.ShelfPasteSnapshot before = this.snapshotWorldEditShelves(player.getWorld());
+      Bukkit.getScheduler().runTaskLater(this, () -> this.registerPastedShelfShops(player, before), 2L);
+   }
+
+   private Mifron.ShelfPasteSnapshot snapshotWorldEditShelves(World world) {
+      Map<String, String> unregistered = new HashMap<>();
+      Set<String> registeredOfferSignatures = new HashSet<>();
+      List<Material> catalog = this.shelfShopCatalogMaterials();
+      for (int start = 0; start < catalog.size(); start += SHELF_SHOP_OFFER_SLOTS) {
+         registeredOfferSignatures.add(this.shelfOfferSignature(catalog.subList(start, Math.min(catalog.size(), start + SHELF_SHOP_OFFER_SLOTS))));
+      }
+      for (Chunk chunk : world.getLoadedChunks()) {
+         for (BlockState state : chunk.getTileEntities()) {
+            if (!(state instanceof Shelf shelf)) {
+               continue;
+            }
+            Block block = shelf.getBlock();
+            String signature = this.shelfInventorySignature(shelf);
+            if (this.isShelfShop(block)) {
+               if (!this.isEmptyShelfSignature(signature)) {
+                  registeredOfferSignatures.add(signature);
+               }
+            } else if (!this.slotMachineManager.isMachine(block)) {
+               unregistered.put(this.shelfPositionKey(block), signature);
+            }
+         }
+      }
+      return new Mifron.ShelfPasteSnapshot(world, Map.copyOf(unregistered), Set.copyOf(registeredOfferSignatures));
+   }
+
+   private void registerPastedShelfShops(Player player, Mifron.ShelfPasteSnapshot before) {
+      World world = before.world();
+      if (world == null) {
+         return;
+      }
+
+      List<Block> pastedShops = new ArrayList<>();
+      for (Chunk chunk : world.getLoadedChunks()) {
+         for (BlockState state : chunk.getTileEntities()) {
+            if (!(state instanceof Shelf shelf)) {
+               continue;
+            }
+            Block block = shelf.getBlock();
+            if (this.isShelfShop(block) || this.slotMachineManager.isMachine(block)) {
+               continue;
+            }
+            String signature = this.shelfInventorySignature(shelf);
+            String previous = before.unregisteredSignatures().get(this.shelfPositionKey(block));
+            if (!Objects.equals(previous, signature)
+               && !this.isEmptyShelfSignature(signature)
+               && before.registeredOfferSignatures().contains(signature)) {
+               pastedShops.add(block);
+            }
+         }
+      }
+
+      if (pastedShops.isEmpty()) {
+         return;
+      }
+
+      BlockFace facing = player.getFacing();
+      pastedShops.sort((a, b) -> this.comparePastedShelves(a, b, facing));
+      int firstOrder = this.nextSequentialShelfOrder();
+      for (Block block : pastedShops) {
+         this.configureSequentialShelfShop(block);
+         this.setShopOwner(block, player.getUniqueId());
+      }
+      int lastOrder = firstOrder + pastedShops.size() - 1;
+      this.queueDataSave();
+      if (player.isOnline()) {
+         player.sendMessage("§aWorldEditで貼り付けた棚ショップを自動登録しました: " + pastedShops.size() + "台（棚番号 " + firstOrder + "～" + lastOrder + "）");
+      }
+      this.getLogger().info("Auto-registered " + pastedShops.size() + " pasted shelf shops for " + player.getName() + ".");
+   }
+
+   private int comparePastedShelves(Block a, Block b, BlockFace facing) {
+      int row = Integer.compare(b.getY(), a.getY());
+      if (row != 0) {
+         return row;
+      }
+      int horizontal = switch (facing) {
+         case SOUTH -> Integer.compare(b.getX(), a.getX());
+         case EAST -> Integer.compare(a.getZ(), b.getZ());
+         case WEST -> Integer.compare(b.getZ(), a.getZ());
+         default -> Integer.compare(a.getX(), b.getX());
+      };
+      if (horizontal != 0) {
+         return horizontal;
+      }
+      int depth = switch (facing) {
+         case SOUTH -> Integer.compare(a.getZ(), b.getZ());
+         case EAST -> Integer.compare(a.getX(), b.getX());
+         case WEST -> Integer.compare(b.getX(), a.getX());
+         default -> Integer.compare(b.getZ(), a.getZ());
+      };
+      return depth != 0 ? depth : this.shelfPositionKey(a).compareTo(this.shelfPositionKey(b));
+   }
+
+   private String shelfInventorySignature(Shelf shelf) {
+      return java.util.Arrays.stream(shelf.getSnapshotInventory().getContents())
+         .map(item -> item == null || item.getType() == Material.AIR ? "AIR" : item.getType().name())
+         .collect(Collectors.joining(","));
+   }
+
+   private String shelfOfferSignature(List<Material> materials) {
+      List<String> slots = new ArrayList<>();
+      for (int slot = 0; slot < SHELF_SHOP_OFFER_SLOTS; slot++) {
+         Material material = slot < materials.size() ? materials.get(slot) : Material.AIR;
+         slots.add(material == null || material == Material.AIR ? "AIR" : material.name());
+      }
+      return String.join(",", slots);
+   }
+
+   private boolean isEmptyShelfSignature(String signature) {
+      return signature == null || signature.isBlank() || java.util.Arrays.stream(signature.split(",", -1)).allMatch("AIR"::equals);
+   }
+
+   private String shelfPositionKey(Block block) {
+      return block.getX() + "_" + block.getY() + "_" + block.getZ();
+   }
+
    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
    public void onInteract(PlayerInteractEvent event) {
       ItemStack item = event.getItem();
@@ -1648,105 +1784,84 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private int shelfShopCategoryRank(Material material) {
       String name = material.name();
-
-      // 0: 基本ブロック・地形
-      if (name.contains("STONE") || name.contains("DEEPSLATE") || name.contains("TUFF") || name.contains("CALCITE")
-         || name.contains("DRIPSTONE") || name.contains("DIRT") || name.contains("GRASS_BLOCK") || name.contains("PODZOL")
-         || name.contains("MYCELIUM") || name.contains("SAND") || name.contains("GRAVEL") || name.contains("CLAY")
-         || name.contains("MUD") || name.contains("SNOW") || name.contains("ICE") || name.contains("BLACKSTONE")
-         || name.contains("BASALT") || name.equals("NETHERRACK") || name.equals("END_STONE")) {
-         return 0;
-      }
-
-      // 1: 木材・植物
-      if (name.endsWith("_LOG") || name.endsWith("_WOOD") || name.endsWith("_STEM") || name.endsWith("_HYPHAE")
-         || name.endsWith("_PLANKS") || name.endsWith("_LEAVES") || name.endsWith("_SAPLING") || name.contains("BAMBOO")
-         || name.contains("MANGROVE") || name.contains("CHERRY") || name.contains("FLOWER") || name.contains("TULIP")
-         || name.contains("ORCHID") || name.contains("DANDELION") || name.contains("POPPY") || name.contains("AZALEA")
-         || name.contains("MUSHROOM") || name.contains("FUNGUS") || name.contains("ROOTS") || name.contains("VINE")
-         || name.contains("MOSS") || name.contains("LILY") || name.contains("CACTUS") || name.contains("SUGAR_CANE")) {
-         return 1;
-      }
-
-      // 2: 建材・装飾ブロック
-      if (name.endsWith("_STAIRS") || name.endsWith("_SLAB") || name.endsWith("_WALL") || name.endsWith("_FENCE")
-         || name.endsWith("_FENCE_GATE") || name.endsWith("_DOOR") || name.endsWith("_TRAPDOOR") || name.endsWith("_SIGN")
-         || name.endsWith("_HANGING_SIGN") || name.contains("GLASS") || name.contains("CONCRETE") || name.contains("TERRACOTTA")
-         || name.contains("WOOL") || name.contains("CARPET") || name.contains("BRICK") || name.contains("PRISMARINE")
-         || name.contains("PURPUR") || name.contains("CORAL") || name.contains("BANNER") || name.contains("CANDLE")) {
-         return 2;
-      }
-
-      // 3: 鉱石・素材
-      if (name.endsWith("_ORE") || name.startsWith("RAW_") || name.endsWith("_INGOT") || name.endsWith("_NUGGET")
-         || name.equals("COAL") || name.equals("CHARCOAL") || name.contains("IRON") || name.contains("GOLD")
-         || name.contains("COPPER") || name.contains("DIAMOND") || name.contains("EMERALD") || name.contains("REDSTONE")
-         || name.contains("LAPIS") || name.contains("QUARTZ") || name.contains("AMETHYST") || name.contains("NETHERITE")
-         || name.equals("ANCIENT_DEBRIS")) {
-         return 3;
-      }
-
-      // 4: レッドストーン・機構
-      if (name.contains("PISTON") || name.contains("OBSERVER") || name.contains("COMPARATOR") || name.contains("REPEATER")
-         || name.contains("HOPPER") || name.contains("DISPENSER") || name.contains("DROPPER") || name.contains("CRAFTER")
-         || name.contains("RAIL") || name.contains("LEVER") || name.contains("BUTTON") || name.contains("PRESSURE_PLATE")
-         || name.contains("TRIPWIRE") || name.contains("DAYLIGHT_DETECTOR") || name.contains("TARGET") || name.contains("NOTE_BLOCK")) {
-         return 4;
-      }
-
-      // 5: 食料・農業
-      if (material.isEdible() || name.contains("SEEDS") || name.equals("WHEAT") || name.equals("CARROT") || name.equals("POTATO")
-         || name.equals("BEETROOT") || name.contains("MELON") || name.contains("PUMPKIN") || name.contains("COCOA")
-         || name.contains("SWEET_BERRIES") || name.contains("GLOW_BERRIES") || name.contains("HONEY")) {
-         return 5;
-      }
-
-      // 6: Mobドロップ・醸造素材
-      if (name.contains("ROTTEN_FLESH") || name.equals("BONE") || name.equals("STRING") || name.contains("SPIDER_EYE")
-         || name.equals("GUNPOWDER") || name.contains("BLAZE") || name.contains("GHAST") || name.contains("ENDER_PEARL")
-         || name.contains("MAGMA_CREAM") || name.contains("SLIME_BALL") || name.contains("PHANTOM_MEMBRANE")
-         || name.contains("SHULKER_SHELL") || name.contains("POTION") || name.contains("FERMENTED") || name.contains("RABBIT_FOOT")
-         || name.contains("DRAGON_BREATH") || name.contains("GLISTERING_MELON") || name.contains("NETHER_WART")) {
-         return 6;
-      }
-
-      // 7: 道具・武器
+      // Equipment must be classified before material names such as IRON or STONE.
+      // The old broad contains() checks put iron swords and redstone parts among terrain.
       if (name.endsWith("_SWORD") || name.endsWith("_AXE") || name.endsWith("_PICKAXE") || name.endsWith("_SHOVEL")
          || name.endsWith("_HOE") || name.endsWith("_SPEAR") || name.equals("BOW") || name.equals("CROSSBOW")
          || name.equals("TRIDENT") || name.equals("MACE") || name.equals("SHIELD") || name.equals("FISHING_ROD")
          || name.equals("SHEARS") || name.equals("FLINT_AND_STEEL") || name.equals("BRUSH")) {
-         return 7;
-      }
-
-      // 8: 防具・装備
-      if (name.endsWith("_HELMET") || name.endsWith("_CHESTPLATE") || name.endsWith("_LEGGINGS") || name.endsWith("_BOOTS")
-         || name.equals("ELYTRA") || name.contains("HORSE_ARMOR") || name.equals("TURTLE_HELMET")) {
          return 8;
       }
-
-      // 9: 収納・移動・生活用品
-      if (name.contains("CHEST") || name.contains("BARREL") || name.contains("SHULKER_BOX") || name.contains("BUNDLE")
-         || name.contains("MINECART") || name.endsWith("_BOAT") || name.endsWith("_RAFT") || name.equals("SADDLE")
-         || name.equals("LEAD") || name.equals("COMPASS") || name.equals("RECOVERY_COMPASS") || name.equals("CLOCK")
-         || name.equals("NAME_TAG") || name.equals("LANTERN") || name.equals("SOUL_LANTERN") || name.equals("TORCH")) {
+      if (name.endsWith("_HELMET") || name.endsWith("_CHESTPLATE") || name.endsWith("_LEGGINGS") || name.endsWith("_BOOTS")
+         || name.equals("ELYTRA") || name.contains("HORSE_ARMOR") || name.equals("TURTLE_HELMET")) {
          return 9;
       }
-
-      // 10: レア・特殊
       if (name.contains("SMITHING_TEMPLATE") || name.contains("MUSIC_DISC") || name.contains("POTTERY_SHERD")
          || name.contains("HEAD") || name.contains("SKULL") || name.equals("TOTEM_OF_UNDYING") || name.equals("NETHER_STAR")
          || name.equals("HEART_OF_THE_SEA") || name.equals("CONDUIT") || name.equals("BEACON") || name.equals("DRAGON_EGG")
          || name.equals("ENCHANTED_GOLDEN_APPLE")) {
+         return 11;
+      }
+      if (material.isEdible() || name.contains("SEEDS") || name.equals("WHEAT") || name.equals("CARROT") || name.equals("POTATO")
+         || name.equals("BEETROOT") || name.contains("MELON") || name.contains("PUMPKIN") || name.contains("COCOA")
+         || name.contains("BERRIES") || name.contains("HONEY") || name.equals("SUGAR_CANE") || name.equals("EGG")) {
+         return 6;
+      }
+      if (name.equals("ROTTEN_FLESH") || name.equals("BONE") || name.equals("STRING") || name.contains("SPIDER_EYE")
+         || name.equals("GUNPOWDER") || name.contains("BLAZE") || name.contains("GHAST") || name.equals("ENDER_PEARL")
+         || name.equals("MAGMA_CREAM") || name.equals("SLIME_BALL") || name.equals("PHANTOM_MEMBRANE")
+         || name.equals("SHULKER_SHELL") || name.contains("POTION") || name.contains("FERMENTED") || name.equals("RABBIT_FOOT")
+         || name.equals("DRAGON_BREATH") || name.equals("GLISTERING_MELON_SLICE") || name.equals("NETHER_WART")) {
+         return 7;
+      }
+      if (name.contains("PISTON") || name.equals("OBSERVER") || name.equals("COMPARATOR") || name.equals("REPEATER")
+         || name.contains("HOPPER") || name.contains("DISPENSER") || name.contains("DROPPER") || name.equals("CRAFTER")
+         || name.contains("RAIL") || name.equals("LEVER") || name.endsWith("_BUTTON") || name.endsWith("_PRESSURE_PLATE")
+         || name.contains("TRIPWIRE") || name.equals("DAYLIGHT_DETECTOR") || name.equals("TARGET") || name.equals("NOTE_BLOCK")
+         || name.equals("REDSTONE_TORCH") || name.equals("REDSTONE_LAMP") || name.equals("TNT")) {
+         return 5;
+      }
+      if (name.endsWith("_ORE") || name.startsWith("RAW_") || name.endsWith("_INGOT") || name.endsWith("_NUGGET")
+         || name.equals("COAL") || name.equals("CHARCOAL") || name.equals("IRON") || name.equals("GOLD")
+         || name.equals("COPPER") || name.equals("DIAMOND") || name.equals("EMERALD") || name.equals("REDSTONE")
+         || name.equals("LAPIS_LAZULI") || name.equals("QUARTZ") || name.startsWith("AMETHYST_") || name.startsWith("NETHERITE_")
+         || name.equals("ANCIENT_DEBRIS") || name.matches("(COAL|IRON|GOLD|COPPER|DIAMOND|EMERALD|REDSTONE|LAPIS|QUARTZ|AMETHYST|NETHERITE)_BLOCK")) {
+         return 4;
+      }
+      if (name.contains("CHEST") || name.contains("BARREL") || name.contains("SHULKER_BOX") || name.contains("BUNDLE")
+         || name.contains("MINECART") || name.endsWith("_BOAT") || name.endsWith("_RAFT") || name.equals("SADDLE")
+         || name.equals("LEAD") || name.equals("COMPASS") || name.equals("RECOVERY_COMPASS") || name.equals("CLOCK")
+         || name.equals("NAME_TAG") || name.contains("LANTERN") || name.endsWith("TORCH") || name.equals("LADDER")
+         || name.equals("SCAFFOLDING") || name.equals("CRAFTING_TABLE") || name.contains("FURNACE") || name.equals("ANVIL")) {
          return 10;
       }
 
-      return 11;
+      if (material.isBlock()) {
+         if (this.isShelfShopWoodFamily(name)) {
+            return 1;
+         }
+         if (name.contains("WOOL") || name.contains("CARPET") || name.contains("CONCRETE") || name.contains("TERRACOTTA")
+            || name.contains("GLASS") || name.contains("BANNER") || name.contains("CANDLE") || name.contains("CORAL")
+            || name.contains("FLOWER") || name.contains("TULIP") || name.contains("ORCHID") || name.contains("POPPY")) {
+            return 2;
+         }
+         if (name.equals("STONE") || name.equals("COBBLESTONE") || name.equals("DEEPSLATE") || name.equals("COBBLED_DEEPSLATE")
+            || name.equals("TUFF") || name.equals("CALCITE") || name.equals("DRIPSTONE_BLOCK") || name.equals("DIRT")
+            || name.equals("GRASS_BLOCK") || name.equals("PODZOL") || name.equals("MYCELIUM") || name.equals("SAND")
+            || name.equals("RED_SAND") || name.equals("SANDSTONE") || name.equals("RED_SANDSTONE") || name.equals("GRAVEL")
+            || name.equals("CLAY") || name.equals("MUD") || name.equals("PACKED_MUD") || name.equals("SNOW")
+            || name.equals("SNOW_BLOCK") || name.equals("POWDER_SNOW") || name.equals("ICE") || name.equals("PACKED_ICE")
+            || name.equals("BLUE_ICE") || name.equals("FROSTED_ICE") || name.equals("NETHERRACK") || name.equals("END_STONE") || name.equals("BASALT")
+            || name.equals("BLACKSTONE")) {
+            return 0;
+         }
+         return 3;
+      }
+      return 12;
    }
 
    private String shelfShopFamilyKey(Material material) {
       String name = material.name();
-      // Wood species stay together (OAK_*, SPRUCE_*, ...), while coloured building
-      // blocks stay together by block family (WOOL, CONCRETE, TERRACOTTA, etc.).
       for (String family : List.of("WOOL", "CARPET", "CONCRETE_POWDER", "CONCRETE", "TERRACOTTA", "GLASS_PANE", "GLASS", "BANNER", "BED", "CANDLE")) {
          if (name.endsWith("_" + family) || name.equals(family)) {
             return family + ":" + name;
@@ -1757,7 +1872,54 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             return "WOOD:" + String.format("%02d", List.of("OAK", "SPRUCE", "BIRCH", "JUNGLE", "ACACIA", "DARK_OAK", "MANGROVE", "CHERRY", "PALE_OAK", "BAMBOO", "CRIMSON", "WARPED").indexOf(wood)) + ":" + name;
          }
       }
+      List<String> tools = List.of("SWORD", "PICKAXE", "AXE", "SHOVEL", "HOE", "SPEAR");
+      for (int i = 0; i < tools.size(); i++) {
+         if (name.endsWith("_" + tools.get(i))) {
+            return "TOOL:" + String.format("%02d:%02d", i, this.shelfShopEquipmentTier(name)) + ":" + name;
+         }
+      }
+      List<String> armor = List.of("HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "HORSE_ARMOR");
+      for (int i = 0; i < armor.size(); i++) {
+         if (name.endsWith("_" + armor.get(i))) {
+            return "ARMOR:" + String.format("%02d:%02d", i, this.shelfShopEquipmentTier(name)) + ":" + name;
+         }
+      }
+      List<String> resources = List.of("COAL", "IRON", "COPPER", "GOLD", "REDSTONE", "LAPIS", "DIAMOND", "EMERALD", "QUARTZ", "AMETHYST", "NETHERITE");
+      for (int i = 0; i < resources.size(); i++) {
+         if (name.contains(resources.get(i))) {
+            return "RESOURCE:" + String.format("%02d", i) + ":" + name;
+         }
+      }
+      List<String> buildingFamilies = List.of(
+         "STONE_BRICK", "COBBLESTONE", "STONE", "MOSSY_COBBLESTONE", "DEEPSLATE_BRICK", "DEEPSLATE_TILE",
+         "COBBLED_DEEPSLATE", "POLISHED_DEEPSLATE", "BLACKSTONE", "POLISHED_BLACKSTONE", "BRICK", "MUD_BRICK",
+         "SANDSTONE", "RED_SANDSTONE", "PRISMARINE", "NETHER_BRICK", "PURPUR", "QUARTZ", "TUFF"
+      );
+      for (int i = 0; i < buildingFamilies.size(); i++) {
+         String family = buildingFamilies.get(i);
+         if (name.equals(family) || name.startsWith(family + "_")) {
+            return "BUILD:" + String.format("%02d", i) + ":" + name;
+         }
+      }
       return name;
+   }
+
+   private boolean isShelfShopWoodFamily(String name) {
+      return name.endsWith("_LOG") || name.endsWith("_WOOD") || name.endsWith("_STEM") || name.endsWith("_HYPHAE")
+         || name.endsWith("_PLANKS") || name.endsWith("_LEAVES") || name.endsWith("_SAPLING") || name.contains("BAMBOO")
+         || name.startsWith("OAK_") || name.startsWith("SPRUCE_") || name.startsWith("BIRCH_") || name.startsWith("JUNGLE_")
+         || name.startsWith("ACACIA_") || name.startsWith("DARK_OAK_") || name.startsWith("MANGROVE_")
+         || name.startsWith("CHERRY_") || name.startsWith("PALE_OAK_") || name.startsWith("CRIMSON_") || name.startsWith("WARPED_");
+   }
+
+   private int shelfShopEquipmentTier(String name) {
+      List<String> tiers = List.of("WOODEN_", "STONE_", "COPPER_", "IRON_", "GOLDEN_", "DIAMOND_", "NETHERITE_");
+      for (int i = 0; i < tiers.size(); i++) {
+         if (name.startsWith(tiers.get(i))) {
+            return i;
+         }
+      }
+      return tiers.size();
    }
 
    private void renumberSequentialShelfShops() {
@@ -7267,6 +7429,9 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    }
 
    private record ShelfShopOffer(Material material, int amount, int price) {
+   }
+
+   private record ShelfPasteSnapshot(World world, Map<String, String> unregisteredSignatures, Set<String> registeredOfferSignatures) {
    }
 
    private record TitleDefinition(Material icon, List<String> requiredAdvancements) {
