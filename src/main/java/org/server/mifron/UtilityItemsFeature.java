@@ -20,9 +20,9 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 final class UtilityItemsFeature implements Listener {
-   private static final Set<String> INITIAL_ITEM_IDS = Set.of("emerald_bundle", "friend_book", "teleporter");
+   private static final Set<String> INITIAL_ITEM_IDS = Set.of("emerald_bundle", "friend_book", "quest_book", "teleporter");
    private static final Set<String> FIXED_ITEM_IDS = Set.of(
-      "emerald_bundle", "friend_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand"
+      "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand"
    );
    private static final int MAX_JUMP_PAD_POWER = 100;
    private final NamespacedKey mifronItemKey;
@@ -49,6 +49,7 @@ final class UtilityItemsFeature implements Listener {
          )
       );
       this.updateOrGiveMifronItem(player, "friend_book", this.createStatusBook());
+      this.updateOrGiveMifronItem(player, "quest_book", this.createQuestBook());
       this.updateOrGiveMifronItem(
          player,
          "teleporter",
@@ -292,6 +293,15 @@ final class UtilityItemsFeature implements Listener {
          "friend_book",
          ChatColor.GOLD + "ステータス",
          List.of(ChatColor.GRAY + "右クリック: ステータス UI")
+      );
+   }
+
+   private ItemStack createQuestBook() {
+      return this.createMifronItem(
+         Material.KNOWLEDGE_BOOK,
+         "quest_book",
+         ChatColor.AQUA + "クエスト",
+         List.of(ChatColor.GRAY + "右クリック: クエスト UI")
       );
    }
 

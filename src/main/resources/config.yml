@@ -195,6 +195,10 @@ advancement-rewards:
     emeralds: 100
     bonus-percent: 5
 
+mob-kill-rewards:
+  first-kill-bonus-multiplier: 5.0
+  first-kill-bonus-minimum: 25
+
 quests:
   reward:
     apply-reincarnation-bonus: true
