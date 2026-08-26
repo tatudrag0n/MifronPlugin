@@ -244,9 +244,12 @@ final class AdvancedAnvilFeature implements Listener {
          // Use the left input as the authoritative level. Paper may expose a
          // vanilla result that has already capped or omitted an over-level
          // enchantment before PrepareAnvilEvent reaches this listener.
+         // The left input is the source of truth. The vanilla result may
+         // already contain the right-hand book's level (for example, an
+         // unenchanted sword + Sharpness V book), so reading the result here
+         // would incorrectly turn V into VI on the first application.
          int existingLevel = this.enchantmentLevel(left, enchantment);
          if (meta instanceof EnchantmentStorageMeta stored) {
-            existingLevel = Math.max(existingLevel, stored.getStoredEnchantLevel(enchantment));
             int directLevel = stored.getEnchantLevel(enchantment);
             if (directLevel > 0) {
                // Older versions of this feature accidentally wrote a normal
@@ -256,8 +259,6 @@ final class AdvancedAnvilFeature implements Listener {
                stored.removeEnchant(enchantment);
                normalizedBookEnchantments = true;
             }
-         } else {
-            existingLevel = meta.getEnchantLevel(enchantment);
          }
          int mergedLevel = existingLevel == incomingLevel
             ? existingLevel + 1
@@ -304,9 +305,13 @@ final class AdvancedAnvilFeature implements Listener {
          return 0;
       }
       ItemMeta meta = item.getItemMeta();
-      return meta instanceof EnchantmentStorageMeta stored
-         ? stored.getStoredEnchantLevel(enchantment)
-         : meta.getEnchantLevel(enchantment);
+      if (meta instanceof EnchantmentStorageMeta stored) {
+         // Include the direct form only for compatibility with books created
+         // by the earlier buggy implementation. New books use stored
+         // enchantments exclusively.
+         return Math.max(stored.getStoredEnchantLevel(enchantment), stored.getEnchantLevel(enchantment));
+      }
+      return meta.getEnchantLevel(enchantment);
    }
 
    private void applyRepairPenalty(ItemStack result, ItemStack left, ItemStack right) {
