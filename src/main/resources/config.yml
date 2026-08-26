@@ -3,6 +3,32 @@ survival-safety:
   disable-tnt: true
   disable-lava: true
   allow-admin-bypass: true
+
+# Survival-only advanced anvil combining. The vanilla prior-work penalty and
+# XP cost progression are retained; maximum-level-cost only removes the
+# vanilla 40-level "Too Expensive!" ceiling for this feature.
+advanced-enchanting:
+  enabled: true
+  allowed-worlds:
+    - survival
+  max-enchantment-level: 20
+  maximum-level-cost: 1000000
+  mp-cost-per-level: 1
+  # Empty means all materials (except excluded Mifron items) are eligible.
+  allowed-materials: []
+  blocked-materials: []
+  blocked-enchantments: []
+  excluded-item-ids:
+    - emerald_bundle
+    - friend_book
+    - quest_book
+    - teleporter
+    - shelf_shop_wand
+    - shop_wand
+    - slot_wand
+    - server_wand
+    - jump_pad_wand
+    - hub_compass
 # Legacy fallback for minoru-bridge.secret. New deployments should set the
 # dedicated Minoru secret in the server-side config instead.
 serverSecret: "change-this"

@@ -278,6 +278,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private final CompassFeature compassFeature = new CompassFeature(this);
    private final WorldRulesFeature worldRulesFeature = new WorldRulesFeature(this);
    private final UtilityItemsFeature utilityItemsFeature = new UtilityItemsFeature(this);
+   private final AdvancedAnvilFeature advancedAnvilFeature = new AdvancedAnvilFeature(this);
    private BedrockUiFeature bedrockUiFeature;
    private final TextDisplayFeature textDisplayFeature = new TextDisplayFeature(this);
    private final AuctionFeature auctionFeature = new AuctionFeature(this, this.economyPriceTable);
@@ -344,6 +345,18 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.getConfig().addDefault("advancement-rewards.multiplier", 5.0D);
       this.getConfig().addDefault("mob-kill-rewards.first-kill-bonus-multiplier", 5.0D);
       this.getConfig().addDefault("mob-kill-rewards.first-kill-bonus-minimum", 25);
+      this.getConfig().addDefault("advanced-enchanting.enabled", true);
+      this.getConfig().addDefault("advanced-enchanting.allowed-worlds", List.of("survival"));
+      this.getConfig().addDefault("advanced-enchanting.max-enchantment-level", 20);
+      this.getConfig().addDefault("advanced-enchanting.maximum-level-cost", 1000000);
+      this.getConfig().addDefault("advanced-enchanting.mp-cost-per-level", 1);
+      this.getConfig().addDefault("advanced-enchanting.allowed-materials", List.of());
+      this.getConfig().addDefault("advanced-enchanting.blocked-materials", List.of());
+      this.getConfig().addDefault("advanced-enchanting.blocked-enchantments", List.of());
+      this.getConfig().addDefault("advanced-enchanting.excluded-item-ids", List.of(
+         "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand",
+         "shop_wand", "slot_wand", "server_wand", "jump_pad_wand", "hub_compass"
+      ));
       this.getConfig().options().copyDefaults(true);
       this.saveConfig();
       this.runStartupStep("migrate barrel shop offer slots", this::migrateBarrelShopOfferSlots);
@@ -380,6 +393,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("register athletic events", () -> Bukkit.getPluginManager().registerEvents(this.athleticManager, this));
       this.runStartupStep("register compass events", () -> Bukkit.getPluginManager().registerEvents(this.compassFeature, this));
       this.runStartupStep("register utility item events", () -> Bukkit.getPluginManager().registerEvents(this.utilityItemsFeature, this));
+      this.runStartupStep("register advanced anvil events", () -> Bukkit.getPluginManager().registerEvents(this.advancedAnvilFeature, this));
       if (Bukkit.getPluginManager().getPlugin("Geyser-Spigot") != null) {
          this.bedrockUiFeature = new BedrockUiFeature(this);
          this.getLogger().info("Bedrock mobile Forms UI enabled through Geyser.");
@@ -1248,7 +1262,6 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             } else if (item != null) {
                if (this.isMifronItem(item, "emerald_bundle")) {
                   if (event.getAction().isRightClick() && event.getClickedBlock() == null) {
-                     player.sendMessage("§eウォレットはMP残高確認・ショップ操作専用です。アイテムは収納できません。");
                      event.setCancelled(true);
                      return;
                   }
