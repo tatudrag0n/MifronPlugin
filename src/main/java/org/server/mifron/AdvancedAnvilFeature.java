@@ -42,7 +42,6 @@ final class AdvancedAnvilFeature implements Listener {
    );
    private final Mifron plugin;
    private final NamespacedKey currentItemKey;
-   private final NamespacedKey legacyItemKey;
    private final NamespacedKey currentFfaItemKey;
    private final NamespacedKey legacyFfaItemKey;
    private final NamespacedKey currentFieldItemKey;
@@ -52,7 +51,6 @@ final class AdvancedAnvilFeature implements Listener {
    AdvancedAnvilFeature(Mifron plugin) {
       this.plugin = plugin;
       this.currentItemKey = new NamespacedKey(plugin, "item");
-      this.legacyItemKey = new NamespacedKey("minerva", "item");
       this.currentFfaItemKey = new NamespacedKey(plugin, "ffa_item");
       this.legacyFfaItemKey = new NamespacedKey("minerva", "ffa_item");
       this.currentFieldItemKey = new NamespacedKey(plugin, "ffa_field_item");
@@ -290,8 +288,14 @@ final class AdvancedAnvilFeature implements Listener {
       PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
       String id = MifronPdc.get(container, this.currentItemKey, org.bukkit.persistence.PersistentDataType.STRING);
       if (id != null) {
-         Set<String> configured = Set.copyOf(this.plugin.getConfig().getStringList("advanced-enchanting.excluded-item-ids"));
-         if (configured.contains(id) || DEFAULT_EXCLUDED_IDS.contains(id)) {
+         Set<String> configured = new java.util.HashSet<>();
+         for (String configuredId : this.plugin.getConfig().getStringList("advanced-enchanting.excluded-item-ids")) {
+            if (configuredId != null && !configuredId.isBlank()) {
+               configured.add(configuredId.trim().toLowerCase(Locale.ROOT));
+            }
+         }
+         String normalizedId = id.toLowerCase(Locale.ROOT);
+         if (configured.contains(normalizedId) || DEFAULT_EXCLUDED_IDS.contains(normalizedId)) {
             return true;
          }
       }
@@ -306,7 +310,8 @@ final class AdvancedAnvilFeature implements Listener {
          if ("mifron".equals(namespace) || "minerva".equals(namespace)) {
             String keyName = key.getKey().toLowerCase(Locale.ROOT);
             if (keyName.startsWith("ui_") || keyName.contains("shop") || keyName.contains("wand")
-               || keyName.contains("merchant") || keyName.contains("athletic") || keyName.contains("ffa_")) {
+               || keyName.contains("merchant") || keyName.contains("athletic") || keyName.contains("ffa_")
+               || keyName.contains("offer") || keyName.contains("reincarnation") || "item".equals(keyName)) {
                return true;
             }
          }
