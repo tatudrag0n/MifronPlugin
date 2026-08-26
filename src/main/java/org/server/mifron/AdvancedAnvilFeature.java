@@ -92,7 +92,7 @@ final class AdvancedAnvilFeature implements Listener {
 
       ItemStack vanillaResult = event.getResult();
       ItemStack result = vanillaResult == null ? left.clone() : vanillaResult.clone();
-      int changed = this.mergeEnchantments(result, incoming);
+      int changed = this.mergeEnchantments(result, left, incoming);
       if (changed == 0) {
          return;
       }
@@ -225,7 +225,7 @@ final class AdvancedAnvilFeature implements Listener {
       return false;
    }
 
-   private int mergeEnchantments(ItemStack result, Map<Enchantment, Integer> incoming) {
+   private int mergeEnchantments(ItemStack result, ItemStack left, Map<Enchantment, Integer> incoming) {
       ItemMeta meta = result.getItemMeta();
       if (meta == null) {
          return 0;
@@ -241,9 +241,12 @@ final class AdvancedAnvilFeature implements Listener {
          }
 
          int incomingLevel = Math.max(1, Math.min(maxLevel, entry.getValue()));
-         int existingLevel;
+         // Use the left input as the authoritative level. Paper may expose a
+         // vanilla result that has already capped or omitted an over-level
+         // enchantment before PrepareAnvilEvent reaches this listener.
+         int existingLevel = this.enchantmentLevel(left, enchantment);
          if (meta instanceof EnchantmentStorageMeta stored) {
-            existingLevel = stored.getStoredEnchantLevel(enchantment);
+            existingLevel = Math.max(existingLevel, stored.getStoredEnchantLevel(enchantment));
             int directLevel = stored.getEnchantLevel(enchantment);
             if (directLevel > 0) {
                // Older versions of this feature accidentally wrote a normal
