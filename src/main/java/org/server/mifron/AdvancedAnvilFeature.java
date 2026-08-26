@@ -232,6 +232,7 @@ final class AdvancedAnvilFeature implements Listener {
       }
 
       int changed = 0;
+      boolean normalizedBookEnchantments = false;
       int maxLevel = this.maximumEnchantmentLevel();
       for (Map.Entry<Enchantment, Integer> entry : incoming.entrySet()) {
          Enchantment enchantment = entry.getKey();
@@ -240,7 +241,21 @@ final class AdvancedAnvilFeature implements Listener {
          }
 
          int incomingLevel = Math.max(1, Math.min(maxLevel, entry.getValue()));
-         int existingLevel = meta.getEnchantLevel(enchantment);
+         int existingLevel;
+         if (meta instanceof EnchantmentStorageMeta stored) {
+            existingLevel = stored.getStoredEnchantLevel(enchantment);
+            int directLevel = stored.getEnchantLevel(enchantment);
+            if (directLevel > 0) {
+               // Older versions of this feature accidentally wrote a normal
+               // enchantment onto books. Merge it into the stored form so the
+               // tooltip never shows the same enchantment twice.
+               existingLevel = Math.max(existingLevel, directLevel);
+               stored.removeEnchant(enchantment);
+               normalizedBookEnchantments = true;
+            }
+         } else {
+            existingLevel = meta.getEnchantLevel(enchantment);
+         }
          int mergedLevel = existingLevel == incomingLevel
             ? existingLevel + 1
             : Math.max(existingLevel, incomingLevel);
@@ -249,11 +264,15 @@ final class AdvancedAnvilFeature implements Listener {
             continue;
          }
 
-         meta.addEnchant(enchantment, mergedLevel, true);
+         if (meta instanceof EnchantmentStorageMeta stored) {
+            stored.addStoredEnchant(enchantment, mergedLevel, true);
+         } else {
+            meta.addEnchant(enchantment, mergedLevel, true);
+         }
          changed++;
       }
 
-      if (changed > 0) {
+      if (changed > 0 || normalizedBookEnchantments) {
          result.setItemMeta(meta);
       }
       return changed;
@@ -267,11 +286,24 @@ final class AdvancedAnvilFeature implements Listener {
          if (this.isBlockedEnchantment(entry.getKey())) {
             continue;
          }
-         int before = left.getItemMeta() == null ? 0 : left.getItemMeta().getEnchantLevel(entry.getKey());
+         int before = this.enchantmentLevel(left, entry.getKey());
          int after = resultMeta == null ? entry.getValue() : resultMeta.getEnchantLevel(entry.getKey());
+         if (resultMeta instanceof EnchantmentStorageMeta stored) {
+            after = stored.getStoredEnchantLevel(entry.getKey());
+         }
          cost += Math.max(1, after - before);
       }
       return (int)Math.min(Integer.MAX_VALUE, cost);
+   }
+
+   private int enchantmentLevel(ItemStack item, Enchantment enchantment) {
+      if (this.isEmpty(item) || !item.hasItemMeta()) {
+         return 0;
+      }
+      ItemMeta meta = item.getItemMeta();
+      return meta instanceof EnchantmentStorageMeta stored
+         ? stored.getStoredEnchantLevel(enchantment)
+         : meta.getEnchantLevel(enchantment);
    }
 
    private void applyRepairPenalty(ItemStack result, ItemStack left, ItemStack right) {
