@@ -27,6 +27,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.Repairable;
+import org.bukkit.inventory.view.AnvilView;
 import org.bukkit.persistence.PersistentDataContainer;
 
 /**
@@ -66,7 +67,7 @@ final class AdvancedAnvilFeature implements Listener {
       if (!(viewer instanceof Player player) || !this.isFeatureAllowed(player.getWorld())) {
          return;
       }
-      this.configureMaximumRepairCost(inventory);
+      this.configureMaximumRepairCost(event.getView());
 
       ItemStack left = inventory.getItem(0);
       ItemStack right = inventory.getItem(1);
@@ -96,11 +97,11 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
-      int vanillaCost = Math.max(0, inventory.getRepairCost());
+      int vanillaCost = Math.max(0, event.getView().getRepairCost());
       int cost = Math.max(vanillaCost, this.fallbackCost(left, right, incoming, result));
       cost = Math.min(cost, this.maximumRepairCost());
-      inventory.setRepairCost(cost);
-      inventory.setMaximumRepairCost(this.maximumRepairCost());
+      event.getView().setRepairCost(cost);
+      this.configureMaximumRepairCost(event.getView());
       if (vanillaResult == null) {
          this.applyRepairPenalty(result, left, right);
       }
@@ -167,8 +168,8 @@ final class AdvancedAnvilFeature implements Listener {
       });
    }
 
-   private void configureMaximumRepairCost(AnvilInventory inventory) {
-      inventory.setMaximumRepairCost(this.maximumRepairCost());
+   private void configureMaximumRepairCost(AnvilView view) {
+      view.setMaximumRepairCost(this.maximumRepairCost());
    }
 
    private boolean isFeatureAllowed(World world) {
