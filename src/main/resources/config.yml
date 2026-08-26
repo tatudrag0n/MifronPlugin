@@ -13,6 +13,8 @@ advanced-enchanting:
     - survival
   max-enchantment-level: 20
   maximum-level-cost: 1000000
+  # When the result exceeds a vanilla enchantment maximum, XP is 0 and the
+  # calculated anvil cost is charged as MP multiplied by this value.
   mp-cost-per-level: 1
   # Empty means all materials (except excluded Mifron items) are eligible.
   allowed-materials: []

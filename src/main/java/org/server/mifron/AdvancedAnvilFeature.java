@@ -98,15 +98,18 @@ final class AdvancedAnvilFeature implements Listener {
       }
 
       int vanillaCost = Math.max(0, event.getView().getRepairCost());
-      int cost = Math.max(vanillaCost, this.fallbackCost(left, right, incoming, result));
-      cost = Math.min(cost, this.maximumRepairCost());
-      event.getView().setRepairCost(cost);
+      int totalCost = Math.max(vanillaCost, this.fallbackCost(left, right, incoming, result));
+      totalCost = Math.min(totalCost, this.maximumRepairCost());
+      boolean exceedsVanillaLevel = this.hasEnchantmentAboveVanillaMaximum(result);
+      int xpCost = exceedsVanillaLevel ? 0 : totalCost;
+      int mpCost = exceedsVanillaLevel ? this.mpCost(totalCost) : 0;
+      event.getView().setRepairCost(xpCost);
       this.configureMaximumRepairCost(event.getView());
       if (vanillaResult == null) {
          this.applyRepairPenalty(result, left, right);
       }
       event.setResult(result);
-      this.pendingResults.put(inventory, new PendingResult(result.clone(), cost, this.mpCost(cost)));
+      this.pendingResults.put(inventory, new PendingResult(result.clone(), xpCost, mpCost));
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -199,6 +202,27 @@ final class AdvancedAnvilFeature implements Listener {
       int perLevel = Math.max(0, this.plugin.getConfig().getInt("advanced-enchanting.mp-cost-per-level", 1));
       long result = (long)Math.max(0, xpCost) * perLevel;
       return (int)Math.min(2000000000L, result);
+   }
+
+   private boolean hasEnchantmentAboveVanillaMaximum(ItemStack item) {
+      if (this.isEmpty(item) || !item.hasItemMeta()) {
+         return false;
+      }
+
+      ItemMeta meta = item.getItemMeta();
+      for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
+         if (entry.getValue() > entry.getKey().getMaxLevel()) {
+            return true;
+         }
+      }
+      if (meta instanceof EnchantmentStorageMeta stored) {
+         for (Map.Entry<Enchantment, Integer> entry : stored.getStoredEnchants().entrySet()) {
+            if (entry.getValue() > entry.getKey().getMaxLevel()) {
+               return true;
+            }
+         }
+      }
+      return false;
    }
 
    private int mergeEnchantments(ItemStack result, Map<Enchantment, Integer> incoming) {
