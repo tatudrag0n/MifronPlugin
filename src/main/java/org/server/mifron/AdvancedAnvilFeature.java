@@ -1,6 +1,8 @@
 package org.server.mifron;
 
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +25,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -47,6 +50,9 @@ final class AdvancedAnvilFeature implements Listener {
    private final NamespacedKey legacyFfaItemKey;
    private final NamespacedKey currentFieldItemKey;
    private final NamespacedKey legacyFieldItemKey;
+   private final NamespacedKey advancedEnchantDisplayKey;
+   private final NamespacedKey advancedEnchantLoreCountKey;
+   private final NamespacedKey advancedCostDisplayKey;
    private final Map<Inventory, PendingResult> pendingResults = new WeakHashMap<>();
 
    AdvancedAnvilFeature(Mifron plugin) {
@@ -56,6 +62,9 @@ final class AdvancedAnvilFeature implements Listener {
       this.legacyFfaItemKey = new NamespacedKey("minerva", "ffa_item");
       this.currentFieldItemKey = new NamespacedKey(plugin, "ffa_field_item");
       this.legacyFieldItemKey = new NamespacedKey("minerva", "ffa_field_item");
+      this.advancedEnchantDisplayKey = new NamespacedKey(plugin, "advanced_enchant_display");
+      this.advancedEnchantLoreCountKey = new NamespacedKey(plugin, "advanced_enchant_lore_count");
+      this.advancedCostDisplayKey = new NamespacedKey(plugin, "advanced_anvil_cost_display");
    }
 
    @EventHandler(priority = EventPriority.HIGHEST)
@@ -108,6 +117,7 @@ final class AdvancedAnvilFeature implements Listener {
       if (vanillaResult == null) {
          this.applyRepairPenalty(result, left, right);
       }
+      this.applyAnvilDisplay(result, xpCost, mpCost);
       event.setResult(result);
       this.pendingResults.put(inventory, new PendingResult(result.clone(), xpCost, mpCost));
    }
@@ -167,8 +177,108 @@ final class AdvancedAnvilFeature implements Listener {
                this.plugin.depositEmeralds(player.getUniqueId(), pending.mpCost());
             }
             player.sendMessage(Component.text("合成が完了しなかったため、MPを返却しました。", NamedTextColor.YELLOW));
+            return;
          }
+         this.removeTransientCostDisplay(cursor);
       });
+   }
+
+   /**
+    * Displays costs in the result tooltip. Vanilla only exposes an XP cost in
+    * the anvil UI, so the MP part is deliberately shown as item lore and is
+    * removed after the item is successfully taken from the anvil.
+    */
+   private void applyAnvilDisplay(ItemStack result, int xpCost, int mpCost) {
+      ItemMeta meta = result.getItemMeta();
+      if (meta == null) {
+         return;
+      }
+
+      List<Component> lore = new ArrayList<>();
+      if (meta.lore() != null) {
+         lore.addAll(meta.lore());
+      }
+      this.removeTransientCostLore(meta, lore);
+      this.removeGeneratedEnchantLore(meta, lore);
+
+      int generatedEnchantLines = 0;
+      if (this.hasEnchantmentAboveVanillaMaximum(result)) {
+         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+         for (Map.Entry<Enchantment, Integer> entry : this.enchantments(result).entrySet()) {
+            lore.add(this.enchantmentDisplay(entry.getKey(), entry.getValue()));
+            generatedEnchantLines++;
+         }
+         meta.getPersistentDataContainer().set(this.advancedEnchantDisplayKey,
+            org.bukkit.persistence.PersistentDataType.BYTE, (byte)1);
+         meta.getPersistentDataContainer().set(this.advancedEnchantLoreCountKey,
+            org.bukkit.persistence.PersistentDataType.INTEGER, generatedEnchantLines);
+      }
+
+      lore.add(Component.text("必要XP: " + xpCost + " / 必要MP: " + mpCost));
+      meta.getPersistentDataContainer().set(this.advancedCostDisplayKey,
+         org.bukkit.persistence.PersistentDataType.BYTE, (byte)1);
+      meta.lore(lore);
+      result.setItemMeta(meta);
+   }
+
+   private Component enchantmentDisplay(Enchantment enchantment, int level) {
+      String key = enchantment.getKey().getKey().toLowerCase(Locale.ROOT);
+      return Component.translatable("enchantment.minecraft." + key)
+         .append(Component.text(" " + this.toRoman(level)));
+   }
+
+   private String toRoman(int level) {
+      int remaining = Math.max(1, level);
+      int[] values = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+      String[] numerals = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
+      StringBuilder roman = new StringBuilder();
+      for (int index = 0; index < values.length; index++) {
+         while (remaining >= values[index]) {
+            roman.append(numerals[index]);
+            remaining -= values[index];
+         }
+      }
+      return roman.toString();
+   }
+
+   private void removeGeneratedEnchantLore(ItemMeta meta, List<Component> lore) {
+      Integer count = meta.getPersistentDataContainer().get(this.advancedEnchantLoreCountKey,
+         org.bukkit.persistence.PersistentDataType.INTEGER);
+      if (count != null) {
+         for (int index = 0; index < count && !lore.isEmpty(); index++) {
+            lore.remove(lore.size() - 1);
+         }
+         meta.getPersistentDataContainer().remove(this.advancedEnchantLoreCountKey);
+         meta.getPersistentDataContainer().remove(this.advancedEnchantDisplayKey);
+      }
+   }
+
+   private void removeTransientCostLore(ItemMeta meta, List<Component> lore) {
+      Byte marker = meta.getPersistentDataContainer().get(this.advancedCostDisplayKey,
+         org.bukkit.persistence.PersistentDataType.BYTE);
+      if (marker != null && marker != 0 && !lore.isEmpty()) {
+         lore.remove(lore.size() - 1);
+         meta.getPersistentDataContainer().remove(this.advancedCostDisplayKey);
+      }
+   }
+
+   private void removeTransientCostDisplay(ItemStack item) {
+      if (this.isEmpty(item) || !item.hasItemMeta()) {
+         return;
+      }
+      ItemMeta meta = item.getItemMeta();
+      Byte marker = meta.getPersistentDataContainer().get(this.advancedCostDisplayKey,
+         org.bukkit.persistence.PersistentDataType.BYTE);
+      if (marker == null || marker == 0) {
+         return;
+      }
+      List<Component> lore = meta.lore() == null ? new ArrayList<>() : new ArrayList<>(meta.lore());
+      if (!lore.isEmpty()) {
+         lore.remove(lore.size() - 1);
+      }
+      meta.getPersistentDataContainer().remove(this.advancedCostDisplayKey);
+      meta.lore(lore);
+      item.setItemMeta(meta);
    }
 
    private void configureMaximumRepairCost(AnvilView view) {
