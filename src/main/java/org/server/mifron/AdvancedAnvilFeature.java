@@ -1,6 +1,7 @@
 package org.server.mifron;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -101,6 +102,11 @@ final class AdvancedAnvilFeature implements Listener {
 
       ItemStack vanillaResult = event.getResult();
       ItemStack result = vanillaResult == null ? left.clone() : vanillaResult.clone();
+      // Paper may already have copied/capped the right-hand enchantments into
+      // its vanilla result. Start from the left input's exact enchantments so
+      // that a book is never left with both a direct and a stored copy of the
+      // same enchantment (which was the source of duplicate tooltip lines).
+      this.resetResultEnchantments(result, left);
       int changed = this.mergeEnchantments(result, left, incoming);
       if (changed == 0) {
          return;
@@ -204,6 +210,9 @@ final class AdvancedAnvilFeature implements Listener {
       int generatedEnchantLines = 0;
       if (this.hasEnchantmentAboveVanillaMaximum(result)) {
          meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+         if (meta instanceof EnchantmentStorageMeta) {
+            meta.addItemFlags(ItemFlag.HIDE_STORED_ENCHANTS);
+         }
          for (Map.Entry<Enchantment, Integer> entry : this.enchantments(result).entrySet()) {
             lore.add(this.enchantmentDisplay(entry.getKey(), entry.getValue()));
             generatedEnchantLines++;
@@ -342,7 +351,6 @@ final class AdvancedAnvilFeature implements Listener {
       }
 
       int changed = 0;
-      boolean normalizedBookEnchantments = false;
       int maxLevel = this.maximumEnchantmentLevel();
       for (Map.Entry<Enchantment, Integer> entry : incoming.entrySet()) {
          Enchantment enchantment = entry.getKey();
@@ -351,25 +359,11 @@ final class AdvancedAnvilFeature implements Listener {
          }
 
          int incomingLevel = Math.max(1, Math.min(maxLevel, entry.getValue()));
-         // Use the left input as the authoritative level. Paper may expose a
-         // vanilla result that has already capped or omitted an over-level
-         // enchantment before PrepareAnvilEvent reaches this listener.
-         // The left input is the source of truth. The vanilla result may
-         // already contain the right-hand book's level (for example, an
-         // unenchanted sword + Sharpness V book), so reading the result here
-         // would incorrectly turn V into VI on the first application.
+         // The left input is authoritative. The result was normalized above,
+         // because the vanilla result may already contain the right-hand
+         // book's enchantment and would otherwise cause duplicate entries or
+         // an incorrect first upgrade.
          int existingLevel = this.enchantmentLevel(left, enchantment);
-         if (meta instanceof EnchantmentStorageMeta stored) {
-            int directLevel = stored.getEnchantLevel(enchantment);
-            if (directLevel > 0) {
-               // Older versions of this feature accidentally wrote a normal
-               // enchantment onto books. Merge it into the stored form so the
-               // tooltip never shows the same enchantment twice.
-               existingLevel = Math.max(existingLevel, directLevel);
-               stored.removeEnchant(enchantment);
-               normalizedBookEnchantments = true;
-            }
-         }
          int mergedLevel = existingLevel == incomingLevel
             ? existingLevel + 1
             : Math.max(existingLevel, incomingLevel);
@@ -386,10 +380,37 @@ final class AdvancedAnvilFeature implements Listener {
          changed++;
       }
 
-      if (changed > 0 || normalizedBookEnchantments) {
+      if (changed > 0) {
          result.setItemMeta(meta);
       }
       return changed;
+   }
+
+   private void resetResultEnchantments(ItemStack result, ItemStack left) {
+      ItemMeta meta = result.getItemMeta();
+      if (meta == null) {
+         return;
+      }
+
+      for (Enchantment enchantment : new HashSet<>(meta.getEnchants().keySet())) {
+         meta.removeEnchant(enchantment);
+      }
+      if (meta instanceof EnchantmentStorageMeta stored) {
+         for (Enchantment enchantment : new HashSet<>(stored.getStoredEnchants().keySet())) {
+            stored.removeStoredEnchant(enchantment);
+         }
+      }
+
+      int maxLevel = this.maximumEnchantmentLevel();
+      for (Map.Entry<Enchantment, Integer> entry : this.enchantments(left).entrySet()) {
+         int level = Math.max(1, Math.min(maxLevel, entry.getValue()));
+         if (meta instanceof EnchantmentStorageMeta stored) {
+            stored.addStoredEnchant(entry.getKey(), level, true);
+         } else {
+            meta.addEnchant(entry.getKey(), level, true);
+         }
+      }
+      result.setItemMeta(meta);
    }
 
    private int fallbackCost(ItemStack left, ItemStack right, Map<Enchantment, Integer> incoming, ItemStack result) {
