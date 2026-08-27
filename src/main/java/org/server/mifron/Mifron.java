@@ -94,6 +94,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -497,6 +498,19 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
    }
 
+   @EventHandler
+   public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
+      Player player = event.getPlayer();
+      String worldName = player.getWorld().getName();
+      String survivalWorld = this.getConfig().getString("servers.survival.world", "survival");
+      String minigameWorld = this.getConfig().getString("servers.minigame.world", "minigame");
+      if (worldName.equalsIgnoreCase(survivalWorld) || worldName.equalsIgnoreCase("survival")) {
+         this.trackAnalytics(player, "survival_join", "survival:" + player.getUniqueId() + ":" + LocalDate.now());
+      } else if (worldName.equalsIgnoreCase(minigameWorld) || worldName.equalsIgnoreCase("minigame")) {
+         this.trackAnalytics(player, "minigame_join", "minigame:" + player.getUniqueId() + ":" + LocalDate.now());
+      }
+   }
+
    private void scheduleAutoShutdown() {
       int delay = Math.max(1, this.getConfig().getInt("auto-shutdown.delay-seconds", 600));
       synchronized (this.shutdownLock) {
@@ -831,6 +845,16 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    void trackAnalytics(Player player, String eventName, String dedupeKey) {
       if (player == null) return;
       this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey);
+   }
+
+   private void trackFirstAction(Player player) {
+      ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
+      if (section.getBoolean("analytics.first-action-recorded", false)) {
+         return;
+      }
+      section.set("analytics.first-action-recorded", true);
+      this.trackAnalytics(player, "first_action", "first-action:" + player.getUniqueId());
+      this.queueDataSave();
    }
 
    void saveData() {
@@ -1203,6 +1227,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       ItemStack item = event.getItem();
       if (event.getHand() == null || event.getHand() == EquipmentSlot.HAND || this.serverPortalFeature.isServerWand(item)) {
          Player player = event.getPlayer();
+         this.trackFirstAction(player);
          if (!this.compassFeature.handleCompassClick(event)) {
             if (this.isShopWand(item)) {
                this.handleShopWandClick(event);
@@ -6273,6 +6298,13 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          int added = Math.min(amount, 2000000000);
          section.set("emeralds", this.safeAdd(section.getInt("emeralds", 0), added));
          section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), added));
+         if (!section.getBoolean("analytics.first-reward-recorded", false)) {
+            section.set("analytics.first-reward-recorded", true);
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+               this.trackAnalytics(player, "first_reward", "first-reward:" + uuid);
+            }
+         }
          if (persist) {
             this.queueDataSave();
          }

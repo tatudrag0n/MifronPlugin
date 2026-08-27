@@ -372,7 +372,6 @@ final class FfaManager {
 
    void join(Player player, FfaKit kit) {
       kit = this.sanitizeKit(kit);
-      this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
       FfaKit selectedKit = kit;
       if (!this.config.enabled()) {
          player.sendMessage("§cFFAは現在無効です。");
@@ -390,6 +389,7 @@ final class FfaManager {
             this.prepareForFight(player, selectedKit);
             this.updateScoreboard(player);
             player.teleport(arena);
+            this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
             player.sendMessage("§aFFAに参加しました。キット: §f" + this.stripColor(selectedKit.displayName(this.config)));
             player.playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 0.8F, 1.2F);
          }
