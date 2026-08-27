@@ -101,11 +101,17 @@ final class AdvancedAnvilFeature implements Listener {
       }
 
       ItemStack vanillaResult = event.getResult();
-      ItemStack result = vanillaResult == null ? left.clone() : vanillaResult.clone();
-      // Paper may already have copied/capped the right-hand enchantments into
-      // its vanilla result. Start from the left input's exact enchantments so
-      // that a book is never left with both a direct and a stored copy of the
-      // same enchantment (which was the source of duplicate tooltip lines).
+      // Do not use the vanilla result as the data source. Paper can copy the
+      // right-hand book into that result before this listener runs, and a
+      // high-level/legacy book can then retain both direct and stored forms of
+      // one enchantment. Rebuild from the left input so every merge has one
+      // deterministic representation.
+      ItemStack result = left.clone();
+      if (this.isBookInput(left) && this.isBookInput(right)) {
+         // A plain BOOK has a regular ItemMeta. Normalize book+book merges to
+         // ENCHANTED_BOOK before writing stored enchantments.
+         result.setType(Material.ENCHANTED_BOOK);
+      }
       this.resetResultEnchantments(result, left);
       int changed = this.mergeEnchantments(result, left, incoming);
       if (changed == 0) {
@@ -213,7 +219,10 @@ final class AdvancedAnvilFeature implements Listener {
          if (meta instanceof EnchantmentStorageMeta) {
             meta.addItemFlags(ItemFlag.HIDE_STORED_ENCHANTS);
          }
-         for (Map.Entry<Enchantment, Integer> entry : this.enchantments(result).entrySet()) {
+         List<Map.Entry<Enchantment, Integer>> displayEntries = new ArrayList<>(this.enchantments(result).entrySet());
+         displayEntries.sort((first, second) -> first.getKey().getKey().toString()
+            .compareTo(second.getKey().getKey().toString()));
+         for (Map.Entry<Enchantment, Integer> entry : displayEntries) {
             lore.add(this.enchantmentDisplay(entry.getKey(), entry.getValue()));
             generatedEnchantLines++;
          }
@@ -474,6 +483,11 @@ final class AdvancedAnvilFeature implements Listener {
          result.putAll(stored.getStoredEnchants());
       }
       return result;
+   }
+
+   private boolean isBookInput(ItemStack item) {
+      return !this.isEmpty(item)
+         && (item.getType() == Material.BOOK || item.getType() == Material.ENCHANTED_BOOK);
    }
 
    private boolean isExcluded(ItemStack item) {
