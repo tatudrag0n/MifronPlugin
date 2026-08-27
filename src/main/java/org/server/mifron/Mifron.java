@@ -851,6 +851,18 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey);
    }
 
+   private void flushPendingFirstMpEvent(Player player) {
+      if (player == null) return;
+      ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
+      if (!section.getBoolean("analytics.first-mp-earned-pending", false)
+         || section.getBoolean("analytics.first-mp-earned-recorded", false)) {
+         return;
+      }
+      section.set("analytics.first-mp-earned-pending", false);
+      section.set("analytics.first-mp-earned-recorded", true);
+      this.trackAnalytics(player, "first_mp_earned", "first-mp-earned:" + player.getUniqueId());
+   }
+
    private void trackFirstAction(Player player) {
       ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
       if (section.getBoolean("analytics.first-action-recorded", false)) {
@@ -902,6 +914,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       boolean firstJoin = session.getInt("total-play-count", 0) == 1;
       this.minoruBridgeFeature.sendAnalyticsEvent(player, firstJoin ? "first_join" : "return_join", sessionId, "join:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_start", sessionId, "session-start:" + sessionId);
+      this.flushPendingFirstMpEvent(player);
       this.queueDataSave();
       this.giveInitialItems(player);
       this.applyPendingAdvancementReset(player);
@@ -6302,6 +6315,13 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          int added = Math.min(amount, 2000000000);
          section.set("emeralds", this.safeAdd(section.getInt("emeralds", 0), added));
          section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), added));
+         if (!section.getBoolean("analytics.first-mp-earned-recorded", false)) {
+            section.set("analytics.first-mp-earned-pending", true);
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+               this.flushPendingFirstMpEvent(player);
+            }
+         }
          if (!section.getBoolean("analytics.first-reward-recorded", false)) {
             section.set("analytics.first-reward-recorded", true);
             Player player = Bukkit.getPlayer(uuid);
