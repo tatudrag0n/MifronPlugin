@@ -578,7 +578,11 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       if (provider != null && provider.equalsIgnoreCase("command")) {
          String command = this.getConfig().getString("auto-shutdown.vm-stop-command", "sudo shutdown -h now");
          if (command != null && !command.isBlank()) {
-            return command.trim();
+            String normalized = command.trim().replaceAll("\\s+", " ");
+            if (!normalized.matches("(?i)(sudo )?(shutdown -h now|poweroff)")) {
+               throw new IOException("auto-shutdown.vm-stop-command is not an allowed stop command");
+            }
+            return normalized;
          } else {
             throw new IOException("auto-shutdown.vm-stop-command is empty");
          }
