@@ -183,24 +183,29 @@ final class MinoruBridgeFeature {
             String transactionId = body.getOrDefault("transactionId", "");
             if (transactionId.isBlank() || transactionId.length() > 200) { send(exchange, 400, jsonError("invalid_transaction")); return; }
             String key = hash(transactionId);
+            int requested = "/v1/mp/change".equals(path) ? number(body, "amount") : number(body, "balance");
+            Result result;
+            boolean replay;
             synchronized (this.state) {
                if (this.state.contains("transactions." + key + ".balance")) {
                   int balance = this.state.getInt("transactions." + key + ".balance");
                   int applied = this.state.getInt("transactions." + key + ".applied");
-                  send(exchange, 200, response(balance, applied, true));
-                  return;
+                  result = new Result(balance, applied);
+                  replay = true;
+               } else {
+                  // Keep the idempotency check, MP mutation, and durable record
+                  // under one lock. Without this, two concurrent retries with
+                  // the same transactionId could both change the balance.
+                  result = onMain(() -> applyMp(uuid, requested, "/v1/mp/set".equals(path)));
+                  this.state.set("transactions." + key + ".balance", result.balance);
+                  this.state.set("transactions." + key + ".applied", result.applied);
+                  this.state.set("transactions." + key + ".at", System.currentTimeMillis());
+                  trimTransactions();
+                  saveState();
+                  replay = false;
                }
             }
-            int requested = "/v1/mp/change".equals(path) ? number(body, "amount") : number(body, "balance");
-            Result result = onMain(() -> applyMp(uuid, requested, "/v1/mp/set".equals(path)));
-            synchronized (this.state) {
-               this.state.set("transactions." + key + ".balance", result.balance);
-               this.state.set("transactions." + key + ".applied", result.applied);
-               this.state.set("transactions." + key + ".at", System.currentTimeMillis());
-               trimTransactions();
-               saveState();
-            }
-            send(exchange, 200, response(result.balance, result.applied, false));
+            send(exchange, 200, response(result.balance, result.applied, replay));
             return;
          }
          send(exchange, 404, jsonError("not_found"));
