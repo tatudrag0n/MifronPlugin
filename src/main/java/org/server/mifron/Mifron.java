@@ -6243,14 +6243,14 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             last = LocalDate.parse(lastValue);
          }
 
-         int streak = last != null && last.plusDays(1L).toString().equals(today) ? section.getInt("login-streak", 0) + 1 : 1;
-         int total = section.getInt("total-logins", 0) + 1;
+         int streak = last != null && last.plusDays(1L).toString().equals(today) ? this.safeAdd(section.getInt("login-streak", 0), 1) : 1;
+         int total = this.safeAdd(section.getInt("total-logins", 0), 1);
          section.set("last-login-reward", today);
          section.set("login-streak", streak);
          section.set("total-logins", total);
          int reward = this.applyIncomeBonus(player.getUniqueId(), 10 + streak);
          if (total % 10 == 0) {
-            reward += 100 * (total / 10);
+            reward = this.safeAdd(reward, this.safeMultiply(100, total / 10));
          }
 
          this.depositEmeralds(player.getUniqueId(), reward);
@@ -6262,16 +6262,16 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private void grantPlaytimeRewards() {
       for (Player player : Bukkit.getOnlinePlayers()) {
          ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
-         int minutes = section.getInt("session-minutes", 0) + 1;
+         int minutes = this.safeAdd(section.getInt("session-minutes", 0), 1);
          section.set("session-minutes", minutes);
-         int totalMinutes = section.getInt("total-minutes", 0) + 1;
+         int totalMinutes = this.safeAdd(section.getInt("total-minutes", 0), 1);
          section.set("total-minutes", totalMinutes);
          if (minutes % 10 == 0) {
             int sessionRewards = section.getInt("session-playtime-rewards", 0);
             if (sessionRewards < 20) {
                int reward = this.applyIncomeBonus(player.getUniqueId(), 10);
                if (totalMinutes % 6000 == 0) {
-                  reward += 100 * (totalMinutes / 6000);
+                  reward = this.safeAdd(reward, this.safeMultiply(100, totalMinutes / 6000));
                }
 
                section.set("session-playtime-rewards", sessionRewards + 1);
