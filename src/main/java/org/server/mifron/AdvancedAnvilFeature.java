@@ -137,7 +137,11 @@ final class AdvancedAnvilFeature implements Listener {
     * makes the next merge appear to be stuck at the old level.
     */
    private ItemStack createNormalizedResult(ItemStack left, ItemStack right) {
-      if (!this.isBookInput(left) || !this.isBookInput(right)) {
+      // The normal anvil order is item+book, but accepting book+item as well
+      // makes the feature deterministic for both input directions. Whenever
+      // the left input is a book, the result must be an enchanted book so the
+      // merged levels are stored rather than written as direct item enchants.
+      if (!this.isBookInput(left)) {
          return left.clone();
       }
 
