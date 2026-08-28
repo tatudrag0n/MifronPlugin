@@ -911,7 +911,10 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       String sessionId = player.getUniqueId() + ":" + System.currentTimeMillis();
       session.set("analytics.session-id", sessionId);
       session.set("analytics.session-start", System.currentTimeMillis());
-      boolean firstJoin = session.getInt("total-play-count", 0) == 1;
+      // Use Bukkit's persisted first-play marker for the acquisition cohort.
+      // total-play-count is an in-game statistic and can be reset by an
+      // administrator, so it must not decide whether a player is new.
+      boolean firstJoin = !player.hasPlayedBefore();
       this.minoruBridgeFeature.sendAnalyticsEvent(player, firstJoin ? "first_join" : "return_join", sessionId, "join:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_start", sessionId, "session-start:" + sessionId);
       this.flushPendingFirstMpEvent(player);
