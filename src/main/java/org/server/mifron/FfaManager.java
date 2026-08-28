@@ -417,7 +417,7 @@ final class FfaManager {
       FfaManager.FfaSession session = this.sessions.get(killer.getUniqueId());
       if (session != null && session.kit == FfaKit.ASSASSIN) {
          String path = "players." + killer.getUniqueId() + ".ffa.assassin-kills";
-         int kills = this.plugin.data().getInt(path, 0) + 1;
+         int kills = (int)Math.min(2000000000L, (long)Math.max(0, this.plugin.data().getInt(path, 0)) + 1L);
          this.plugin.data().set(path, kills);
          this.plugin.saveData();
          if (kills % 2 == 0) {
