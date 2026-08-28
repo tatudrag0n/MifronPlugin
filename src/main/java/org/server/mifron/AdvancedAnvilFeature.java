@@ -405,19 +405,23 @@ final class AdvancedAnvilFeature implements Listener {
 
       int changed = 0;
       int maxLevel = this.maximumEnchantmentLevel();
+      Map<Enchantment, Integer> existing = this.enchantments(left);
+      Map<Enchantment, Integer> acceptedIncoming = new HashMap<>();
       for (Map.Entry<Enchantment, Integer> entry : incoming.entrySet()) {
-         Enchantment enchantment = entry.getKey();
-         if (enchantment == null || this.isBlockedEnchantment(enchantment)) {
-            continue;
+         if (entry.getKey() != null && !this.isBlockedEnchantment(entry.getKey())) {
+            acceptedIncoming.put(entry.getKey(), entry.getValue());
          }
+      }
 
-         int incomingLevel = Math.max(1, Math.min(maxLevel, entry.getValue()));
-         // The left input is authoritative. The result was normalized above,
-         // because the vanilla result may already contain the right-hand
-         // book's enchantment and would otherwise cause duplicate entries or
-         // an incorrect first upgrade.
-         int existingLevel = this.enchantmentLevel(left, enchantment);
-         int mergedLevel = AdvancedAnvilRules.combineLevel(existingLevel, incomingLevel, maxLevel);
+      // Both item+item and item+book/book+book arrive here. The normalized
+      // maps are merged once, then written to the correct metadata type. This
+      // is deliberately independent of the vanilla result, which may contain
+      // a second direct enchantment when the right input is a book.
+      Map<Enchantment, Integer> merged = AdvancedAnvilRules.mergeEnchantments(existing, acceptedIncoming, maxLevel);
+      for (Map.Entry<Enchantment, Integer> entry : merged.entrySet()) {
+         Enchantment enchantment = entry.getKey();
+         int mergedLevel = Math.max(1, Math.min(maxLevel, entry.getValue()));
+         int existingLevel = existing.getOrDefault(enchantment, 0);
          if (mergedLevel <= existingLevel) {
             continue;
          }

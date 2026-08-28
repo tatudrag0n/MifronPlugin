@@ -2,6 +2,8 @@ package org.server.mifron;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 class AdvancedAnvilRulesTest {
@@ -26,6 +28,19 @@ class AdvancedAnvilRulesTest {
       assertEquals(5, AdvancedAnvilRules.combineLevel(0, 5, 20));
       assertEquals(7, AdvancedAnvilRules.combineLevel(7, 5, 20));
       assertEquals(7, AdvancedAnvilRules.combineLevel(5, 7, 20));
+   }
+
+   @Test
+   void normalizedMergeSupportsBothItemAndBookInputShapes() {
+      Map<String, Integer> item = Map.of("sharpness", 7, "unbreaking", 3);
+      Map<String, Integer> otherItem = Map.of("sharpness", 7, "mending", 1);
+      Map<String, Integer> enchantedBook = Map.of("sharpness", 7);
+
+      assertEquals(8, AdvancedAnvilRules.mergeEnchantments(item, otherItem, 20).get("sharpness"));
+      assertEquals(8, AdvancedAnvilRules.mergeEnchantments(item, enchantedBook, 20).get("sharpness"));
+      assertEquals(8, AdvancedAnvilRules.mergeEnchantments(enchantedBook, enchantedBook, 20).get("sharpness"));
+      assertEquals(3, AdvancedAnvilRules.mergeEnchantments(item, otherItem, 20).get("unbreaking"));
+      assertEquals(1, AdvancedAnvilRules.mergeEnchantments(item, otherItem, 20).get("mending"));
    }
 
    @Test
