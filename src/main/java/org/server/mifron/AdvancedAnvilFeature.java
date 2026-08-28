@@ -145,19 +145,28 @@ final class AdvancedAnvilFeature implements Listener {
          return left.clone();
       }
 
-      // Always create the result as a real ENCHANTED_BOOK. A plain BOOK has
-      // ordinary ItemMeta; changing its type after cloning can leave ordinary
-      // metadata attached to an enchanted book on some Paper versions. In
-      // that state addEnchant() writes a direct enchantment while the vanilla
-      // tooltip reads stored enchantments, which is the source of duplicate
-      // lines and V+V appearing to stop at the old level.
+      // Always create the result as a real ENCHANTED_BOOK and require
+      // EnchantmentStorageMeta. A plain BOOK or a stale ItemMeta converted
+      // from an older build can otherwise receive a direct enchantment in
+      // addition to its stored enchantment. That produces duplicate tooltip
+      // lines and makes a later V+V merge appear to stop at the old level.
       ItemStack result = new ItemStack(Material.ENCHANTED_BOOK, left.getAmount());
+      ItemMeta converted = null;
       ItemMeta sourceMeta = left.getItemMeta();
       if (sourceMeta != null) {
-         ItemMeta converted = Bukkit.getItemFactory().asMetaFor(sourceMeta, Material.ENCHANTED_BOOK);
-         if (converted instanceof EnchantmentStorageMeta) {
-            result.setItemMeta(converted);
+         ItemMeta candidate = Bukkit.getItemFactory().asMetaFor(sourceMeta, Material.ENCHANTED_BOOK);
+         if (candidate instanceof EnchantmentStorageMeta) {
+            converted = candidate;
          }
+      }
+      if (converted == null) {
+         ItemMeta fallback = result.getItemMeta();
+         if (fallback instanceof EnchantmentStorageMeta) {
+            converted = fallback;
+         }
+      }
+      if (converted != null) {
+         result.setItemMeta(converted);
       }
       return result;
    }
@@ -454,6 +463,10 @@ final class AdvancedAnvilFeature implements Listener {
          meta.removeEnchant(enchantment);
       }
       if (meta instanceof EnchantmentStorageMeta stored) {
+         // Books must have one canonical representation. Remove stale hide
+         // flags left by the old renderer so normal-level books still show
+         // their native enchantment tooltip after a subsequent merge.
+         meta.removeItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_STORED_ENCHANTS);
          for (Enchantment enchantment : new HashSet<>(stored.getStoredEnchants().keySet())) {
             stored.removeStoredEnchant(enchantment);
          }
