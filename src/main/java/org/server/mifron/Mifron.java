@@ -3954,9 +3954,9 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       if (!section.getBoolean("all-advancements-rewarded", false)) {
          player.sendMessage("§c全進捗達成後に転生できます。");
       } else {
-         int next = section.getInt("reincarnations", 0) + 1;
+         int next = this.safeAdd(section.getInt("reincarnations", 0), 1);
          int requiredEmeralds = this.safeMultiply(10000, next);
-         int requiredLevel = Math.min(1000, 20 + Math.max(0, next) * 10);
+         int requiredLevel = Math.min(1000, this.safeAdd(20, this.safeMultiply(10, next)));
          int currentEmeralds = this.getEmeralds(player.getUniqueId());
          int currentLevel = player.getLevel();
          if (currentEmeralds >= requiredEmeralds && currentLevel >= requiredLevel) {
@@ -3969,7 +3969,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             section.set("advancement-bonus-percent", 0);
             section.set("income-bonus-percent", null);
             section.set("reincarnations", next);
-            section.set("reincarnation-bonus-percent", this.getReincarnationBonus(player.getUniqueId()) + bonus);
+            section.set("reincarnation-bonus-percent", this.safeAdd(this.getReincarnationBonus(player.getUniqueId()), bonus));
             player.setLevel(0);
             player.setExp(0.0F);
             this.saveData();
@@ -6445,7 +6445,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private void addReincarnationBonus(UUID uuid, int percent) {
       ConfigurationSection section = this.getPlayerSection(uuid);
-      section.set("reincarnation-bonus-percent", this.getReincarnationBonus(uuid) + Math.max(0, percent));
+      section.set("reincarnation-bonus-percent", this.safeAdd(this.getReincarnationBonus(uuid), percent));
       this.queueDataSave();
    }
 
