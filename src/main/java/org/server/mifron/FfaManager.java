@@ -2507,7 +2507,9 @@ final class FfaManager {
       if (session != null && session.kit == FfaKit.GAMBLER) {
          int min = this.clampReward(this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-min"), this.config.kitPath(FfaKit.GAMBLER, "em-min"), -10));
          int max = this.clampReward(this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-max"), this.config.kitPath(FfaKit.GAMBLER, "em-max"), 10));
-         gamblerDelta = ThreadLocalRandom.current().nextInt(Math.min(min, max), Math.max(min, max) + 1);
+         int lower = Math.min(min, max);
+         int upper = Math.max(min, max);
+         gamblerDelta = (int)ThreadLocalRandom.current().nextLong((long)lower, (long)upper + 1L);
          rewardValue += gamblerDelta;
       }
 
