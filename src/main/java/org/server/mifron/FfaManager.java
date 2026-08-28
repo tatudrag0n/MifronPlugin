@@ -2500,26 +2500,27 @@ final class FfaManager {
       }
 
       this.killRewardStates.put(killer.getUniqueId(), new FfaManager.KillRewardState(victim.getUniqueId(), sameTargetRepeats, now));
-      int base = Math.max(0, this.configInt("ffa.rewards.kill-mp", "ffa.rewards.kill-em", 50));
-      int reward = sameTargetRepeats >= 7 ? 0 : (int)Math.floor(base * Math.pow(0.5, sameTargetRepeats));
+      int base = Math.min(2000000000, Math.max(0, this.configInt("ffa.rewards.kill-mp", "ffa.rewards.kill-em", 50)));
+      long rewardValue = sameTargetRepeats >= 7 ? 0L : (long)Math.floor(base * Math.pow(0.5, sameTargetRepeats));
       FfaManager.FfaSession session = this.sessions.get(killer.getUniqueId());
       int gamblerDelta = 0;
       if (session != null && session.kit == FfaKit.GAMBLER) {
-         int min = this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-min"), this.config.kitPath(FfaKit.GAMBLER, "em-min"), -10);
-         int max = this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-max"), this.config.kitPath(FfaKit.GAMBLER, "em-max"), 10);
+         int min = this.clampReward(this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-min"), this.config.kitPath(FfaKit.GAMBLER, "em-min"), -10));
+         int max = this.clampReward(this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-max"), this.config.kitPath(FfaKit.GAMBLER, "em-max"), 10));
          gamblerDelta = ThreadLocalRandom.current().nextInt(Math.min(min, max), Math.max(min, max) + 1);
-         reward += gamblerDelta;
+         rewardValue += gamblerDelta;
       }
 
       boolean fever = this.plugin.data().getLong("ffa.events.mp-fever-until", this.plugin.data().getLong("ffa.events.em-fever-until", 0L)) > now;
-      if (fever && reward > 0) {
-         reward *= 2;
+      if (fever && rewardValue > 0L) {
+         rewardValue *= 2L;
       }
+      int reward = this.clampReward(rewardValue);
 
       if (reward > 0) {
          this.plugin.depositEmeralds(killer.getUniqueId(), reward);
       } else if (reward < 0) {
-         this.plugin.withdrawEmeralds(killer.getUniqueId(), Math.min(this.plugin.getEmeralds(killer.getUniqueId()), Math.abs(reward)));
+         this.plugin.withdrawEmeralds(killer.getUniqueId(), Math.min(this.plugin.getEmeralds(killer.getUniqueId()), (int)Math.min(2000000000L, -(long)reward)));
       }
 
       killer.sendActionBar(
@@ -2538,6 +2539,10 @@ final class FfaManager {
 
    private int configInt(String path, String legacyPath, int fallback) {
       return this.plugin.getConfig().contains(path) ? this.plugin.getConfig().getInt(path, fallback) : this.plugin.getConfig().getInt(legacyPath, fallback);
+   }
+
+   private int clampReward(long value) {
+      return (int)Math.max(-2000000000L, Math.min(2000000000L, value));
    }
 
    private void clearTemporaryState(Player player) {
