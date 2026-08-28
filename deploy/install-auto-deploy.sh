@@ -9,6 +9,7 @@ SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 INTERVAL="${INTERVAL:-60}"
 STATE_DIR="${STATE_DIR:-/var/lib/mifronplugin-deploy}"
 ENV_FILE="${ENV_FILE:-/etc/mifronplugin-deploy.env}"
+LOCK_FILE="${LOCK_FILE:-$STATE_DIR/repo-sync.lock}"
 
 if [ ! -d "$REPO_DIR/.git" ]; then
   echo "ERROR: Git checkout not found: $REPO_DIR" >&2
@@ -49,8 +50,13 @@ PLUGINS_DIR='$PLUGINS_DIR'
 SERVICE_NAME='$SERVICE_NAME'
 STATE_DIR='$STATE_DIR'
 ENV_FILE='$ENV_FILE'
+LOCK_FILE='$LOCK_FILE'
 
 [ -f "\$ENV_FILE" ] && . "\$ENV_FILE"
+LOCK_FILE="\${LOCK_FILE:-\$STATE_DIR/repo-sync.lock}"
+mkdir -p "\$STATE_DIR"
+exec 9>"\$LOCK_FILE"
+flock -n 9 || exit 0
 HEALTH_TIMEOUT="\${HEALTH_TIMEOUT:-120}"
 MINECRAFT_HOST="\${MINECRAFT_HOST:-127.0.0.1}"
 MINECRAFT_PORT="\${MINECRAFT_PORT:-25565}"

@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_DIR="${REPO_DIR:-$HOME/MifronPlugin}"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 INTERVAL="${INTERVAL:-60}"
+LOCK_FILE="${LOCK_FILE:-/var/lib/mifronplugin-deploy/repo-sync.lock}"
 
 APPLY_SCRIPT="$REPO_DIR/deploy/apply-server-config.sh"
 
@@ -13,6 +14,7 @@ if [ ! -f "$APPLY_SCRIPT" ]; then
 fi
 
 chmod +x "$APPLY_SCRIPT"
+sudo install -d -m 755 -o "$USER" -g "$USER" "$(dirname "$LOCK_FILE")"
 
 sudo tee /etc/systemd/system/mifron-config-sync.service >/dev/null <<EOF
 [Unit]
@@ -25,7 +27,7 @@ Type=oneshot
 User=$USER
 Environment=REPO_DIR=$REPO_DIR
 Environment=SERVICE_NAME=$SERVICE_NAME
-ExecStart=$APPLY_SCRIPT
+ExecStart=/usr/bin/flock -x $LOCK_FILE $APPLY_SCRIPT
 EOF
 
 sudo tee /etc/systemd/system/mifron-config-sync.timer >/dev/null <<EOF
