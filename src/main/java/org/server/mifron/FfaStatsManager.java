@@ -51,8 +51,8 @@ final class FfaStatsManager {
       if (player != null) {
          ConfigurationSection section = this.section(player.getUniqueId());
          section.set("name", this.safeName(player));
-         section.set("kills", section.getInt("kills", 0) + 1);
-         int streak = section.getInt("current-streak", 0) + 1;
+         section.set("kills", this.safeIncrement(section.getInt("kills", 0)));
+         int streak = this.safeIncrement(section.getInt("current-streak", 0));
          section.set("current-streak", streak);
          section.set("max-streak", Math.max(section.getInt("max-streak", 0), streak));
          this.save();
@@ -63,7 +63,7 @@ final class FfaStatsManager {
       if (player != null) {
          ConfigurationSection section = this.section(player.getUniqueId());
          section.set("name", this.safeName(player));
-         section.set("deaths", section.getInt("deaths", 0) + 1);
+         section.set("deaths", this.safeIncrement(section.getInt("deaths", 0)));
          section.set("current-streak", 0);
          this.save();
       }
@@ -114,5 +114,9 @@ final class FfaStatsManager {
 
    private String safeName(OfflinePlayer player) {
       return player.getName() == null ? player.getUniqueId().toString() : player.getName();
+   }
+
+   private int safeIncrement(int value) {
+      return (int)Math.min(2000000000L, (long)Math.max(0, value) + 1L);
    }
 }
