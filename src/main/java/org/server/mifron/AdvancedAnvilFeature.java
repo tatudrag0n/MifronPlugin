@@ -212,6 +212,13 @@ final class AdvancedAnvilFeature implements Listener {
       }
       this.removeTransientCostLore(meta, lore);
       this.removeGeneratedEnchantLore(meta, lore);
+      // Older builds rendered the enchantment tooltip as custom lore and, on
+      // enchanted books, could leave both a direct and a stored enchantment.
+      // Remove only the old translatable Minecraft lines; normal player lore
+      // is intentionally preserved.
+      if (this.isBookInput(result)) {
+         lore.removeIf(this::isLegacyMinecraftEnchantmentLore);
+      }
 
       int generatedEnchantLines = 0;
       if (this.hasEnchantmentAboveVanillaMaximum(result)) {
@@ -268,6 +275,23 @@ final class AdvancedAnvilFeature implements Listener {
          lore.remove(lore.size() - 1);
          meta.getPersistentDataContainer().remove(this.advancedCostDisplayKey);
       }
+   }
+
+   private boolean isLegacyMinecraftEnchantmentLore(Component component) {
+      if (component instanceof net.kyori.adventure.text.TranslatableComponent translatable) {
+         String key = translatable.key().toLowerCase(Locale.ROOT);
+         if (key.startsWith("enchantment.minecraft.")
+            || "minecraft:enchanted_book".equals(key)
+            || "item.minecraft.enchanted_book".equals(key)) {
+            return true;
+         }
+      }
+      for (Component child : component.children()) {
+         if (this.isLegacyMinecraftEnchantmentLore(child)) {
+            return true;
+         }
+      }
+      return false;
    }
 
    private void removeTransientCostDisplay(ItemStack item) {
@@ -464,9 +488,14 @@ final class AdvancedAnvilFeature implements Listener {
       }
 
       ItemMeta meta = item.getItemMeta();
-      Map<Enchantment, Integer> result = new HashMap<>(meta.getEnchants());
+      Map<Enchantment, Integer> result = new HashMap<>();
+      for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
+         result.merge(entry.getKey(), entry.getValue(), Math::max);
+      }
       if (meta instanceof EnchantmentStorageMeta stored) {
-         result.putAll(stored.getStoredEnchants());
+         for (Map.Entry<Enchantment, Integer> entry : stored.getStoredEnchants().entrySet()) {
+            result.merge(entry.getKey(), entry.getValue(), Math::max);
+         }
       }
       return result;
    }
