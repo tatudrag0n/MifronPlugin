@@ -242,21 +242,11 @@ final class AdvancedAnvilFeature implements Listener {
    private Component enchantmentDisplay(Enchantment enchantment, int level) {
       String key = enchantment.getKey().getKey().toLowerCase(Locale.ROOT);
       return Component.translatable("enchantment.minecraft." + key)
-         .append(Component.text(" " + this.toRoman(level)));
+         .append(Component.text(" " + AdvancedAnvilRules.toRoman(level)));
    }
 
    private String toRoman(int level) {
-      int remaining = Math.max(1, level);
-      int[] values = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
-      String[] numerals = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
-      StringBuilder roman = new StringBuilder();
-      for (int index = 0; index < values.length; index++) {
-         while (remaining >= values[index]) {
-            roman.append(numerals[index]);
-            remaining -= values[index];
-         }
-      }
-      return roman.toString();
+      return AdvancedAnvilRules.toRoman(level);
    }
 
    private void removeGeneratedEnchantLore(ItemMeta meta, List<Component> lore) {
@@ -328,8 +318,7 @@ final class AdvancedAnvilFeature implements Listener {
 
    private int mpCost(int xpCost) {
       int perLevel = Math.max(0, this.plugin.getConfig().getInt("advanced-enchanting.mp-cost-per-level", 1));
-      long result = (long)Math.max(0, xpCost) * perLevel;
-      return (int)Math.min(2000000000L, result);
+      return AdvancedAnvilRules.mpCost(xpCost, perLevel);
    }
 
    private boolean hasEnchantmentAboveVanillaMaximum(ItemStack item) {
@@ -373,10 +362,7 @@ final class AdvancedAnvilFeature implements Listener {
          // book's enchantment and would otherwise cause duplicate entries or
          // an incorrect first upgrade.
          int existingLevel = this.enchantmentLevel(left, enchantment);
-         int mergedLevel = existingLevel == incomingLevel
-            ? existingLevel + 1
-            : Math.max(existingLevel, incomingLevel);
-         mergedLevel = Math.max(1, Math.min(maxLevel, mergedLevel));
+         int mergedLevel = AdvancedAnvilRules.combineLevel(existingLevel, incomingLevel, maxLevel);
          if (mergedLevel <= existingLevel) {
             continue;
          }
