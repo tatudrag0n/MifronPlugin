@@ -224,6 +224,13 @@ final class AuctionFeature implements Listener {
          this.refundEscrow(path, null, "オークション終了に伴い、入札MPを返金しました。");
          this.plugin.data().set(path, null);
          this.notifyPlayer(owner, "入札がなかったため、オークションは終了しました。商品は額縁に残っています。");
+      } else if (owner == null) {
+         // Never complete a sale when the persisted seller identity is
+         // invalid. Otherwise a damaged legacy record could transfer the
+         // item to the winner without crediting a seller.
+         this.refundEscrow(path, null, "出品者情報を確認できなかったため、オークションを取消しました。");
+         this.plugin.data().set(path, null);
+         this.notifyPlayer(winner, "出品者情報を確認できなかったため、オークションを取消しました。入札MPは返金済みです。");
       } else if (escrow < highest || item == null || item.getType() == Material.AIR) {
          this.refundEscrow(path, null, "オークションを精算できなかったため、入札MPを返金しました。");
          this.plugin.data().set(path, null);
