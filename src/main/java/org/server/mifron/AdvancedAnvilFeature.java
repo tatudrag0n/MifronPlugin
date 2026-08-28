@@ -137,16 +137,21 @@ final class AdvancedAnvilFeature implements Listener {
     * makes the next merge appear to be stuck at the old level.
     */
    private ItemStack createNormalizedResult(ItemStack left, ItemStack right) {
-      ItemStack result = left.clone();
       if (!this.isBookInput(left) || !this.isBookInput(right)) {
-         return result;
+         return left.clone();
       }
 
+      // Always create the result as a real ENCHANTED_BOOK. A plain BOOK has
+      // ordinary ItemMeta; changing its type after cloning can leave ordinary
+      // metadata attached to an enchanted book on some Paper versions. In
+      // that state addEnchant() writes a direct enchantment while the vanilla
+      // tooltip reads stored enchantments, which is the source of duplicate
+      // lines and V+V appearing to stop at the old level.
+      ItemStack result = new ItemStack(Material.ENCHANTED_BOOK, left.getAmount());
       ItemMeta sourceMeta = left.getItemMeta();
-      result.setType(Material.ENCHANTED_BOOK);
       if (sourceMeta != null) {
          ItemMeta converted = Bukkit.getItemFactory().asMetaFor(sourceMeta, Material.ENCHANTED_BOOK);
-         if (converted != null) {
+         if (converted instanceof EnchantmentStorageMeta) {
             result.setItemMeta(converted);
          }
       }

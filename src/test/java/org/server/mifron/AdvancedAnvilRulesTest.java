@@ -15,6 +15,13 @@ class AdvancedAnvilRulesTest {
    }
 
    @Test
+   void everyConfiguredLevelCombinesToTheNextLevel() {
+      for (int level = 1; level < 20; level++) {
+         assertEquals(level + 1, AdvancedAnvilRules.combineLevel(level, level, 20));
+      }
+   }
+
+   @Test
    void unequalLevelsKeepTheHigherAndPlainItemsTakeIncomingLevel() {
       assertEquals(5, AdvancedAnvilRules.combineLevel(0, 5, 20));
       assertEquals(7, AdvancedAnvilRules.combineLevel(7, 5, 20));
