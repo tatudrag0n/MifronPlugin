@@ -8,6 +8,7 @@ class AdvancedAnvilRulesTest {
    @Test
    void equalLevelsUpgradeThroughEightAndTwenty() {
       assertEquals(6, AdvancedAnvilRules.combineLevel(5, 5, 20));
+      assertEquals(7, AdvancedAnvilRules.combineLevel(6, 6, 20));
       assertEquals(8, AdvancedAnvilRules.combineLevel(7, 7, 20));
       assertEquals(20, AdvancedAnvilRules.combineLevel(19, 19, 20));
       assertEquals(20, AdvancedAnvilRules.combineLevel(20, 20, 20));

@@ -106,12 +106,7 @@ final class AdvancedAnvilFeature implements Listener {
       // high-level/legacy book can then retain both direct and stored forms of
       // one enchantment. Rebuild from the left input so every merge has one
       // deterministic representation.
-      ItemStack result = left.clone();
-      if (this.isBookInput(left) && this.isBookInput(right)) {
-         // A plain BOOK has a regular ItemMeta. Normalize book+book merges to
-         // ENCHANTED_BOOK before writing stored enchantments.
-         result.setType(Material.ENCHANTED_BOOK);
-      }
+      ItemStack result = this.createNormalizedResult(left, right);
       this.resetResultEnchantments(result, left);
       int changed = this.mergeEnchantments(result, left, incoming);
       if (changed == 0) {
@@ -132,6 +127,30 @@ final class AdvancedAnvilFeature implements Listener {
       this.applyAnvilDisplay(result, xpCost, mpCost);
       event.setResult(result);
       this.pendingResults.put(inventory, new PendingResult(result.clone(), xpCost, mpCost));
+   }
+
+   /**
+    * Creates the result container with the correct metadata type before any
+    * enchantments are written. In particular, changing BOOK to ENCHANTED_BOOK
+    * after cloning can leave a regular ItemMeta behind on some server builds.
+    * That produces one direct and one stored copy of the same enchantment and
+    * makes the next merge appear to be stuck at the old level.
+    */
+   private ItemStack createNormalizedResult(ItemStack left, ItemStack right) {
+      ItemStack result = left.clone();
+      if (!this.isBookInput(left) || !this.isBookInput(right)) {
+         return result;
+      }
+
+      ItemMeta sourceMeta = left.getItemMeta();
+      result.setType(Material.ENCHANTED_BOOK);
+      if (sourceMeta != null) {
+         ItemMeta converted = Bukkit.getItemFactory().asMetaFor(sourceMeta, Material.ENCHANTED_BOOK);
+         if (converted != null) {
+            result.setItemMeta(converted);
+         }
+      }
+      return result;
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -278,6 +297,13 @@ final class AdvancedAnvilFeature implements Listener {
    }
 
    private boolean isLegacyMinecraftEnchantmentLore(Component component) {
+      String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+         .serialize(component).trim().toLowerCase(Locale.ROOT);
+      if (plain.startsWith("enchantment.minecraft.")
+         || "minecraft:enchanted_book".equals(plain)
+         || "item.minecraft.enchanted_book".equals(plain)) {
+         return true;
+      }
       if (component instanceof net.kyori.adventure.text.TranslatableComponent translatable) {
          String key = translatable.key().toLowerCase(Locale.ROOT);
          if (key.startsWith("enchantment.minecraft.")
