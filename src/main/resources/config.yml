@@ -4,6 +4,14 @@ survival-safety:
   disable-lava: true
   allow-admin-bypass: true
 
+# Survival's normal portals use these dimensions instead of the main world's
+# Nether and End. Names are configurable so existing worlds are not renamed.
+survival-dimensions:
+  enabled: true
+  overworld: survival
+  nether: survival_nether
+  end: survival_the_end
+
 # Survival-only advanced anvil combining. The vanilla prior-work penalty and
 # XP cost progression are retained; maximum-level-cost only removes the
 # vanilla 40-level "Too Expensive!" ceiling for this feature.

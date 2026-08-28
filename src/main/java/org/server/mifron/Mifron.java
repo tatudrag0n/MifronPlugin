@@ -276,6 +276,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private final ChunkProtectionFeature chunkProtectionFeature = new ChunkProtectionFeature(this);
    private final ProtectionService protectionService = new ProtectionService(this, this.chunkProtectionFeature);
    private final ServerPortalFeature serverPortalFeature = new ServerPortalFeature(this);
+   private final SurvivalDimensionFeature survivalDimensionFeature = new SurvivalDimensionFeature(this);
    private final CompassFeature compassFeature = new CompassFeature(this);
    private final WorldRulesFeature worldRulesFeature = new WorldRulesFeature(this);
    private final UtilityItemsFeature utilityItemsFeature = new UtilityItemsFeature(this);
@@ -354,6 +355,10 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.getConfig().addDefault("advanced-enchanting.allowed-materials", List.of());
       this.getConfig().addDefault("advanced-enchanting.blocked-materials", List.of());
       this.getConfig().addDefault("advanced-enchanting.blocked-enchantments", List.of());
+      this.getConfig().addDefault("survival-dimensions.enabled", true);
+      this.getConfig().addDefault("survival-dimensions.overworld", "survival");
+      this.getConfig().addDefault("survival-dimensions.nether", "survival_nether");
+      this.getConfig().addDefault("survival-dimensions.end", "survival_the_end");
       this.getConfig().addDefault("advanced-enchanting.excluded-item-ids", List.of(
          "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand",
          "shop_wand", "slot_wand", "server_wand", "jump_pad_wand", "hub_compass"
@@ -371,6 +376,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("apply economy price table", this::applyEconomyPriceTable);
       this.runStartupStep("cache shelf shop catalog", this::rebuildShelfShopCatalog);
       this.loadData();
+      this.runStartupStep("ensure Survival dimensions", this.survivalDimensionFeature::ensureWorlds);
       this.runStartupStep("load build worlds", this.buildWorldManager::load);
       this.runStartupStep("start Minoru bridge API", this.minoruBridgeFeature::start);
       this.runStartupStep("sync shelf shop displays", this::syncShelfShopDisplays);
@@ -390,6 +396,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.runStartupStep("register FFA events", () -> Bukkit.getPluginManager().registerEvents(this.ffaListener, this));
       this.runStartupStep("register text display events", () -> Bukkit.getPluginManager().registerEvents(this.textDisplayFeature, this));
       this.runStartupStep("register server portal events", () -> Bukkit.getPluginManager().registerEvents(this.serverPortalFeature, this));
+      this.runStartupStep("register Survival dimension portal events", () -> Bukkit.getPluginManager().registerEvents(this.survivalDimensionFeature, this));
       this.runStartupStep("register slot machine events", () -> Bukkit.getPluginManager().registerEvents(this.slotMachineManager, this));
       this.runStartupStep("register athletic events", () -> Bukkit.getPluginManager().registerEvents(this.athleticManager, this));
       this.runStartupStep("register compass events", () -> Bukkit.getPluginManager().registerEvents(this.compassFeature, this));
