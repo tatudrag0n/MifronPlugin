@@ -10,6 +10,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -264,11 +267,24 @@ final class MinoruBridgeFeature {
    }
 
    private void saveState() {
+      java.io.File tempFile = null;
       try {
-         if (!this.plugin.getDataFolder().exists()) this.plugin.getDataFolder().mkdirs();
-         this.state.save(this.stateFile);
+         java.io.File parent = this.stateFile.getParentFile();
+         if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            throw new IOException("Could not create bridge state directory");
+         }
+         tempFile = new java.io.File(parent == null ? new java.io.File(".") : parent, this.stateFile.getName() + ".tmp");
+         this.state.save(tempFile);
+         try {
+            Files.move(tempFile.toPath(), this.stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+         } catch (AtomicMoveNotSupportedException error) {
+            Files.move(tempFile.toPath(), this.stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+         }
       } catch (IOException error) {
          this.plugin.getLogger().warning("Failed to save Minoru bridge state: " + error.getMessage());
+         if (tempFile != null && tempFile.exists() && !tempFile.delete()) {
+            this.plugin.getLogger().warning("Failed to remove temporary Minoru bridge state file.");
+         }
       }
    }
 
