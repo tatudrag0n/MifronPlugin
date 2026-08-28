@@ -33,14 +33,10 @@ jobs:
           javac -version
 
       - name: Build
-        run: mvn -B -DskipTests clean package
+        run: mvn -B clean package
 
-      - name: Upload plugin JAR
-        uses: actions/upload-artifact@v4
-        with:
-          name: mifronplugin
-          path: |
-            target/mifronplugin-*.jar
-            !target/original-*.jar
-          if-no-files-found: error
-          retention-days: 14
+      - name: Verify build output
+        shell: bash
+        run: |
+          set -euo pipefail
+          find target -maxdepth 1 -type f -name '*.jar' ! -name 'original-*.jar' -print -quit | grep -q .
