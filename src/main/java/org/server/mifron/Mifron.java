@@ -2159,7 +2159,8 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       if (material == null || delta == 0) {
          return;
       }
-      int next = Math.max(0, this.shelfShopStock(material) + delta);
+      long candidate = (long)this.shelfShopStock(material) + delta;
+      int next = (int)Math.max(0L, Math.min(2000000000L, candidate));
       this.data.set(this.shelfShopStockPath(material), next);
       // The surrounding purchase/sell transaction persists the complete data update.
       // Avoiding a second synchronous YAML write keeps rapid shelf-shop selling responsive.
