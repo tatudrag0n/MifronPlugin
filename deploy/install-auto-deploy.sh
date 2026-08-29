@@ -86,16 +86,16 @@ PY
 
 build_maven() {
   if [ -x "\$REPO_DIR/mvnw" ]; then
-    run_user "\$REPO_DIR/mvnw" -B -DskipTests clean package
+    run_user "\$REPO_DIR/mvnw" -B clean package
   elif [ -x "\$REPO_DIR/apache-maven/bin/mvn" ]; then
-    run_user "\$REPO_DIR/apache-maven/bin/mvn" -B -DskipTests clean package
+    run_user "\$REPO_DIR/apache-maven/bin/mvn" -B clean package
   elif [ -x "\$DEPLOY_HOME/apache-maven/bin/mvn" ]; then
-    run_user "\$DEPLOY_HOME/apache-maven/bin/mvn" -B -DskipTests clean package
+    run_user "\$DEPLOY_HOME/apache-maven/bin/mvn" -B clean package
   else
     local mvn_bin
     mvn_bin="\$(command -v mvn || true)"
     [ -n "\$mvn_bin" ] || return 127
-    run_user "\$mvn_bin" -B -DskipTests clean package
+    run_user "\$mvn_bin" -B clean package
   fi
 }
 
