@@ -138,6 +138,14 @@ final class FfaListener implements Listener {
       }
    }
 
+   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+   public void onFfaDamageAnalytics(EntityDamageByEntityEvent event) {
+      if (!(event.getEntity() instanceof Player victim) || !this.ffa.isPlaying(victim)) return;
+      Player attacker = this.attackingPlayer(event.getDamager());
+      if (attacker == null || !this.ffa.isPlaying(attacker)) return;
+      this.ffa.recordFfaDamage(attacker, event.getFinalDamage());
+   }
+
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onKitSelectorClick(InventoryClickEvent event) {
       if (event.getWhoClicked() instanceof Player player) {
