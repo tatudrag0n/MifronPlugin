@@ -100,7 +100,11 @@ build_maven() {
 }
 
 port_open() {
-  timeout 2 bash -c "</dev/tcp/\$MINECRAFT_HOST/\$MINECRAFT_PORT" >/dev/null 2>&1
+  case "\$MINECRAFT_PORT" in
+    (''|*[!0-9]*) return 1 ;;
+  esac
+  [ "\$MINECRAFT_PORT" -ge 1 ] && [ "\$MINECRAFT_PORT" -le 65535 ] || return 1
+  timeout 2 bash -c 'exec 3<>"/dev/tcp/\$1/\$2"' _ "\$MINECRAFT_HOST" "\$MINECRAFT_PORT" >/dev/null 2>&1
 }
 
 health_check() {
