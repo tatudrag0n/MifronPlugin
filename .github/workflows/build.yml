@@ -32,6 +32,10 @@ jobs:
           java -version
           javac -version
 
+      - name: Check deployment script syntax
+        shell: bash
+        run: bash -n deploy/install-auto-deploy.sh
+
       - name: Build
         run: mvn -B clean package
 
