@@ -1562,7 +1562,10 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
 
       Material material = offer.material();
-      int currentSellPrice = this.applyShopDiscount(player, offer.price());
+      // Shop discounts reduce the player's purchase price only. Applying the
+      // discount to the payout would make progression rewards reduce the
+      // amount earned from selling the same item.
+      int currentSellPrice = offer.price();
       int price = Math.max(0, Math.min(this.materialBuyPrice(material), currentSellPrice - 1));
       if (price <= 0) {
          this.showTemporaryActionBar(player, "このアイテムは買い取り対象外です。");
@@ -1774,7 +1777,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             Mifron.ShelfShopOffer offer = this.readShelfShopOffer(player, target);
             if (offer != null) {
                int catalogNumber = this.shelfShopCatalogNumber(offer.material());
-               int sellPrice = this.applyShopDiscount(player, offer.price());
+               int sellPrice = offer.price();
                int buyPrice = Math.max(0, Math.min(this.materialBuyPrice(offer.material()), sellPrice - 1));
                int stock = this.shelfShopStock(offer.material());
                Component prefix = Component.text(String.format("No.%03d ", Math.max(0, catalogNumber)), NamedTextColor.GRAY);
