@@ -6389,14 +6389,14 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private int getMfl(UUID uuid) {
       ConfigurationSection section = this.getPlayerSection(uuid);
-      int score = section.getInt("total-blocks-broken", 0)
-         + section.getInt("total-blocks-placed", 0)
-         + section.getInt("total-trades", 0) * 5
-         + section.getInt("total-minutes", 0)
-         + section.getInt("total-play-count", 0) * 10
-         + section.getInt("total-mob-kills", 0) * 3
-         + section.getStringList("completed-advancements").size() * 50;
-      return Math.max(1, score / 100 + 1);
+      long score = (long)Math.max(0, section.getInt("total-blocks-broken", 0))
+         + Math.max(0L, section.getInt("total-blocks-placed", 0))
+         + (long)Math.max(0, section.getInt("total-trades", 0)) * 5L
+         + Math.max(0L, section.getInt("total-minutes", 0))
+         + (long)Math.max(0, section.getInt("total-play-count", 0)) * 10L
+         + (long)Math.max(0, section.getInt("total-mob-kills", 0)) * 3L
+         + (long)section.getStringList("completed-advancements").size() * 50L;
+      return (int)Math.max(1L, Math.min(2000000000L, score / 100L + 1L));
    }
 
    private String getMflRank(UUID uuid) {
