@@ -108,6 +108,7 @@ final class FfaManager {
    private final Map<UUID, Long> crusherExplosionAttemptTick = new HashMap<>();
    private final Map<UUID, Double> vampireDamage = new HashMap<>();
    private final Map<UUID, FfaManager.KillRewardState> killRewardStates = new HashMap<>();
+   private final Map<String, FfaManager.ReciprocalKillState> reciprocalKillStates = new HashMap<>();
    private final Map<UUID, List<UUID>> summonedMobs = new HashMap<>();
    private final Map<UUID, UUID> summonOwners = new HashMap<>();
    private final Map<UUID, BukkitTask> summonExpiryTasks = new HashMap<>();
@@ -2557,11 +2558,18 @@ final class FfaManager {
       int sameTargetRepeats = nextState.repeats();
       this.killRewardStates.put(killer.getUniqueId(), nextState);
       this.persistKillRewardState(killer.getUniqueId(), nextState);
+      long reciprocalWindowMillis = Math.max(1L, this.plugin.getConfig().getLong("ffa.rewards.reciprocal-window-seconds", 180L)) * 1000L;
+      int reciprocalThreshold = Math.max(2, this.plugin.getConfig().getInt("ffa.rewards.reciprocal-kill-threshold", 6));
+      FfaManager.ReciprocalKillState reciprocalState = this.loadReciprocalKillState(killer.getUniqueId(), victim.getUniqueId());
+      FfaManager.ReciprocalKillState nextReciprocalState = nextReciprocalKillState(reciprocalState, killer.getUniqueId(), victim.getUniqueId(), now, reciprocalWindowMillis);
+      this.reciprocalKillStates.put(this.reciprocalKillKey(killer.getUniqueId(), victim.getUniqueId()), nextReciprocalState);
+      this.persistReciprocalKillState(nextReciprocalState);
+      boolean reciprocalFarm = isReciprocalFarm(nextReciprocalState, reciprocalThreshold);
       int base = Math.min(2000000000, Math.max(0, this.configInt("ffa.rewards.kill-mp", "ffa.rewards.kill-em", 50)));
-      long rewardValue = sameTargetRepeats >= 7 ? 0L : (long)Math.floor(base * Math.pow(0.5, sameTargetRepeats));
+      long rewardValue = reciprocalFarm || sameTargetRepeats >= 7 ? 0L : (long)Math.floor(base * Math.pow(0.5, sameTargetRepeats));
       FfaManager.FfaSession session = this.sessions.get(killer.getUniqueId());
       int gamblerDelta = 0;
-      if (session != null && session.kit == FfaKit.GAMBLER) {
+      if (!reciprocalFarm && session != null && session.kit == FfaKit.GAMBLER) {
          int min = this.clampReward(this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-min"), this.config.kitPath(FfaKit.GAMBLER, "em-min"), -10));
          int max = this.clampReward(this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-max"), this.config.kitPath(FfaKit.GAMBLER, "em-max"), 10));
          int lower = Math.min(min, max);
@@ -2589,6 +2597,7 @@ final class FfaManager {
                + reward
                + "MP / 同一減衰 "
                + sameTargetRepeats
+               + (reciprocalFarm ? " / 循環キル抑制" : "")
                + (gamblerDelta == 0 ? "" : " / 運 " + gamblerDelta)
                + (fever && reward > 0 ? " / フィーバー" : ""),
             reward >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED
@@ -2616,6 +2625,36 @@ final class FfaManager {
       this.plugin.queueDataSave();
    }
 
+   private FfaManager.ReciprocalKillState loadReciprocalKillState(UUID killer, UUID victim) {
+      String key = this.reciprocalKillKey(killer, victim);
+      FfaManager.ReciprocalKillState cached = this.reciprocalKillStates.get(key);
+      if (cached != null) return cached;
+      String path = "ffa.rewards.reciprocal." + key;
+      UUID first = this.parseUuid(this.plugin.data().getString(path + ".first", ""));
+      UUID second = this.parseUuid(this.plugin.data().getString(path + ".second", ""));
+      if (first == null || second == null) return null;
+      return new FfaManager.ReciprocalKillState(first, second,
+         Math.max(0, this.plugin.data().getInt(path + ".first-kills", 0)),
+         Math.max(0, this.plugin.data().getInt(path + ".second-kills", 0)),
+         this.plugin.data().getLong(path + ".last-kill-at", 0L));
+   }
+
+   private void persistReciprocalKillState(FfaManager.ReciprocalKillState state) {
+      String path = "ffa.rewards.reciprocal." + this.reciprocalKillKey(state.first(), state.second());
+      this.plugin.data().set(path + ".first", state.first().toString());
+      this.plugin.data().set(path + ".second", state.second().toString());
+      this.plugin.data().set(path + ".first-kills", state.firstKills());
+      this.plugin.data().set(path + ".second-kills", state.secondKills());
+      this.plugin.data().set(path + ".last-kill-at", state.lastKillAt());
+      this.plugin.queueDataSave();
+   }
+
+   private String reciprocalKillKey(UUID first, UUID second) {
+      return first.toString().compareTo(second.toString()) < 0
+         ? first + "-" + second
+         : second + "-" + first;
+   }
+
    private String killRewardStatePath(UUID killer) {
       return "players." + killer + ".ffa.kill-reward-state";
    }
@@ -2630,6 +2669,28 @@ final class FfaManager {
       }
 
       return new FfaManager.KillRewardState(victim, repeats, now);
+   }
+
+   static FfaManager.ReciprocalKillState nextReciprocalKillState(FfaManager.ReciprocalKillState state, UUID killer, UUID victim, long now, long resetMillis) {
+      if (killer == null || victim == null || killer.equals(victim)) return state;
+      UUID first = killer.toString().compareTo(victim.toString()) < 0 ? killer : victim;
+      UUID second = first.equals(killer) ? victim : killer;
+      int firstKills = 0;
+      int secondKills = 0;
+      if (state != null && first.equals(state.first()) && second.equals(state.second())) {
+         long age = now - state.lastKillAt();
+         if (age >= 0L && age <= Math.max(1L, resetMillis)) {
+            firstKills = Math.max(0, state.firstKills());
+            secondKills = Math.max(0, state.secondKills());
+         }
+      }
+      if (first.equals(killer)) firstKills++; else secondKills++;
+      return new FfaManager.ReciprocalKillState(first, second, firstKills, secondKills, now);
+   }
+
+   static boolean isReciprocalFarm(FfaManager.ReciprocalKillState state, int threshold) {
+      return state != null && state.firstKills() > 0 && state.secondKills() > 0
+         && state.firstKills() + state.secondKills() >= Math.max(2, threshold);
    }
 
    private int configInt(String path, String legacyPath, int fallback) {
@@ -2887,6 +2948,9 @@ final class FfaManager {
    }
 
    static record KillRewardState(UUID target, int repeats, long lastKillAt) {
+   }
+
+   static record ReciprocalKillState(UUID first, UUID second, int firstKills, int secondKills, long lastKillAt) {
    }
 
    private static final class PlayerState {

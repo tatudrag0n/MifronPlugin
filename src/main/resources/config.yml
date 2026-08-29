@@ -588,6 +588,10 @@ ffa:
   rewards:
     kill-mp: 50
     same-target-reset-seconds: 600
+    # Alternating kills between the same two players are suppressed after
+    # this many short-window kills.
+    reciprocal-window-seconds: 180
+    reciprocal-kill-threshold: 6
   field-items:
     enabled: true
     min-players: 2
