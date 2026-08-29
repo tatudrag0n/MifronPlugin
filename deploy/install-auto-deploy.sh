@@ -10,6 +10,7 @@ INTERVAL="${INTERVAL:-60}"
 STATE_DIR="${STATE_DIR:-/var/lib/mifronplugin-deploy}"
 ENV_FILE="${ENV_FILE:-/etc/mifronplugin-deploy.env}"
 LOCK_FILE="${LOCK_FILE:-$STATE_DIR/repo-sync.lock}"
+EVENT_FILE="${EVENT_FILE:-$STATE_DIR/events.jsonl}"
 
 if [ ! -d "$REPO_DIR/.git" ]; then
   echo "ERROR: Git checkout not found: $REPO_DIR" >&2
@@ -36,6 +37,7 @@ MINECRAFT_HOST=127.0.0.1
 MINECRAFT_PORT=25565
 # Optional stronger check. Example:
 # EXTRA_HEALTHCHECK_CMD='curl -fsS http://127.0.0.1:8123/health >/dev/null'
+# EVENT_FILE=/var/lib/mifronplugin-deploy/events.jsonl
 EOF
   sudo chmod 600 "$ENV_FILE"
 fi
@@ -51,6 +53,7 @@ SERVICE_NAME='$SERVICE_NAME'
 STATE_DIR='$STATE_DIR'
 ENV_FILE='$ENV_FILE'
 LOCK_FILE='$LOCK_FILE'
+EVENT_FILE='$EVENT_FILE'
 
 [ -f "\$ENV_FILE" ] && . "\$ENV_FILE"
 LOCK_FILE="\${LOCK_FILE:-\$STATE_DIR/repo-sync.lock}"
@@ -62,6 +65,23 @@ MINECRAFT_HOST="\${MINECRAFT_HOST:-127.0.0.1}"
 MINECRAFT_PORT="\${MINECRAFT_PORT:-25565}"
 DISCORD_WEBHOOK_URL="\${DISCORD_WEBHOOK_URL:-}"
 EXTRA_HEALTHCHECK_CMD="\${EXTRA_HEALTHCHECK_CMD:-}"
+
+emit_event() {
+  local status="\$1" commit="\$2"
+  [ -n "\$commit" ] || return 0
+  mkdir -p "\$(dirname "\$EVENT_FILE")"
+  python3 - "\$status" "\$commit" "\$EVENT_FILE" <<'PY'
+import json, os, sys
+from datetime import datetime, timezone
+status, commit, path = sys.argv[1:]
+event = {"repository": "tatudrag0n/MifronPlugin", "commit": commit,
+         "status": status, "timestamp": datetime.now(timezone.utc).isoformat()}
+with open(path, "a", encoding="utf-8") as stream:
+    stream.write(json.dumps(event, ensure_ascii=False) + "\\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+PY
+}
 
 deploy_remote="unknown"
 installed_new=0
@@ -143,9 +163,15 @@ rollback() {
 
 on_error() {
   local code="\$?"
+  local event_status=FAILED
   if [ "\$installed_new" -eq 1 ]; then
-    rollback || true
+    if rollback; then
+      event_status=ROLLED_BACK
+    else
+      event_status=CRITICAL
+    fi
   fi
+  emit_event "\$event_status" "\$deploy_remote" || true
   notify FAILED "Deployment failed for \$deploy_remote (exit=\$code)"
   exit "\$code"
 }
@@ -191,6 +217,8 @@ mv -f "\$target.new" "\$target"
 installed_new=1
 systemctl restart "\$SERVICE_NAME"
 health_check
+
+emit_event SUCCESS "\$deploy_remote" || true
 
 printf '%s\n' "\$deploy_remote" > "\$STATE_DIR/last-deployed"
 printf '%s  %s\n' "\$(sha256sum "\$target" | awk '{print \$1}')" "\$target" > "\$STATE_DIR/last-deployed-jar.sha256"
