@@ -91,6 +91,17 @@ final class MinoruBridgeFeature {
       this.sendAnalyticsEvent(player, eventName, sessionId, dedupeKey, null);
    }
 
+   void sendAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, String metadataKey, String metadataValue) {
+      if (player == null) return;
+      String key = metadataKey == null ? "" : metadataKey.replaceAll("[^A-Za-z0-9_.-]", "");
+      String value = metadataValue == null ? "" : metadataValue.replaceAll("[^A-Za-z0-9_.:-]", "_");
+      if (key.isBlank()) {
+         this.sendAnalyticsEvent(player, eventName, sessionId, dedupeKey, null);
+      } else {
+         this.sendAnalyticsEvent(player, eventName, sessionId, dedupeKey, ",\"" + key + "\":\"" + escape(value.substring(0, Math.min(64, value.length()))) + "\"");
+      }
+   }
+
    void sendEconomyAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
       if (player == null) return;
       this.sendEconomyAnalyticsEvent(player.getUniqueId(), player.getWorld().getName(), eventName, sessionId, dedupeKey, amount, balanceAfter, reason);

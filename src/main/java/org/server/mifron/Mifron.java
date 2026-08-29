@@ -858,6 +858,11 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey);
    }
 
+   void trackAnalyticsWithMetadata(Player player, String eventName, String dedupeKey, String metadataKey, String metadataValue) {
+      if (player == null) return;
+      this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey, metadataKey, metadataValue);
+   }
+
    private void trackEconomyAnalytics(UUID uuid, String eventName, int amount, int balanceAfter, String reason) {
       if (uuid == null || amount <= 0) return;
       Player player = Bukkit.getPlayer(uuid);
