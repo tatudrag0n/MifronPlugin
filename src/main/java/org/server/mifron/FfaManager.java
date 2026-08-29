@@ -382,6 +382,7 @@ final class FfaManager {
          } else if (selectedKit == FfaKit.SPEAR && selectedKit.spearMaterial(this.config, this.plugin, true) == null) {
             player.sendMessage("§c槍アイテムが現在の Paper API で見つかりません。Paper API / Minecraft バージョンを確認してください。");
          } else {
+            boolean newSession = !this.sessions.containsKey(player.getUniqueId());
             this.sessions.computeIfAbsent(player.getUniqueId(), ignored -> new FfaManager.FfaSession(selectedKit, FfaManager.PlayerState.capture(player)));
             FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
             this.cleanupKitRuntime(player);
@@ -389,7 +390,13 @@ final class FfaManager {
             this.prepareForFight(player, selectedKit);
             this.updateScoreboard(player);
             player.teleport(arena);
-            this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
+            // FFA participation is a session event, not a daily-unique event:
+            // weekly missions and community goals must count separate rounds.
+            // Re-selecting a kit while already in FFA must not add another
+            // participation record.
+            if (newSession) {
+               this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + System.currentTimeMillis());
+            }
             player.sendMessage("§aFFAに参加しました。キット: §f" + this.stripColor(selectedKit.displayName(this.config)));
             player.playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 0.8F, 1.2F);
          }
