@@ -592,6 +592,10 @@ ffa:
     # this many short-window kills.
     reciprocal-window-seconds: 180
     reciprocal-kill-threshold: 6
+    # Per-player positive kill-reward issuance cap. This limits mass farming
+    # across many targets while leaving gameplay and other reward sources intact.
+    kill-mp-window-seconds: 3600
+    kill-mp-window-cap: 3000
   field-items:
     enabled: true
     min-players: 2

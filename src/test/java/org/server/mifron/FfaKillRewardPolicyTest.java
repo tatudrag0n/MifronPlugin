@@ -48,4 +48,15 @@ class FfaKillRewardPolicyTest {
       state = FfaManager.nextReciprocalKillState(state, first, second, 181_007L, 180_000L);
       assertEquals(false, FfaManager.isReciprocalFarm(state, 6));
    }
+
+   @Test
+   void killRewardWindowResetsAfterTheConfiguredWindow() {
+      FfaManager.KillRewardWindowState state = new FfaManager.KillRewardWindowState(1_000L, 2_900);
+      FfaManager.KillRewardWindowState same = FfaManager.nextKillRewardWindowState(state, 2_000L, 3_600_000L);
+      FfaManager.KillRewardWindowState reset = FfaManager.nextKillRewardWindowState(state, 3_601_001L, 3_600_000L);
+
+      assertEquals(2_900, same.credited());
+      assertEquals(0, reset.credited());
+      assertEquals(3_601_001L, reset.windowStartAt());
+   }
 }
