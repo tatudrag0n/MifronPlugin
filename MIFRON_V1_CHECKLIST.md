@@ -37,7 +37,7 @@
 - [ ] S-JOIN-004 再参加時に異常な位置・状態にならない
 - [ ] S-JOIN-005 Java版で主要UIが操作できる
 - [ ] S-JOIN-006 Bedrock版で主要UIが操作できる
-- [ ] S-JOIN-007 Geyser未導入時にMifronPlugin本体が異常終了しない
+- [x] S-JOIN-007 Geyser未導入時はBedrock UIを生成せず、MifronPlugin本体の起動処理を継続する（`Mifron#onEnable`の存在チェック）
 
 ## S-WORLD ワールド移動・ルール
 
@@ -313,7 +313,7 @@
 - [ ] A-AUC-009 期限後に落札品が落札者へ、落札MPが出品者へ配送される
 - [ ] A-AUC-010 オフライン落札者が次回ログイン時に商品を受け取れる
 - [ ] A-AUC-011 入札なし終了では商品が額縁に残る
-- [ ] A-AUC-012 旧版の未徴収入札が精算・返金対象にならず無効化される
+- [x] A-AUC-012 旧版の未徴収入札は`ensureAuctionMetadata`で入札・escrow・最高入札者を無効化し、旧データを精算・返金対象にしない
 
 ## A-QUEST
 
@@ -355,7 +355,7 @@
 
 - [ ] A-PROP-001 外部ツールがproposals.ymlのpendingへ投入したProposalをlist / reviewできる
 - [ ] A-PROP-002 title / custom_itemだけをapprove / forceapproveでconfigへ反映できる
-- [ ] A-PROP-003 廃止済みshop_itemと未対応typeを承認しない
+- [x] A-PROP-003 廃止済み`shop_item`と未対応typeは`ProposalManager`で承認処理を拒否する
 - [ ] A-PROP-004 rejectでpendingからrejectedへ移動し、再起動後も保持される
 - [ ] A-PROP-005 ゲーム内Proposal作成・投票が現行コードに存在しないことを運用資料と一致させる
 
