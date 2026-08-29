@@ -41,5 +41,5 @@ Run on a Paper test server using the jar built from the same commit.
 2. Spawn each rarity manually and confirm only FFA players can collect it and it is removed on exit/death.
 3. Confirm field-item entities resist fire, cactus, explosions, and hopper collection.
 4. Start and stop every event: `rain`, `snow`, `blizzard`, `berserk`, `speed`, `iron_body`, `overdrive`, `one_shot_bow`, `mp_fever`, `sky_spear`, `time_shift`, `heal_self`, and `heal_all`.
-5. Verify same-target kill rewards: 50, 25, 12, 6, 3, 1, then 0 MP. A different target or 10 minutes resets the sequence.
+5. Verify same-target kill rewards: 50, 25, 12, 6, 3, 1, then 0 MP. A different target or 10 minutes resets the sequence. Restart the plugin between kills and confirm the persisted same-target decay is still applied.
 6. Stop with `/mf ffa fielditem stop`, reload with `/mf ffa fielditem reload`, then stop the server and confirm tasks, entities, inventories, and active events are cleaned up.
