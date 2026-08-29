@@ -395,7 +395,7 @@ final class FfaManager {
             // Re-selecting a kit while already in FFA must not add another
             // participation record.
             if (newSession) {
-               this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + System.currentTimeMillis());
+               this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + UUID.randomUUID());
             }
             player.sendMessage("§aFFAに参加しました。キット: §f" + this.stripColor(selectedKit.displayName(this.config)));
             player.playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 0.8F, 1.2F);
