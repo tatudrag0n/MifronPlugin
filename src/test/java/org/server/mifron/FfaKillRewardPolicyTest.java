@@ -30,4 +30,22 @@ class FfaKillRewardPolicyTest {
 
       assertEquals(7, next.repeats());
    }
+
+   @Test
+   void alternatingKillsAreSuppressedOnlyAfterBothDirectionsReachTheThreshold() {
+      UUID first = UUID.randomUUID();
+      UUID second = UUID.randomUUID();
+      FfaManager.ReciprocalKillState state = null;
+      for (int index = 0; index < 5; index++) {
+         state = FfaManager.nextReciprocalKillState(state,
+            index % 2 == 0 ? first : second,
+            index % 2 == 0 ? second : first,
+            1_000L + index, 180_000L);
+      }
+      assertEquals(false, FfaManager.isReciprocalFarm(state, 6));
+      state = FfaManager.nextReciprocalKillState(state, second, first, 1_006L, 180_000L);
+      assertEquals(true, FfaManager.isReciprocalFarm(state, 6));
+      state = FfaManager.nextReciprocalKillState(state, first, second, 181_007L, 180_000L);
+      assertEquals(false, FfaManager.isReciprocalFarm(state, 6));
+   }
 }

@@ -30,7 +30,7 @@ Run on a Paper test server using the jar built from the same commit.
 12. `vampire`: no food is supplied. Weakness I is permanent. Damage restores 30% as health and hunger; every 60 accumulated damage adds 12.5% attack power, up to four tiers. Tier four adds Speed I. Direct daylight deals 2 HP every effect tick.
 13. `grappler`: no weapon or armor; Speed I, Strength I, Jump Boost I, and Resistance I remain active.
 14. `assassin`: fatal dagger, poison dagger, and invisibility potion are supplied. The fatal dagger is consumed and leaves a player target at 2 hearts; poison lasts 4 seconds.
-15. `necromancer`: all seven eggs have independent cooldowns. There is no summon-count cap. Summons do not target their owner, drop no rewards, expire after 20 seconds, and are removed on leave/death.
+15. `necromancer`: all seven eggs have independent cooldowns. Summons are capped at three per owner and twenty globally. Summons do not target their owner, drop no rewards, expire after 20 seconds, and are removed on leave/death.
 16. `trapper`: explosion, web, poison, and fire traps activate for enemies. Fire trap deals 2 initial damage, burns for 6 seconds, and has a 2.5-block radius. Ability cooldown is 16 seconds.
 17. `bug_mania`: Infested remains active. Verify owner immunity, enemy targeting, no block burrowing, maximum five owned / 30 global silverfish, and 15% / 20% / 10% configured trigger chances.
 18. `crusher`: test outgoing and incoming hits. Distribution is 50% no explosion, 24% 4 damage, 15% 8 damage, 10% 16 damage, and 1% 32 damage. A successful explosion starts a 30-tick activation cooldown.
@@ -42,4 +42,5 @@ Run on a Paper test server using the jar built from the same commit.
 3. Confirm field-item entities resist fire, cactus, explosions, and hopper collection.
 4. Start and stop every event: `rain`, `snow`, `blizzard`, `berserk`, `speed`, `iron_body`, `overdrive`, `one_shot_bow`, `mp_fever`, `sky_spear`, `time_shift`, `heal_self`, and `heal_all`.
 5. Verify same-target kill rewards: 50, 25, 12, 6, 3, 1, then 0 MP. A different target or 10 minutes resets the sequence. Restart the plugin between kills and confirm the persisted same-target decay is still applied.
+6. Verify alternating kills between the same two players do not bypass anti-farming: after the configured reciprocal threshold within the configured window, the pair receives 0 MP until the window expires. A normal kill involving another player remains eligible.
 6. Stop with `/mf ffa fielditem stop`, reload with `/mf ffa fielditem reload`, then stop the server and confirm tasks, entities, inventories, and active events are cleaned up.
