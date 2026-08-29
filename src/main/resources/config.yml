@@ -546,6 +546,8 @@ ffa:
       icon: "zombie_spawn_egg"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
+      max-owned-mobs: 3
+      max-global-mobs: 20
       items: []
       potions: []
     trapper:

@@ -787,6 +787,20 @@ final class FfaManager {
          return false;
       }
 
+      UUID ownerId = owner.getUniqueId();
+      int maxOwned = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.NECROMANCER, "max-owned-mobs"), 3));
+      int maxGlobal = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.NECROMANCER, "max-global-mobs"), 20));
+      int ownedCount = this.activeSummonCount(ownerId);
+      int globalCount = this.activeSummonCount();
+      if (!canSpawnSummon(ownedCount, globalCount, maxOwned, maxGlobal)) {
+         if (ownedCount >= maxOwned) {
+            owner.sendMessage("§e召喚上限に達しています（自分: " + maxOwned + "体）。");
+         } else {
+            owner.sendMessage("§eFFA全体の召喚上限に達しています。少し待ってから再度お試しください。");
+         }
+         return false;
+      }
+
       Location spawn = owner.getLocation().clone().add(owner.getLocation().getDirection().setY(0).normalize().multiply(1.5));
       Entity entity = owner.getWorld().spawnEntity(spawn, type);
       entity.getPersistentDataContainer().set(this.entityKindKey, PersistentDataType.STRING, "summon");
@@ -801,7 +815,6 @@ final class FfaManager {
          }
       }
 
-      UUID ownerId = owner.getUniqueId();
       List<UUID> owned = this.summonedMobs.computeIfAbsent(ownerId, ignored -> new ArrayList<>());
       owned.add(entity.getUniqueId());
       this.summonOwners.put(entity.getUniqueId(), ownerId);
@@ -809,6 +822,36 @@ final class FfaManager {
       this.summonExpiryTasks.put(entity.getUniqueId(), task);
       owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_ZOMBIE_AMBIENT, 0.8F, 0.8F);
       return true;
+   }
+
+   static boolean canSpawnSummon(int owned, int global, int maxOwned, int maxGlobal) {
+      return owned < Math.max(1, maxOwned) && global < Math.max(1, maxGlobal);
+   }
+
+   private int activeSummonCount(UUID owner) {
+      List<UUID> owned = this.summonedMobs.get(owner);
+      if (owned == null) {
+         return 0;
+      }
+
+      int count = 0;
+      for (UUID entityId : new ArrayList<>(owned)) {
+         Entity entity = this.entityById(entityId);
+         if (entity instanceof Mob mob && mob.isValid() && !mob.isDead()) {
+            count++;
+         } else {
+            this.clearSummonEntityState(entityId);
+         }
+      }
+      return count;
+   }
+
+   private int activeSummonCount() {
+      int count = 0;
+      for (UUID owner : new ArrayList<>(this.summonedMobs.keySet())) {
+         count += this.activeSummonCount(owner);
+      }
+      return count;
    }
 
    private void startSummonEggRefill(Player player, String mob, ItemStack egg) {
