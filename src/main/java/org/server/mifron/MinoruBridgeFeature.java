@@ -221,15 +221,23 @@ final class MinoruBridgeFeature {
                if (this.state.contains("transactions." + key + ".balance")) {
                   int balance = this.state.getInt("transactions." + key + ".balance");
                   int applied = this.state.getInt("transactions." + key + ".applied");
-                  result = new Result(balance, applied);
+                  int before = this.state.getInt("transactions." + key + ".before", Math.max(0, balance - applied));
+                  int storedRequested = this.state.getInt("transactions." + key + ".requested", requested);
+                  boolean storedSetMode = this.state.getBoolean("transactions." + key + ".setMode", "/v1/mp/set".equals(path));
+                  result = new Result(balance, applied, before, storedRequested, storedSetMode);
                   replay = true;
                } else {
                   // Keep the idempotency check, MP mutation, and durable record
                   // under one lock. Without this, two concurrent retries with
                   // the same transactionId could both change the balance.
                   result = onMain(() -> applyMp(uuid, requested, "/v1/mp/set".equals(path)));
+                  this.state.set("transactions." + key + ".uuid", uuid.toString());
+                  this.state.set("transactions." + key + ".before", result.before);
+                  this.state.set("transactions." + key + ".requested", result.requested);
+                  this.state.set("transactions." + key + ".setMode", result.setMode);
                   this.state.set("transactions." + key + ".balance", result.balance);
                   this.state.set("transactions." + key + ".applied", result.applied);
+                  this.state.set("transactions." + key + ".source", "minoru-bridge");
                   this.state.set("transactions." + key + ".at", System.currentTimeMillis());
                   trimTransactions();
                   saveState();
@@ -256,7 +264,7 @@ final class MinoruBridgeFeature {
       int applied = target - current;
       if (applied > 0) this.plugin.depositEmeralds(uuid, applied);
       else if (applied < 0) this.plugin.withdrawEmeralds(uuid, -applied);
-      return new Result(this.plugin.getEmeralds(uuid), applied);
+      return new Result(this.plugin.getEmeralds(uuid), applied, current, value, setMode);
    }
 
    private boolean authorize(HttpExchange exchange) throws IOException {
@@ -351,5 +359,5 @@ final class MinoruBridgeFeature {
    }
 
    private record LinkCode(UUID uuid, String name, long expiresAt) {}
-   private record Result(int balance, int applied) {}
+   private record Result(int balance, int applied, int before, int requested, boolean setMode) {}
 }
