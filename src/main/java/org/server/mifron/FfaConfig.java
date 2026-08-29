@@ -543,6 +543,8 @@ final class FfaConfig {
       this.setIfMissing(config, "ffa.kits.food-cooldown-seconds", 15);
       this.setIfMissing(config, "ffa.kits.vampire.lifesteal-percent", 50);
       this.setIfMissingOrForce(config, "ffa.kits.vampire.sun-damage", 2.0, forceVampireBalance);
+      this.setIfMissing(config, "ffa.kits.necromancer.max-owned-mobs", 3);
+      this.setIfMissing(config, "ffa.kits.necromancer.max-global-mobs", 20);
       this.setIfMissing(config, "ffa.kits.gambler.min-random-damage", -10);
       this.setIfMissing(config, "ffa.kits.gambler.max-random-damage", 20);
       this.setIfMissing(config, "ffa.kits.gambler.min-incoming-reduction", -5);

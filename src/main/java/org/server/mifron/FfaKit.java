@@ -453,7 +453,7 @@ enum FfaKit {
          case VAMPIRE -> "与ダメージの30%だけ体力と満腹度を回復";
          case GRAPPLER -> "速く素手火力が高い";
          case ASSASSIN -> "致命の剣でHPを削れる";
-         case NECROMANCER -> "上限なしの召喚で人数差を作る";
+         case NECROMANCER -> "上限内の召喚で人数差を作る";
          case TRAPPER -> "踏ませれば強い";
          case BUG_MANIA -> "虫食いと虫で妨害";
          case CRUSHER -> "被弾時と攻撃時に爆発を起こす";
