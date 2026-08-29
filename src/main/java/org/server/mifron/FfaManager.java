@@ -110,6 +110,7 @@ final class FfaManager {
    private final Map<UUID, FfaManager.KillRewardState> killRewardStates = new HashMap<>();
    private final Map<String, FfaManager.ReciprocalKillState> reciprocalKillStates = new HashMap<>();
    private final Map<UUID, FfaManager.KillRewardWindowState> killRewardWindowStates = new HashMap<>();
+   private final Map<FfaManager.DamageMetricKey, Double> ffaDamageTelemetry = new HashMap<>();
    private final Map<UUID, List<UUID>> summonedMobs = new HashMap<>();
    private final Map<UUID, UUID> summonOwners = new HashMap<>();
    private final Map<UUID, BukkitTask> summonExpiryTasks = new HashMap<>();
@@ -2245,6 +2246,7 @@ final class FfaManager {
          .runTaskTimer(
             this.plugin,
             () -> {
+               this.flushFfaDamageTelemetry();
                for (UUID uuid : new ArrayList<>(this.sessions.keySet())) {
                   Player player = this.plugin.getServer().getPlayer(uuid);
                   FfaManager.FfaSession session = this.sessions.get(uuid);
@@ -2276,6 +2278,28 @@ final class FfaManager {
             40L,
             40L
          );
+   }
+
+   void recordFfaDamage(Player attacker, double damage) {
+      if (attacker == null || !Double.isFinite(damage) || damage <= 0.0) return;
+      FfaSession session = this.sessions.get(attacker.getUniqueId());
+      if (session == null || session.kit == null) return;
+      double safeDamage = Math.min(100000.0, damage);
+      DamageMetricKey key = new DamageMetricKey(attacker.getUniqueId(), session.kit);
+      this.ffaDamageTelemetry.merge(key, safeDamage, (current, added) -> Math.min(100000.0, current + added));
+   }
+
+   private void flushFfaDamageTelemetry() {
+      if (this.ffaDamageTelemetry.isEmpty()) return;
+      long bucket = System.currentTimeMillis() / 2000L;
+      Map<DamageMetricKey, Double> pending = new HashMap<>(this.ffaDamageTelemetry);
+      this.ffaDamageTelemetry.clear();
+      for (Entry<DamageMetricKey, Double> entry : pending.entrySet()) {
+         Player player = Bukkit.getPlayer(entry.getKey().playerId());
+         if (player == null || !player.isOnline() || !this.isPlaying(player)) continue;
+         this.plugin.trackFfaDamageAnalytics(player, entry.getKey().kit().key(), entry.getValue(),
+            "ffa-damage:" + player.getUniqueId() + ":" + entry.getKey().kit().key() + ":" + bucket);
+      }
    }
 
    private void applyVampireSunDamage(Player player) {
@@ -2997,6 +3021,9 @@ final class FfaManager {
    }
 
    static record KillRewardWindowState(long windowStartAt, int credited) {
+   }
+
+   private record DamageMetricKey(UUID playerId, FfaKit kit) {
    }
 
    private static final class PlayerState {

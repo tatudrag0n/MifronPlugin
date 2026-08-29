@@ -102,6 +102,15 @@ final class MinoruBridgeFeature {
       }
    }
 
+   void sendFfaDamageAnalyticsEvent(Player player, String sessionId, String dedupeKey, String kit, double damage) {
+      if (player == null || !Double.isFinite(damage) || damage <= 0.0) return;
+      String safeKit = kit == null ? "unknown" : kit.replaceAll("[^A-Za-z0-9_.-]", "_");
+      safeKit = safeKit.substring(0, Math.min(64, safeKit.length()));
+      double safeDamage = Math.min(100000.0, damage);
+      this.sendAnalyticsEvent(player, "ffa_damage", sessionId, dedupeKey,
+         ",\"kit\":\"" + escape(safeKit) + "\",\"damage\":" + String.format(Locale.ROOT, "%.3f", safeDamage));
+   }
+
    void sendEconomyAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
       if (player == null) return;
       this.sendEconomyAnalyticsEvent(player.getUniqueId(), player.getWorld().getName(), eventName, sessionId, dedupeKey, amount, balanceAfter, reason);
