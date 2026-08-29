@@ -109,6 +109,7 @@ final class FfaManager {
    private final Map<UUID, Double> vampireDamage = new HashMap<>();
    private final Map<UUID, FfaManager.KillRewardState> killRewardStates = new HashMap<>();
    private final Map<String, FfaManager.ReciprocalKillState> reciprocalKillStates = new HashMap<>();
+   private final Map<UUID, FfaManager.KillRewardWindowState> killRewardWindowStates = new HashMap<>();
    private final Map<UUID, List<UUID>> summonedMobs = new HashMap<>();
    private final Map<UUID, UUID> summonOwners = new HashMap<>();
    private final Map<UUID, BukkitTask> summonExpiryTasks = new HashMap<>();
@@ -2583,6 +2584,9 @@ final class FfaManager {
          rewardValue *= 2L;
       }
       int reward = this.clampReward(rewardValue);
+      int rewardBeforeWindowCap = reward;
+      reward = this.applyKillRewardWindowCap(killer.getUniqueId(), reward, now);
+      boolean rewardWindowCapped = rewardBeforeWindowCap > reward;
 
       if (reward > 0) {
          this.plugin.depositEmeralds(killer.getUniqueId(), reward);
@@ -2598,6 +2602,7 @@ final class FfaManager {
                + "MP / 同一減衰 "
                + sameTargetRepeats
                + (reciprocalFarm ? " / 循環キル抑制" : "")
+               + (rewardWindowCapped ? " / 時間上限" : "")
                + (gamblerDelta == 0 ? "" : " / 運 " + gamblerDelta)
                + (fever && reward > 0 ? " / フィーバー" : ""),
             reward >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED
@@ -2655,6 +2660,37 @@ final class FfaManager {
          : second + "-" + first;
    }
 
+   private int applyKillRewardWindowCap(UUID killer, int reward, long now) {
+      if (reward <= 0) return reward;
+      long windowMillis = Math.max(1L, this.plugin.getConfig().getLong("ffa.rewards.kill-mp-window-seconds", 3600L)) * 1000L;
+      int cap = Math.max(0, this.plugin.getConfig().getInt("ffa.rewards.kill-mp-window-cap", 3000));
+      FfaManager.KillRewardWindowState state = this.killRewardWindowStates.get(killer);
+      if (state == null) {
+         state = this.loadKillRewardWindowState(killer);
+      }
+      FfaManager.KillRewardWindowState window = nextKillRewardWindowState(state, now, windowMillis);
+      int remaining = Math.max(0, cap - window.credited());
+      int applied = Math.min(reward, remaining);
+      FfaManager.KillRewardWindowState updated = new FfaManager.KillRewardWindowState(window.windowStartAt(), window.credited() + applied);
+      this.killRewardWindowStates.put(killer, updated);
+      this.persistKillRewardWindowState(killer, updated);
+      return applied;
+   }
+
+   private FfaManager.KillRewardWindowState loadKillRewardWindowState(UUID killer) {
+      String path = "players." + killer + ".ffa.kill-reward-window";
+      long windowStartAt = this.plugin.data().getLong(path + ".window-start-at", 0L);
+      if (windowStartAt <= 0L) return null;
+      return new FfaManager.KillRewardWindowState(windowStartAt, Math.max(0, this.plugin.data().getInt(path + ".credited", 0)));
+   }
+
+   private void persistKillRewardWindowState(UUID killer, FfaManager.KillRewardWindowState state) {
+      String path = "players." + killer + ".ffa.kill-reward-window";
+      this.plugin.data().set(path + ".window-start-at", state.windowStartAt());
+      this.plugin.data().set(path + ".credited", state.credited());
+      this.plugin.queueDataSave();
+   }
+
    private String killRewardStatePath(UUID killer) {
       return "players." + killer + ".ffa.kill-reward-state";
    }
@@ -2691,6 +2727,13 @@ final class FfaManager {
    static boolean isReciprocalFarm(FfaManager.ReciprocalKillState state, int threshold) {
       return state != null && state.firstKills() > 0 && state.secondKills() > 0
          && state.firstKills() + state.secondKills() >= Math.max(2, threshold);
+   }
+
+   static FfaManager.KillRewardWindowState nextKillRewardWindowState(FfaManager.KillRewardWindowState state, long now, long windowMillis) {
+      if (state == null || now < state.windowStartAt() || now - state.windowStartAt() > Math.max(1L, windowMillis)) {
+         return new FfaManager.KillRewardWindowState(now, 0);
+      }
+      return state;
    }
 
    private int configInt(String path, String legacyPath, int fallback) {
@@ -2951,6 +2994,9 @@ final class FfaManager {
    }
 
    static record ReciprocalKillState(UUID first, UUID second, int firstKills, int secondKills, long lastKillAt) {
+   }
+
+   static record KillRewardWindowState(long windowStartAt, int credited) {
    }
 
    private static final class PlayerState {
