@@ -566,9 +566,9 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
       Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
          try {
-            String command = this.resolveVmStopCommand();
-            this.getLogger().info("Executing VM stop command: " + command);
-            int exitCode = this.runShellCommand(command);
+            List<String> command = this.resolveVmStopCommand();
+            this.getLogger().info("Executing VM stop command: " + String.join(" ", command));
+            int exitCode = this.runProcess(command);
             this.getLogger().info("VM stop command exited with code " + exitCode + ".");
             if (exitCode != 0) {
                this.getLogger().severe("VM stop command failed with exit code " + exitCode + ".");
@@ -580,7 +580,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       });
    }
 
-   private String resolveVmStopCommand() throws IOException {
+   private List<String> resolveVmStopCommand() throws IOException {
       String provider = this.getConfig().getString("auto-shutdown.provider", "gcloud");
       if (provider != null && provider.equalsIgnoreCase("command")) {
          String command = this.getConfig().getString("auto-shutdown.vm-stop-command", "sudo shutdown -h now");
@@ -589,7 +589,13 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             if (!normalized.matches("(?i)(sudo )?(shutdown -h now|poweroff)")) {
                throw new IOException("auto-shutdown.vm-stop-command is not an allowed stop command");
             }
-            return normalized;
+            if (normalized.equalsIgnoreCase("poweroff")) {
+               return List.of("poweroff");
+            }
+            if (normalized.toLowerCase(Locale.ROOT).startsWith("sudo ")) {
+               return List.of("sudo", "shutdown", "-h", "now");
+            }
+            return List.of("shutdown", "-h", "now");
          } else {
             throw new IOException("auto-shutdown.vm-stop-command is empty");
          }
@@ -603,16 +609,15 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          }
 
          if (zone != null && !zone.isBlank()) {
-            StringBuilder command = new StringBuilder("gcloud compute instances stop ")
-               .append(shellQuote(instance.trim()))
-               .append(" --zone=")
-               .append(shellQuote(zone.trim()));
+            List<String> command = new ArrayList<>(List.of(
+               "gcloud", "compute", "instances", "stop", instance.trim(), "--zone", zone.trim()));
             if (project != null && !project.isBlank()) {
-               command.append(" --project=").append(shellQuote(project.trim()));
+               command.add("--project");
+               command.add(project.trim());
             }
 
-            command.append(" --quiet");
-            return command.toString();
+            command.add("--quiet");
+            return command;
          } else {
             throw new IOException("Could not resolve GCE zone (set auto-shutdown.gcloud.zone)");
          }
@@ -667,12 +672,8 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
    }
 
-   private static String shellQuote(String value) {
-      return "'" + value.replace("'", "'\"'\"'") + "'";
-   }
-
-   private int runShellCommand(String command) throws IOException, InterruptedException {
-      ProcessBuilder builder = newProcessBuilder(command);
+   private int runProcess(List<String> command) throws IOException, InterruptedException {
+      ProcessBuilder builder = new ProcessBuilder(command);
       builder.redirectErrorStream(true);
       Process process = builder.start();
       BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
@@ -696,11 +697,6 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
 
       return process.waitFor();
-   }
-
-   private static ProcessBuilder newProcessBuilder(String command) {
-      String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-      return os.contains("win") ? new ProcessBuilder("cmd.exe", "/c", command) : new ProcessBuilder("sh", "-c", command);
    }
 
    private void loadData() {
