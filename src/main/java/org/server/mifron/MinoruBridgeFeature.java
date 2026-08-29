@@ -214,23 +214,32 @@ final class MinoruBridgeFeature {
             String transactionId = body.getOrDefault("transactionId", "");
             if (transactionId.isBlank() || transactionId.length() > 200) { send(exchange, 400, jsonError("invalid_transaction")); return; }
             String key = hash(transactionId);
+            boolean setMode = "/v1/mp/set".equals(path);
             int requested = "/v1/mp/change".equals(path) ? number(body, "amount") : number(body, "balance");
             Result result;
             boolean replay;
+            String transactionError = null;
             synchronized (this.state) {
                if (this.state.contains("transactions." + key + ".balance")) {
                   int balance = this.state.getInt("transactions." + key + ".balance");
                   int applied = this.state.getInt("transactions." + key + ".applied");
                   int before = this.state.getInt("transactions." + key + ".before", Math.max(0, balance - applied));
                   int storedRequested = this.state.getInt("transactions." + key + ".requested", requested);
-                  boolean storedSetMode = this.state.getBoolean("transactions." + key + ".setMode", "/v1/mp/set".equals(path));
-                  result = new Result(balance, applied, before, storedRequested, storedSetMode);
-                  replay = true;
+                  boolean storedSetMode = this.state.getBoolean("transactions." + key + ".setMode", setMode);
+                  String storedUuid = this.state.getString("transactions." + key + ".uuid", "");
+                  if (!transactionMatches(storedUuid, storedSetMode, storedRequested, uuid, setMode, requested)) {
+                     result = null;
+                     replay = false;
+                     transactionError = "transaction_id_reused";
+                  } else {
+                     result = new Result(balance, applied, before, storedRequested, storedSetMode);
+                     replay = true;
+                  }
                } else {
                   // Keep the idempotency check, MP mutation, and durable record
                   // under one lock. Without this, two concurrent retries with
                   // the same transactionId could both change the balance.
-                  result = onMain(() -> applyMp(uuid, requested, "/v1/mp/set".equals(path)));
+                  result = onMain(() -> applyMp(uuid, requested, setMode));
                   this.state.set("transactions." + key + ".uuid", uuid.toString());
                   this.state.set("transactions." + key + ".before", result.before);
                   this.state.set("transactions." + key + ".requested", result.requested);
@@ -244,6 +253,7 @@ final class MinoruBridgeFeature {
                   replay = false;
                }
             }
+            if (transactionError != null) { send(exchange, 409, jsonError(transactionError)); return; }
             send(exchange, 200, response(result.balance, result.applied, replay));
             return;
          }
@@ -340,6 +350,11 @@ final class MinoruBridgeFeature {
 
    private static String stringsafe(String s) { return s; }
    private static int number(Map<String, String> body, String key) { return Integer.parseInt(body.getOrDefault(key, "0")); }
+   static boolean transactionMatches(String storedUuid, boolean storedSetMode, int storedRequested, UUID requestedUuid, boolean requestedSetMode, int requested) {
+      return (storedUuid == null || storedUuid.isBlank() || storedUuid.equals(requestedUuid.toString()))
+         && storedSetMode == requestedSetMode
+         && storedRequested == requested;
+   }
    private static String response(int balance, int applied, boolean duplicate) { return "{\"ok\":true,\"balance\":" + balance + ",\"applied\":" + applied + ",\"duplicate\":" + duplicate + "}"; }
    private static String jsonError(String code) { return "{\"ok\":false,\"error\":\"" + escape(code) + "\"}"; }
    private static String hash(String value) {
