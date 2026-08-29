@@ -204,6 +204,17 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
+      // Consume the prepared result before charging. InventoryClickEvent can
+      // be re-entered by rapid/double clicks before the next tick callback
+      // runs; keeping the pending entry would allow the same result to be
+      // charged and taken twice. A failed vanilla transaction is refunded in
+      // the callback below, while the next prepare event can recreate it.
+      if (this.pendingResults.remove(top) == null) {
+         event.setCancelled(true);
+         player.sendMessage(Component.text("この合成結果はすでに処理されています。もう一度お試しください。", NamedTextColor.YELLOW));
+         return;
+      }
+
       if (pending.mpCost() > 0 && !this.plugin.withdrawEmeralds(player.getUniqueId(), pending.mpCost())) {
          event.setCancelled(true);
          player.sendMessage(Component.text("MPの支払いに失敗しました。もう一度お試しください。", NamedTextColor.RED));

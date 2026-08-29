@@ -150,16 +150,17 @@ final class AuctionFeature implements Listener {
       }
       int step = this.plugin.getConfig().getInt(largeStep ? "auction.sneak-bid-step" : "auction.bid-step", largeStep ? 1000 : 100);
       step = Math.max(1, step);
-      int highest = this.plugin.data().getInt(path + ".highest-amount", 0);
-      int ownBid = this.plugin.data().getInt(path + ".bids." + player.getUniqueId(), 0);
+      int highest = this.safeCurrency(this.plugin.data().getInt(path + ".highest-amount", 0));
+      int ownBid = this.safeCurrency(this.plugin.data().getInt(path + ".bids." + player.getUniqueId(), 0));
       int nextBid = this.safeAdd(Math.max(highest, ownBid), step);
       if (nextBid <= highest) {
          player.sendMessage(ChatColor.RED + "最高入札額がMP上限に達しています。");
          return;
       }
-      int ownEscrow = this.plugin.data().getInt(path + ".escrow." + player.getUniqueId(), 0);
-      int required = Math.max(0, nextBid - ownEscrow);
-      if (required <= 0 || !this.plugin.withdrawEmeralds(player.getUniqueId(), required)) {
+      int ownEscrow = this.safeCurrency(this.plugin.data().getInt(path + ".escrow." + player.getUniqueId(), 0));
+      long requiredValue = (long)nextBid - ownEscrow;
+      if (requiredValue <= 0L || requiredValue > 2000000000L || !this.plugin.withdrawEmeralds(player.getUniqueId(), (int)requiredValue)) {
+         int required = requiredValue > 2000000000L ? 2000000000 : (int)Math.max(0L, requiredValue);
          player.sendMessage(ChatColor.RED + "入札に必要なMPが不足しています。必要: " + this.formatNumber(required) + "MP");
          return;
       }
@@ -224,6 +225,13 @@ final class AuctionFeature implements Listener {
          this.refundEscrow(path, null, "オークション終了に伴い、入札MPを返金しました。");
          this.plugin.data().set(path, null);
          this.notifyPlayer(owner, "入札がなかったため、オークションは終了しました。商品は額縁に残っています。");
+      } else if (owner == null) {
+         // Never complete a sale when the persisted seller identity is
+         // invalid. Otherwise a damaged legacy record could transfer the
+         // item to the winner without crediting a seller.
+         this.refundEscrow(path, null, "出品者情報を確認できなかったため、オークションを取消しました。");
+         this.plugin.data().set(path, null);
+         this.notifyPlayer(winner, "出品者情報を確認できなかったため、オークションを取消しました。入札MPは返金済みです。");
       } else if (escrow < highest || item == null || item.getType() == Material.AIR) {
          this.refundEscrow(path, null, "オークションを精算できなかったため、入札MPを返金しました。");
          this.plugin.data().set(path, null);
@@ -401,6 +409,10 @@ final class AuctionFeature implements Listener {
 
    private int safeAdd(int first, int second) {
       return (int)Math.min(2000000000L, (long)Math.max(0, first) + Math.max(0, second));
+   }
+
+   private int safeCurrency(int value) {
+      return Math.max(0, Math.min(2000000000, value));
    }
 
    private String formatNumber(int value) {

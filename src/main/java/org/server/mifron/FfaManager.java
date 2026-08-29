@@ -382,6 +382,7 @@ final class FfaManager {
          } else if (selectedKit == FfaKit.SPEAR && selectedKit.spearMaterial(this.config, this.plugin, true) == null) {
             player.sendMessage("§c槍アイテムが現在の Paper API で見つかりません。Paper API / Minecraft バージョンを確認してください。");
          } else {
+            boolean newSession = !this.sessions.containsKey(player.getUniqueId());
             this.sessions.computeIfAbsent(player.getUniqueId(), ignored -> new FfaManager.FfaSession(selectedKit, FfaManager.PlayerState.capture(player)));
             FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
             this.cleanupKitRuntime(player);
@@ -389,7 +390,13 @@ final class FfaManager {
             this.prepareForFight(player, selectedKit);
             this.updateScoreboard(player);
             player.teleport(arena);
-            this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
+            // FFA participation is a session event, not a daily-unique event:
+            // weekly missions and community goals must count separate rounds.
+            // Re-selecting a kit while already in FFA must not add another
+            // participation record.
+            if (newSession) {
+               this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + UUID.randomUUID());
+            }
             player.sendMessage("§aFFAに参加しました。キット: §f" + this.stripColor(selectedKit.displayName(this.config)));
             player.playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 0.8F, 1.2F);
          }
@@ -417,7 +424,7 @@ final class FfaManager {
       FfaManager.FfaSession session = this.sessions.get(killer.getUniqueId());
       if (session != null && session.kit == FfaKit.ASSASSIN) {
          String path = "players." + killer.getUniqueId() + ".ffa.assassin-kills";
-         int kills = this.plugin.data().getInt(path, 0) + 1;
+         int kills = (int)Math.min(2000000000L, (long)Math.max(0, this.plugin.data().getInt(path, 0)) + 1L);
          this.plugin.data().set(path, kills);
          this.plugin.saveData();
          if (kills % 2 == 0) {
@@ -2500,26 +2507,29 @@ final class FfaManager {
       }
 
       this.killRewardStates.put(killer.getUniqueId(), new FfaManager.KillRewardState(victim.getUniqueId(), sameTargetRepeats, now));
-      int base = Math.max(0, this.configInt("ffa.rewards.kill-mp", "ffa.rewards.kill-em", 50));
-      int reward = sameTargetRepeats >= 7 ? 0 : (int)Math.floor(base * Math.pow(0.5, sameTargetRepeats));
+      int base = Math.min(2000000000, Math.max(0, this.configInt("ffa.rewards.kill-mp", "ffa.rewards.kill-em", 50)));
+      long rewardValue = sameTargetRepeats >= 7 ? 0L : (long)Math.floor(base * Math.pow(0.5, sameTargetRepeats));
       FfaManager.FfaSession session = this.sessions.get(killer.getUniqueId());
       int gamblerDelta = 0;
       if (session != null && session.kit == FfaKit.GAMBLER) {
-         int min = this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-min"), this.config.kitPath(FfaKit.GAMBLER, "em-min"), -10);
-         int max = this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-max"), this.config.kitPath(FfaKit.GAMBLER, "em-max"), 10);
-         gamblerDelta = ThreadLocalRandom.current().nextInt(Math.min(min, max), Math.max(min, max) + 1);
-         reward += gamblerDelta;
+         int min = this.clampReward(this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-min"), this.config.kitPath(FfaKit.GAMBLER, "em-min"), -10));
+         int max = this.clampReward(this.configInt(this.config.kitPath(FfaKit.GAMBLER, "mp-max"), this.config.kitPath(FfaKit.GAMBLER, "em-max"), 10));
+         int lower = Math.min(min, max);
+         int upper = Math.max(min, max);
+         gamblerDelta = (int)ThreadLocalRandom.current().nextLong((long)lower, (long)upper + 1L);
+         rewardValue += gamblerDelta;
       }
 
       boolean fever = this.plugin.data().getLong("ffa.events.mp-fever-until", this.plugin.data().getLong("ffa.events.em-fever-until", 0L)) > now;
-      if (fever && reward > 0) {
-         reward *= 2;
+      if (fever && rewardValue > 0L) {
+         rewardValue *= 2L;
       }
+      int reward = this.clampReward(rewardValue);
 
       if (reward > 0) {
          this.plugin.depositEmeralds(killer.getUniqueId(), reward);
       } else if (reward < 0) {
-         this.plugin.withdrawEmeralds(killer.getUniqueId(), Math.min(this.plugin.getEmeralds(killer.getUniqueId()), Math.abs(reward)));
+         this.plugin.withdrawEmeralds(killer.getUniqueId(), Math.min(this.plugin.getEmeralds(killer.getUniqueId()), (int)Math.min(2000000000L, -(long)reward)));
       }
 
       killer.sendActionBar(
@@ -2538,6 +2548,10 @@ final class FfaManager {
 
    private int configInt(String path, String legacyPath, int fallback) {
       return this.plugin.getConfig().contains(path) ? this.plugin.getConfig().getInt(path, fallback) : this.plugin.getConfig().getInt(legacyPath, fallback);
+   }
+
+   private int clampReward(long value) {
+      return (int)Math.max(-2000000000L, Math.min(2000000000L, value));
    }
 
    private void clearTemporaryState(Player player) {

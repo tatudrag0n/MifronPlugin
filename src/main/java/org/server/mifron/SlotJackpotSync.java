@@ -16,7 +16,7 @@ final class SlotJackpotSync {
       }
 
       String var5 = var2 + ".slot-jackpot-spins";
-      int var6 = var4.getInt(var5, 0) + 1;
+      int var6 = (int)Math.min(2000000000L, (long)Math.max(0, var4.getInt(var5, 0)) + 1L);
       if (var6 >= 10) {
          var4.set(var3, Boolean.FALSE);
          var4.set(var5, 0);

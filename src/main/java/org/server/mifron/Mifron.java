@@ -858,6 +858,14 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey);
    }
 
+   private void trackEconomyAnalytics(UUID uuid, String eventName, int amount, int balanceAfter, String reason) {
+      if (uuid == null || amount <= 0) return;
+      Player player = Bukkit.getPlayer(uuid);
+      String sessionId = uuid + (player == null ? ":offline" : ":active");
+      this.minoruBridgeFeature.sendEconomyAnalyticsEvent(uuid, eventName, sessionId,
+         "economy:" + eventName + ":" + uuid + ":" + UUID.randomUUID(), amount, balanceAfter, reason);
+   }
+
    private void flushPendingFirstMpEvent(Player player) {
       if (player == null) return;
       ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
@@ -3954,9 +3962,9 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       if (!section.getBoolean("all-advancements-rewarded", false)) {
          player.sendMessage("§c全進捗達成後に転生できます。");
       } else {
-         int next = section.getInt("reincarnations", 0) + 1;
+         int next = this.safeAdd(section.getInt("reincarnations", 0), 1);
          int requiredEmeralds = this.safeMultiply(10000, next);
-         int requiredLevel = Math.min(1000, 20 + Math.max(0, next) * 10);
+         int requiredLevel = Math.min(1000, this.safeAdd(20, this.safeMultiply(10, next)));
          int currentEmeralds = this.getEmeralds(player.getUniqueId());
          int currentLevel = player.getLevel();
          if (currentEmeralds >= requiredEmeralds && currentLevel >= requiredLevel) {
@@ -3969,7 +3977,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             section.set("advancement-bonus-percent", 0);
             section.set("income-bonus-percent", null);
             section.set("reincarnations", next);
-            section.set("reincarnation-bonus-percent", this.getReincarnationBonus(player.getUniqueId()) + bonus);
+            section.set("reincarnation-bonus-percent", this.safeAdd(this.getReincarnationBonus(player.getUniqueId()), bonus));
             player.setLevel(0);
             player.setExp(0.0F);
             this.saveData();
@@ -6243,14 +6251,14 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             last = LocalDate.parse(lastValue);
          }
 
-         int streak = last != null && last.plusDays(1L).toString().equals(today) ? section.getInt("login-streak", 0) + 1 : 1;
-         int total = section.getInt("total-logins", 0) + 1;
+         int streak = last != null && last.plusDays(1L).toString().equals(today) ? this.safeAdd(section.getInt("login-streak", 0), 1) : 1;
+         int total = this.safeAdd(section.getInt("total-logins", 0), 1);
          section.set("last-login-reward", today);
          section.set("login-streak", streak);
          section.set("total-logins", total);
          int reward = this.applyIncomeBonus(player.getUniqueId(), 10 + streak);
          if (total % 10 == 0) {
-            reward += 100 * (total / 10);
+            reward = this.safeAdd(reward, this.safeMultiply(100, total / 10));
          }
 
          this.depositEmeralds(player.getUniqueId(), reward);
@@ -6262,16 +6270,16 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private void grantPlaytimeRewards() {
       for (Player player : Bukkit.getOnlinePlayers()) {
          ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
-         int minutes = section.getInt("session-minutes", 0) + 1;
+         int minutes = this.safeAdd(section.getInt("session-minutes", 0), 1);
          section.set("session-minutes", minutes);
-         int totalMinutes = section.getInt("total-minutes", 0) + 1;
+         int totalMinutes = this.safeAdd(section.getInt("total-minutes", 0), 1);
          section.set("total-minutes", totalMinutes);
          if (minutes % 10 == 0) {
             int sessionRewards = section.getInt("session-playtime-rewards", 0);
             if (sessionRewards < 20) {
                int reward = this.applyIncomeBonus(player.getUniqueId(), 10);
                if (totalMinutes % 6000 == 0) {
-                  reward += 100 * (totalMinutes / 6000);
+                  reward = this.safeAdd(reward, this.safeMultiply(100, totalMinutes / 6000));
                }
 
                section.set("session-playtime-rewards", sessionRewards + 1);
@@ -6314,7 +6322,10 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    void refundEmeralds(UUID uuid, int amount) {
       if (uuid != null && amount > 0) {
          ConfigurationSection section = this.getPlayerSection(uuid);
-         section.set("emeralds", this.safeAdd(section.getInt("emeralds", 0), amount));
+         int before = this.getEmeralds(uuid);
+         int after = this.safeAdd(before, amount);
+         section.set("emeralds", after);
+         this.trackEconomyAnalytics(uuid, "mp_earned", Math.max(0, after - before), after, "refund");
          this.queueDataSave();
       }
    }
@@ -6323,16 +6334,20 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       if (amount > 0) {
          ConfigurationSection section = this.getPlayerSection(uuid);
          int added = Math.min(amount, 2000000000);
-         section.set("emeralds", this.safeAdd(section.getInt("emeralds", 0), added));
-         section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), added));
-         if (!section.getBoolean("analytics.first-mp-earned-recorded", false)) {
+         int before = this.getEmeralds(uuid);
+         int after = this.safeAdd(before, added);
+         int credited = Math.max(0, after - before);
+         section.set("emeralds", after);
+         this.trackEconomyAnalytics(uuid, "mp_earned", credited, after, "unclassified");
+         section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), credited));
+         if (credited > 0 && !section.getBoolean("analytics.first-mp-earned-recorded", false)) {
             section.set("analytics.first-mp-earned-pending", true);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) {
                this.flushPendingFirstMpEvent(player);
             }
          }
-         if (!section.getBoolean("analytics.first-reward-recorded", false)) {
+         if (credited > 0 && !section.getBoolean("analytics.first-reward-recorded", false)) {
             section.set("analytics.first-reward-recorded", true);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) {
@@ -6361,6 +6376,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
 
       section.set("emeralds", current - amount);
+      this.trackEconomyAnalytics(uuid, "mp_spent", amount, current - amount, "unclassified");
       if (persist) {
          this.queueDataSave();
       }
@@ -6389,14 +6405,14 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private int getMfl(UUID uuid) {
       ConfigurationSection section = this.getPlayerSection(uuid);
-      int score = section.getInt("total-blocks-broken", 0)
-         + section.getInt("total-blocks-placed", 0)
-         + section.getInt("total-trades", 0) * 5
-         + section.getInt("total-minutes", 0)
-         + section.getInt("total-play-count", 0) * 10
-         + section.getInt("total-mob-kills", 0) * 3
-         + section.getStringList("completed-advancements").size() * 50;
-      return Math.max(1, score / 100 + 1);
+      long score = (long)Math.max(0, section.getInt("total-blocks-broken", 0))
+         + Math.max(0L, section.getInt("total-blocks-placed", 0))
+         + (long)Math.max(0, section.getInt("total-trades", 0)) * 5L
+         + Math.max(0L, section.getInt("total-minutes", 0))
+         + (long)Math.max(0, section.getInt("total-play-count", 0)) * 10L
+         + (long)Math.max(0, section.getInt("total-mob-kills", 0)) * 3L
+         + (long)section.getStringList("completed-advancements").size() * 50L;
+      return (int)Math.max(1L, Math.min(2000000000L, score / 100L + 1L));
    }
 
    private String getMflRank(UUID uuid) {
@@ -6445,7 +6461,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private void addReincarnationBonus(UUID uuid, int percent) {
       ConfigurationSection section = this.getPlayerSection(uuid);
-      section.set("reincarnation-bonus-percent", this.getReincarnationBonus(uuid) + Math.max(0, percent));
+      section.set("reincarnation-bonus-percent", this.safeAdd(this.getReincarnationBonus(uuid), percent));
       this.queueDataSave();
    }
 

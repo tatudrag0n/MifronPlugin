@@ -10,6 +10,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -85,9 +88,37 @@ final class MinoruBridgeFeature {
    }
 
    void sendAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey) {
-      if (player == null || this.analyticsSecret == null || this.analyticsSecret.isBlank() || this.analyticsEndpoint == null || this.analyticsEndpoint.isBlank()) return;
-      String uuid = player.getUniqueId().toString();
-      String payload = "{\"eventName\":\"" + escape(eventName) + "\",\"minecraftUuid\":\"" + escape(uuid) + "\",\"sessionId\":\"" + escape(sessionId) + "\",\"source\":\"minecraft\",\"dedupeKey\":\"" + escape(dedupeKey) + "\",\"metadata\":{\"world\":\"" + escape(player.getWorld().getName()) + "\"}}";
+      this.sendAnalyticsEvent(player, eventName, sessionId, dedupeKey, null);
+   }
+
+   void sendEconomyAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
+      if (player == null) return;
+      this.sendEconomyAnalyticsEvent(player.getUniqueId(), player.getWorld().getName(), eventName, sessionId, dedupeKey, amount, balanceAfter, reason);
+   }
+
+   void sendEconomyAnalyticsEvent(UUID uuid, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
+      this.sendEconomyAnalyticsEvent(uuid, null, eventName, sessionId, dedupeKey, amount, balanceAfter, reason);
+   }
+
+   private void sendEconomyAnalyticsEvent(UUID uuid, String world, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
+      int safeAmount = Math.max(0, amount);
+      int safeBalance = Math.max(0, balanceAfter);
+      String safeReason = reason == null ? "unclassified" : reason.replaceAll("[^A-Za-z0-9_.:-]", "_");
+      safeReason = safeReason.substring(0, Math.min(48, safeReason.length()));
+      this.sendAnalyticsEvent(uuid, world, eventName, sessionId, dedupeKey,
+         ",\"amount\":" + safeAmount + ",\"balanceAfter\":" + safeBalance + ",\"reason\":\"" + escape(safeReason) + "\"");
+   }
+
+   private void sendAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, String extraMetadata) {
+      if (player == null) return;
+      this.sendAnalyticsEvent(player.getUniqueId(), player.getWorld().getName(), eventName, sessionId, dedupeKey, extraMetadata);
+   }
+
+   private void sendAnalyticsEvent(UUID uuid, String world, String eventName, String sessionId, String dedupeKey, String extraMetadata) {
+      if (uuid == null || this.analyticsSecret == null || this.analyticsSecret.isBlank() || this.analyticsEndpoint == null || this.analyticsEndpoint.isBlank()) return;
+      String worldMetadata = world == null || world.isBlank() ? "" : "\"world\":\"" + escape(world) + "\"";
+      String separator = worldMetadata.isEmpty() || extraMetadata == null || extraMetadata.isEmpty() ? "" : ",";
+      String payload = "{\"eventName\":\"" + escape(eventName) + "\",\"minecraftUuid\":\"" + escape(uuid.toString()) + "\",\"sessionId\":\"" + escape(sessionId) + "\",\"source\":\"minecraft\",\"dedupeKey\":\"" + escape(dedupeKey) + "\",\"metadata\":{" + worldMetadata + separator + (extraMetadata == null ? "" : extraMetadata.substring(extraMetadata.startsWith(",") ? 1 : 0)) + "}}";
       try {
          HttpRequest request = HttpRequest.newBuilder(URI.create(this.analyticsEndpoint)).timeout(Duration.ofSeconds(3))
             .header("Authorization", "Bearer " + this.analyticsSecret).header("Content-Type", "application/json")
@@ -183,28 +214,46 @@ final class MinoruBridgeFeature {
             String transactionId = body.getOrDefault("transactionId", "");
             if (transactionId.isBlank() || transactionId.length() > 200) { send(exchange, 400, jsonError("invalid_transaction")); return; }
             String key = hash(transactionId);
+            boolean setMode = "/v1/mp/set".equals(path);
             int requested = "/v1/mp/change".equals(path) ? number(body, "amount") : number(body, "balance");
             Result result;
             boolean replay;
+            String transactionError = null;
             synchronized (this.state) {
                if (this.state.contains("transactions." + key + ".balance")) {
                   int balance = this.state.getInt("transactions." + key + ".balance");
                   int applied = this.state.getInt("transactions." + key + ".applied");
-                  result = new Result(balance, applied);
-                  replay = true;
+                  int before = this.state.getInt("transactions." + key + ".before", Math.max(0, balance - applied));
+                  int storedRequested = this.state.getInt("transactions." + key + ".requested", requested);
+                  boolean storedSetMode = this.state.getBoolean("transactions." + key + ".setMode", setMode);
+                  String storedUuid = this.state.getString("transactions." + key + ".uuid", "");
+                  if (!transactionMatches(storedUuid, storedSetMode, storedRequested, uuid, setMode, requested)) {
+                     result = null;
+                     replay = false;
+                     transactionError = "transaction_id_reused";
+                  } else {
+                     result = new Result(balance, applied, before, storedRequested, storedSetMode);
+                     replay = true;
+                  }
                } else {
                   // Keep the idempotency check, MP mutation, and durable record
                   // under one lock. Without this, two concurrent retries with
                   // the same transactionId could both change the balance.
-                  result = onMain(() -> applyMp(uuid, requested, "/v1/mp/set".equals(path)));
+                  result = onMain(() -> applyMp(uuid, requested, setMode));
+                  this.state.set("transactions." + key + ".uuid", uuid.toString());
+                  this.state.set("transactions." + key + ".before", result.before);
+                  this.state.set("transactions." + key + ".requested", result.requested);
+                  this.state.set("transactions." + key + ".setMode", result.setMode);
                   this.state.set("transactions." + key + ".balance", result.balance);
                   this.state.set("transactions." + key + ".applied", result.applied);
+                  this.state.set("transactions." + key + ".source", "minoru-bridge");
                   this.state.set("transactions." + key + ".at", System.currentTimeMillis());
                   trimTransactions();
                   saveState();
                   replay = false;
                }
             }
+            if (transactionError != null) { send(exchange, 409, jsonError(transactionError)); return; }
             send(exchange, 200, response(result.balance, result.applied, replay));
             return;
          }
@@ -225,7 +274,7 @@ final class MinoruBridgeFeature {
       int applied = target - current;
       if (applied > 0) this.plugin.depositEmeralds(uuid, applied);
       else if (applied < 0) this.plugin.withdrawEmeralds(uuid, -applied);
-      return new Result(this.plugin.getEmeralds(uuid), applied);
+      return new Result(this.plugin.getEmeralds(uuid), applied, current, value, setMode);
    }
 
    private boolean authorize(HttpExchange exchange) throws IOException {
@@ -264,11 +313,24 @@ final class MinoruBridgeFeature {
    }
 
    private void saveState() {
+      java.io.File tempFile = null;
       try {
-         if (!this.plugin.getDataFolder().exists()) this.plugin.getDataFolder().mkdirs();
-         this.state.save(this.stateFile);
+         java.io.File parent = this.stateFile.getParentFile();
+         if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            throw new IOException("Could not create bridge state directory");
+         }
+         tempFile = new java.io.File(parent == null ? new java.io.File(".") : parent, this.stateFile.getName() + ".tmp");
+         this.state.save(tempFile);
+         try {
+            Files.move(tempFile.toPath(), this.stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+         } catch (AtomicMoveNotSupportedException error) {
+            Files.move(tempFile.toPath(), this.stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+         }
       } catch (IOException error) {
          this.plugin.getLogger().warning("Failed to save Minoru bridge state: " + error.getMessage());
+         if (tempFile != null && tempFile.exists() && !tempFile.delete()) {
+            this.plugin.getLogger().warning("Failed to remove temporary Minoru bridge state file.");
+         }
       }
    }
 
@@ -288,6 +350,11 @@ final class MinoruBridgeFeature {
 
    private static String stringsafe(String s) { return s; }
    private static int number(Map<String, String> body, String key) { return Integer.parseInt(body.getOrDefault(key, "0")); }
+   static boolean transactionMatches(String storedUuid, boolean storedSetMode, int storedRequested, UUID requestedUuid, boolean requestedSetMode, int requested) {
+      return (storedUuid == null || storedUuid.isBlank() || storedUuid.equals(requestedUuid.toString()))
+         && storedSetMode == requestedSetMode
+         && storedRequested == requested;
+   }
    private static String response(int balance, int applied, boolean duplicate) { return "{\"ok\":true,\"balance\":" + balance + ",\"applied\":" + applied + ",\"duplicate\":" + duplicate + "}"; }
    private static String jsonError(String code) { return "{\"ok\":false,\"error\":\"" + escape(code) + "\"}"; }
    private static String hash(String value) {
@@ -307,5 +374,5 @@ final class MinoruBridgeFeature {
    }
 
    private record LinkCode(UUID uuid, String name, long expiresAt) {}
-   private record Result(int balance, int applied) {}
+   private record Result(int balance, int applied, int before, int requested, boolean setMode) {}
 }
