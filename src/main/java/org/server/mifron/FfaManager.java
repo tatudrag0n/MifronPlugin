@@ -395,7 +395,7 @@ final class FfaManager {
             // Re-selecting a kit while already in FFA must not add another
             // participation record.
             if (newSession) {
-               this.plugin.trackAnalytics(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + UUID.randomUUID());
+               this.plugin.trackAnalyticsWithMetadata(player, "ffa_join", "ffa:" + player.getUniqueId() + ":" + UUID.randomUUID(), "kit", selectedKit.key());
             }
             player.sendMessage("§aFFAに参加しました。キット: §f" + this.stripColor(selectedKit.displayName(this.config)));
             player.playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 0.8F, 1.2F);
@@ -451,10 +451,15 @@ final class FfaManager {
 
          this.damageCredits.remove(victim.getUniqueId());
          this.stats.recordDeath(victim);
+         this.plugin.trackAnalyticsWithMetadata(victim, "ffa_death", "ffa-death:" + victim.getUniqueId() + ":" + System.currentTimeMillis(), "kit", victimSession.kit.key());
          if (killer != null && this.isPlaying(killer) && !killer.getUniqueId().equals(victim.getUniqueId())) {
             this.stats.recordKill(killer);
             this.awardAssassinKillReward(killer);
             this.awardKillEmeralds(killer, victim);
+            FfaManager.FfaSession killerSession = this.sessions.get(killer.getUniqueId());
+            if (killerSession != null) {
+               this.plugin.trackAnalyticsWithMetadata(killer, "ffa_kill", "ffa-kill:" + killer.getUniqueId() + ":" + victim.getUniqueId() + ":" + System.currentTimeMillis(), "kit", killerSession.kit.key());
+            }
             this.updateScoreboard(killer);
             killer.sendMessage("§a" + victim.getName() + " を倒しました！ 現在の連続キル: " + this.stats.currentStreak(killer.getUniqueId()));
             killer.playSound(killer.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7F, 1.4F);
