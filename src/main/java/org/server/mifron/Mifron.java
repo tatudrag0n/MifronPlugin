@@ -858,6 +858,14 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey);
    }
 
+   private void trackEconomyAnalytics(UUID uuid, String eventName, int amount, int balanceAfter, String reason) {
+      if (uuid == null || amount <= 0) return;
+      Player player = Bukkit.getPlayer(uuid);
+      if (player == null) return;
+      this.minoruBridgeFeature.sendEconomyAnalyticsEvent(player, eventName, player.getUniqueId() + ":active",
+         "economy:" + eventName + ":" + uuid + ":" + UUID.randomUUID(), amount, balanceAfter, reason);
+   }
+
    private void flushPendingFirstMpEvent(Player player) {
       if (player == null) return;
       ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
@@ -6314,7 +6322,10 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    void refundEmeralds(UUID uuid, int amount) {
       if (uuid != null && amount > 0) {
          ConfigurationSection section = this.getPlayerSection(uuid);
-         section.set("emeralds", this.safeAdd(section.getInt("emeralds", 0), amount));
+         int before = this.getEmeralds(uuid);
+         int after = this.safeAdd(before, amount);
+         section.set("emeralds", after);
+         this.trackEconomyAnalytics(uuid, "mp_earned", Math.max(0, after - before), after, "refund");
          this.queueDataSave();
       }
    }
@@ -6323,7 +6334,10 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       if (amount > 0) {
          ConfigurationSection section = this.getPlayerSection(uuid);
          int added = Math.min(amount, 2000000000);
-         section.set("emeralds", this.safeAdd(section.getInt("emeralds", 0), added));
+         int before = this.getEmeralds(uuid);
+         int after = this.safeAdd(before, added);
+         section.set("emeralds", after);
+         this.trackEconomyAnalytics(uuid, "mp_earned", Math.max(0, after - before), after, "unclassified");
          section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), added));
          if (!section.getBoolean("analytics.first-mp-earned-recorded", false)) {
             section.set("analytics.first-mp-earned-pending", true);
@@ -6361,6 +6375,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
 
       section.set("emeralds", current - amount);
+      this.trackEconomyAnalytics(uuid, "mp_spent", amount, current - amount, "unclassified");
       if (persist) {
          this.queueDataSave();
       }

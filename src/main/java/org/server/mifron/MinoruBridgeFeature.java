@@ -88,9 +88,22 @@ final class MinoruBridgeFeature {
    }
 
    void sendAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey) {
+      this.sendAnalyticsEvent(player, eventName, sessionId, dedupeKey, null);
+   }
+
+   void sendEconomyAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
+      int safeAmount = Math.max(0, amount);
+      int safeBalance = Math.max(0, balanceAfter);
+        String safeReason = reason == null ? "unclassified" : reason.replaceAll("[^A-Za-z0-9_.:-]", "_");
+        safeReason = safeReason.substring(0, Math.min(48, safeReason.length()));
+      this.sendAnalyticsEvent(player, eventName, sessionId, dedupeKey,
+         ",\"amount\":" + safeAmount + ",\"balanceAfter\":" + safeBalance + ",\"reason\":\"" + escape(safeReason) + "\"");
+   }
+
+   private void sendAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, String extraMetadata) {
       if (player == null || this.analyticsSecret == null || this.analyticsSecret.isBlank() || this.analyticsEndpoint == null || this.analyticsEndpoint.isBlank()) return;
       String uuid = player.getUniqueId().toString();
-      String payload = "{\"eventName\":\"" + escape(eventName) + "\",\"minecraftUuid\":\"" + escape(uuid) + "\",\"sessionId\":\"" + escape(sessionId) + "\",\"source\":\"minecraft\",\"dedupeKey\":\"" + escape(dedupeKey) + "\",\"metadata\":{\"world\":\"" + escape(player.getWorld().getName()) + "\"}}";
+      String payload = "{\"eventName\":\"" + escape(eventName) + "\",\"minecraftUuid\":\"" + escape(uuid) + "\",\"sessionId\":\"" + escape(sessionId) + "\",\"source\":\"minecraft\",\"dedupeKey\":\"" + escape(dedupeKey) + "\",\"metadata\":{\"world\":\"" + escape(player.getWorld().getName()) + "\"" + (extraMetadata == null ? "" : extraMetadata) + "}}";
       try {
          HttpRequest request = HttpRequest.newBuilder(URI.create(this.analyticsEndpoint)).timeout(Duration.ofSeconds(3))
             .header("Authorization", "Bearer " + this.analyticsSecret).header("Content-Type", "application/json")
