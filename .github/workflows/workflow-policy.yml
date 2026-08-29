@@ -1,0 +1,23 @@
+name: Enforce reviewed deployment policy
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  no-automatic-source-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject workflows that mutate repository history
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '(^|[[:space:]])git[[:space:]]+(commit|push)([[:space:]]|$)' .github/workflows; then
+            echo 'Workflow source mutation is prohibited. Use a reviewed branch and pull request.' >&2
+            exit 1
+          fi
