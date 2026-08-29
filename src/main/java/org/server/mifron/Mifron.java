@@ -842,7 +842,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
    }
 
-   private void queueDataSave() {
+   void queueDataSave() {
       if (this.pendingDataSaveTask != null && !this.pendingDataSaveTask.isCancelled()) {
          return;
       }

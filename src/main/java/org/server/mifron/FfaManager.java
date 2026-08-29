@@ -2544,12 +2544,14 @@ final class FfaManager {
       long now = System.currentTimeMillis();
       long resetMillis = Math.max(1L, this.plugin.getConfig().getLong("ffa.rewards.same-target-reset-seconds", 600L)) * 1000L;
       FfaManager.KillRewardState state = this.killRewardStates.get(killer.getUniqueId());
-      int sameTargetRepeats = 0;
-      if (state != null && victim.getUniqueId().equals(state.target()) && now - state.lastKillAt() <= resetMillis) {
-         sameTargetRepeats = state.repeats() + 1;
+      if (state == null) {
+         state = this.loadPersistedKillRewardState(killer.getUniqueId());
       }
 
-      this.killRewardStates.put(killer.getUniqueId(), new FfaManager.KillRewardState(victim.getUniqueId(), sameTargetRepeats, now));
+      FfaManager.KillRewardState nextState = this.nextKillRewardState(state, victim.getUniqueId(), now, resetMillis);
+      int sameTargetRepeats = nextState.repeats();
+      this.killRewardStates.put(killer.getUniqueId(), nextState);
+      this.persistKillRewardState(killer.getUniqueId(), nextState);
       int base = Math.min(2000000000, Math.max(0, this.configInt("ffa.rewards.kill-mp", "ffa.rewards.kill-em", 50)));
       long rewardValue = sameTargetRepeats >= 7 ? 0L : (long)Math.floor(base * Math.pow(0.5, sameTargetRepeats));
       FfaManager.FfaSession session = this.sessions.get(killer.getUniqueId());
@@ -2587,6 +2589,42 @@ final class FfaManager {
             reward >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED
          )
       );
+   }
+
+   private FfaManager.KillRewardState loadPersistedKillRewardState(UUID killer) {
+      String path = this.killRewardStatePath(killer);
+      UUID target = this.parseUuid(this.plugin.data().getString(path + ".target", ""));
+      if (target == null) {
+         return null;
+      }
+
+      int repeats = Math.max(0, Math.min(7, this.plugin.data().getInt(path + ".repeats", 0)));
+      long lastKillAt = this.plugin.data().getLong(path + ".last-kill-at", 0L);
+      return lastKillAt > 0L ? new FfaManager.KillRewardState(target, repeats, lastKillAt) : null;
+   }
+
+   private void persistKillRewardState(UUID killer, FfaManager.KillRewardState state) {
+      String path = this.killRewardStatePath(killer);
+      this.plugin.data().set(path + ".target", state.target().toString());
+      this.plugin.data().set(path + ".repeats", state.repeats());
+      this.plugin.data().set(path + ".last-kill-at", state.lastKillAt());
+      this.plugin.queueDataSave();
+   }
+
+   private String killRewardStatePath(UUID killer) {
+      return "players." + killer + ".ffa.kill-reward-state";
+   }
+
+   static FfaManager.KillRewardState nextKillRewardState(FfaManager.KillRewardState state, UUID victim, long now, long resetMillis) {
+      int repeats = 0;
+      if (state != null && victim != null && victim.equals(state.target())) {
+         long age = now - state.lastKillAt();
+         if (age >= 0L && age <= Math.max(1L, resetMillis)) {
+            repeats = Math.min(7, Math.max(0, state.repeats()) + 1);
+         }
+      }
+
+      return new FfaManager.KillRewardState(victim, repeats, now);
    }
 
    private int configInt(String path, String legacyPath, int fallback) {
@@ -2843,7 +2881,7 @@ final class FfaManager {
       }
    }
 
-   private record KillRewardState(UUID target, int repeats, long lastKillAt) {
+   static record KillRewardState(UUID target, int repeats, long lastKillAt) {
    }
 
    private static final class PlayerState {
