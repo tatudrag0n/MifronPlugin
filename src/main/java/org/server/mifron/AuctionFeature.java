@@ -218,8 +218,9 @@ final class AuctionFeature implements Listener {
       int highest = this.plugin.data().getInt(path + ".highest-amount", 0);
       int escrow = winner == null ? 0 : this.plugin.data().getInt(path + ".escrow." + winner, 0);
       ItemStack item = this.plugin.data().getItemStack(path + ".item-stack");
-      if ((item == null || item.getType() == Material.AIR) && frame.getItem().getType() != Material.AIR) {
-         item = frame.getItem().clone();
+      ItemStack frameItem = frame.getItem();
+      if ((item == null || item.getType() == Material.AIR) && frameItem != null && frameItem.getType() != Material.AIR) {
+         item = frameItem.clone();
       }
       if (winner == null || highest <= 0) {
          this.refundEscrow(path, null, "オークション終了に伴い、入札MPを返金しました。");
@@ -361,8 +362,9 @@ final class AuctionFeature implements Listener {
          this.plugin.data().set(path + ".escrow-version", ESCROW_VERSION);
          changed = true;
       }
-      if (!this.plugin.data().contains(path + ".item-stack") && frame.getItem().getType() != Material.AIR) {
-         this.plugin.data().set(path + ".item-stack", frame.getItem().clone());
+      ItemStack frameItem = frame.getItem();
+      if (!this.plugin.data().contains(path + ".item-stack") && frameItem != null && frameItem.getType() != Material.AIR) {
+         this.plugin.data().set(path + ".item-stack", frameItem.clone());
          changed = true;
       }
       if (this.plugin.data().getLong(path + ".ends-at", 0L) <= 0L) {
