@@ -6336,17 +6336,18 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          int added = Math.min(amount, 2000000000);
          int before = this.getEmeralds(uuid);
          int after = this.safeAdd(before, added);
+         int credited = Math.max(0, after - before);
          section.set("emeralds", after);
-         this.trackEconomyAnalytics(uuid, "mp_earned", Math.max(0, after - before), after, "unclassified");
-         section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), added));
-         if (!section.getBoolean("analytics.first-mp-earned-recorded", false)) {
+         this.trackEconomyAnalytics(uuid, "mp_earned", credited, after, "unclassified");
+         section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), credited));
+         if (credited > 0 && !section.getBoolean("analytics.first-mp-earned-recorded", false)) {
             section.set("analytics.first-mp-earned-pending", true);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) {
                this.flushPendingFirstMpEvent(player);
             }
          }
-         if (!section.getBoolean("analytics.first-reward-recorded", false)) {
+         if (credited > 0 && !section.getBoolean("analytics.first-reward-recorded", false)) {
             section.set("analytics.first-reward-recorded", true);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) {
