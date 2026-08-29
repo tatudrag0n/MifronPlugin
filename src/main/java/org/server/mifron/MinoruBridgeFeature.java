@@ -92,18 +92,33 @@ final class MinoruBridgeFeature {
    }
 
    void sendEconomyAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
+      if (player == null) return;
+      this.sendEconomyAnalyticsEvent(player.getUniqueId(), player.getWorld().getName(), eventName, sessionId, dedupeKey, amount, balanceAfter, reason);
+   }
+
+   void sendEconomyAnalyticsEvent(UUID uuid, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
+      this.sendEconomyAnalyticsEvent(uuid, null, eventName, sessionId, dedupeKey, amount, balanceAfter, reason);
+   }
+
+   private void sendEconomyAnalyticsEvent(UUID uuid, String world, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
       int safeAmount = Math.max(0, amount);
       int safeBalance = Math.max(0, balanceAfter);
-        String safeReason = reason == null ? "unclassified" : reason.replaceAll("[^A-Za-z0-9_.:-]", "_");
-        safeReason = safeReason.substring(0, Math.min(48, safeReason.length()));
-      this.sendAnalyticsEvent(player, eventName, sessionId, dedupeKey,
+      String safeReason = reason == null ? "unclassified" : reason.replaceAll("[^A-Za-z0-9_.:-]", "_");
+      safeReason = safeReason.substring(0, Math.min(48, safeReason.length()));
+      this.sendAnalyticsEvent(uuid, world, eventName, sessionId, dedupeKey,
          ",\"amount\":" + safeAmount + ",\"balanceAfter\":" + safeBalance + ",\"reason\":\"" + escape(safeReason) + "\"");
    }
 
    private void sendAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, String extraMetadata) {
-      if (player == null || this.analyticsSecret == null || this.analyticsSecret.isBlank() || this.analyticsEndpoint == null || this.analyticsEndpoint.isBlank()) return;
-      String uuid = player.getUniqueId().toString();
-      String payload = "{\"eventName\":\"" + escape(eventName) + "\",\"minecraftUuid\":\"" + escape(uuid) + "\",\"sessionId\":\"" + escape(sessionId) + "\",\"source\":\"minecraft\",\"dedupeKey\":\"" + escape(dedupeKey) + "\",\"metadata\":{\"world\":\"" + escape(player.getWorld().getName()) + "\"" + (extraMetadata == null ? "" : extraMetadata) + "}}";
+      if (player == null) return;
+      this.sendAnalyticsEvent(player.getUniqueId(), player.getWorld().getName(), eventName, sessionId, dedupeKey, extraMetadata);
+   }
+
+   private void sendAnalyticsEvent(UUID uuid, String world, String eventName, String sessionId, String dedupeKey, String extraMetadata) {
+      if (uuid == null || this.analyticsSecret == null || this.analyticsSecret.isBlank() || this.analyticsEndpoint == null || this.analyticsEndpoint.isBlank()) return;
+      String worldMetadata = world == null || world.isBlank() ? "" : "\"world\":\"" + escape(world) + "\"";
+      String separator = worldMetadata.isEmpty() || extraMetadata == null || extraMetadata.isEmpty() ? "" : ",";
+      String payload = "{\"eventName\":\"" + escape(eventName) + "\",\"minecraftUuid\":\"" + escape(uuid.toString()) + "\",\"sessionId\":\"" + escape(sessionId) + "\",\"source\":\"minecraft\",\"dedupeKey\":\"" + escape(dedupeKey) + "\",\"metadata\":{" + worldMetadata + separator + (extraMetadata == null ? "" : extraMetadata.substring(extraMetadata.startsWith(",") ? 1 : 0)) + "}}";
       try {
          HttpRequest request = HttpRequest.newBuilder(URI.create(this.analyticsEndpoint)).timeout(Duration.ofSeconds(3))
             .header("Authorization", "Bearer " + this.analyticsSecret).header("Content-Type", "application/json")
