@@ -939,6 +939,9 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       // total-play-count is an in-game statistic and can be reset by an
       // administrator, so it must not decide whether a player is new.
       boolean firstJoin = !player.hasPlayedBefore();
+      if (firstJoin) {
+         session.set("tutorial.auto-pending", true);
+      }
       this.minoruBridgeFeature.sendAnalyticsEvent(player, firstJoin ? "first_join" : "return_join", sessionId, "join:" + player.getUniqueId() + ":" + java.time.LocalDate.now());
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_start", sessionId, "session-start:" + sessionId);
       this.flushPendingFirstMpEvent(player);
@@ -964,7 +967,8 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private boolean isFirstJoin(Player player) {
       ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
-      return section.getInt("total-play-count", 0) == 1 && !section.getBoolean("tutorial.started", false);
+      return !section.getBoolean("tutorial.completed", false)
+         && section.getBoolean("tutorial.auto-pending", false);
    }
 
    private void startTutorial(Player player, boolean manual) {
@@ -998,6 +1002,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                      player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6F, 1.0F + index * 0.08F);
                      if (index == steps.size() - 1) {
                         this.getPlayerSection(player.getUniqueId()).set("tutorial.completed", true);
+                        this.getPlayerSection(player.getUniqueId()).set("tutorial.auto-pending", false);
                         this.getPlayerSection(player.getUniqueId()).set("tutorial.completed-at", System.currentTimeMillis());
                         this.queueDataSave();
                         this.activeTutorials.remove(player.getUniqueId());
