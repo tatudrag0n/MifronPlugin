@@ -159,19 +159,9 @@ final class MinoruBridgeFeature {
 
    boolean handleCommand(Player player, String[] args) {
       if (args.length == 0 || !("link".equalsIgnoreCase(args[0]) || "discord".equalsIgnoreCase(args[0]))) return false;
-      if (this.server == null) {
-         player.sendMessage("§cDiscord連携APIが無効です。管理者に連絡してください。");
-         return true;
-      }
-      this.linkCodes.entrySet().removeIf(entry -> entry.getValue().expiresAt < System.currentTimeMillis() || entry.getValue().uuid.equals(player.getUniqueId()));
-      String code;
-      do { code = String.format(Locale.ROOT, "%06d", this.random.nextInt(1_000_000)); } while (this.linkCodes.containsKey(code));
-      long expiresAt = System.currentTimeMillis() + CODE_TTL_MILLIS;
-      this.linkCodes.put(code, new LinkCode(player.getUniqueId(), player.getName(), expiresAt));
-      player.sendMessage("§b[Mifron] §fDiscord連携コード: §e§l" + code);
-      player.sendMessage("§7Discordの認証チャンネルへ、この6桁コードだけを送信してください。");
+      player.sendMessage("§b[Mifron] §fDiscord連携はこのコマンドでは行いません。");
+      player.sendMessage("§7未連携の場合は、接続時のキック画面に表示された6桁コードをDiscordの認証チャンネルへ送信してください。");
       player.sendMessage("§7認証チャンネルID: 1539107105477234738");
-      player.sendMessage("§7有効期限: 10分 / 一度使用すると無効になります。");
       return true;
    }
 
