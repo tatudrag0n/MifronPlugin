@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -317,6 +318,11 @@ final class TextDisplayFeature implements Listener {
       if (location == null) {
          this.plugin.getLogger().warning("Could not spawn TextDisplay because world is missing: " + entry.id() + " / " + entry.worldName());
       } else {
+         Chunk chunk = location.getChunk();
+         if (!chunk.isLoaded() && !chunk.load()) {
+            this.plugin.getLogger().warning("Could not spawn TextDisplay because its chunk could not be loaded: " + entry.id());
+            return;
+         }
          TextDisplay display = (TextDisplay)location.getWorld().spawn(location, TextDisplay.class);
          display.setPersistent(false);
          display.getPersistentDataContainer().set(this.displayKey, PersistentDataType.STRING, entry.id());
