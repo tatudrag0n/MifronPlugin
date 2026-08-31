@@ -1,6 +1,5 @@
 package org.server.mifron;
 
-import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
@@ -39,8 +38,7 @@ final class FfaKitStandManager {
       Location location = base.clone();
       location.setYaw(base.getYaw());
       ArmorStand stand = (ArmorStand)location.getWorld().spawn(location, ArmorStand.class);
-      stand.customName(Component.text("§aFFAキット選択"));
-      stand.setCustomNameVisible(true);
+      hideSelectorLabel(stand);
       stand.setInvulnerable(true);
       stand.setGravity(false);
       stand.setArms(true);
@@ -89,13 +87,28 @@ final class FfaKitStandManager {
       for (World world : this.plugin.getServer().getWorlds()) {
          for (Entity entity : world.getEntities()) {
             if (this.isKitSelector(entity) && entity instanceof ArmorStand stand) {
-               stand.customName(Component.text("§aFFAキット選択: " + kit.displayName(this.config)));
+               hideSelectorLabel(stand);
                kit.applyStandEquipment(stand.getEquipment(), this.config, this.plugin);
             }
          }
       }
 
       this.plugin.saveConfig();
+   }
+
+   void hideSelectorLabels() {
+      for (World world : this.plugin.getServer().getWorlds()) {
+         for (Entity entity : world.getEntities()) {
+            if (this.isKitSelector(entity) && entity instanceof ArmorStand stand) {
+               hideSelectorLabel(stand);
+            }
+         }
+      }
+   }
+
+   private static void hideSelectorLabel(ArmorStand stand) {
+      stand.customName(null);
+      stand.setCustomNameVisible(false);
    }
 
    FfaKit selectedKit() {

@@ -149,6 +149,7 @@ final class FfaManager {
       this.config.ensureDefaults();
       this.stats.load();
       this.fieldItems.load();
+      this.stands.hideSelectorLabels();
       this.startKitEffectTask();
    }
 
