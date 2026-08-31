@@ -365,6 +365,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       ));
       this.getConfig().options().copyDefaults(true);
       this.saveConfig();
+      this.applyServerMotd();
       this.runStartupStep("migrate barrel shop offer slots", this::migrateBarrelShopOfferSlots);
       this.runStartupStep("migrate hub location", this::migrateDefaultHubLocation);
       this.runStartupStep("migrate minigame location", this::migrateDefaultMinigameLocation);
@@ -419,6 +420,15 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       Bukkit.getScheduler().runTaskTimer(this, this::tickMerchants, 1200L, 1200L);
       Bukkit.getScheduler().runTaskTimer(this, this::tickShelfShopActionBars, 10L, 10L);
       InventoryGroupFeature.install(this);
+   }
+
+   private void applyServerMotd() {
+      String motd = this.getConfig().getString("server-motd", "Mifron - Community Minecraft Server");
+      if (motd == null || motd.isBlank()) {
+         motd = "Mifron - Community Minecraft Server";
+      }
+      this.getServer().setMotd(motd);
+      this.getLogger().info("Server MOTD set to Mifron.");
    }
 
    private void runStartupStep(String name, Runnable step) {

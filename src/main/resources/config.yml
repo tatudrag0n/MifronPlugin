@@ -1,3 +1,5 @@
+server-motd: "Mifron - Community Minecraft Server"
+
 hub-protection-radius-chunks: 4
 survival-safety:
   disable-tnt: true
