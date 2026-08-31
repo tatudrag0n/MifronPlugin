@@ -157,14 +157,6 @@ final class MinoruBridgeFeature {
       this.saveState();
    }
 
-   boolean handleCommand(Player player, String[] args) {
-      if (args.length == 0 || !("link".equalsIgnoreCase(args[0]) || "discord".equalsIgnoreCase(args[0]))) return false;
-      player.sendMessage("§b[Mifron] §fDiscord連携はこのコマンドでは行いません。");
-      player.sendMessage("§7未連携の場合は、接続時のキック画面に表示された6桁コードをDiscordの認証チャンネルへ送信してください。");
-      player.sendMessage("§7認証チャンネルID: 1539107105477234738");
-      return true;
-   }
-
    private void handleHealth(HttpExchange exchange) throws IOException {
       if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) { send(exchange, 405, jsonError("method_not_allowed")); return; }
       send(exchange, 200, "{\"ok\":true,\"service\":\"mifron-minoru-bridge\",\"version\":\"1.0\"}");
