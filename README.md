@@ -1,6 +1,6 @@
 # Mifron Plugin
 
-Paper 1.21向けのMifronサーバー統合プラグインです。実装に基づくFFA以外の詳細仕様は [`docs/non-ffa-code-spec.md`](docs/non-ffa-code-spec.md) を参照してください。
+Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に基づくFFA以外の詳細仕様は [`docs/non-ffa-code-spec.md`](docs/non-ffa-code-spec.md) を参照してください。
 
 ## コマンド
 
