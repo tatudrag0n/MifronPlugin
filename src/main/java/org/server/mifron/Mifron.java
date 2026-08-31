@@ -6644,14 +6644,6 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
       try {
-         if (("mifron".equalsIgnoreCase(command.getName()) || "mf".equalsIgnoreCase(command.getName()))
-            && args.length > 0 && ("link".equalsIgnoreCase(args[0]) || "discord".equalsIgnoreCase(args[0]))) {
-            if (!(sender instanceof Player player)) {
-               sender.sendMessage("§cこのコマンドはゲーム内プレイヤー専用です。");
-               return true;
-            }
-            return this.minoruBridgeFeature.handleCommand(player, args);
-         }
          if ("friend".equalsIgnoreCase(command.getName())) {
             return this.handleFriendCommand(sender, args);
          } else if ("status".equalsIgnoreCase(command.getName())) {
