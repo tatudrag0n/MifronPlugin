@@ -351,13 +351,13 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.getConfig().addDefault("advanced-enchanting.allowed-worlds", List.of("survival"));
       this.getConfig().addDefault("advanced-enchanting.max-enchantment-level", 20);
       this.getConfig().addDefault("advanced-enchanting.maximum-level-cost", 1000000);
-      this.getConfig().addDefault("advanced-enchanting.mp-cost-per-level", 1);
+      this.getConfig().addDefault("advanced-enchanting.mp-cost-per-level", 100);
       this.getConfig().addDefault("advanced-enchanting.enchantment-level-limits", Map.of(
-         "multishot", 2, "quick_charge", 4, "piercing", 6,
-         "fire_aspect", 4, "looting", 5, "fortune", 5));
+         "multishot", 5, "quick_charge", 10, "piercing", 10,
+         "fire_aspect", 10, "looting", 10, "fortune", 10));
       this.getConfig().addDefault("advanced-enchanting.mp-cost-multipliers", Map.of(
-         "multishot", 8, "quick_charge", 3, "piercing", 2,
-         "fire_aspect", 2, "looting", 2, "fortune", 2));
+         "multishot", 50, "quick_charge", 20, "piercing", 15,
+         "fire_aspect", 12, "looting", 15, "fortune", 15));
       this.getConfig().addDefault("advanced-enchanting.allowed-materials", List.of());
       this.getConfig().addDefault("advanced-enchanting.blocked-materials", List.of());
       this.getConfig().addDefault("advanced-enchanting.blocked-enchantments", List.of());
