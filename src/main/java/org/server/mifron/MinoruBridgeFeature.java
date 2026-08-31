@@ -185,6 +185,10 @@ final class MinoruBridgeFeature {
       if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) { send(exchange, 405, jsonError("method_not_allowed")); return; }
       Map<String, String> body = parseJson(readBody(exchange));
       String code = body.getOrDefault("code", "");
+      // The six-digit code is already bound to the Minecraft UUID and name
+      // when it is issued by /mf link.  Keep username validation for legacy
+      // callers that provide it, but do not require Minoru to know the name
+      // before it can complete the link.
       String username = body.getOrDefault("username", "");
       if (!code.matches("\\d{6}")) { send(exchange, 400, jsonError("invalid_code")); return; }
       LinkCode link = this.linkCodes.get(code);
@@ -194,7 +198,7 @@ final class MinoruBridgeFeature {
          send(exchange, 410, jsonError("expired_code"));
          return;
       }
-      if (!link.name.equalsIgnoreCase(username)) { send(exchange, 409, jsonError("name_mismatch")); return; }
+      if (!username.isBlank() && !link.name.equalsIgnoreCase(username)) { send(exchange, 409, jsonError("name_mismatch")); return; }
       this.linkCodes.remove(code);
       send(exchange, 200, "{\"ok\":true,\"uuid\":\"" + link.uuid + "\",\"name\":\"" + escape(link.name) + "\"}");
    }
