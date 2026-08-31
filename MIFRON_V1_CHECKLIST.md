@@ -102,8 +102,8 @@
 
 ## S-PROTECT 保護・不正持ち出し防止
 
-- [ ] S-PROT-001 Hub保護範囲の通常Block Breakは現行コードで未制限のため、公開前に仕様を確定する
-- [ ] S-PROT-002 Hub保護範囲の通常Block Placeは現行コードで未制限のため、公開前に仕様を確定する
+- [ ] S-PROT-001 Hub保護範囲の通常Block Breakが、`ChunkProtectionFeature`の保護判定・管理者バイパスを含めて実機で仕様通りに動作する
+- [ ] S-PROT-002 Hub保護範囲の通常Block Placeが、`ChunkProtectionFeature`の保護判定・管理者バイパスを含めて実機で仕様通りに動作する
 - [ ] S-PROT-003 保護されたコンテナを不正に操作できない
 - [ ] S-PROT-004 Door / Trapdoor等の扱いが仕様通り
 - [ ] S-PROT-005 ItemFrameを不正破壊できない
