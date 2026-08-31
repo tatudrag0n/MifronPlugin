@@ -37,6 +37,11 @@ final class ChunkProtectionFeature implements Listener {
          event.setDropItems(false);
          event.setExpToDrop(0);
          event.getPlayer().sendMessage(ChatColor.YELLOW + "ショップ化されたブロックはショップワンドで解除してください。");
+      } else if (!this.plugin.canBuild(event.getPlayer(), event.getBlock().getLocation())) {
+         event.setCancelled(true);
+         event.setDropItems(false);
+         event.setExpToDrop(0);
+         event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
       } else {
          this.plugin.addPlayerStat(event.getPlayer().getUniqueId(), "total-blocks-broken", 1);
       }
@@ -45,7 +50,10 @@ final class ChunkProtectionFeature implements Listener {
    @EventHandler
    public void onBlockPlace(BlockPlaceEvent event) {
       Location location = event.getBlockPlaced().getLocation();
-      if (this.isSurvivalHazardBlocked(location, event.getBlockPlaced().getType())
+      if (!this.plugin.canBuild(event.getPlayer(), location)) {
+         event.setCancelled(true);
+         event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
+      } else if (this.isSurvivalHazardBlocked(location, event.getBlockPlaced().getType())
          && !this.isProtectionAdmin(event.getPlayer())) {
          event.setCancelled(true);
          event.getPlayer().sendMessage(ChatColor.RED + this.survivalHazardMessage(event.getBlockPlaced().getType()));
