@@ -17,6 +17,10 @@ final class AdvancedAnvilRules {
       return Math.max(1, Math.min(max, left == right ? left + 1 : Math.max(left, right)));
    }
 
+   static int combineLevel(int existing, int incoming, int maximum, int enchantmentMaximum) {
+      return combineLevel(existing, incoming, Math.min(maximum, enchantmentMaximum));
+   }
+
    /**
     * Merges the normalized enchantment maps from either an item or a book.
     * Keeping this operation independent from Bukkit metadata makes the two
@@ -61,6 +65,11 @@ final class AdvancedAnvilRules {
 
    static int mpCost(int xpCost, int perLevel) {
       long result = (long)Math.max(0, xpCost) * Math.max(0, perLevel);
+      return (int)Math.min(2000000000L, result);
+   }
+
+   static int mpCost(int xpCost, int perLevel, int multiplier) {
+      long result = (long)Math.max(0, xpCost) * Math.max(0, perLevel) * Math.max(0, multiplier);
       return (int)Math.min(2000000000L, result);
    }
 }

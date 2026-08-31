@@ -26,6 +26,26 @@ advanced-enchanting:
   # When the result exceeds a vanilla enchantment maximum, XP is 0 and the
   # calculated anvil cost is charged as MP multiplied by this value.
   mp-cost-per-level: 1
+  # Per-enchantment safety caps. Missing entries use max-enchantment-level.
+  # Multishot is intentionally kept at vanilla I because extra projectiles
+  # multiply damage, entity work, and inventory impact too aggressively.
+  enchantment-level-limits:
+    multishot: 1
+    quick_charge: 3
+    piercing: 4
+    fire_aspect: 2
+    looting: 3
+    fortune: 3
+  # Extra MP multipliers for levels above the vanilla maximum. Missing entries
+  # use 1. This is separate from the level cap so balance can be tuned without
+  # changing whether an enchantment is allowed at all.
+  mp-cost-multipliers:
+    multishot: 10
+    quick_charge: 3
+    piercing: 2
+    fire_aspect: 2
+    looting: 2
+    fortune: 2
   # Empty means all materials (except excluded Mifron items) are eligible.
   allowed-materials: []
   blocked-materials: []
