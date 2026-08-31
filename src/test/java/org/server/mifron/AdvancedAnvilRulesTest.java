@@ -28,8 +28,8 @@ class AdvancedAnvilRulesTest {
       assertEquals(5, AdvancedAnvilRules.combineLevel(0, 5, 20));
       assertEquals(7, AdvancedAnvilRules.combineLevel(7, 5, 20));
       assertEquals(7, AdvancedAnvilRules.combineLevel(5, 7, 20));
-      assertEquals(1, AdvancedAnvilRules.combineLevel(1, 1, 20, 1));
-      assertEquals(3, AdvancedAnvilRules.combineLevel(2, 2, 20, 3));
+      assertEquals(2, AdvancedAnvilRules.combineLevel(1, 1, 20, 2));
+      assertEquals(4, AdvancedAnvilRules.combineLevel(3, 3, 20, 4));
    }
 
    @Test
