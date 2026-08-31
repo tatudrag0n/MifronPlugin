@@ -39,9 +39,9 @@ advanced-enchanting:
     - server_wand
     - jump_pad_wand
     - hub_compass
-# Legacy fallback for minoru-bridge.secret. New deployments should set the
-# dedicated Minoru secret in the server-side config instead.
-serverSecret: "change-this"
+# Legacy fallback for minoru-bridge.secret. Keep empty so a deployment cannot
+# accidentally start the bridge with a publicly-known default secret.
+serverSecret: ""
 
 build-world:
   enabled: true
