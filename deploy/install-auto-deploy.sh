@@ -33,6 +33,8 @@ if [ ! -f "$ENV_FILE" ]; then
 # Optional. Keep secrets on the VM only.
 # DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 HEALTH_TIMEOUT=120
+# Required consecutive healthy seconds after restart.
+HEALTH_STABLE_SECONDS=8
 MINECRAFT_HOST=127.0.0.1
 MINECRAFT_PORT=25565
 # Optional stronger check. Example:
@@ -61,6 +63,7 @@ mkdir -p "\$STATE_DIR"
 exec 9>"\$LOCK_FILE"
 flock -n 9 || exit 0
 HEALTH_TIMEOUT="\${HEALTH_TIMEOUT:-120}"
+HEALTH_STABLE_SECONDS="\${HEALTH_STABLE_SECONDS:-8}"
 MINECRAFT_HOST="\${MINECRAFT_HOST:-127.0.0.1}"
 MINECRAFT_PORT="\${MINECRAFT_PORT:-25565}"
 DISCORD_WEBHOOK_URL="\${DISCORD_WEBHOOK_URL:-}"
@@ -132,11 +135,15 @@ health_check() {
   while true; do
     if systemctl is-active --quiet "\$SERVICE_NAME" && port_open; then
       if [ -n "\$EXTRA_HEALTHCHECK_CMD" ]; then
-        if bash -lc "\$EXTRA_HEALTHCHECK_CMD"; then
+        bash -lc "\$EXTRA_HEALTHCHECK_CMD" || { sleep 2; continue; }
+      fi
+      sleep "\$HEALTH_STABLE_SECONDS"
+      if systemctl is-active --quiet "\$SERVICE_NAME" && port_open; then
+        if [ -z "\$EXTRA_HEALTHCHECK_CMD" ] || bash -lc "\$EXTRA_HEALTHCHECK_CMD"; then
           return 0
         fi
       else
-        return 0
+        continue
       fi
     fi
     if [ "\$(( \$(date +%s) - started ))" -ge "\$HEALTH_TIMEOUT" ]; then
