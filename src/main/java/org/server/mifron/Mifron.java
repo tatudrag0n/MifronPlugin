@@ -3718,6 +3718,10 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       return this.protectionService.isProtected(location);
    }
 
+   boolean canBuild(Player player, Location location) {
+      return this.protectionService.canBuild(player, location);
+   }
+
    private boolean isMifronMerchant(Entity entity) {
       return Boolean.TRUE.equals(entity.getPersistentDataContainer().get(this.merchantKey, PersistentDataType.BOOLEAN));
    }
