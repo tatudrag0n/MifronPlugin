@@ -352,6 +352,12 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.getConfig().addDefault("advanced-enchanting.max-enchantment-level", 20);
       this.getConfig().addDefault("advanced-enchanting.maximum-level-cost", 1000000);
       this.getConfig().addDefault("advanced-enchanting.mp-cost-per-level", 1);
+      this.getConfig().addDefault("advanced-enchanting.enchantment-level-limits", Map.of(
+         "multishot", 1, "quick_charge", 3, "piercing", 4,
+         "fire_aspect", 2, "looting", 3, "fortune", 3));
+      this.getConfig().addDefault("advanced-enchanting.mp-cost-multipliers", Map.of(
+         "multishot", 10, "quick_charge", 3, "piercing", 2,
+         "fire_aspect", 2, "looting", 2, "fortune", 2));
       this.getConfig().addDefault("advanced-enchanting.allowed-materials", List.of());
       this.getConfig().addDefault("advanced-enchanting.blocked-materials", List.of());
       this.getConfig().addDefault("advanced-enchanting.blocked-enchantments", List.of());

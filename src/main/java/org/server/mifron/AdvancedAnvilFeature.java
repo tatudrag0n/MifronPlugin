@@ -118,7 +118,7 @@ final class AdvancedAnvilFeature implements Listener {
       totalCost = Math.min(totalCost, this.maximumRepairCost());
       boolean exceedsVanillaLevel = this.hasEnchantmentAboveVanillaMaximum(result);
       int xpCost = exceedsVanillaLevel ? 0 : totalCost;
-      int mpCost = exceedsVanillaLevel ? this.mpCost(totalCost) : 0;
+      int mpCost = exceedsVanillaLevel ? this.mpCost(totalCost, result, left) : 0;
       event.getView().setRepairCost(xpCost);
       this.configureMaximumRepairCost(event.getView());
       if (vanillaResult == null) {
@@ -395,9 +395,31 @@ final class AdvancedAnvilFeature implements Listener {
       return Math.max(1, Math.min(255, configured));
    }
 
-   private int mpCost(int xpCost) {
+   private int mpCost(int xpCost, ItemStack result, ItemStack left) {
       int perLevel = Math.max(0, this.plugin.getConfig().getInt("advanced-enchanting.mp-cost-per-level", 1));
-      return AdvancedAnvilRules.mpCost(xpCost, perLevel);
+      int multiplier = 1;
+      Map<Enchantment, Integer> before = this.enchantments(left);
+      for (Map.Entry<Enchantment, Integer> entry : this.enchantments(result).entrySet()) {
+         int oldLevel = before.getOrDefault(entry.getKey(), 0);
+         if (entry.getValue() > oldLevel && entry.getValue() > entry.getKey().getMaxLevel()) {
+            multiplier = Math.max(multiplier, this.mpCostMultiplier(entry.getKey()));
+         }
+      }
+      return AdvancedAnvilRules.mpCost(xpCost, perLevel, multiplier);
+   }
+
+   private int enchantmentLevelLimit(Enchantment enchantment) {
+      int global = this.maximumEnchantmentLevel();
+      if (enchantment == null) return global;
+      String key = enchantment.getKey().getKey().toLowerCase(Locale.ROOT);
+      int configured = this.plugin.getConfig().getInt("advanced-enchanting.enchantment-level-limits." + key, global);
+      return Math.max(1, Math.min(global, configured));
+   }
+
+   private int mpCostMultiplier(Enchantment enchantment) {
+      if (enchantment == null) return 1;
+      String key = enchantment.getKey().getKey().toLowerCase(Locale.ROOT);
+      return Math.max(1, this.plugin.getConfig().getInt("advanced-enchanting.mp-cost-multipliers." + key, 1));
    }
 
    private boolean hasEnchantmentAboveVanillaMaximum(ItemStack item) {
@@ -444,8 +466,8 @@ final class AdvancedAnvilFeature implements Listener {
       Map<Enchantment, Integer> merged = AdvancedAnvilRules.mergeEnchantments(existing, acceptedIncoming, maxLevel);
       for (Map.Entry<Enchantment, Integer> entry : merged.entrySet()) {
          Enchantment enchantment = entry.getKey();
-         int mergedLevel = Math.max(1, Math.min(maxLevel, entry.getValue()));
          int existingLevel = existing.getOrDefault(enchantment, 0);
+         int mergedLevel = Math.max(1, Math.min(Math.max(existingLevel, this.enchantmentLevelLimit(enchantment)), entry.getValue()));
          if (mergedLevel <= existingLevel) {
             continue;
          }
@@ -483,9 +505,8 @@ final class AdvancedAnvilFeature implements Listener {
          }
       }
 
-      int maxLevel = this.maximumEnchantmentLevel();
       for (Map.Entry<Enchantment, Integer> entry : this.enchantments(left).entrySet()) {
-         int level = Math.max(1, Math.min(maxLevel, entry.getValue()));
+         int level = Math.max(1, Math.min(this.maximumEnchantmentLevel(), entry.getValue()));
          if (meta instanceof EnchantmentStorageMeta stored) {
             stored.addStoredEnchant(entry.getKey(), level, true);
          } else {

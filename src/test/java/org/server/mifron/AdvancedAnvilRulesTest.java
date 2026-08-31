@@ -28,6 +28,8 @@ class AdvancedAnvilRulesTest {
       assertEquals(5, AdvancedAnvilRules.combineLevel(0, 5, 20));
       assertEquals(7, AdvancedAnvilRules.combineLevel(7, 5, 20));
       assertEquals(7, AdvancedAnvilRules.combineLevel(5, 7, 20));
+      assertEquals(1, AdvancedAnvilRules.combineLevel(1, 1, 20, 1));
+      assertEquals(3, AdvancedAnvilRules.combineLevel(2, 2, 20, 3));
    }
 
    @Test
@@ -55,6 +57,7 @@ class AdvancedAnvilRulesTest {
    void mpCostIsIndependentFromXpDisplayAndBounded() {
       assertEquals(0, AdvancedAnvilRules.mpCost(0, 1));
       assertEquals(250, AdvancedAnvilRules.mpCost(25, 10));
+      assertEquals(750, AdvancedAnvilRules.mpCost(25, 10, 3));
       assertEquals(2000000000, AdvancedAnvilRules.mpCost(Integer.MAX_VALUE, Integer.MAX_VALUE));
    }
 }
