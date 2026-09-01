@@ -302,11 +302,20 @@ final class ChunkProtectionFeature implements Listener {
    }
 
    private boolean regenerateChunkUsingSupportedApi(CommandSender sender, Chunk chunk) {
-      sender.sendMessage(ChatColor.RED + "このPaper APIではチャンク再生成はサポートされていません。");
-      this.plugin
-         .getLogger()
-         .warning("Chunk regeneration is disabled because World#regenerateChunk is deprecated for removal and unsupported in this API: " + this.chunkKey(chunk));
-      return false;
+      try {
+         // Paper still exposes the synchronous Bukkit operation on the server
+         // thread. The command handler already caps the radius and this method
+         // is only reached for explicitly allowlisted Survival chunks.
+         boolean regenerated = chunk.getWorld().regenerateChunk(chunk.getX(), chunk.getZ());
+         if (!regenerated) {
+            sender.sendMessage(ChatColor.RED + "チャンク再生成に失敗しました: " + this.chunkKey(chunk));
+         }
+         return regenerated;
+      } catch (Throwable error) {
+         sender.sendMessage(ChatColor.RED + "チャンク再生成に失敗しました。詳細はサーバーログを確認してください。");
+         this.plugin.getLogger().warning("Chunk regeneration failed for " + this.chunkKey(chunk) + ": " + error.getMessage());
+         return false;
+      }
    }
 
    private int parsePositiveInt(String value, int fallback) {
