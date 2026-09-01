@@ -111,10 +111,6 @@ enum FfaKit {
          }
       }
 
-      if (!kits.contains(CRUSHER)) {
-         kits.add(CRUSHER);
-      }
-
       return kits.isEmpty() ? defaultActiveKits() : kits;
    }
 
