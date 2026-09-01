@@ -26,13 +26,13 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 - `build-world`: プレイヤー別Buildワールド、ワールド境界、初期足場。WorldEdit権限は滞在中だけ付与されます。
 - `athletic.defaults`: クリア、自己ベスト、歴代1位、月間順位の報酬。
 - `world-rules`: 全ワールドのKeepInventory、PvP、固定昼、スポーン位置。
-- `regen.allowed-chunks`: 警告と再生成候補の許可リスト。ただし現行Paper APIではチャンク再生成処理自体が無効です。
+- `regen.allowed-chunks`: 自然再生成を許可するSurvivalチャンクの明示的な許可リスト。未登録チャンクは再生成対象になりません。`/mf regen allow|deny` で現在地を更新し、`/mf regen [radius]` は許可済み・プレイヤー滞在なしのチャンクだけを再生成します。
 - `regen.nation-chunks` / `public-facility-chunks` / `staff-excluded-chunks`: 中央範囲以外の保護チャンク。
 - `barrel-shop`: 商品枠と掘り出し物枠。
 - `auction`: 通常・スニーク時の入札加算額。手数料設定はありません。
 - `minoru-bridge`: ローカルAPIの有効化、待受、共有シークレット。`serverSecret` は旧設定からのフォールバックです。
 
-`backupBeforeRegen`、`customOreGeneration`、`vanillaOreMode` は、現行コードでは再生成が実行されないため削除しました。
+再生成は破壊的操作のため、半径は最大8、許可リスト必須、プレイヤー滞在中のチャンクは自動スキップします。実行前にバックアップを取得してください。
 
 ## 保護の実装範囲
 
@@ -47,7 +47,7 @@ Mifronの保護チャンクでは、扉・ボタン・コンテナ・額縁・�
 ## 現在未完了の機能
 
 - Proposalはゲーム内作成・投票に対応せず、外部から `proposals.yml` へ入った提案を管理者が審査する機能です。
-- `/mf regen` は現行Paper APIで再生成できないため失敗します。
+- `/mf regen` は管理者権限が必要です。`allow` / `deny` / `list` と半径指定を提供します。再生成対象は `regen.allowed-chunks` に登録されたSurvivalチャンクだけです。
 
 ## 保存データ
 
