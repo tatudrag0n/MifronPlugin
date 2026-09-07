@@ -69,6 +69,7 @@ serverSecret: ""
 build-world:
   enabled: true
   world-prefix: "mifron_build_"
+  world-name: "Creative"
   spawn-y: 64
   border-size: 256
   platform-radius: 16
@@ -86,7 +87,6 @@ world-rules:
   fixed-day-worlds:
     - athletic
     - minigame
-    - market
   spawn:
     main:
       world: world
@@ -105,7 +105,7 @@ world-rules:
     survival:
       world: survival
       x: 0.0
-      y: 101.0
+      y: 100.0
       z: 0.0
       yaw: 0.0
       pitch: 0.0
@@ -147,13 +147,60 @@ messages:
   scheduledRegen: "このチャンクは自然再生成の許可リストに入っているため、次回メンテナンスの対象です。"
 
 regen:
-  # 自然再生成の候補リスト。現行Paper APIでは再生成処理自体が無効です。
+  # 除外リスト。ここにないSurvivalチャンクが月次再生成対象です。
   # 形式: survival,チャンクX,チャンクZ
+  excluded-chunks: []
   allowed-chunks: []
+  interval-days: 30
+  monthly-enabled: true
+  monthly-max-chunks: 256
   # 中央保護に加えて建築・操作を禁止するチャンク。
   nation-chunks: []
   public-facility-chunks: []
   staff-excluded-chunks: []
+
+main-world:
+  name: world
+  generator: ocean
+  border:
+    center-x: 0.0
+    center-z: 0.0
+    size: 500.0
+
+mob-spawn:
+  natural-spawn-disabled-worlds: [world, Creative, athletic, minigame]
+
+ban-rollback:
+  enabled: true
+  # CoreProtect time syntax. Player-specific rollback only; no radius is used.
+  time: "3650d"
+
+online-shop:
+  enabled: true
+  title: "§bMifron OnlineShop"
+  items:
+    shelf_shop_wand:
+      material: BLAZE_ROD
+      category: special
+      price: 500
+      rarity: RARE
+      cooldown-seconds: 86400
+      display-name: "§6棚ショップ作成アイテム"
+    barrel_shop_wand:
+      material: BLAZE_ROD
+      category: special
+      price: 500
+      rarity: RARE
+      cooldown-seconds: 86400
+      display-name: "§6樽ショップ作成アイテム"
+
+shops:
+  inactivity-days: 30
+
+creative-world:
+  # Non-admins may use normal WorldEdit, but potentially large clipboard and
+  # bulk-edit commands are restricted to avoid server-wide lag or crashes.
+  restricted-worldedit-commands: [paste, stack, move, deform, smooth, naturalize]
 
 hub:
   world: world
@@ -174,15 +221,7 @@ servers:
     pitch: 0.0
   build:
     icon: bricks
-    world: build
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    yaw: 0.0
-    pitch: 0.0
-  market:
-    icon: emerald
-    world: market
+    world: Creative
     x: 0.0
     y: 0.0
     z: 0.0
@@ -208,7 +247,7 @@ servers:
     icon: grass_block
     world: survival
     x: 0.0
-    y: 101.0
+    y: 100.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0

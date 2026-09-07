@@ -101,6 +101,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.server.ServerCommandEvent;
 import org.bukkit.generator.WorldInfo;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
@@ -294,6 +295,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private final SlotMachineManager slotMachineManager = new SlotMachineManager(this);
    private final AthleticManager athleticManager = new AthleticManager(this);
    private final MinoruBridgeFeature minoruBridgeFeature = new MinoruBridgeFeature(this);
+   private OnlineShopFeature onlineShopFeature;
    private final Random random = new Random();
    private final Map<String, Integer> shopSalePrices = new HashMap<>();
    private final Map<String, Integer> shopBuyPrices = new HashMap<>();
@@ -419,12 +421,23 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.registerCommand("status");
       this.registerCommand("tutorial");
       this.runStartupStep("apply world rules", this.worldRulesFeature::apply);
+      this.runStartupStep("apply main world border", this::applyMainWorldBorder);
+      this.runStartupStep("register online shop", () -> {
+         this.onlineShopFeature = new OnlineShopFeature(this);
+         Bukkit.getPluginManager().registerEvents(this.onlineShopFeature, this);
+      });
       this.runStartupStep("apply world spawn locations", this::applyWorldSpawnLocations);
       this.runStartupStep("normalize merchants", this::normalizeMerchants);
       Bukkit.getScheduler().runTaskTimer(this, this.worldRulesFeature::enforceFixedDayWorlds, 1L, 100L);
       Bukkit.getScheduler().runTaskTimer(this, this::grantPlaytimeRewards, 1200L, 1200L);
       Bukkit.getScheduler().runTaskTimer(this, this::tickMerchants, 1200L, 1200L);
       Bukkit.getScheduler().runTaskTimer(this, this::tickShelfShopActionBars, 10L, 10L);
+      Bukkit.getScheduler().runTaskTimer(this, this::cleanupInactiveShops, 20L, 20L * 60L * 60L * 24L);
+      if (this.getConfig().getBoolean("regen.monthly-enabled", true)) {
+         long days = Math.max(1L, Math.min(365L, this.getConfig().getLong("regen.interval-days", 30L)));
+         long period = days * 20L * 60L * 60L * 24L;
+         Bukkit.getScheduler().runTaskTimer(this, this.chunkProtectionFeature::runMonthlyMaintenance, period, period);
+      }
       InventoryGroupFeature.install(this);
    }
 
@@ -973,6 +986,72 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
    }
 
+   ItemStack createOnlineShopProduct(String id) {
+      if ("shelf_shop_wand".equalsIgnoreCase(id)) {
+         return this.utilityItemsFeature.createShopWand(ShopWandType.SHELF);
+      }
+      if ("barrel_shop_wand".equalsIgnoreCase(id)) {
+         return this.utilityItemsFeature.createShopWand(ShopWandType.BARREL);
+      }
+      Material material = Material.matchMaterial(this.getConfig().getString("online-shop.items." + id + ".material", "PAPER"));
+      return material == null ? null : new ItemStack(material);
+   }
+
+   void grantOnlineShopProduct(Player player, ItemStack item) {
+      if (player != null && item != null) {
+         player.getInventory().addItem(item);
+      }
+   }
+
+   boolean canReceiveOnlineShopProduct(Player player, ItemStack item) {
+      return player != null && item != null && this.inventorySpaceFor(player, item.getType()) >= item.getAmount();
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onPlayerRespawn(org.bukkit.event.player.PlayerRespawnEvent event) {
+      if (event.getPlayer().getWorld() != null && "survival".equalsIgnoreCase(event.getPlayer().getWorld().getName())) {
+         World survival = Bukkit.getWorld(this.getConfig().getString("survival-dimensions.overworld", "survival"));
+         if (survival != null) {
+            event.setRespawnLocation(new Location(survival, 0.5D, 100.0D, 0.5D, 0.0F, 0.0F));
+         }
+      }
+   }
+
+   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+   public void onPlayerBanCommand(PlayerCommandPreprocessEvent event) {
+      String target = this.banTarget(event.getMessage());
+      if (target != null && event.getPlayer().hasPermission("mifron.admin")) {
+         this.scheduleCoreProtectRollback(target);
+      }
+   }
+
+   @EventHandler(priority = EventPriority.MONITOR)
+   public void onConsoleBanCommand(ServerCommandEvent event) {
+      String target = this.banTarget("/" + event.getCommand());
+      if (target != null) {
+         this.scheduleCoreProtectRollback(target);
+      }
+   }
+
+   private String banTarget(String command) {
+      if (command == null) return null;
+      String[] parts = command.trim().replaceFirst("^/", "").split("\\s+");
+      if (parts.length < 2 || !(parts[0].equalsIgnoreCase("ban") || parts[0].equalsIgnoreCase("minecraft:ban"))) return null;
+      return parts[1].replaceAll("[^A-Za-z0-9_\\-]", "");
+   }
+
+   private void scheduleCoreProtectRollback(String playerName) {
+      if (!this.getConfig().getBoolean("ban-rollback.enabled", true)
+         || playerName.isBlank() || Bukkit.getPluginManager().getPlugin("CoreProtect") == null) {
+         return;
+      }
+      String time = this.getConfig().getString("ban-rollback.time", "3650d");
+      Bukkit.getScheduler().runTask(this, () -> {
+         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "co rollback u:" + playerName + " t:" + time);
+         this.getLogger().info("CoreProtect rollback requested for banned player " + playerName);
+      });
+   }
+
    private void startPlayerSession(Player player) {
       ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
       section.set("session-minutes", 0);
@@ -1004,6 +1083,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                "§eMPの注意§7: 通常のエメラルドを拾ってもMPにはなりません。エメラルドはアイテムとして残り、MPは報酬・クエスト・取引などで受け取ります。",
                "§6最初に遊ぶ§7: テレポーターで移動先を表示し、FFAでは中央のキット選択から好きなキットを選んで参加します。退出は /mf ffa leave、戦績は /mf ffa stats です。",
                "§dステータス・クエスト・移動§7: ステータス（ネザースター）で記録を、クエスト（レシピ本）で各クエストを確認できます。テレポーターの表示アイテムを左クリックすると移動できます。",
+               "§bテレポート案内§7: エンドポータルフレームのテレポーターを使用してテレポートできます。",
                "§a建築の注意§7: SurvivalではTNTと溶岩を使えません。中央広場などの保護チャンクではコンテナ・扉・額縁などを操作できません。詳しい案内は /tutorial で再表示できます。"
             );
             player.sendMessage("§6=== Mifron Tutorial ===");
@@ -1553,8 +1633,13 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
             this.showTemporaryActionBar(player, "MPが不足しています：" + this.formatNumber(discountedPrice) + "MP");
             return true;
          } else {
+            if ("buy".equalsIgnoreCase(offer.mode())) {
+               this.showTemporaryActionBar(player, "この棚は買取ショップです。");
+               return true;
+            }
             this.changeShelfShopStock(offer.material(), -offer.amount());
             this.giveShopPurchasedItems(player, offer.material(), offer.amount());
+            this.markShopActivity(block);
             this.addPlayerStat(player.getUniqueId(), "total-trades", offer.amount(), false);
             this.queueDataSave();
             this.playPurchaseSound(player);
@@ -1582,6 +1667,11 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          return false;
       }
 
+      if ("sell".equalsIgnoreCase(offer.mode())) {
+         this.showTemporaryActionBar(player, "この棚は販売ショップです。");
+         return true;
+      }
+
       Material material = offer.material();
       // Shop discounts reduce the player's purchase price only. Applying the
       // discount to the payout would make progression rewards reduce the
@@ -1599,6 +1689,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
       held.setAmount(held.getAmount() - 1);
       this.changeShelfShopStock(material, 1);
+      this.markShopActivity(block);
       this.depositEmeralds(player.getUniqueId(), price, false);
       this.addPlayerStat(player.getUniqueId(), "total-trades", 1, false);
       this.recordFarmingSubmission(player, material);
@@ -1636,9 +1727,6 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          event.setCancelled(true);
       } else if (block == null || !this.isValidShopWandTarget(block, type)) {
          player.sendMessage("§c" + this.shopWandTargetMessage(type));
-         event.setCancelled(true);
-      } else if (event.getAction().isRightClick() && !this.canCreateShop(player)) {
-         player.sendMessage("§c権限がありません。");
          event.setCancelled(true);
       } else if (event.getAction().isLeftClick() && !this.canManageShop(player, block)) {
          player.sendMessage("§cこのショップを解除できるのは作成者または管理者のみです。");
@@ -1800,6 +1888,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                int catalogNumber = this.shelfShopCatalogNumber(offer.material());
                int sellPrice = offer.price();
                int buyPrice = Math.max(0, Math.min(this.materialBuyPrice(offer.material()), sellPrice - 1));
+               String modeLabel = "sell".equalsIgnoreCase(offer.mode()) ? "販売" : "buy".equalsIgnoreCase(offer.mode()) ? "買取" : "販売/買取";
                int stock = this.shelfShopStock(offer.material());
                Component prefix = Component.text(String.format("No.%03d ", Math.max(0, catalogNumber)), NamedTextColor.GRAY);
                player.sendActionBar(
@@ -1807,7 +1896,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                      ((TranslatableComponent)Component.translatable(offer.material().translationKey())
                            .color(this.rarityTextColor(this.merchantRarity(offer.material()))))
                         .append(Component.text(
-                           "  販売:" + this.formatNumber(sellPrice) + "MP / 買取:" + this.formatNumber(buyPrice) + "MP / 在庫:" + this.formatNumber(stock),
+                           "  種別:" + modeLabel + " / 販売:" + this.formatNumber(sellPrice) + "MP / 買取:" + this.formatNumber(buyPrice) + "MP / 在庫:" + this.formatNumber(stock),
                            stock > 0 ? NamedTextColor.GOLD : NamedTextColor.RED
                         ))
                   )
@@ -1833,13 +1922,18 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          return null;
       }
 
-      Material configuredMaterial = this.materialForShelfSlot(configuredMaterials, this.selectedShelfSlot(player, block));
+      int selectedSlot = this.selectedShelfSlot(player, block);
+      Material configuredMaterial = this.materialForShelfSlot(configuredMaterials, selectedSlot);
       if (configuredMaterial == null || configuredMaterial == Material.AIR || !this.isPricedShopItem(configuredMaterial)) {
          return null;
       }
 
-      int price = this.materialPrice(configuredMaterial);
-      return price <= 0 ? null : new Mifron.ShelfShopOffer(configuredMaterial, 1, price);
+      int price = this.data.getInt(this.shelfShopPath(block) + ".custom-prices." + selectedSlot, this.materialPrice(configuredMaterial));
+      String mode = this.data.getString(this.shelfShopPath(block) + ".custom-modes." + selectedSlot, "both");
+      if (!mode.equalsIgnoreCase("sell") && !mode.equalsIgnoreCase("buy") && !mode.equalsIgnoreCase("both")) {
+         mode = "both";
+      }
+      return price <= 0 ? null : new Mifron.ShelfShopOffer(configuredMaterial, 1, price, mode);
    }
 
    private List<Material> shelfShopRandomOffers(Block block) {
@@ -1884,6 +1978,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.data.set(path + ".order", order);
       this.data.set(path + ".custom", null);
       this.clearShelfShopRandomOffer(block);
+      this.initializeShopActivity(block);
       this.displayShelfShopOffers(block, this.shelfShopRandomOffers(block));
       this.queueDataSave();
    }
@@ -1933,6 +2028,8 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.data.set(path + ".mode", "custom");
       this.data.set(path + ".order", null);
       this.data.set(path + ".custom." + selectedSlot, material.name());
+      this.data.set(path + ".custom-prices." + selectedSlot, null);
+      this.data.set(path + ".custom-modes." + selectedSlot, null);
       this.clearShelfShopRandomOffer(block);
       this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
       this.queueDataSave();
@@ -1943,6 +2040,8 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          return;
       }
       this.data.set(this.shelfShopPath(block) + ".custom." + selectedSlot, null);
+      this.data.set(this.shelfShopPath(block) + ".custom-prices." + selectedSlot, null);
+      this.data.set(this.shelfShopPath(block) + ".custom-modes." + selectedSlot, null);
       this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
       this.queueDataSave();
    }
@@ -2255,7 +2354,13 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    }
 
    private void handleShelfShopCommand(CommandSender sender, String[] args) {
-      if (!sender.hasPermission("mifron.shop.admin") && !sender.hasPermission("mifron.admin")) {
+      if (args.length >= 2 && ("configure".equalsIgnoreCase(args[1]) || "set".equalsIgnoreCase(args[1]))) {
+         if (sender instanceof Player player) {
+            this.configureShelfShop(player, args);
+         } else {
+            sender.sendMessage("§cプレイヤーのみ実行できます。");
+         }
+      } else if (!sender.hasPermission("mifron.shop.admin") && !sender.hasPermission("mifron.admin")) {
          sender.sendMessage("§c権限がありません。");
       } else if (args.length >= 2 && ("clearall".equalsIgnoreCase(args[1]) || "removeall".equalsIgnoreCase(args[1]) || "disableall".equalsIgnoreCase(args[1]) || "clear".equalsIgnoreCase(args[1]))) {
          int registered = this.clearAllShelfShopRegistrations();
@@ -2505,6 +2610,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       this.clearShelfShopDisplay(block);
       this.clearShopOwner(block);
       this.clearShelfShopRandomOffer(block);
+      this.data.set(this.shopLastActivityPath(block), null);
       // Removing a sequential shelf must also compact the remaining order values.
       // Otherwise the next shelf can inherit a stale high number from deleted data.
       this.renumberSequentialShelfShops();
@@ -2539,6 +2645,137 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    private String shopOwnerPath(Block block) {
       return "shop-owners." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
+   }
+
+   private String shopLastActivityPath(Block block) {
+      return "shop-last-activity." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
+   }
+
+   private void initializeShopActivity(Block block) {
+      if (block != null && this.data.getLong(this.shopLastActivityPath(block), 0L) <= 0L) {
+         this.data.set(this.shopLastActivityPath(block), System.currentTimeMillis());
+      }
+   }
+
+   private void configureShelfShop(Player player, String[] args) {
+      if (args.length < 4) {
+         player.sendMessage("§e/mf shelfshop configure <sell|buy|both> <price>");
+         player.sendMessage("§7オフハンドのアイテムを対象棚の選択枠へ設定します。");
+         return;
+      }
+      String mode = args[2].toLowerCase(Locale.ROOT);
+      if (!mode.equals("sell") && !mode.equals("buy") && !mode.equals("both")) {
+         player.sendMessage("§c種別は sell / buy / both のいずれかです。");
+         return;
+      }
+      int price;
+      try {
+         price = Integer.parseInt(args[3]);
+      } catch (NumberFormatException ignored) {
+         price = 0;
+      }
+      if (price <= 0 || price > MAX_EMERALDS) {
+         player.sendMessage("§c価格は1～2000000000で指定してください。");
+         return;
+      }
+      Block block = player.getTargetBlockExact(5);
+      ItemStack held = player.getInventory().getItemInOffHand();
+      Material material = held == null ? Material.AIR : held.getType();
+      if (block == null || !this.isShelf(block.getType()) || material == Material.AIR || !this.isRandomShopItem(material)
+         || this.utilityItemsFeature.getMifronItemId(held) != null) {
+         player.sendMessage("§c棚を見ながら、オフハンドに通常アイテムを持って実行してください。");
+         return;
+      }
+      if (this.isShelfShop(block) && !this.canManageShop(player, block)) {
+         player.sendMessage("§cこのショップを設定できるのは作成者または管理者のみです。");
+         return;
+      }
+      int selectedSlot = this.selectedShelfSlot(player, block);
+      this.assignCustomShelfShopSlot(block, selectedSlot, material);
+      String path = this.shelfShopPath(block);
+      this.data.set(path + ".custom-prices." + selectedSlot, price);
+      this.data.set(path + ".custom-modes." + selectedSlot, mode);
+      this.setShopOwner(block, player.getUniqueId());
+      this.markShopActivity(block);
+      this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
+      this.queueDataSave();
+      player.sendMessage("§a棚ショップを設定しました: " + this.japaneseItemName(material) + " / " + mode + " / " + this.formatNumber(price) + "MP");
+   }
+
+   private void markShopActivity(Block block) {
+      if (block != null) {
+         this.data.set(this.shopLastActivityPath(block), System.currentTimeMillis());
+      }
+   }
+
+   private Block shopBlock(String worldId, String coordinates) {
+      try {
+         World world = Bukkit.getWorld(UUID.fromString(worldId));
+         String[] parts = coordinates.split("_", -1);
+         if (world == null || parts.length != 3) return null;
+         return world.getBlockAt(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
+      } catch (IllegalArgumentException ignored) {
+         return null;
+      }
+   }
+
+   private void cleanupInactiveShops() {
+      long cutoff = System.currentTimeMillis() - Math.max(1L, this.getConfig().getLong("shops.inactivity-days", 30L)) * 86400000L;
+      int removed = 0;
+      ConfigurationSection shelves = this.data.getConfigurationSection("shelf-shops");
+      if (shelves != null) {
+         for (String worldId : new ArrayList<>(shelves.getKeys(false))) {
+            ConfigurationSection entries = shelves.getConfigurationSection(worldId);
+            if (entries == null) continue;
+            for (String coordinates : new ArrayList<>(entries.getKeys(false))) {
+               Block block = this.shopBlock(worldId, coordinates);
+               if (block == null) continue;
+               String activityPath = this.shopLastActivityPath(block);
+               long last = this.data.getLong(activityPath, 0L);
+               if (last <= 0L) {
+                  this.data.set(activityPath, System.currentTimeMillis());
+               } else if (last < cutoff) {
+                  this.clearShelfShopDisplay(block);
+                  this.data.set("shelf-shops." + worldId + "." + coordinates, null);
+                  this.data.set("shop-owners." + worldId + "." + coordinates, null);
+                  this.data.set("shelf-shop-offers." + worldId + "." + coordinates, null);
+                  this.data.set(activityPath, null);
+                  removed++;
+               }
+            }
+         }
+      }
+      ConfigurationSection barrels = this.data.getConfigurationSection("barrel-shops");
+      if (barrels != null) {
+         for (String worldId : new ArrayList<>(barrels.getKeys(false))) {
+            ConfigurationSection entries = barrels.getConfigurationSection(worldId);
+            if (entries == null) continue;
+            for (String coordinates : new ArrayList<>(entries.getKeys(false))) {
+               Block block = this.shopBlock(worldId, coordinates);
+               if (block == null) continue;
+               String activityPath = this.shopLastActivityPath(block);
+               long last = this.data.getLong(activityPath, 0L);
+               if (last <= 0L) {
+                  this.data.set(activityPath, System.currentTimeMillis());
+               } else if (last < cutoff) {
+                  if (block.getState() instanceof Barrel barrel) barrel.getInventory().clear();
+                  this.clearBarrelShopMeta(block);
+                  this.data.set("barrel-shops." + worldId + "." + coordinates, null);
+                  this.data.set("shop-owners." + worldId + "." + coordinates, null);
+                  this.data.set(activityPath, null);
+                  removed++;
+               }
+            }
+         }
+      }
+      if (removed > 0) {
+         this.renumberSequentialShelfShops();
+         this.syncShelfShopDisplays();
+         this.saveData();
+         this.getLogger().info("Removed inactive shops: " + removed);
+      } else {
+         this.queueDataSave();
+      }
    }
 
    boolean isBarrelShop(Block block) {
@@ -2593,9 +2830,11 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       String path = this.barrelShopPath(block);
       boolean existed = this.data.getBoolean(path, false);
       this.data.set(path, enabled ? true : null);
+      if (enabled) this.initializeShopActivity(block);
       if (!enabled) {
          this.clearShopOwner(block);
          this.clearBarrelShopMeta(block);
+         this.data.set(this.shopLastActivityPath(block), null);
       }
 
       this.queueDataSave();
@@ -2922,6 +3161,9 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
                      this.depositEmeralds(player.getUniqueId(), price);
                      this.showTemporaryActionBar(player, "インベントリに空きがありません。");
                   } else {
+                     if (inventory.getHolder() instanceof Barrel barrel) {
+                        this.markShopActivity(barrel.getBlock());
+                     }
                      this.addPlayerStat(player.getUniqueId(), "total-trades", 1);
                      this.playPurchaseSound(player);
                      this.sendItemMessage(player, NamedTextColor.GREEN, "購入しました: ", purchased.getType(), " (" + this.formatNumber(price) + "MP)");
@@ -3009,7 +3251,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       villager.customName(Component.text(this.merchantTypeColor(merchantType) + this.merchantTypeName(merchantType) + "商人"));
       villager.setRecipes(Collections.emptyList());
       List<Mifron.MerchantOffer> sellOffers = this.randomMerchantOffers(8, this.merchantSellWeights, true, merchantType);
-      List<Mifron.MerchantOffer> buyOffers = this.randomMerchantOffers(8, this.merchantBuyWeights, false, merchantType);
+      List<Mifron.MerchantOffer> buyOffers = this.randomMerchantOffers(18, this.merchantBuyWeights, false, merchantType);
       this.saveMerchantOffers(villager.getUniqueId(), sellOffers, buyOffers);
    }
 
@@ -3728,7 +3970,27 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    public void onCreatureSpawn(CreatureSpawnEvent event) {
       if (this.isCentralPlazaLocation(event.getLocation())) {
          event.setCancelled(true);
+      } else if (!"survival".equalsIgnoreCase(event.getLocation().getWorld().getName())
+         && switch (event.getSpawnReason()) {
+            case NATURAL, CHUNK_GEN, REINFORCEMENTS, PATROL, RAID, VILLAGE_INVASION -> true;
+            default -> false;
+         }) {
+         event.setCancelled(true);
       }
+   }
+
+   private void applyMainWorldBorder() {
+      World world = Bukkit.getWorld(this.getConfig().getString("main-world.name", "world"));
+      ConfigurationSection border = this.getConfig().getConfigurationSection("main-world.border");
+      if (world == null) {
+         String name = this.getConfig().getString("main-world.name", "world");
+         world = Bukkit.createWorld(new org.bukkit.WorldCreator(name).environment(Environment.NORMAL).generator(new OceanWorldGenerator()));
+      }
+      if (world == null || border == null) {
+         return;
+      }
+      world.getWorldBorder().setCenter(border.getDouble("center-x", 0.0D), border.getDouble("center-z", 0.0D));
+      world.getWorldBorder().setSize(Math.max(1.0D, border.getDouble("size", 500.0D)));
    }
 
    private boolean isCentralPlazaLocation(Location location) {
@@ -3803,19 +4065,17 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          buyOffers = this.readMerchantOffers(villager.getUniqueId(), "buy");
       }
 
-      int page = Math.max(0, Math.min(1, this.activeMerchantPages.getOrDefault(player.getUniqueId(), 0)));
+      int page = 1;
       this.activeMerchantPages.put(player.getUniqueId(), page);
-      Inventory inventory = Bukkit.createInventory(player, org.bukkit.event.inventory.InventoryType.DROPPER, Component.text(MERCHANT_UI_TITLE));
-      List<Mifron.MerchantOffer> offers = page == 0 ? sellOffers : buyOffers;
-      String action = page == 0 ? "sell" : "buy";
-      inventory.setItem(0, this.named(page == 0 ? Material.GREEN_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE,
-         page == 0 ? "§a購入" : "§c売却",
-         List.of("§7" + (page == 0 ? "商品をクリックして購入" : "アイテムをクリックして売却"))));
-      for (int i = 0; i < Math.min(6, offers.size()); i++) {
-         inventory.setItem(i + 1, this.createMerchantOfferIcon(villager, offers.get(i), action));
+      Inventory inventory = Bukkit.createInventory(player, 27, Component.text(MERCHANT_UI_TITLE));
+      List<Mifron.MerchantOffer> offers = buyOffers;
+      String action = "buy";
+      inventory.setItem(18, this.named(Material.RED_STAINED_GLASS_PANE, "§c買取専用",
+         List.of("§7アイテムをクリックして商人に売却")));
+      for (int i = 0; i < Math.min(18, offers.size()); i++) {
+         inventory.setItem(i, this.createMerchantOfferIcon(villager, offers.get(i), action));
       }
-      inventory.setItem(7, this.createMerchantNavigationIcon(Material.ARROW, "§e購入一覧", "merchant_sell", villager.getUniqueId()));
-      inventory.setItem(8, this.createMerchantNavigationIcon(Material.ARROW, "§e売却一覧", "merchant_buy", villager.getUniqueId()));
+      inventory.setItem(26, this.named(Material.BARRIER, "§7買取専用", List.of("§7販売機能はありません。")));
 
       if (this.bedrockUiFeature != null
          && this.bedrockUiFeature.showMenu(
@@ -6001,18 +6261,18 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private void configureSurvivalSpawnLocation() {
       this.getConfig().set("world-rules.spawn.survival.world", "survival");
       this.getConfig().set("world-rules.spawn.survival.x", 0.0);
-      this.getConfig().set("world-rules.spawn.survival.y", 101.0);
+      this.getConfig().set("world-rules.spawn.survival.y", 100.0);
       this.getConfig().set("world-rules.spawn.survival.z", 0.0);
       this.getConfig().set("world-rules.spawn.survival.yaw", 0.0);
       this.getConfig().set("world-rules.spawn.survival.pitch", 0.0);
       this.getConfig().set("servers.survival.world", "survival");
       this.getConfig().set("servers.survival.x", 0.0);
-      this.getConfig().set("servers.survival.y", 101.0);
+      this.getConfig().set("servers.survival.y", 100.0);
       this.getConfig().set("servers.survival.z", 0.0);
       this.getConfig().set("servers.survival.yaw", 0.0);
       this.getConfig().set("servers.survival.pitch", 0.0);
       this.setIfMissing("servers.survival.icon", "grass_block");
-      this.applyFixedSpawnLocation("survival", 0.0, 101.0, 0.0);
+      this.applyFixedSpawnLocation("survival", 0.0, 100.0, 0.0);
       this.saveConfig();
    }
 
@@ -7041,6 +7301,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
          sender.sendMessage("§c権限がありません。");
       } else {
          this.reloadConfig();
+         this.applyMainWorldBorder();
          this.economyPriceTable.load();
          this.questService.load();
          this.loadShopPrices();
@@ -7543,7 +7804,12 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       }
 
       if (args.length == 2 && this.isMifronRootCommand(command) && "shelfshop".equalsIgnoreCase(args[0])) {
-         return List.of("clearall", "clear", "reorder", "renumber", "resetstock", "reset");
+         return List.of("configure", "set", "clearall", "clear", "reorder", "renumber", "resetstock", "reset");
+      }
+
+      if (args.length == 3 && this.isMifronRootCommand(command) && "shelfshop".equalsIgnoreCase(args[0])
+         && ("configure".equalsIgnoreCase(args[1]) || "set".equalsIgnoreCase(args[1]))) {
+         return List.of("sell", "buy", "both");
       }
 
       if (args.length == 2 && this.isMifronRootCommand(command) && "slotwand".equalsIgnoreCase(args[0])) {
@@ -7669,7 +7935,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private record MerchantSale(int quantity, int totalPrice) {
    }
 
-   private record ShelfShopOffer(Material material, int amount, int price) {
+   private record ShelfShopOffer(Material material, int amount, int price, String mode) {
    }
 
    private record ShopPasteSnapshot(

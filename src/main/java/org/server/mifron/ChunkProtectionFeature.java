@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.ChatColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -84,22 +85,22 @@ final class ChunkProtectionFeature implements Listener {
                return;
             }
             String key = this.chunkKey(player.getLocation().getChunk());
-            java.util.List<String> allowed = new java.util.ArrayList<>(this.plugin.getConfig().getStringList("regen.allowed-chunks"));
+            java.util.List<String> excluded = new java.util.ArrayList<>(this.plugin.getConfig().getStringList("regen.excluded-chunks"));
             boolean allow = "allow".equalsIgnoreCase(args[1]);
-            if (allow && !allowed.contains(key)) {
-               allowed.add(key);
-               this.plugin.getConfig().set("regen.allowed-chunks", allowed);
+            if (allow && excluded.remove(key)) {
+               this.plugin.getConfig().set("regen.excluded-chunks", excluded);
                this.plugin.saveConfig();
-            } else if (!allow && allowed.remove(key)) {
-               this.plugin.getConfig().set("regen.allowed-chunks", allowed);
+            } else if (!allow && !excluded.contains(key)) {
+               excluded.add(key);
+               this.plugin.getConfig().set("regen.excluded-chunks", excluded);
                this.plugin.saveConfig();
             }
             sender.sendMessage((allow ? ChatColor.GREEN + "自然再生成を許可しました: " : ChatColor.YELLOW + "自然再生成の許可を解除しました: ") + key);
             return;
          }
          if (args.length >= 2 && "list".equalsIgnoreCase(args[1])) {
-            java.util.List<String> allowed = this.plugin.getConfig().getStringList("regen.allowed-chunks");
-            sender.sendMessage(ChatColor.GREEN + "自然再生成の許可チャンク: " + (allowed.isEmpty() ? "なし" : String.join(" / ", allowed)));
+            java.util.List<String> excluded = this.plugin.getConfig().getStringList("regen.excluded-chunks");
+            sender.sendMessage(ChatColor.GREEN + "自然再生成の除外チャンク: " + (excluded.isEmpty() ? "なし" : String.join(" / ", excluded)));
             return;
          }
          int radiusArgIndex = args.length >= 2 && "force".equalsIgnoreCase(args[1]) ? 2 : 1;
@@ -131,6 +132,24 @@ final class ChunkProtectionFeature implements Listener {
 
    void handleChunkCommand(Player player) {
       this.sendChunkInfo(player, player.getLocation().getChunk(), false);
+   }
+
+   void runMonthlyMaintenance() {
+      World world = Bukkit.getWorld(this.plugin.getConfig().getString("survival-dimensions.overworld", "survival"));
+      if (world == null) {
+         this.plugin.getLogger().warning("Monthly regeneration skipped: Survival world is not loaded.");
+         return;
+      }
+      int limit = Math.max(1, this.plugin.getConfig().getInt("regen.monthly-max-chunks", 256));
+      int regenerated = 0;
+      for (Chunk chunk : world.getLoadedChunks()) {
+         if (regenerated >= limit) break;
+         if (this.isChunkRegenerationAllowed(chunk) && this.regenerateChunkNow(Bukkit.getConsoleSender(), chunk)) {
+            regenerated++;
+         }
+      }
+      this.plugin.saveData();
+      this.plugin.getLogger().info("Monthly Survival regeneration completed: " + regenerated + " chunk(s).");
    }
 
    private void sendChunkInfo(Player player, Chunk chunk, boolean admin) {
@@ -186,7 +205,7 @@ final class ChunkProtectionFeature implements Listener {
       if (chunk == null || chunk.getWorld() == null || !"survival".equalsIgnoreCase(chunk.getWorld().getName())) {
          return false;
       }
-      return this.plugin.getConfig().getStringList("regen.allowed-chunks").contains(this.chunkKey(chunk));
+      return !this.plugin.getConfig().getStringList("regen.excluded-chunks").contains(this.chunkKey(chunk));
    }
 
    boolean isSurvivalHazardBlocked(Location location, Material material) {
@@ -303,18 +322,15 @@ final class ChunkProtectionFeature implements Listener {
 
    private boolean regenerateChunkUsingSupportedApi(CommandSender sender, Chunk chunk) {
       try {
-         // Paper still exposes the synchronous Bukkit operation on the server
-         // thread. The command handler already caps the radius and this method
-         // is only reached for explicitly allowlisted Survival chunks.
-         boolean regenerated = chunk.getWorld().regenerateChunk(chunk.getX(), chunk.getZ());
-         if (!regenerated) {
-            sender.sendMessage(ChatColor.RED + "チャンク再生成に失敗しました: " + this.chunkKey(chunk));
-         }
-         return regenerated;
-      } catch (Throwable error) {
-         sender.sendMessage(ChatColor.RED + "チャンク再生成に失敗しました。詳細はサーバーログを確認してください。");
-         this.plugin.getLogger().warning("Chunk regeneration failed for " + this.chunkKey(chunk) + ": " + error.getMessage());
-         return false;
+         java.lang.reflect.Method method = chunk.getWorld().getClass().getMethod("regenerateChunk", int.class, int.class);
+         Object result = method.invoke(chunk.getWorld(), chunk.getX(), chunk.getZ());
+         return !(result instanceof Boolean) || (Boolean)result;
+      } catch (ReflectiveOperationException | RuntimeException error) {
+         if (sender != Bukkit.getConsoleSender()) {
+            sender.sendMessage(ChatColor.RED + "このPaper APIではチャンク再生成を実行できません。");
+          }
+          this.plugin.getLogger().warning("Chunk regeneration is unavailable for " + this.chunkKey(chunk) + ": " + error.getMessage());
+          return false;
       }
    }
 

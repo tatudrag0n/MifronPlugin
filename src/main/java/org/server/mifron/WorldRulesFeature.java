@@ -63,7 +63,6 @@ final class WorldRulesFeature {
       Set<String> names = new HashSet<>();
       this.addWorldName(names, "athletic");
       this.addWorldName(names, "minigame");
-      this.addWorldName(names, "market");
       this.addWorldName(names, this.plugin.getConfig().getString("servers.athletic.world"));
       this.addWorldName(names, this.plugin.getConfig().getString("servers.minigame.world"));
 

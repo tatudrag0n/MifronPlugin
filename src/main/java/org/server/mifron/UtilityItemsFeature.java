@@ -20,7 +20,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 final class UtilityItemsFeature implements Listener {
-   private static final Set<String> INITIAL_ITEM_IDS = Set.of("emerald_bundle", "friend_book", "quest_book", "teleporter");
+   private static final Set<String> INITIAL_ITEM_IDS = Set.of("emerald_bundle", "friend_book", "quest_book", "teleporter", "online_shop");
    private static final Set<String> FIXED_ITEM_IDS = Set.of(
       "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand"
    );
@@ -41,6 +41,9 @@ final class UtilityItemsFeature implements Listener {
 
    void giveInitialItems(Player player) {
       this.removeMifronItems(player, "hub_compass");
+      this.updateOrGiveMifronItem(player, "online_shop", this.createMifronItem(
+         Material.CHEST, "online_shop", ChatColor.AQUA + "OnlineShop", List.of(ChatColor.GRAY + "右クリック: 商品一覧を開く")
+      ));
       this.updateOrGiveMifronItem(
          player,
          "emerald_bundle",

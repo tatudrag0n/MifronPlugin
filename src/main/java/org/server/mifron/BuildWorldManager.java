@@ -19,12 +19,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.permissions.PermissionAttachment;
 
-/** Owns the per-player build worlds and the temporary WorldEdit permission boundary. */
+/** Manages the shared Creative world and the temporary WorldEdit permission boundary. */
 final class BuildWorldManager implements Listener {
    private static final String WORLD_PREFIX = "mifron_build_";
    private final Mifron plugin;
@@ -37,6 +38,7 @@ final class BuildWorldManager implements Listener {
    void load() {
       this.plugin.getConfig().addDefault("build-world.enabled", true);
       this.plugin.getConfig().addDefault("build-world.world-prefix", WORLD_PREFIX);
+      this.plugin.getConfig().addDefault("build-world.world-name", "Creative");
       this.plugin.getConfig().addDefault("build-world.spawn-y", 64);
       this.plugin.getConfig().addDefault("build-world.border-size", 256);
       this.plugin.getConfig().addDefault("build-world.platform-radius", 16);
@@ -96,14 +98,14 @@ final class BuildWorldManager implements Listener {
    }
 
    boolean isBuildWorld(World world) {
-      return world != null && world.getName().toLowerCase(java.util.Locale.ROOT).startsWith(this.worldPrefix());
+      return world != null && world.getName().equalsIgnoreCase(this.worldName(null));
    }
 
    boolean isOwner(Player player, World world) {
       if (player == null || !this.isBuildWorld(world)) {
          return false;
       }
-      return world.getName().equalsIgnoreCase(this.worldName(player.getUniqueId()));
+      return world.getName().equalsIgnoreCase(this.worldName(null));
    }
 
    private void enter(Player player, UUID ownerId) {
@@ -115,11 +117,8 @@ final class BuildWorldManager implements Listener {
       this.attachWorldEdit(player);
       player.setGameMode(GameMode.CREATIVE);
       player.teleport(this.spawn(world));
-      player.sendMessage("§a専用Buildワールドへ移動しました。");
+      player.sendMessage("§a共有Creativeワールドへ移動しました。");
       player.sendMessage("§7WorldEditが使用できます。完成した建築は /mf structure submit <名前> で提出できます。");
-      if (!this.isOwner(player, world)) {
-         player.sendMessage("§e運営確認用に他プレイヤーのBuildワールドを開いています。管理者権限では編集も可能です。");
-      }
    }
 
    private void exit(Player player) {
@@ -156,8 +155,8 @@ final class BuildWorldManager implements Listener {
       Location spawn = this.spawn(world);
       this.createPlatform(world, spawn);
       world.setSpawnLocation(spawn);
-      this.plugin.data().set("build-worlds." + ownerId + ".world", worldName);
-      this.plugin.data().set("build-worlds." + ownerId + ".created-at", System.currentTimeMillis());
+      this.plugin.data().set("creative-world.world", worldName);
+      this.plugin.data().set("creative-world.created-at", System.currentTimeMillis());
       this.plugin.saveData();
       return world;
    }
@@ -201,15 +200,35 @@ final class BuildWorldManager implements Listener {
    }
 
    private String worldName(UUID ownerId) {
-      return this.worldPrefix() + ownerId.toString().replace("-", "");
+      String configured = this.plugin.getConfig().getString("build-world.world-name", "Creative");
+      return configured == null || configured.isBlank() ? "Creative" : configured;
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
    public void onTeleport(PlayerTeleportEvent event) {
       World destination = event.getTo() == null ? null : event.getTo().getWorld();
-      if (this.isBuildWorld(destination) && !event.getPlayer().hasPermission("mifron.admin") && !this.isOwner(event.getPlayer(), destination)) {
+      // Creative is intentionally shared; all players may enter it.
+   }
+
+   @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+   public void onWorldEditCommand(PlayerCommandPreprocessEvent event) {
+      Player player = event.getPlayer();
+      if (!this.isBuildWorld(player.getWorld()) || player.hasPermission("mifron.admin")) {
+         return;
+      }
+      String command = event.getMessage().trim().toLowerCase(java.util.Locale.ROOT);
+      if (command.startsWith("//")) {
+         command = command.substring(2);
+      } else if (command.startsWith("/worldedit ")) {
+         command = command.substring("/worldedit ".length()).trim();
+      } else {
+         return;
+      }
+      String name = command.split("\\s+", 2)[0];
+      if (this.plugin.getConfig().getStringList("creative-world.restricted-worldedit-commands").stream()
+         .anyMatch(value -> value.equalsIgnoreCase(name))) {
          event.setCancelled(true);
-         event.getPlayer().sendMessage("§c他プレイヤーのBuildワールドには入れません。");
+         player.sendMessage("§cCreativeワールドの負荷対策により、このWorldEdit操作は管理者のみ実行できます。");
       }
    }
 

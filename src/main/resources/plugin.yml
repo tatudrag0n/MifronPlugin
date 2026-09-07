@@ -5,6 +5,7 @@ main: org.server.mifron.Mifron
 api-version: '1.21'
 load: POSTWORLD
 softdepend:
+  - CoreProtect
   - WorldEdit
   - WorldGuard
   - LuckPerms
