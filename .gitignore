@@ -18,6 +18,15 @@ lib/
 # Editors
 .vscode/
 .idea/
+.vs/
+*.iml
+*.sln
+
+# Archives and local source snapshots
+*.zip
+*.7z
+*.tar
+*.tar.gz
 
 # Environment and credentials
 .env
@@ -55,7 +64,12 @@ server-config/banned-ips.json
 server-config/banned-players.json
 server-config/usercache.json
 
+# Local deployment/configuration copies
+config/
+server-config/plugins/Mifron/
+
 # Sensitive plugin configs kept off GitHub
 server-config/plugins/DiscordSRV/
 server-config/plugins/MifronAuth/
 server-config/plugins/MifronMPBridge/
+server-config/plugins/**
