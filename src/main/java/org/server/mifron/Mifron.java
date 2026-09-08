@@ -514,7 +514,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
 
    @EventHandler
    public void onPlayerJoin(PlayerJoinEvent event) {
-      if (this.getConfig().getBoolean("auto-shutdown.enabled", true)) {
+      if (this.getConfig().getBoolean("auto-shutdown.enabled", false)) {
          this.cancelScheduledAutoShutdown("a player joined");
       }
    }
@@ -526,7 +526,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
       ConfigurationSection session = this.getPlayerSection(player.getUniqueId());
       String sessionId = session.getString("analytics.session-id", "");
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_end", sessionId, "session-end:" + (sessionId.isBlank() ? player.getUniqueId() + ":" + System.currentTimeMillis() : sessionId));
-      if (this.getConfig().getBoolean("auto-shutdown.enabled", true)) {
+      if (this.getConfig().getBoolean("auto-shutdown.enabled", false)) {
           long remaining = Bukkit.getOnlinePlayers().stream().filter(online -> !online.getUniqueId().equals(event.getPlayer().getUniqueId())).count();
          if (remaining == 0L) {
             this.scheduleAutoShutdown();
@@ -7950,3 +7950,4 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private record TitleDefinition(Material icon, List<String> requiredAdvancements) {
    }
 }
+

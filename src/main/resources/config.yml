@@ -913,7 +913,7 @@ minigame-unlocks:
     required-emeralds: 10000
 
 auto-shutdown:
-  enabled: true
+  enabled: false
   # Delay in seconds after the last player leaves before stopping the host VM (600 = 10 minutes)
   delay-seconds: 600
   # provider: gcloud (default) or command
@@ -932,3 +932,4 @@ minoru-bridge:
   bind: "127.0.0.1"
   port: 8123
   secret: ""
+
