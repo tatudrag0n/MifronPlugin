@@ -1,120 +1,109 @@
 package org.server.mifron;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
-final class OnlineShopFeature implements Listener {
-   private final Mifron plugin;
-   private final NamespacedKey accessKey;
-   private final NamespacedKey productKey;
-   private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
+import java.util.Arrays;
 
-   OnlineShopFeature(Mifron plugin) {
-      this.plugin = plugin;
-      this.accessKey = new NamespacedKey(plugin, "item");
-      this.productKey = new NamespacedKey(plugin, "online_shop_product");
-   }
+public class OnlineShopFeature implements Listener {
+    private final Mifron plugin;
+    private final NamespacedKey keyShopItem;
 
-   @EventHandler(ignoreCancelled = true)
-   public void onUse(PlayerInteractEvent event) {
-      ItemStack item = event.getItem();
-      if (item != null && item.hasItemMeta()
-         && "online_shop".equals(item.getItemMeta().getPersistentDataContainer().get(this.accessKey, PersistentDataType.STRING))) {
-         event.setCancelled(true);
-         event.getPlayer().openInventory(this.createInventory(event.getPlayer()));
-      }
-   }
+    public OnlineShopFeature(Mifron plugin) {
+        this.plugin = plugin;
+        this.keyShopItem = new NamespacedKey(plugin, "mifron_shop_activator");
+    }
 
-   @EventHandler
-   public void onClick(InventoryClickEvent event) {
-      if (!(event.getWhoClicked() instanceof Player player)
-         || !event.getView().getTitle().equals(this.plugin.getConfig().getString("online-shop.title", "§bMifron OnlineShop"))) return;
-      event.setCancelled(true);
-      if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
-      ItemStack clicked = event.getCurrentItem();
-      if (clicked == null || !clicked.hasItemMeta()) return;
-      String id = clicked.getItemMeta().getPersistentDataContainer().get(this.productKey, PersistentDataType.STRING);
-      if (id == null) return;
-      this.purchase(player, id);
-   }
+    public ItemStack createShopItem() {
+        ItemStack item = new ItemStack(Material.IRON_DOOR);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "Online Shop");
+            meta.setLore(Arrays.asList(
+                    ChatColor.YELLOW + "右クリックでオンラインショップを開きます。",
+                    ChatColor.GRAY + "どこでも売買・サービス利用が可能です。"
+            ));
+            meta.getPersistentDataContainer().set(keyShopItem, PersistentDataType.BYTE, (byte) 1);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
 
-   private Inventory createInventory(Player player) {
-      String title = this.plugin.getConfig().getString("online-shop.title", "§bMifron OnlineShop");
-      Inventory inventory = Bukkit.createInventory(player, 27, title);
-      var section = this.plugin.getConfig().getConfigurationSection("online-shop.items");
-      if (section == null) return inventory;
-      int slot = 0;
-      for (String id : section.getKeys(false)) {
-         if (slot >= inventory.getSize()) break;
-         String materialName = section.getString(id + ".material", "PAPER");
-         Material material = Material.matchMaterial(materialName);
-         if (material == null) material = Material.PAPER;
-         ItemStack icon = new ItemStack(material);
-         ItemMeta meta = icon.getItemMeta();
-         meta.displayName(ComponentCompat.text(section.getString(id + ".display-name", id)));
-         int price = Math.max(0, section.getInt(id + ".price", 0));
-         String rarity = section.getString(id + ".rarity", "COMMON");
-         String category = section.getString(id + ".category", "general");
-         int cooldown = Math.max(0, section.getInt(id + ".cooldown-seconds", 0));
-         meta.lore(java.util.List.of(ComponentCompat.text("§7カテゴリ: " + category), ComponentCompat.text("§7価格: " + price + "MP"), ComponentCompat.text("§7レア度: " + rarity), ComponentCompat.text("§7クールダウン: " + cooldown + "秒"), ComponentCompat.text("§eクリックで購入")));
-         meta.getPersistentDataContainer().set(this.productKey, PersistentDataType.STRING, id);
-         icon.setItemMeta(meta);
-         inventory.setItem(slot++, icon);
-      }
-      return inventory;
-   }
+    public boolean hasShopItem(Player player) {
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (isShopItem(item)) return true;
+        }
+        return false;
+    }
 
-   private void purchase(Player player, String id) {
-      if (!this.plugin.getConfig().getBoolean("online-shop.enabled", true)) return;
-      String path = "online-shop.items." + id;
-      if (!this.plugin.getConfig().contains(path)) return;
-      long now = System.currentTimeMillis();
-      String cooldownPath = "online-shop-cooldowns." + player.getUniqueId() + "." + id;
-      long until = Math.max(
-         this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).getOrDefault(id, 0L),
-         this.plugin.data().getLong(cooldownPath, 0L)
-      );
-      if (until > now) {
-         player.sendMessage(ChatColor.RED + "購入クールダウン中です。残り " + ((until - now + 999) / 1000) + " 秒");
-         return;
-      }
-      int price = Math.max(0, this.plugin.getConfig().getInt(path + ".price", 0));
-      ItemStack product = this.plugin.createOnlineShopProduct(id);
-      if (product == null) return;
-      if (!this.plugin.canReceiveOnlineShopProduct(player, product)) {
-         player.sendMessage(ChatColor.RED + "インベントリに空きがありません。");
-         return;
-      }
-      if (!this.plugin.withdrawEmeralds(player.getUniqueId(), price)) {
-         player.sendMessage(ChatColor.RED + "MPが足りません。必要MP: " + price);
-         return;
-      }
-      this.plugin.grantOnlineShopProduct(player, product);
-      long cooldown = Math.max(0L, this.plugin.getConfig().getLong(path + ".cooldown-seconds", 0L)) * 1000L;
-      this.cooldowns.get(player.getUniqueId()).put(id, now + cooldown);
-      this.plugin.data().set(cooldownPath, now + cooldown);
-      this.plugin.queueDataSave();
-      player.sendMessage(ChatColor.GREEN + "OnlineShopで購入しました: " + id);
-   }
+    public boolean isShopItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        return item.getItemMeta().getPersistentDataContainer().has(keyShopItem, PersistentDataType.BYTE);
+    }
 
-   private static final class ComponentCompat {
-      private static net.kyori.adventure.text.Component text(String value) {
-         return net.kyori.adventure.text.Component.text(value == null ? "" : value);
-      }
-   }
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        if (!hasShopItem(player)) {
+            player.getInventory().addItem(createShopItem());
+        }
+    }
+
+    @EventHandler
+    public void onInteract(PlayerInteractEvent event) {
+        if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+            ItemStack item = event.getItem();
+            if (isShopItem(item)) {
+                event.setCancelled(true);
+                openShop(event.getPlayer());
+            }
+        }
+    }
+
+    public void openShop(Player player) {
+        Inventory inv = Bukkit.createInventory(null, 27, ChatColor.DARK_AQUA + "Mifron Online Shop");
+
+        inv.setItem(11, createCategoryItem(Material.DIAMOND_SWORD, ChatColor.RED + "武器・防具", "戦闘用装備を購入"));
+        inv.setItem(13, createCategoryItem(Material.OAK_LOG, ChatColor.GREEN + "建築・素材", "各種ブロック・素材を購入"));
+        inv.setItem(15, createCategoryItem(Material.GOLDEN_APPLE, ChatColor.YELLOW + "消耗品・便利アイテム", "ポーションや食料を購入"));
+
+        player.openInventory(inv);
+        player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 1f, 1f);
+    }
+
+    private ItemStack createCategoryItem(Material mat, String name, String desc) {
+        ItemStack item = new ItemStack(mat);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(name);
+            meta.setLore(Arrays.asList(ChatColor.GRAY + desc));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    @EventHandler
+    public void onClick(InventoryClickEvent event) {
+        if (event.getView().getTitle().equals(ChatColor.DARK_AQUA + "Mifron Online Shop")) {
+            event.setCancelled(true);
+            if (event.getCurrentItem() == null) return;
+            Player player = (Player) event.getWhoClicked();
+            player.sendMessage(ChatColor.YELLOW + "選択したカテゴリ: " + event.getCurrentItem().getItemMeta().getDisplayName());
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.2f);
+        }
+    }
 }
-
