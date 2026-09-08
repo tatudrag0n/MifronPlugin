@@ -50,6 +50,13 @@ public class StoreItemFeature implements Listener {
         return item.getItemMeta().getPersistentDataContainer().has(keyStoreItem, PersistentDataType.BYTE);
     }
 
+    public boolean hasStoreItem(Player player) {
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (isStoreItem(item)) return true;
+        }
+        return false;
+    }
+
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
@@ -81,4 +88,3 @@ public class StoreItemFeature implements Listener {
         }
     }
 }
-
