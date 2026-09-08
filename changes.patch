@@ -1,0 +1,117 @@
+git checkout feature/server-v2-overhaul
+cat << 'EOF' > changes.patch
+diff --git a/src/main/java/org/server/mifron/OnlineShopFeature.java b/src/main/java/org/server/mifron/OnlineShopFeature.java
+new file mode 100644
+--- /dev/null
++++ b/src/main/java/org/server/mifron/OnlineShopFeature.java
+@@ -0,0 +1,110 @@
++package org.server.mifron;
++
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.format.NamedTextColor;
++import org.bukkit.Bukkit;
++import org.bukkit.Material;
++import org.bukkit.NamespacedKey;
++import org.bukkit.entity.Player;
++import org.bukkit.event.EventHandler;
++import org.bukkit.event.Listener;
++import org.bukkit.event.inventory.InventoryClickEvent;
++import org.bukkit.event.player.PlayerInteractEvent;
++import org.bukkit.inventory.Inventory;
++import org.bukkit.inventory.ItemStack;
++import org.bukkit.inventory.meta.ItemMeta;
++import org.bukkit.persistence.PersistentDataType;
++import org.bukkit.plugin.java.JavaPlugin;
++import java.util.*;
++
++public class OnlineShopFeature implements Listener {
++    private final JavaPlugin plugin;
++    private final NamespacedKey shopItemKey;
++    private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
++
++    public OnlineShopFeature(JavaPlugin plugin) {
++        this.plugin = plugin;
++        this.shopItemKey = new NamespacedKey(plugin, "online_shop_item");
++    }
++
++    public void register() {
++        plugin.getServer().getPluginManager().registerEvents(this, plugin);
++    }
++
++    @EventHandler
++    public void onOpen(PlayerInteractEvent e) {
++        ItemStack item = e.getItem();
++        if (item == null || !item.hasItemMeta()) return;
++        if (!item.getItemMeta().getPersistentDataContainer().has(shopItemKey, PersistentDataType.BYTE)) return;
++        e.setCancelled(true);
++        openShopUI(e.getPlayer(), 0);
++    }
++
++    public void openShopUI(Player player, int tab) {
++        Inventory inv = Bukkit.createInventory(null, 54, Component.text("ONLINE SHOP [タブ " + (tab + 1) + "]", NamedTextColor.DARK_AQUA));
++        inv.setItem(0, createTabItem(Material.DIAMOND_SWORD, "通常アイテム", tab == 0));
++        inv.setItem(1, createTabItem(Material.NETHER_STAR, "特殊/ショップ作成", tab == 1));
++
++        if (tab == 0) {
++            inv.setItem(19, createShopProduct(Material.IRON_INGOT, "鉄インゴット x8", 50, 10));
++            inv.setItem(20, createShopProduct(Material.GOLD_INGOT, "金インゴット x4", 80, 20));
++            inv.setItem(21, createShopProduct(Material.DIAMOND, "ダイヤモンド x1", 200, 60));
++        } else {
++            ItemStack shelfWand = new ItemStack(Material.OAK_SIGN);
++            ItemMeta sm = shelfWand.getItemMeta();
++            sm.displayName(Component.text("棚ショップ作成アイテム", NamedTextColor.GOLD));
++            sm.getPersistentDataContainer().set(new NamespacedKey(plugin, "shop_wand_type"), PersistentDataType.STRING, "SHELF_SHOP");
++            shelfWand.setItemMeta(sm);
++            inv.setItem(19, shelfWand);
++
++            ItemStack barrelWand = BarrelShopFeature.createBarrelWand(plugin);
++            inv.setItem(20, barrelWand);
++        }
++        player.openInventory(inv);
++    }
++
++    @EventHandler
++    public void onClick(InventoryClickEvent e) {
++        if (!e.getView().title().toString().contains("ONLINE SHOP")) return;
++        e.setCancelled(true);
++        if (!(e.getWhoClicked() instanceof Player player)) return;
++        int slot = e.getRawSlot();
++        if (slot == 0) { openShopUI(player, 0); return; }
++        if (slot == 1) { openShopUI(player, 1); return; }
++        ItemStack clicked = e.getCurrentItem();
++        if (clicked == null || clicked.getType() == Material.AIR) return;
++
++        long now = System.currentTimeMillis();
++        Map<String, Long> userCd = cooldowns.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
++        String itemId = clicked.getType().name();
++        long expire = userCd.getOrDefault(itemId, 0L);
++        if (now < expire) {
++            player.sendMessage(Component.text("クールダウン中です！ 残り: " + ((expire - now) / 1000) + "秒", NamedTextColor.RED));
++            return;
++        }
++        userCd.put(itemId, now + (30 * 1000L));
++        player.getInventory().addItem(clicked.clone());
++        player.sendMessage(Component.text("購入完了しました！", NamedTextColor.GREEN));
++    }
++
++    private ItemStack createTabItem(Material mat, String name, boolean selected) {
++        ItemStack item = new ItemStack(mat);
++        ItemMeta meta = item.getItemMeta();
++        meta.displayName(Component.text(name, selected ? NamedTextColor.YELLOW : NamedTextColor.GRAY));
++        item.setItemMeta(meta);
++        return item;
++    }
++
++    private ItemStack createShopProduct(Material mat, String name, int price, int cdSeconds) {
++        ItemStack item = new ItemStack(mat);
++        ItemMeta meta = item.getItemMeta();
++        meta.displayName(Component.text(name, NamedTextColor.AQUA));
++        meta.lore(List.of(
++            Component.text("価格: " + price + " MP", NamedTextColor.GOLD),
++            Component.text("クールダウン: " + cdSeconds + "秒", NamedTextColor.GRAY)
++        ));
++        item.setItemMeta(meta);
++        return item;
++    }
++}
+EOF
