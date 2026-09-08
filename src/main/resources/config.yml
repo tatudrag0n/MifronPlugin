@@ -105,7 +105,7 @@ world-rules:
     survival:
       world: survival
       x: 0.0
-      y: 100.0
+      y: 101.0
       z: 0.0
       yaw: 0.0
       pitch: 0.0
@@ -261,7 +261,7 @@ servers:
     icon: grass_block
     world: survival
     x: 0.0
-    y: 100.0
+    y: 101.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0
@@ -830,3 +830,65 @@ advancement-unlocks:
     bonus-percent: 1
     unlocks:
       - ffa
+
+# NEW: Online Shop (Creative-style UI)
+online-shop-new:
+  enabled: true
+  # Initial item given to new players (iron door by default)
+  initial-item-material: IRON_DOOR
+  items:
+    # General items
+    emerald-bundle:
+      material: EMERALD
+      category: general
+      price: 10
+      rarity: COMMON
+      cooldown-seconds: 60
+      display-name: "&a エメラルドバンドル"
+    golden-apple:
+      material: GOLDEN_APPLE
+      category: general
+      price: 50
+      rarity: RARE
+      cooldown-seconds: 300
+      display-name: "&6 金のリンゴ"
+    ender-pearl:
+      material: ENDER_PEARL
+      category: general
+      price: 30
+      rarity: UNCOMMON
+      cooldown-seconds: 120
+      display-name: "&b エンダーパール"
+    # Special items (shop blocks, etc.)
+    sell-shelf-shop:
+      material: OAK_SHELF
+      category: special
+      price: 100
+      rarity: COMMON
+      cooldown-seconds: 0
+      display-name: "&b 販売棚ショップ"
+      shop-type: SELL_SHELF
+    buy-shelf-shop:
+      material: SPRUCE_SHELF
+      category: special
+      price: 100
+      rarity: COMMON
+      cooldown-seconds: 0
+      display-name: "&6 買取棚ショップ"
+      shop-type: BUY_SHELF
+    sell-barrel-shop:
+      material: BARREL
+      category: special
+      price: 100
+      rarity: COMMON
+      cooldown-seconds: 0
+      display-name: "&a 販売樽ショップ"
+      shop-type: SELL_BARREL
+    buy-barrel-shop:
+      material: HOPPER
+      category: special
+      price: 100
+      rarity: COMMON
+      cooldown-seconds: 0
+      display-name: "&c 買取樽ショップ"
+      shop-type: BUY_BARREL
