@@ -76,22 +76,17 @@ public class ShopBlockFeature implements Listener {
     }
 
     private void handleShelfShop(Player player, Block block, String shopType, Player owner) {
-        Inventory inv = block.getState().getInventory();
-        // 棚ショップは既存仕様を維持：アイテムを置くと自動で価格表ベースで販売/買取
-        // 簡易実装：プレイヤーにメッセージで案内
+        // 棚ショップ：既存仕様を維持
         if (shopType.equals("SELL_SHELF")) {
             player.sendMessage(ChatColor.GREEN + "販売棚ショップです。ここにアイテムを置くと販売されます。");
         } else {
             player.sendMessage(ChatColor.GOLD + "買取棚ショップです。ここにアイテムを置くと買取されます。");
         }
-        // 実際の販売/買取処理は既存の棚ショップロジックに委譲（またはここに実装）
     }
 
     private void handleBarrelShop(Player player, Block block, String shopType, Player owner) {
         if (shopType.equals("SELL_BARREL")) {
-            Inventory inv = block.getState().getInventory();
             player.sendMessage(ChatColor.GREEN + "販売樽ショップです。ここにアイテムを置くと販売されます。");
-            // 中身販売方式：自動補充なし
         } else if (shopType.equals("BUY_BARREL")) {
             // 買取樽：ホッパー接続チェック
             Block below = block.getRelative(BlockFace.DOWN);
@@ -105,22 +100,8 @@ public class ShopBlockFeature implements Listener {
                 player.sendMessage(ChatColor.RED + "ホッパーがいっぱいです。買取できません。");
                 return;
             }
-            Inventory barrelInv = block.getState().getInventory();
             player.sendMessage(ChatColor.GOLD + "買取樽ショップです。ここにアイテムを置くとホッパーに送られ、MP が減算されます。");
-            // 実際の買取処理：アイテムをホッパーに転送し、設置者の MP を減算
         }
-    }
-
-    public ItemStack createShopBlockItem(String shopType, Material material, String displayName) {
-        ItemStack item = new ItemStack(material);
-        var meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(displayName);
-            var pdc = meta.getPersistentDataContainer();
-            pdc.set(keyShopType, PersistentDataType.STRING, shopType);
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 
     public void placeShopBlock(Player player, Block block, String shopType) {
