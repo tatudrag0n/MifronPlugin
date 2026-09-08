@@ -12,6 +12,10 @@ softdepend:
   - Multiverse-Core
   - Geyser-Spigot
 commands:
+  mshop:
+    description: Open online shop
+    permission: mifron.shop
+    permission-default: true
   mifron:
     description: Mifron server management and player utilities.
     usage: /mifron
@@ -67,9 +71,3 @@ permissions:
   mifron.proposal.admin:
     description: Allows reviewing Mifron proposals.
     default: op
-
-mshop:
-  description: Open the online shop directly
-  permission: mifron.shop
-  permission-default: true
-
