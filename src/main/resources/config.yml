@@ -147,8 +147,8 @@ messages:
   scheduledRegen: "このチャンクは自然再生成の許可リストに入っているため、次回メンテナンスの対象です。"
 
 regen:
-  # 除外リスト。ここにないSurvivalチャンクが月次再生成対象です。
-  # 形式: survival,チャンクX,チャンクZ
+  # 除外リスト。ここにない Survival チャンクが月次再生成対象です。
+  # 形式：survival,チャンク X,チャンク Z
   excluded-chunks: []
   allowed-chunks: []
   interval-days: 30
@@ -177,22 +177,36 @@ ban-rollback:
 
 online-shop:
   enabled: true
-  title: "§bMifron OnlineShop"
+  title: "&bMifron OnlineShop"
   items:
-    shelf_shop_wand:
-      material: BLAZE_ROD
-      category: special
-      price: 500
-      rarity: RARE
-      cooldown-seconds: 86400
-      display-name: "§6棚ショップ作成アイテム"
-    barrel_shop_wand:
-      material: BLAZE_ROD
-      category: special
-      price: 500
-      rarity: RARE
-      cooldown-seconds: 86400
-      display-name: "§6樽ショップ作成アイテム"
+    sell-shelf:
+      material: OAK_SHELF
+      category: shop
+      price: 100
+      rarity: COMMON
+      cooldown-seconds: 0
+      display-name: "&b 販売棚ショップ"
+    buy-shelf:
+      material: SPRUCE_SHELF
+      category: shop
+      price: 100
+      rarity: COMMON
+      cooldown-seconds: 0
+      display-name: "&6 買取棚ショップ"
+    sell-barrel:
+      material: BARREL
+      category: shop
+      price: 100
+      rarity: COMMON
+      cooldown-seconds: 0
+      display-name: "&a 販売樽ショップ"
+    buy-barrel:
+      material: HOPPER
+      category: shop
+      price: 100
+      rarity: COMMON
+      cooldown-seconds: 0
+      display-name: "&c 買取樽ショップ"
 
 shops:
   inactivity-days: 30
@@ -386,7 +400,7 @@ ffa:
       - "crusher"
     food-cooldown-seconds: 15
     bow:
-      display-name: "§a狩人"
+      display-name: "&a 狩人"
       icon: "bow"
       armor-tier: "leather"
       armor:
@@ -405,7 +419,7 @@ ffa:
       items: []
       potions: []
     sword:
-      display-name: "§c剣士"
+      display-name: "&c 剣士"
       icon: "iron_sword"
       armor-tier: "chainmail"
       armor:
@@ -422,7 +436,7 @@ ffa:
       items: []
       potions: []
     shield:
-      display-name: "§9シールダー"
+      display-name: "&9 シールダー"
       icon: "shield"
       armor-tier: "chainmail"
       armor:
@@ -437,7 +451,7 @@ ffa:
       items: []
       potions: []
     spear:
-      display-name: "§e騎士"
+      display-name: "&e 騎士"
       icon: "iron_spear"
       armor-tier: "leather"
       armor:
@@ -456,7 +470,7 @@ ffa:
       items: []
       potions: []
     axe:
-      display-name: "§6戦士"
+      display-name: "&6 戦士"
       icon: "iron_axe"
       armor-tier: "chainmail"
       armor:
@@ -473,7 +487,7 @@ ffa:
       items: []
       potions: []
     crossbow:
-      display-name: "§dリボルバー"
+      display-name: "&d リボルバー"
       icon: "crossbow"
       armor-tier: "chainmail"
       armor:
@@ -490,7 +504,7 @@ ffa:
       items: []
       potions: []
     wizard:
-      display-name: "§5ケミスト"
+      display-name: "&5 ケミスト"
       icon: "splash_potion"
       armor-tier: "leather"
       armor:
@@ -509,13 +523,13 @@ ffa:
         - "honey_bottle:1"
       items: []
       potions:
-        - { effect: "slowness", material: "splash_potion", level: 1, seconds: 8, amount: 1, ability: "slow", name: "§7鈍化のスプラッシュポーション" }
-        - { effect: "harm", material: "splash_potion", level: 1, seconds: 1, amount: 1, ability: "harm", name: "§5負傷のスプラッシュポーション" }
-        - { effect: "poison", material: "splash_potion", level: 1, seconds: 8, amount: 1, ability: "poison", name: "§2毒のスプラッシュポーション" }
-        - { effect: "weakness", material: "splash_potion", level: 1, seconds: 10, amount: 1, ability: "weakness", name: "§8弱化のスプラッシュポーション" }
-        - { effect: "blindness", material: "splash_potion", level: 1, seconds: 5, amount: 1, ability: "blindness", name: "§0盲目のスプラッシュポーション" }
+        - { effect: "slowness", material: "splash_potion", level: 1, seconds: 8, amount: 1, ability: "slow", name: "&7 鈍化のスプラッシュポーション" }
+        - { effect: "harm", material: "splash_potion", level: 1, seconds: 1, amount: 1, ability: "harm", name: "&5 負傷のスプラッシュポーション" }
+        - { effect: "poison", material: "splash_potion", level: 1, seconds: 8, amount: 1, ability: "poison", name: "&2 毒のスプラッシュポーション" }
+        - { effect: "weakness", material: "splash_potion", level: 1, seconds: 10, amount: 1, ability: "weakness", name: "&8 弱化のスプラッシュポーション" }
+        - { effect: "blindness", material: "splash_potion", level: 1, seconds: 5, amount: 1, ability: "blindness", name: "&0 盲目のスプラッシュポーション" }
     trident:
-      display-name: "§b海の戦士"
+      display-name: "&b 海の戦士"
       icon: "trident"
       armor-tier: "chainmail"
       armor:
@@ -531,7 +545,7 @@ ffa:
       items: []
       potions: []
     mace:
-      display-name: "§7重戦士"
+      display-name: "&7 重戦士"
       icon: "mace"
       armor-tier: "iron"
       armor:
@@ -549,7 +563,7 @@ ffa:
       items: []
       potions: []
     gambler:
-      display-name: "§6ギャンブラー"
+      display-name: "&6 ギャンブラー"
       icon: "golden_sword"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
@@ -563,7 +577,7 @@ ffa:
       items: []
       potions: []
     sniper:
-      display-name: "§8スナイパー"
+      display-name: "&8 スナイパー"
       icon: "crossbow"
       armor-tier: "leather"
       armor: { helmet: "none", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
@@ -574,7 +588,7 @@ ffa:
       items: []
       potions: []
     vampire:
-      display-name: "§4ヴァンパイア"
+      display-name: "&4 ヴァンパイア"
       icon: "redstone"
       armor-tier: "leather"
       armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
@@ -587,7 +601,7 @@ ffa:
       items: []
       potions: []
     grappler:
-      display-name: "§2グラップラー"
+      display-name: "&2 グラップラー"
       icon: "golden_carrot"
       armor-tier: "none"
       armor: { helmet: "none", chestplate: "none", leggings: "none", boots: "none" }
@@ -595,7 +609,7 @@ ffa:
       items: []
       potions: []
     assassin:
-      display-name: "§5アサシン"
+      display-name: "&5 アサシン"
       icon: "golden_sword"
       armor-tier: "none"
       armor: { helmet: "none", chestplate: "none", leggings: "none", boots: "none" }
@@ -604,7 +618,7 @@ ffa:
       items: []
       potions: []
     necromancer:
-      display-name: "§5ネクロマンサー"
+      display-name: "&5 ネクロマンサー"
       icon: "zombie_spawn_egg"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
@@ -613,7 +627,7 @@ ffa:
       items: []
       potions: []
     trapper:
-      display-name: "§eトラッパー"
+      display-name: "&e トラッパー"
       icon: "stone_pressure_plate"
       armor-tier: "leather"
       armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
@@ -626,7 +640,7 @@ ffa:
       items: []
       potions: []
     bug_mania:
-      display-name: "§2バグマニア"
+      display-name: "&2 バグマニア"
       icon: "silverfish_spawn_egg"
       armor-tier: "leather"
       armor: { helmet: "leather_helmet", chestplate: "chainmail_chestplate", leggings: "leather_leggings", boots: "none" }
@@ -639,7 +653,7 @@ ffa:
       items: []
       potions: []
     crusher:
-      display-name: "§cクラッシャー"
+      display-name: "&c クラッシャー"
       icon: "tnt"
       armor-tier: "leather"
       armor: { helmet: "leather_helmet", chestplate: "leather_chestplate", leggings: "leather_leggings", boots: "leather_boots" }
@@ -816,120 +830,3 @@ advancement-unlocks:
     bonus-percent: 1
     unlocks:
       - ffa
-  adventure/shoot_arrow:
-    emeralds: 50
-    bonus-percent: 5
-    ffa-classes:
-      - archer
-  adventure/two_birds_one_arrow:
-    emeralds: 100
-    bonus-percent: 10
-    ffa-classes:
-      - soldier
-  adventure/throw_trident:
-    emeralds: 50
-    bonus-percent: 5
-    ffa-classes:
-      - spearman
-  husbandry/complete_catalogue:
-    emeralds: 100
-    bonus-percent: 10
-    pets:
-      - cat
-  husbandry/tame_an_animal:
-    emeralds: 50
-    bonus-percent: 5
-    pets:
-      - wolf
-  husbandry/froglights:
-    emeralds: 100
-    bonus-percent: 10
-    pets:
-      - frog
-  husbandry/allay_deliver_cake_to_note_block:
-    emeralds: 100
-    bonus-percent: 10
-    pets:
-      - allay
-  husbandry/ride_a_boat_with_a_goat:
-    emeralds: 50
-    bonus-percent: 5
-    pets:
-      - goat
-  husbandry/kill_axolotl_target:
-    emeralds: 50
-    bonus-percent: 5
-    pets:
-      - axolotl
-  husbandry/plant_any_sniffer_seed:
-    emeralds: 50
-    bonus-percent: 5
-    pets:
-      - sniffer
-  nether/all_effects:
-    emeralds: 100
-    bonus-percent: 10
-    skins:
-      - special
-  nether/all_potions:
-    emeralds: 100
-    bonus-percent: 10
-    skins:
-      - wizard
-      - cook
-  husbandry/balanced_diet:
-    emeralds: 100
-    bonus-percent: 10
-    skins:
-      - cook
-  adventure/kill_all_mobs:
-    emeralds: 100
-    bonus-percent: 10
-    skins:
-      - hunter
-    ffa-classes:
-      - hero
-  adventure/salvage_sherd:
-    emeralds: 50
-    bonus-percent: 5
-    skins:
-      - smith
-  nether/netherite_armor:
-    emeralds: 100
-    bonus-percent: 5
-    skins:
-      - knight
-
-minigame-unlocks:
-  tag:
-    required-emeralds: 10000
-  hide_and_seek:
-    required-emeralds: 10000
-  pvp:
-    required-emeralds: 10000
-  dropper:
-    required-emeralds: 10000
-  ffa:
-    required-emeralds: 10000
-
-auto-shutdown:
-  enabled: false
-  # Delay in seconds after the last player leaves before stopping the host VM (600 = 10 minutes)
-  delay-seconds: 600
-  # provider: gcloud (default) or command
-  provider: gcloud
-  # Used when provider=command
-  vm-stop-command: "sudo shutdown -h now"
-  gcloud:
-    # Optional overrides; empty values are auto-detected from GCE metadata
-    instance: ""
-    zone: ""
-    project: ""
-
-# Local Minoru API. Keep the secret in the VM config only; never commit it.
-minoru-bridge:
-  enabled: true
-  bind: "127.0.0.1"
-  port: 8123
-  secret: ""
-
