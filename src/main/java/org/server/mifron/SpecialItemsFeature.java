@@ -130,7 +130,7 @@ public class SpecialItemsFeature implements Listener {
             event.setCancelled(true);
             item.setAmount(item.getAmount() - 1);
             int winMp = (random.nextInt(100) < 10) ? 500 : 50;
-            plugin.grantMp(player, winMp);
+            plugin.depositEmeralds(player.getUniqueId(), winMp);
             player.sendMessage(ChatColor.YELLOW + "🎰 スクラッチを削った！ " + winMp + " MP を手に入れた！");
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.2f);
         } else if (id.equals("resonance") && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK)) {

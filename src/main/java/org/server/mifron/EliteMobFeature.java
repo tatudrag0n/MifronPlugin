@@ -40,7 +40,7 @@ public class EliteMobFeature implements Listener {
 
     private void makeElite(Monster mob) {
         mob.setMetadata(ELITE_TAG, new FixedMetadataValue(plugin, true));
-        AttributeInstance maxHealth = mob.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        AttributeInstance maxHealth = mob.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealth != null) {
             double newHp = maxHealth.getBaseValue() * 3.0;
             maxHealth.setBaseValue(newHp);
@@ -57,7 +57,7 @@ public class EliteMobFeature implements Listener {
                     return;
                 }
                 Location loc = mob.getLocation().add(0, 1.0, 0);
-                mob.getWorld().spawnParticle(Particle.ENCHANTMENT_TABLE, loc, 8, 0.4, 0.6, 0.4, 0.1);
+                mob.getWorld().spawnParticle(Particle.ENCHANT, loc, 8, 0.4, 0.6, 0.4, 0.1);
             }
         }.runTaskTimer(plugin, 10L, 10L);
     }
@@ -82,7 +82,7 @@ public class EliteMobFeature implements Listener {
             event.setDroppedExp(event.getDroppedExp() * 5);
             Player killer = entity.getKiller();
             if (killer != null) {
-                plugin.grantMp(killer, 250);
+                plugin.depositEmeralds(killer.getUniqueId(), 250);
                 killer.sendMessage(ChatColor.GOLD + "⚔️ エリートモブを討伐した！ (+250 MP & ドロップ5倍)");
                 killer.playSound(killer.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1.2f);
             }
