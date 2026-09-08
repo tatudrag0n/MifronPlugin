@@ -67,3 +67,9 @@ permissions:
   mifron.proposal.admin:
     description: Allows reviewing Mifron proposals.
     default: op
+
+mshop:
+  description: Open the online shop directly
+  permission: mifron.shop
+  permission-default: true
+

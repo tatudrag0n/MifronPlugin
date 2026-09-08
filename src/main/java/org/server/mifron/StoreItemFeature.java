@@ -53,7 +53,7 @@ public class StoreItemFeature implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        if (!player.hasPlayedBefore()) {
+        if (!hasStoreItem(player)) {
             player.getInventory().addItem(createStoreItem());
         }
     }
@@ -81,3 +81,4 @@ public class StoreItemFeature implements Listener {
         }
     }
 }
+
