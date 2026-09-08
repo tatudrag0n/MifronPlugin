@@ -327,6 +327,7 @@ public final class Mifron extends JavaPlugin implements Listener, TabExecutor {
    private final Object shutdownLock = new Object();
 
    public void onEnable() {
+FeatureRegistry.registerAll(this);
       this.mifronItemKey = new NamespacedKey(this, "item");
       this.merchantKey = new NamespacedKey(this, "merchant");
       this.merchantSpawnKey = new NamespacedKey(this, "merchant_spawned_at");
