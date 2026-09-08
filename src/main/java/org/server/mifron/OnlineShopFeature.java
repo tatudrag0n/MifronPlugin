@@ -89,18 +89,18 @@ final class OnlineShopFeature implements Listener {
          this.plugin.data().getLong(cooldownPath, 0L)
       );
       if (until > now) {
-         player.sendMessage(ChatColor.RED + "");
+         player.sendMessage(ChatColor.RED + "購入クールダウン中です。");
          return;
       }
       int price = Math.max(0, this.plugin.getConfig().getInt(path + ".price", 0));
-      ItemStack product = this.plugin.createOnlineShopProduct(id);
+      ItemStack product = this.createShopBlockProduct(id);
       if (product == null) return;
       if (!this.plugin.canReceiveOnlineShopProduct(player, product)) {
-         player.sendMessage(ChatColor.RED + "");
+         player.sendMessage(ChatColor.RED + "インベントリに空きがありません。");
          return;
       }
       if (!this.plugin.withdrawEmeralds(player.getUniqueId(), price)) {
-         player.sendMessage(ChatColor.RED + "");
+         player.sendMessage(ChatColor.RED + "MP が足りません。必要 MP: " + price);
          return;
       }
       this.plugin.grantOnlineShopProduct(player, product);
@@ -108,7 +108,40 @@ final class OnlineShopFeature implements Listener {
       this.cooldowns.get(player.getUniqueId()).put(id, now + cooldown);
       this.plugin.data().set(cooldownPath, now + cooldown);
       this.plugin.queueDataSave();
-      player.sendMessage(ChatColor.GREEN + "");
+      player.sendMessage(ChatColor.GREEN + "OnlineShop で購入しました：" + id);
+   }
+
+   private ItemStack createShopBlockProduct(String id) {
+      Material material;
+      String displayName;
+      NamespacedKey keyShopType = new NamespacedKey(plugin, "shop_type");
+
+      if (id.equals("sell-shelf")) {
+         material = Material.OAK_SHELF;
+         displayName = ChatColor.BLUE + "販売棚ショップ";
+      } else if (id.equals("buy-shelf")) {
+         material = Material.SPRUCE_SHELF;
+         displayName = ChatColor.GOLD + "買取棚ショップ";
+      } else if (id.equals("sell-barrel")) {
+         material = Material.BARREL;
+         displayName = ChatColor.GREEN + "販売樽ショップ";
+      } else if (id.equals("buy-barrel")) {
+         material = Material.HOPPER;
+         displayName = ChatColor.RED + "買取樽ショップ";
+      } else {
+         // 他の商品は Mifron.createOnlineShopProduct に委譲
+         return this.plugin.createOnlineShopProduct(id);
+      }
+
+      ItemStack item = new ItemStack(material);
+      ItemMeta meta = item.getItemMeta();
+      if (meta != null) {
+         meta.setDisplayName(displayName);
+         var pdc = meta.getPersistentDataContainer();
+         pdc.set(keyShopType, PersistentDataType.STRING, id.toUpperCase().replace('-', '_'));
+         item.setItemMeta(meta);
+      }
+      return item;
    }
 
    private static final class ComponentCompat {
