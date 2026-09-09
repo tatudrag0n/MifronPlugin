@@ -4,7 +4,9 @@ enum QuestType {
    DAILY("daily", "デイリー"),
    WEEKLY("weekly", "ウィークリー"),
    MONTHLY("monthly", "マンスリー"),
-   SPECIAL("special", "スペシャル");
+   SPECIAL("special", "スペシャル"),
+   ONE_SHOT("one_shot", "単発"),
+   HIDDEN("hidden", "隠し");
 
    private final String key;
    private final String label;
@@ -28,7 +30,6 @@ enum QuestType {
             return type;
          }
       }
-
       return SPECIAL;
    }
 }
