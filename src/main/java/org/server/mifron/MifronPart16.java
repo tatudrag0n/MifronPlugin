@@ -14,14 +14,13 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
-abstract class MifronPart16 extends MifronPart15 {
+abstract class MifronPart16 extends MifronPart15x2 {
    protected void addPlayerStat(UUID uuid, String key, int amount, boolean persist) {
-      if (amount > 0) {
-         ConfigurationSection section = this.getPlayerSection(uuid);
-         section.set(key, this.safeAdd(section.getInt(key, 0), amount));
-         this.questService.recordStat(uuid, key, amount);
-         if (persist) this.queueDataSave();
-      }
+      if (amount <= 0) return;
+      ConfigurationSection section = this.getPlayerSection(uuid);
+      section.set(key, this.safeAdd(section.getInt(key, 0), amount));
+      this.questService.recordStat(uuid, key, amount);
+      if (persist) this.queueDataSave();
    }
 
    protected void refreshPlayerName(Player player) {
@@ -62,25 +61,22 @@ abstract class MifronPart16 extends MifronPart15 {
       if (section == null) return definitions;
       for (String key : section.getKeys(false)) {
          String displayName = section.getString(key + ".display-name", key);
-         if (displayName != null && !displayName.isBlank()) {
-            Material icon = Material.matchMaterial(section.getString(key + ".icon", "name_tag"));
-            List<String> requirements = section.getStringList(key + ".required-advancements");
-            definitions.put(displayName, new TitleDefinition(icon == null ? Material.NAME_TAG : icon, requirements));
-         }
+         if (displayName == null || displayName.isBlank()) continue;
+         Material icon = Material.matchMaterial(section.getString(key + ".icon", "name_tag"));
+         List<String> requirements = section.getStringList(key + ".required-advancements");
+         definitions.put(displayName, new TitleDefinition(icon == null ? Material.NAME_TAG : icon, requirements));
       }
       return definitions;
    }
 
    protected void resetStatusData(UUID uuid) {
       ConfigurationSection section = this.getPlayerSection(uuid);
-      for (String key : List.of(
-         "emeralds", "total-earned-emeralds", "income-bonus-percent", "advancement-bonus-percent",
+      for (String key : List.of("emeralds", "total-earned-emeralds", "income-bonus-percent", "advancement-bonus-percent",
          "reincarnation-bonus-percent", "reincarnations", "pending-advancement-reset", "session-minutes",
          "session-playtime-rewards", "total-minutes", "total-play-count", "login-streak", "total-logins",
          "last-login-reward", "completed-advancements", "rewarded-advancements", "all-advancements-rewarded",
          "shop-discount", "unlocks", "skins", "pets", "ffa-classes", "total-mob-kills", "killed-mobs",
-         "unlocked-titles", "selected-title", "total-trades", "total-blocks-broken", "total-blocks-placed"
-      )) {
+         "unlocked-titles", "selected-title", "total-trades", "total-blocks-broken", "total-blocks-placed")) {
          section.set(key, null);
       }
       section.set("pending-advancement-reset", true);
@@ -94,9 +90,8 @@ abstract class MifronPart16 extends MifronPart15 {
    }
 
    protected Set<UUID> getUuidSet(UUID owner, String key) {
-      List<String> raw = this.getPlayerSection(owner).getStringList(key);
       Set<UUID> result = new HashSet<>();
-      for (String value : raw) {
+      for (String value : this.getPlayerSection(owner).getStringList(key)) {
          try { result.add(UUID.fromString(value)); } catch (IllegalArgumentException ignored) {}
       }
       return result;
@@ -119,7 +114,7 @@ abstract class MifronPart16 extends MifronPart15 {
          if ("tutorial".equalsIgnoreCase(command.getName())) return this.handleTutorialCommand(sender);
          return this.handleMifronCommand(sender, args);
       } catch (Throwable e) {
-         this.getLogger().severe("Command failed: /" + label + " " + String.join(" ", args));
+         this.getLogger().severe("Command failed: /" + label);
          e.printStackTrace();
          sender.sendMessage("\u00a7c\u30b3\u30de\u30f3\u30c9\u5b9f\u884c\u4e2d\u306b\u30a8\u30e9\u30fc\u304c\u767a\u751f\u3057\u307e\u3057\u305f\u3002");
          return true;
