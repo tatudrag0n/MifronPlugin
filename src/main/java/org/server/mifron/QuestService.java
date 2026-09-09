@@ -85,12 +85,13 @@ final class QuestService {
       this.ensurePeriods(player);
       this.syncDerivedSpecialProgress(player);
       List<QuestDefinition> result = new ArrayList<>();
-      if (type == QuestType.SPECIAL) {
+      if (type == QuestType.SPECIAL || type == QuestType.ONE_SHOT || type == QuestType.HIDDEN) {
          result.addAll(
             this.definitions
                .values()
                .stream()
-               .filter(definition -> definition.type() == QuestType.SPECIAL)
+               .filter(definition -> definition.type() == type)
+               .filter(definition -> type != QuestType.HIDDEN || this.isUnlocked(player, definition))
                .sorted(Comparator.comparing(QuestDefinition::id))
                .toList()
          );
@@ -223,14 +224,10 @@ final class QuestService {
          this.syncDerivedSpecialProgress(player);
          boolean changed = false;
 
-         for (QuestType type : List.of(QuestType.DAILY, QuestType.WEEKLY, QuestType.MONTHLY)) {
-            if (this.hasVisibleQuestWithProgressKey(player, type, progressKey)) {
+         for (QuestType type : List.of(QuestType.DAILY, QuestType.WEEKLY, QuestType.MONTHLY, QuestType.ONE_SHOT, QuestType.HIDDEN, QuestType.SPECIAL)) {
+            if (this.hasQuestWithProgressKey(type, progressKey)) {
                changed |= this.addProgressAt(player.getUniqueId(), this.questBase(type) + ".progress." + progressKey, amount);
             }
-         }
-
-         if (this.hasQuestWithProgressKey(QuestType.SPECIAL, progressKey)) {
-            changed |= this.addProgressAt(player.getUniqueId(), this.questBase(QuestType.SPECIAL) + ".progress." + progressKey, amount);
          }
 
          if (changed) {
@@ -310,7 +307,7 @@ final class QuestService {
          case DAILY -> now.toLocalDate().plusDays(1L).atStartOfDay(zone);
          case WEEKLY -> now.plusDays(8 - now.getDayOfWeek().getValue()).toLocalDate().atStartOfDay(zone);
          case MONTHLY -> YearMonth.now(zone).plusMonths(1L).atDay(1).atStartOfDay(zone);
-         case SPECIAL -> null;
+         case SPECIAL, ONE_SHOT, HIDDEN -> null;
       };
       if (end == null) {
          return "期限なし";

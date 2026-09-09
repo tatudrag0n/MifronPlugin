@@ -56,6 +56,7 @@ final class QuestProgressListener implements Listener {
    @EventHandler
    public void onJoin(PlayerJoinEvent event) {
       this.quests.ensurePeriods(event.getPlayer());
+      this.quests.addProgress(event.getPlayer(), "login_days", 1);
       this.awardWorldProgress(event.getPlayer());
    }
 
@@ -120,8 +121,11 @@ final class QuestProgressListener implements Listener {
 
    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
    public void onPickup(EntityPickupItemEvent event) {
-      if (event.getEntity() instanceof Player player && event.getItem().getItemStack().getType().name().endsWith("_SMITHING_TEMPLATE")) {
-         this.quests.addProgress(player, "smithing_templates", 1);
+      if (event.getEntity() instanceof Player player) {
+         this.quests.addProgress(player, "items_obtained", event.getItem().getItemStack().getAmount());
+         if (event.getItem().getItemStack().getType().name().endsWith("_SMITHING_TEMPLATE")) {
+            this.quests.addProgress(player, "smithing_templates", 1);
+         }
       }
    }
 

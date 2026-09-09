@@ -200,6 +200,7 @@ final class ProposalManager {
             sender.sendMessage(ChatColor.RED + "shop_item proposal は廃止されました。ショップ価格表で管理してください。");
             yield false;
          }
+         case "quest" -> this.applyQuest(sender, proposalId, section);
          default -> {
             sender.sendMessage(ChatColor.RED + "未対応の proposal type です: " + type);
             yield false;
@@ -260,6 +261,59 @@ final class ProposalManager {
          sender.sendMessage(ChatColor.RED + "custom item の material が不正です: " + materialName);
          return false;
       }
+   }
+
+
+   String submitQuest(org.bukkit.entity.Player player, QuestProposalFeature.Draft draft) {
+      this.ensureLoaded();
+      String id = this.safeId("q_" + player.getName() + "_" + Long.toString(System.currentTimeMillis(), 36));
+      String path = "proposals.pending." + id;
+      this.data.set(path + ".type", "quest");
+      this.data.set(path + ".name", draft.name);
+      this.data.set(path + ".quest-type", draft.type);
+      this.data.set(path + ".condition", draft.condition);
+      this.data.set(path + ".progress-key", draft.progressKey);
+      this.data.set(path + ".required", draft.required);
+      this.data.set(path + ".base-reward-mp", draft.reward);
+      this.data.set(path + ".depends-on", draft.dependsOn);
+      this.data.set(path + ".title-reward", draft.title);
+      this.data.set(path + ".advancement", draft.advancement);
+      this.data.set(path + ".source", player.getUniqueId().toString());
+      this.data.set(path + ".author", player.getName());
+      this.data.set(path + ".submitted-at", System.currentTimeMillis());
+      this.save();
+      return id;
+   }
+
+   private boolean applyQuest(CommandSender sender, String proposalId, ConfigurationSection section) {
+      String questId = this.safeId(section.getString("id", proposalId));
+      File questFile = new File(this.plugin.getDataFolder(), "quests.yml");
+      YamlConfiguration quests = questFile.exists() ? YamlConfiguration.loadConfiguration(questFile) : new YamlConfiguration();
+      String path = "quests." + questId;
+      quests.set(path + ".type", section.getString("quest-type", "one_shot"));
+      quests.set(path + ".name", section.getString("name", questId));
+      quests.set(path + ".condition", section.getString("condition", ""));
+      quests.set(path + ".base-reward-mp", Math.max(0, section.getInt("base-reward-mp", 10)));
+      quests.set(path + ".progress-key", section.getString("progress-key", "manual"));
+      quests.set(path + ".required", Math.max(1, section.getInt("required", 1)));
+      quests.set(path + ".depends-on", section.getString("depends-on", ""));
+      quests.set(path + ".title-reward", section.getString("title-reward", ""));
+      quests.set(path + ".icon", "PAPER");
+      quests.set(path + ".display", "player-proposal");
+      try {
+         quests.save(questFile);
+      } catch (IOException e) {
+         sender.sendMessage(ChatColor.RED + "quests.yml を保存できませんでした。");
+         return false;
+      }
+      String title = section.getString("title-reward", "");
+      if (title != null && !title.isBlank()) {
+         this.plugin.getConfig().set("titles." + questId + ".display-name", title);
+         this.plugin.getConfig().set("titles." + questId + ".description", "クエスト提案から追加");
+      }
+      this.plugin.getQuestService().load();
+      sender.sendMessage(ChatColor.GREEN + "クエストを追加しました: " + questId);
+      return true;
    }
 
    private void move(String source, String target) {
