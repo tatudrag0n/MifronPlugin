@@ -1,6 +1,8 @@
 package org.server.mifron;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Bukkit;
@@ -18,6 +20,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 final class OnlineShopFeature implements Listener {
+   static final String TITLE_GENERAL = "§bMifron OnlineShop";
+   static final String TITLE_SPECIAL = "§dMifron OnlineShop / 特殊";
    private final Mifron plugin;
    private final NamespacedKey accessKey;
    private final NamespacedKey productKey;
@@ -35,42 +39,74 @@ final class OnlineShopFeature implements Listener {
       if (item != null && item.hasItemMeta()
          && "online_shop".equals(item.getItemMeta().getPersistentDataContainer().get(this.accessKey, PersistentDataType.STRING))) {
          event.setCancelled(true);
-         event.getPlayer().openInventory(this.createInventory(event.getPlayer()));
+         event.getPlayer().openInventory(this.createInventory(event.getPlayer(), "general"));
       }
    }
 
    @EventHandler
    public void onClick(InventoryClickEvent event) {
-      if (!(event.getWhoClicked() instanceof Player player)
-         || !event.getView().getTitle().equals(this.plugin.getConfig().getString("online-shop.title", ""))) return;
+      if (!(event.getWhoClicked() instanceof Player player)) {
+         return;
+      }
+      String title = event.getView().getTitle();
+      if (!TITLE_GENERAL.equals(title) && !TITLE_SPECIAL.equals(title)
+         && !title.equals(this.plugin.getConfig().getString("online-shop.title", TITLE_GENERAL))) {
+         return;
+      }
       event.setCancelled(true);
-      if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
+      if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) {
+         return;
+      }
       ItemStack clicked = event.getCurrentItem();
-      if (clicked == null || !clicked.hasItemMeta()) return;
-      String id = clicked.getItemMeta().getPersistentDataContainer().get(this.productKey, PersistentDataType.STRING);
-      if (id == null) return;
-      this.purchase(player, id);
+      if (clicked == null || !clicked.hasItemMeta()) {
+         return;
+      }
+      String action = clicked.getItemMeta().getPersistentDataContainer().get(this.productKey, PersistentDataType.STRING);
+      if (action == null) {
+         return;
+      }
+      if ("tab:general".equals(action)) {
+         player.openInventory(this.createInventory(player, "general"));
+         return;
+      }
+      if ("tab:special".equals(action)) {
+         player.openInventory(this.createInventory(player, "special"));
+         return;
+      }
+      this.purchase(player, action);
    }
 
-   private Inventory createInventory(Player player) {
-      String title = this.plugin.getConfig().getString("online-shop.title", "");
-      Inventory inventory = Bukkit.createInventory(player, 27, title);
+   private Inventory createInventory(Player player, String category) {
+      boolean special = "special".equalsIgnoreCase(category);
+      Inventory inventory = Bukkit.createInventory(player, 54, special ? TITLE_SPECIAL : TITLE_GENERAL);
+      inventory.setItem(45, this.tab(Material.CHEST, "§a一般タブ", "tab:general"));
+      inventory.setItem(46, this.tab(Material.NETHER_STAR, "§d特殊アイテムタブ", "tab:special"));
       var section = this.plugin.getConfig().getConfigurationSection("online-shop.items");
-      if (section == null) return inventory;
+      if (section == null) {
+         return inventory;
+      }
       int slot = 0;
       for (String id : section.getKeys(false)) {
-         if (slot >= inventory.getSize()) break;
+         if (slot >= 45) break;
+         String itemCategory = section.getString(id + ".category", "general");
+         boolean itemSpecial = "special".equalsIgnoreCase(itemCategory) || "shop".equalsIgnoreCase(itemCategory);
+         if (itemSpecial != special) continue;
          String materialName = section.getString(id + ".material", "PAPER");
          Material material = Material.matchMaterial(materialName);
          if (material == null) material = Material.PAPER;
          ItemStack icon = new ItemStack(material);
          ItemMeta meta = icon.getItemMeta();
-         meta.displayName(ComponentCompat.text(section.getString(id + ".display-name", id)));
+         meta.setDisplayName(color(section.getString(id + ".display-name", id)));
          int price = Math.max(0, section.getInt(id + ".price", 0));
          String rarity = section.getString(id + ".rarity", "COMMON");
-         String category = section.getString(id + ".category", "general");
-         int cooldown = Math.max(0, section.getInt(id + ".cooldown-seconds", 0));
-         meta.lore(java.util.List.of(ComponentCompat.text("" + category), ComponentCompat.text("" + price + "MP"), ComponentCompat.text("" + rarity), ComponentCompat.text("" + cooldown + ""), ComponentCompat.text("")));
+         long remaining = this.remainingSeconds(player, id);
+         List<String> lore = new ArrayList<>();
+         lore.add("§7カテゴリ: " + itemCategory);
+         lore.add("§e価格: " + price + " MP");
+         lore.add("§bレア度: " + rarity);
+         lore.add(remaining > 0 ? "§cクールダウン残り " + remaining + " 秒" : "§a購入可能");
+         lore.add("§8販売のみ / 買取なし");
+         meta.setLore(lore);
          meta.getPersistentDataContainer().set(this.productKey, PersistentDataType.STRING, id);
          icon.setItemMeta(meta);
          inventory.setItem(slot++, icon);
@@ -78,18 +114,32 @@ final class OnlineShopFeature implements Listener {
       return inventory;
    }
 
-   private void purchase(Player player, String id) {
-      if (!this.plugin.getConfig().getBoolean("online-shop.enabled", true)) return;
-      String path = "online-shop.items." + id;
-      if (!this.plugin.getConfig().contains(path)) return;
+   private ItemStack tab(Material material, String name, String action) {
+      ItemStack item = new ItemStack(material);
+      ItemMeta meta = item.getItemMeta();
+      meta.setDisplayName(name);
+      meta.getPersistentDataContainer().set(this.productKey, PersistentDataType.STRING, action);
+      item.setItemMeta(meta);
+      return item;
+   }
+
+   private long remainingSeconds(Player player, String id) {
       long now = System.currentTimeMillis();
       String cooldownPath = "online-shop-cooldowns." + player.getUniqueId() + "." + id;
       long until = Math.max(
          this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).getOrDefault(id, 0L),
          this.plugin.data().getLong(cooldownPath, 0L)
       );
-      if (until > now) {
-         player.sendMessage(ChatColor.RED + "購入クールダウン中です。残り " + ((until - now + 999) / 1000) + " 秒");
+      return Math.max(0L, (until - now + 999L) / 1000L);
+   }
+
+   private void purchase(Player player, String id) {
+      if (!this.plugin.getConfig().getBoolean("online-shop.enabled", true)) return;
+      String path = "online-shop.items." + id;
+      if (!this.plugin.getConfig().contains(path)) return;
+      long remaining = this.remainingSeconds(player, id);
+      if (remaining > 0L) {
+         player.sendMessage(ChatColor.RED + "購入クールダウン中です。残り " + remaining + " 秒");
          return;
       }
       int price = Math.max(0, this.plugin.getConfig().getInt(path + ".price", 0));
@@ -105,15 +155,14 @@ final class OnlineShopFeature implements Listener {
       }
       this.plugin.grantOnlineShopProduct(player, product);
       long cooldown = Math.max(0L, this.plugin.getConfig().getLong(path + ".cooldown-seconds", 0L)) * 1000L;
-      this.cooldowns.get(player.getUniqueId()).put(id, now + cooldown);
-      this.plugin.data().set(cooldownPath, now + cooldown);
+      long until = System.currentTimeMillis() + cooldown;
+      this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(id, until);
+      this.plugin.data().set("online-shop-cooldowns." + player.getUniqueId() + "." + id, until);
       this.plugin.queueDataSave();
       player.sendMessage(ChatColor.GREEN + "OnlineShop で購入しました：" + id);
    }
 
-   private static final class ComponentCompat {
-      private static net.kyori.adventure.text.Component text(String value) {
-         return net.kyori.adventure.text.Component.text(value == null ? "" : value);
-      }
+   private static String color(String value) {
+      return ChatColor.translateAlternateColorCodes('&', value == null ? "" : value);
    }
 }
