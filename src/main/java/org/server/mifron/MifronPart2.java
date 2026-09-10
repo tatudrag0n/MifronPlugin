@@ -98,7 +98,7 @@ abstract class MifronPart2 extends MifronPart1x3 {
       if (this.pendingDataSaveTask != null && !this.pendingDataSaveTask.isCancelled()) return;
       this.pendingDataSaveTask = Bukkit.getScheduler().runTaskLater(this, () -> {
          this.pendingDataSaveTask = null;
-         this.saveData();
+         this.mifron().saveData();
       }, 20L);
    }
 
@@ -123,10 +123,10 @@ abstract class MifronPart2 extends MifronPart1x3 {
 
    protected void flushPendingFirstMpEvent(Player player) {
       if (player == null) return;
-      ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
+      ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       if (!section.getBoolean("analytics.first-mp-earned-pending", false) || section.getBoolean("analytics.first-mp-earned-recorded", false)) return;
       section.set("analytics.first-mp-earned-pending", false);
       section.set("analytics.first-mp-earned-recorded", true);
-      this.trackAnalytics(player, "first_mp_earned", "first-mp-earned:" + player.getUniqueId());
+      this.mifron().trackAnalytics(player, "first_mp_earned", "first-mp-earned:" + player.getUniqueId());
    }
 }

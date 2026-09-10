@@ -24,10 +24,10 @@ import org.bukkit.persistence.PersistentDataType;
 
 abstract class MifronPart2x1 extends MifronPart2 {
    protected void trackFirstAction(Player player) {
-      ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
+      ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       if (section.getBoolean("analytics.first-action-recorded", false)) return;
       section.set("analytics.first-action-recorded", true);
-      this.trackAnalytics(player, "first_action", "first-action:" + player.getUniqueId());
+      this.mifron().trackAnalytics(player, "first_action", "first-action:" + player.getUniqueId());
       this.queueDataSave();
    }
 
@@ -54,8 +54,8 @@ abstract class MifronPart2x1 extends MifronPart2 {
    @EventHandler
    public void onJoin(PlayerJoinEvent event) {
       Player player = event.getPlayer();
-      this.startPlayerSession(player);
-      ConfigurationSection session = this.getPlayerSection(player.getUniqueId());
+      this.mifron().startPlayerSession(player);
+      ConfigurationSection session = this.mifron().getPlayerSection(player.getUniqueId());
       String sessionId = player.getUniqueId() + ":" + System.currentTimeMillis();
       session.set("analytics.session-id", sessionId);
       session.set("analytics.session-start", System.currentTimeMillis());
@@ -65,13 +65,13 @@ abstract class MifronPart2x1 extends MifronPart2 {
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_start", sessionId, "session-start:" + sessionId);
       this.flushPendingFirstMpEvent(player);
       this.queueDataSave();
-      this.giveInitialItems(player);
-      this.applyPendingAdvancementReset(player);
-      this.handleLoginReward(player);
-      this.routeByWarningLevel(player);
-      this.refreshPlayerName(player);
-      Bukkit.getScheduler().runTaskLater(this, () -> this.syncAdvancementState(player), 20L);
-      if (this.isFirstJoin(player)) Bukkit.getScheduler().runTaskLater(this, () -> this.startTutorial(player, false), 40L);
+      this.mifron().giveInitialItems(player);
+      this.mifron().applyPendingAdvancementReset(player);
+      this.mifron().handleLoginReward(player);
+      this.mifron().routeByWarningLevel(player);
+      this.mifron().refreshPlayerName(player);
+      Bukkit.getScheduler().runTaskLater(this, () -> this.mifron().syncAdvancementState(player), 20L);
+      if (this.mifron().isFirstJoin(player)) Bukkit.getScheduler().runTaskLater(this, () -> this.mifron().startTutorial(player, false), 40L);
    }
 
    ItemStack createOnlineShopProduct(String id) {
@@ -99,7 +99,7 @@ abstract class MifronPart2x1 extends MifronPart2 {
    public boolean canPlaceShopBlock(Player player) { return this.shopBlockFeature == null || this.shopBlockFeature.canPlaceShopBlock(player); }
    public void recordShopBlockPlacement(Player player) { if (this.shopBlockFeature != null) this.shopBlockFeature.recordShopBlockPlacement(player); }
    void grantOnlineShopProduct(Player player, ItemStack item) { if (player != null && item != null) player.getInventory().addItem(item); }
-   boolean canReceiveOnlineShopProduct(Player player, ItemStack item) { return player != null && item != null && this.inventorySpaceFor(player, item.getType()) >= item.getAmount(); }
+   boolean canReceiveOnlineShopProduct(Player player, ItemStack item) { return player != null && item != null && this.mifron().inventorySpaceFor(player, item.getType()) >= item.getAmount(); }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
    public void onPlayerRespawn(PlayerRespawnEvent event) {
