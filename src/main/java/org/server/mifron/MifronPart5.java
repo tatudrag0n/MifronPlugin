@@ -11,24 +11,24 @@ abstract class MifronPart5 extends MifronPart4x2 {
    protected void assignCustomShelfShopSlot(Block block, int selectedSlot, Material material) {
       if (block == null || material == null || selectedSlot < 0 || selectedSlot >= SHELF_SHOP_OFFER_SLOTS) return;
       this.slotMachineManager.unregisterMachine(block);
-      String path = this.shelfShopPath(block);
-      if (!"custom".equals(this.shelfShopMode(block))) this.data.set(path + ".custom", null);
+      String path = this.mifron().shelfShopPath(block);
+      if (!"custom".equals(this.mifron().shelfShopMode(block))) this.data.set(path + ".custom", null);
       this.data.set(path + ".enabled", true);
       this.data.set(path + ".mode", "custom");
       this.data.set(path + ".order", null);
       this.data.set(path + ".custom." + selectedSlot, material.name());
       this.data.set(path + ".custom-prices." + selectedSlot, null);
       this.data.set(path + ".custom-modes." + selectedSlot, null);
-      this.clearShelfShopRandomOffer(block);
-      this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
+      this.mifron().clearShelfShopRandomOffer(block);
+      this.mifron().displayShelfShopOffers(block, this.customShelfShopMaterials(block));
       this.queueDataSave();
    }
    protected void clearCustomShelfShopSlot(Block block, int selectedSlot) {
       if (block == null || selectedSlot < 0 || selectedSlot >= SHELF_SHOP_OFFER_SLOTS) return;
-      this.data.set(this.shelfShopPath(block) + ".custom." + selectedSlot, null);
-      this.data.set(this.shelfShopPath(block) + ".custom-prices." + selectedSlot, null);
-      this.data.set(this.shelfShopPath(block) + ".custom-modes." + selectedSlot, null);
-      this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
+      this.data.set(this.mifron().shelfShopPath(block) + ".custom." + selectedSlot, null);
+      this.data.set(this.mifron().shelfShopPath(block) + ".custom-prices." + selectedSlot, null);
+      this.data.set(this.mifron().shelfShopPath(block) + ".custom-modes." + selectedSlot, null);
+      this.mifron().displayShelfShopOffers(block, this.customShelfShopMaterials(block));
       this.queueDataSave();
    }
    protected List<Material> shelfShopCatalogMaterials() {
@@ -38,12 +38,12 @@ abstract class MifronPart5 extends MifronPart4x2 {
    protected void rebuildShelfShopCatalog() {
       List<Material> materials = new ArrayList<>();
       for (Material material : Material.values()) {
-         if (this.isRandomShopItem(material)) materials.add(material);
+         if (this.mifron().isRandomShopItem(material)) materials.add(material);
       }
       materials.sort((a, b) -> {
-         int category = Integer.compare(this.shelfShopCategoryRank(a), this.shelfShopCategoryRank(b));
+         int category = Integer.compare(this.mifron().shelfShopCategoryRank(a), this.mifron().shelfShopCategoryRank(b));
          if (category != 0) return category;
-         int family = this.shelfShopFamilyKey(a).compareTo(this.shelfShopFamilyKey(b));
+         int family = this.mifron().shelfShopFamilyKey(a).compareTo(this.mifron().shelfShopFamilyKey(b));
          return family != 0 ? family : a.name().compareTo(b.name());
       });
       Map<Material, Integer> catalogNumbers = new HashMap<>();

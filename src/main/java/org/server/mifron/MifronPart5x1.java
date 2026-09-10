@@ -38,7 +38,7 @@ abstract class MifronPart5x1 extends MifronPart5 {
          || name.equals("NAME_TAG") || name.contains("LANTERN") || name.endsWith("TORCH") || name.equals("LADDER")
          || name.equals("SCAFFOLDING") || name.equals("CRAFTING_TABLE") || name.contains("FURNACE") || name.equals("ANVIL")) return 10;
       if (material.isBlock()) {
-         if (this.isShelfShopWoodFamily(name)) return 1;
+         if (this.mifron().isShelfShopWoodFamily(name)) return 1;
          if (name.contains("WOOL") || name.contains("CARPET") || name.contains("CONCRETE") || name.contains("TERRACOTTA")
             || name.contains("GLASS") || name.contains("BANNER") || name.contains("CANDLE") || name.contains("CORAL")
             || name.contains("FLOWER")) return 2;

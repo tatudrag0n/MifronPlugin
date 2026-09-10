@@ -10,14 +10,14 @@ import org.bukkit.inventory.Inventory;
 
 abstract class MifronPart6x2 extends MifronPart6x1 {
    boolean setBarrelShop(Block block, boolean enabled) {
-      String path = this.barrelShopPath(block);
+      String path = this.mifron().barrelShopPath(block);
       boolean existed = this.data.getBoolean(path, false);
       this.data.set(path, enabled ? true : null);
-      if (enabled) this.initializeShopActivity(block);
+      if (enabled) this.mifron().initializeShopActivity(block);
       if (!enabled) {
-         this.clearShopOwner(block);
-         this.clearBarrelShopMeta(block);
-         this.data.set(this.shopLastActivityPath(block), null);
+         this.mifron().clearShopOwner(block);
+         this.mifron().clearBarrelShopMeta(block);
+         this.data.set(this.mifron().shopLastActivityPath(block), null);
       }
       this.queueDataSave();
       return existed;
@@ -28,7 +28,7 @@ abstract class MifronPart6x2 extends MifronPart6x1 {
    }
 
    protected void populateBarrelShop(Barrel barrel) {
-      this.populateBarrelShop(barrel, this.barrelShopOffers());
+      this.mifron().populateBarrelShop(barrel, this.mifron().barrelShopOffers());
    }
 
    protected void populateBarrelShop(Barrel barrel, List<MerchantOffer> pool) {
@@ -42,8 +42,8 @@ abstract class MifronPart6x2 extends MifronPart6x1 {
       int offerSlots = Math.min(inventory.getSize(), Math.max(1, this.getConfig().getInt("barrel-shop.offer-slots", 27)));
       int bargainSlots = Math.max(0, Math.min(offerSlots, this.getConfig().getInt("barrel-shop.bargain-slots", 3)));
       for (int slot = 0; slot < offerSlots; slot++) {
-         MerchantOffer offer = this.randomBarrelOffer(pool, used, slot < bargainSlots);
-         inventory.setItem(slot, this.createBarrelOfferItem(offer));
+         MerchantOffer offer = this.mifron().randomBarrelOffer(pool, used, slot < bargainSlots);
+         inventory.setItem(slot, this.mifron().createBarrelOfferItem(offer));
       }
    }
 

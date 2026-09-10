@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -23,12 +22,6 @@ abstract class MifronPart1x2 extends MifronPart1x1 {
    protected void runStartupStep(String name, Runnable step) {
       try { step.run(); }
       catch (Throwable e) { this.getLogger().severe("Startup step failed: " + name); e.printStackTrace(); }
-   }
-
-   protected void bindPluginCommand(String name) {
-      PluginCommand command = this.getCommand(name);
-      if (command == null) this.getLogger().severe("Command is missing from plugin.yml: " + name);
-      else { command.setExecutor(this); command.setTabCompleter(this); }
    }
 
    public void onDisable() {
