@@ -1,0 +1,89 @@
+package org.server.mifron;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import org.bukkit.Material;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+abstract class MifronPart17 extends MifronPart16 {
+   protected boolean handleMifronCommand(CommandSender sender, String[] args) {
+      if (args.length == 0) {
+         sender.sendMessage("\u00a7e/mifron check|list|tp|text|ffa|structure|build|proposal|reload|kit|balance|pay|merchant|quest|mp|regen|chunk|status|tutorial|shelfshop|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
+         return true;
+      }
+      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "ffa", "structure", "proposal", "shelfshop").contains(args[0].toLowerCase(Locale.ROOT))) {
+         sender.sendMessage("Player only.");
+         return true;
+      }
+      switch (args[0].toLowerCase(Locale.ROOT)) {
+         case "check" -> { if (this.hasPermission(sender, "mifron.command.chunk")) this.handleChunkCommand((Player) sender); }
+         case "list" -> this.handleListCommand(sender);
+         case "tp" -> this.handleWorldTpCommand((Player) sender, args);
+         case "text" -> this.textDisplayFeature.handleCommand(sender, args);
+         case "ffa" -> this.ffaManager.handleCommand(sender, args);
+         case "structure" -> this.structureManager.handleCommand(sender, args);
+         case "build" -> this.buildWorldManager.handleCommand(sender, args);
+         case "proposal" -> this.proposalManager.handleCommand(sender, args);
+         case "gamerules" -> this.handleGamerulesCommand(sender, args);
+         case "info" -> this.handleInfoCommand(sender);
+         case "reload" -> this.handleReloadCommand(sender);
+         case "kit" -> { this.giveInitialItems((Player) sender); sender.sendMessage("\u00a7a\u521d\u671f\u914d\u5e03\u7269\u3092\u78ba\u8a8d\u3057\u307e\u3057\u305f\u3002"); }
+         case "balance" -> sender.sendMessage("\u00a7a\u6240\u6301MP: " + this.formatNumber(this.getEmeralds(((Player) sender).getUniqueId())));
+         case "pay" -> this.handlePayCommand((Player) sender, args);
+         case "merchant", "marchant" -> this.handleMerchantCommand((Player) sender, args);
+         case "minigame" -> this.handleMinigameCommand((Player) sender, args);
+         case "athletic" -> { if (!this.athleticManager.handleCommand((Player) sender, args)) this.handleAthleticCommand((Player) sender, args); }
+         case "quest" -> this.handleQuestCommand(sender, args);
+         case "mp", "em", "emerald" -> this.handleEmeraldCommand(sender, args);
+         case "regen" -> this.handleRegenCommand(sender, args);
+         case "chunk" -> { if (this.hasPermission(sender, "mifron.command.chunk")) this.handleChunkCommand((Player) sender); }
+         case "status" -> { if (this.hasPermission(sender, "mifron.command.status")) this.handleMifronStatusCommand((Player) sender, args); }
+         case "tutorial" -> this.handleTutorialCommand(sender);
+         case "shelfshop" -> this.handleShelfShopCommand(sender, args);
+         case "shopwand" -> this.giveTypedWand(sender, args.length < 2 ? this.createShopWand() : this.createShopWand(ShopWandType.fromKey(args[1])), "\u00a7a\u30b7\u30e7\u30c3\u30d7\u30ef\u30f3\u30c9\u3092\u5165\u624b\u3057\u307e\u3057\u305f\u3002");
+         case "jumppadwand" -> {
+            if (!sender.hasPermission("mifron.admin")) { sender.sendMessage("\u00a7c\u6a29\u9650\u304c\u3042\u308a\u307e\u305b\u3093\u3002"); return true; }
+            int verticalPower = args.length >= 2 ? this.parsePositiveInt(args[1], 5) : 5;
+            int horizontalPower = args.length >= 3 ? this.parsePositiveInt(args[2], verticalPower) : verticalPower;
+            this.giveTypedWand(sender, this.createJumpPadWand(verticalPower, horizontalPower), "\u00a7a\u30b8\u30e3\u30f3\u30d7\u30d1\u30c3\u30c9\u30ef\u30f3\u30c9\u3092\u5165\u624b\u3057\u307e\u3057\u305f\u3002");
+         }
+         case "slotwand" -> {
+            ShopWandType type = args.length < 2 ? ShopWandType.SLOT_NORMAL : ShopWandType.fromKey("slot_" + args[1].toLowerCase(Locale.ROOT));
+            this.giveTypedWand(sender, type == null ? this.createShopWand(ShopWandType.SLOT_NORMAL) : this.createShopWand(type), "\u00a7a\u30b9\u30ed\u30c3\u30c8\u30ef\u30f3\u30c9\u3092\u5165\u624b\u3057\u307e\u3057\u305f\u3002");
+         }
+         case "serverwand" -> this.giveTypedWand(sender, this.serverPortalFeature.createServerWand(), "\u00a7a\u30b5\u30fc\u30d0\u30fc\u30ef\u30f3\u30c9\u3092\u5165\u624b\u3057\u307e\u3057\u305f\u3002");
+         case "sethub" -> { if (sender.hasPermission("mifron.admin")) { this.writeLocation("hub", ((Player) sender).getLocation()); sender.sendMessage("\u00a7a\u4e2d\u592e\u5e83\u5834\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f\u3002"); } }
+         case "setserver" -> {
+            if (!sender.hasPermission("mifron.admin") || args.length < 2 || !this.isSafeConfigKey(args[1])) break;
+            this.writeLocation("servers." + args[1], ((Player) sender).getLocation());
+            if (args.length >= 3) {
+               Material icon = this.parseServerIcon(sender, args[2]);
+               if (icon != null) { this.getConfig().set("servers." + args[1] + ".icon", icon.name().toLowerCase(Locale.ROOT)); this.saveConfig(); }
+            }
+            sender.sendMessage("\u00a7a\u30b5\u30fc\u30d0\u30fc\u79fb\u52d5\u5148\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f: " + args[1]);
+         }
+         case "serverorder", "servermove" -> this.handleServerOrderCommand(sender, args);
+         case "servericon", "setservericon" -> this.handleServerIconCommand(sender, args);
+         case "delserver", "removeserver" -> {
+            if (!sender.hasPermission("mifron.admin") || args.length < 2 || !this.isSafeConfigKey(args[1])) break;
+            this.getConfig().set("servers." + args[1], null);
+            this.saveConfig();
+            sender.sendMessage("\u00a7a\u30b5\u30fc\u30d0\u30fc\u79fb\u52d5\u5148\u3092\u524a\u9664\u3057\u307e\u3057\u305f: " + args[1]);
+         }
+         case "warning" -> this.handleWarningCommand(sender, args);
+         default -> sender.sendMessage("\u00a7e/mifron check|list|tp|proposal|reload|kit|balance|quest|shelfshop|shopwand|warning");
+      }
+      return true;
+   }
+
+   private void giveTypedWand(CommandSender sender, ItemStack wand, String message) {
+      if (!(sender instanceof Player player)) return;
+      if (!sender.hasPermission("mifron.shop.admin") && !sender.hasPermission("mifron.admin")) { sender.sendMessage("\u00a7c\u6a29\u9650\u304c\u3042\u308a\u307e\u305b\u3093\u3002"); return; }
+      if (wand == null) { sender.sendMessage("\u00a7c\u30ef\u30f3\u30c9\u3092\u4f5c\u6210\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f\u3002"); return; }
+      Map<Integer, ItemStack> leftovers = player.getInventory().addItem(wand);
+      sender.sendMessage(leftovers.isEmpty() ? message : "\u00a7c\u30a4\u30f3\u30d9\u30f3\u30c8\u30ea\u306b\u7a7a\u304d\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
+   }
+}
