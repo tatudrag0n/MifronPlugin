@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -143,6 +144,12 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
 
    protected final Mifron mifron() {
       return (Mifron) this;
+   }
+
+   protected void bindPluginCommand(String name) {
+      PluginCommand command = this.getCommand(name);
+      if (command == null) this.getLogger().severe("Command is missing from plugin.yml: " + name);
+      else { command.setExecutor(this); command.setTabCompleter(this); }
    }
 
    boolean isPlayerBuildWorld(Player player) {

@@ -8,8 +8,8 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.Shelf;
 import org.bukkit.block.data.Directional;
-import org.bukkit.block.shelf.Shelf;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
@@ -23,16 +23,16 @@ abstract class MifronPart6 extends MifronPart5x3 {
       if (worlds == null) return;
       int synced = 0;
       for (String worldId : worlds.getKeys(false)) {
-         World world = this.worldFromId(worldId);
+         World world = this.mifron().worldFromId(worldId);
          if (world == null) continue;
          ConfigurationSection offers = worlds.getConfigurationSection(worldId);
          if (offers == null) continue;
          for (String coordinates : offers.getKeys(false)) {
-            Block block = this.blockFromCoordinates(world, coordinates);
-            if (block == null || !this.isShelfShop(block)) continue;
+            Block block = this.mifron().blockFromCoordinates(world, coordinates);
+            if (block == null || !this.mifron().isShelfShop(block)) continue;
             List<Material> materials = this.shelfShopRandomOffers(block);
-            if (materials.isEmpty()) this.clearShelfShopDisplay(block);
-            else if (this.displayShelfShopOffers(block, materials)) synced++;
+            if (materials.isEmpty()) this.mifron().clearShelfShopDisplay(block);
+            else if (this.mifron().displayShelfShopOffers(block, materials)) synced++;
          }
       }
       if (synced > 0) this.getLogger().info("Synced " + synced + " shelf shop display items.");
@@ -126,13 +126,13 @@ abstract class MifronPart6 extends MifronPart5x3 {
 
    boolean setShelfShop(Block block, boolean enabled) {
       String path = this.shelfShopPath(block);
-      boolean existed = this.isShelfShop(block);
-      if (enabled) { this.configureSequentialShelfShop(block); return existed; }
+      boolean existed = this.mifron().isShelfShop(block);
+      if (enabled) { this.mifron().configureSequentialShelfShop(block); return existed; }
       this.data.set(path, null);
-      this.clearShelfShopDisplay(block);
-      this.clearShopOwner(block);
-      this.clearShelfShopRandomOffer(block);
-      this.data.set(this.shopLastActivityPath(block), null);
+      this.mifron().clearShelfShopDisplay(block);
+      this.mifron().clearShopOwner(block);
+      this.mifron().clearShelfShopRandomOffer(block);
+      this.data.set(this.mifron().shopLastActivityPath(block), null);
       this.renumberSequentialShelfShops();
       return existed;
    }
@@ -146,7 +146,7 @@ abstract class MifronPart6 extends MifronPart5x3 {
    }
 
    protected boolean canManageShop(Player player, Block block) {
-      if (this.canCreateShop(player)) return true;
+      if (this.mifron().canCreateShop(player)) return true;
       return this.data.getString(this.shopOwnerPath(block), "").equals(player.getUniqueId().toString());
    }
 
