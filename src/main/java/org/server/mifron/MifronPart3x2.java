@@ -32,7 +32,7 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
          Material result = Material.matchMaterial(this.getConfig().getString(path + ".material", ""));
          double chance = Math.max(0.0, Math.min(0.01, this.getConfig().getDouble(path + ".conversion-chance", 0.001)));
          if (base == null || result == null || base == result || source.getType() != base || chance <= 0.0 || this.random.nextDouble() >= chance) continue;
-         ItemStack converted = this.named(result, this.getConfig().getString(path + ".display-name", id), this.getConfig().getStringList(path + ".lore"));
+         ItemStack converted = this.mifron().named(result, this.getConfig().getString(path + ".display-name", id), this.getConfig().getStringList(path + ".lore"));
          ItemMeta meta = converted.getItemMeta();
          meta.setEnchantmentGlintOverride(this.getConfig().getBoolean(path + ".glint", false));
          converted.setItemMeta(meta);
@@ -47,20 +47,20 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
    public void onMobDeath(EntityDeathEvent event) {
       LivingEntity entity = event.getEntity();
       Player killer = entity.getKiller();
-      if (killer == null || entity instanceof Player || this.isMifronMerchant(entity)) return;
+      if (killer == null || entity instanceof Player || this.mifron().isMifronMerchant(entity)) return;
       if (this.isFfaSummonedMob(entity) || !this.isDirectPlayerKill(entity, killer)) return;
       int baseReward = this.mobKillReward(entity.getType());
       if (baseReward <= 0) return;
-      int reward = this.applyIncomeBonus(killer.getUniqueId(), this.adjustedMobKillReward(killer.getUniqueId(), entity.getType(), baseReward));
-      this.addPlayerStat(killer.getUniqueId(), "total-mob-kills", 1);
+      int reward = this.mifron().applyIncomeBonus(killer.getUniqueId(), this.adjustedMobKillReward(killer.getUniqueId(), entity.getType(), baseReward));
+      this.mifron().addPlayerStat(killer.getUniqueId(), "total-mob-kills", 1);
       boolean firstKill = this.addKilledMob(killer.getUniqueId(), entity.getType());
-      this.depositEmeralds(killer.getUniqueId(), reward);
-      killer.sendMessage("\u00a7a\u8a0e\u4f10\u5831\u916c: +" + this.formatNumber(reward) + "MP");
+      this.mifron().depositEmeralds(killer.getUniqueId(), reward);
+      killer.sendMessage("\u00a7a\u8a0e\u4f10\u5831\u916c: +" + this.mifron().formatNumber(reward) + "MP");
       if (firstKill) {
-         int firstKillBonus = this.applyIncomeBonus(killer.getUniqueId(), this.firstMobKillBonus(baseReward));
+         int firstKillBonus = this.mifron().applyIncomeBonus(killer.getUniqueId(), this.firstMobKillBonus(baseReward));
          if (firstKillBonus > 0) {
-            this.depositEmeralds(killer.getUniqueId(), firstKillBonus);
-            killer.sendMessage("\u00a76\u521d\u8a0e\u4f10\u30dc\u30fc\u30ca\u30b9: +" + this.formatNumber(firstKillBonus) + "MP");
+            this.mifron().depositEmeralds(killer.getUniqueId(), firstKillBonus);
+            killer.sendMessage("\u00a76\u521d\u8a0e\u4f10\u30dc\u30fc\u30ca\u30b9: +" + this.mifron().formatNumber(firstKillBonus) + "MP");
          }
       }
    }
@@ -103,15 +103,13 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       if (!(entity.getLastDamageCause() instanceof EntityDamageByEntityEvent entityDamage)) return false;
       Entity damager = entityDamage.getDamager();
       if (damager instanceof Player player) return player.getUniqueId().equals(killer.getUniqueId());
-      return damager instanceof Projectile projectile
-         && projectile.getShooter() instanceof Player player
-         && player.getUniqueId().equals(killer.getUniqueId());
+      return damager instanceof Projectile projectile && projectile.getShooter() instanceof Player player && player.getUniqueId().equals(killer.getUniqueId());
    }
 
    protected boolean addKilledMob(UUID uuid, EntityType type) {
-      Set<String> killed = new HashSet<>(this.getPlayerSection(uuid).getStringList("killed-mobs"));
+      Set<String> killed = new HashSet<>(this.mifron().getPlayerSection(uuid).getStringList("killed-mobs"));
       if (!killed.add(type.name())) return false;
-      this.getPlayerSection(uuid).set("killed-mobs", new ArrayList<>(killed));
+      this.mifron().getPlayerSection(uuid).set("killed-mobs", new ArrayList<>(killed));
       this.queueDataSave();
       return true;
    }
