@@ -78,7 +78,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.runStartupStep("register shop block events", () -> Bukkit.getPluginManager().registerEvents(this.shopBlockFeature, this));
       this.runStartupStep("register quest proposal events", () -> Bukkit.getPluginManager().registerEvents(this.questProposalFeature, this));
       if (Bukkit.getPluginManager().getPlugin("Geyser-Spigot") != null) {
-         this.bedrockUiFeature = new BedrockUiFeature(this);
+         this.bedrockUiFeature = new BedrockUiFeature((Mifron) this);
          this.getLogger().info("Bedrock mobile Forms UI enabled through Geyser.");
       }
       this.registerCommand("mifron");
@@ -86,10 +86,11 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.registerCommand("friend");
       this.registerCommand("status");
       this.registerCommand("tutorial");
+      this.registerCommand("mshop");
       this.runStartupStep("apply world rules", this.worldRulesFeature::apply);
       this.runStartupStep("apply main world border", this::applyMainWorldBorder);
       this.runStartupStep("register online shop", () -> {
-         this.onlineShopFeature = new OnlineShopFeature(this);
+         this.onlineShopFeature = new OnlineShopFeature((Mifron) this);
          Bukkit.getPluginManager().registerEvents(this.onlineShopFeature, this);
       });
       this.runStartupStep("apply world spawn locations", this::applyWorldSpawnLocations);
