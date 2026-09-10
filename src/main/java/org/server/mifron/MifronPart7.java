@@ -2,7 +2,6 @@ package org.server.mifron;
 
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -77,13 +76,13 @@ abstract class MifronPart7 extends MifronPart6x2 {
       this.data.set(path + ".verticalPower", this.clampJumpPadPower(verticalPower));
       this.data.set(path + ".horizontalPower", this.clampJumpPadPower(horizontalPower));
       this.data.set(path + ".material", block.getType().name());
-      this.saveData();
+      this.mifron().saveData();
    }
 
    protected boolean setJumpPad(Block block, boolean enabled) {
       boolean existed = this.jumpPadPower(block) != null;
       if (enabled) this.setJumpPad(block, 5, 5);
-      else { this.data.set(this.jumpPadPath(block), null); this.saveData(); }
+      else { this.data.set(this.jumpPadPath(block), null); this.mifron().saveData(); }
       return existed;
    }
 
@@ -125,10 +124,10 @@ abstract class MifronPart7 extends MifronPart6x2 {
       return 0.75 + Math.min(10, safe) * 0.15 + Math.max(0, safe - 10) * 0.05;
    }
    protected MerchantOffer randomBarrelOffer(List<MerchantOffer> pool, Set<Material> used, boolean bargain) {
-      List<MerchantOffer> candidates = pool.stream().filter(o -> !used.contains(o.material())).filter(o -> !bargain || this.isMerchantRarityAtLeast(this.merchantRarity(o.material()), "rare")).toList();
+      List<MerchantOffer> candidates = pool.stream().filter(o -> !used.contains(o.material())).filter(o -> !bargain || this.mifron().isMerchantRarityAtLeast(this.mifron().merchantRarity(o.material()), "rare")).toList();
       if (candidates.isEmpty()) candidates = pool.stream().filter(o -> !used.contains(o.material())).toList();
       if (candidates.isEmpty()) { used.clear(); candidates = pool; }
-      MerchantOffer offer = this.randomWeightedBarrelOffer(candidates);
+      MerchantOffer offer = this.mifron().randomWeightedBarrelOffer(candidates);
       used.add(offer.material());
       return new MerchantOffer(offer.material(), offer.amount(), bargain ? "bargain" : "junk", offer.price());
    }

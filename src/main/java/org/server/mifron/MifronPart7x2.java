@@ -18,7 +18,7 @@ import org.bukkit.persistence.PersistentDataType;
 abstract class MifronPart7x2 extends MifronPart7x1 {
    protected boolean spawnMerchant(Location location) {
       if (location == null || location.getWorld() == null) return false;
-      if (!"survival".equalsIgnoreCase(location.getWorld().getName()) || this.isCentralPlazaLocation(location)) return false;
+      if (!"survival".equalsIgnoreCase(location.getWorld().getName()) || this.mifron().isCentralPlazaLocation(location)) return false;
       WanderingTrader trader = (WanderingTrader) location.getWorld().spawnEntity(location, EntityType.WANDERING_TRADER);
       String merchantType = this.randomMerchantType();
       trader.customName(Component.text(this.merchantTypeColor(merchantType) + this.merchantTypeName(merchantType) + "\u5546\u4eba"));
@@ -47,7 +47,7 @@ abstract class MifronPart7x2 extends MifronPart7x1 {
       villager.setRecipes(Collections.emptyList());
       List<MerchantOffer> sellOffers = this.randomMerchantOffers(8, this.merchantSellWeights, true, merchantType);
       List<MerchantOffer> buyOffers = this.randomMerchantOffers(18, this.merchantBuyWeights, false, merchantType);
-      this.saveMerchantOffers(villager.getUniqueId(), sellOffers, buyOffers);
+      this.mifron().saveMerchantOffers(villager.getUniqueId(), sellOffers, buyOffers);
    }
 
    protected String randomMerchantType() {
@@ -76,29 +76,29 @@ abstract class MifronPart7x2 extends MifronPart7x1 {
    }
 
    protected List<MerchantOffer> randomMerchantOffers(int count, Map<String, Integer> weights, boolean selling, String merchantType) {
-      List<MerchantOffer> pool = this.merchantOffers(weights, selling).stream()
-         .filter(offerx -> this.merchantTypeAllows(merchantType, offerx.material(), selling)).toList();
+      List<MerchantOffer> pool = this.mifron().merchantOffers(weights, selling).stream()
+         .filter(offerx -> this.mifron().merchantTypeAllows(merchantType, offerx.material(), selling)).toList();
       if (pool.isEmpty()) {
-         pool = (selling ? this.allMerchantOffers() : this.allMerchantOffers().stream().filter(o -> this.materialBuyPrice(o.material()) > 0).toList())
-            .stream().filter(offerx -> this.merchantTypeAllows(merchantType, offerx.material(), selling)).toList();
+         pool = (selling ? this.mifron().allMerchantOffers() : this.mifron().allMerchantOffers().stream().filter(o -> this.mifron().materialBuyPrice(o.material()) > 0).toList())
+            .stream().filter(offerx -> this.mifron().merchantTypeAllows(merchantType, offerx.material(), selling)).toList();
       }
-      if (pool.isEmpty()) pool = this.merchantOffers(weights, selling);
+      if (pool.isEmpty()) pool = this.mifron().merchantOffers(weights, selling);
       List<MerchantOffer> offers = new ArrayList<>();
       Set<Material> used = new HashSet<>();
       if ("purple".equals(merchantType)) {
-         List<MerchantOffer> epicPool = pool.stream().filter(o -> this.isMerchantRarityAtLeast(o.rarity(), "epic")).toList();
+         List<MerchantOffer> epicPool = pool.stream().filter(o -> this.mifron().isMerchantRarityAtLeast(o.rarity(), "epic")).toList();
          if (!epicPool.isEmpty()) {
-            MerchantOffer epic = this.randomWeightedMerchantOffer(used, epicPool, weights);
-            offers.add(new MerchantOffer(epic.material(), epic.amount(), epic.rarity(), this.randomMerchantPrice(epic.material(), selling)));
+            MerchantOffer epic = this.mifron().randomWeightedMerchantOffer(used, epicPool, weights);
+            offers.add(new MerchantOffer(epic.material(), epic.amount(), epic.rarity(), this.mifron().randomMerchantPrice(epic.material(), selling)));
          }
-         pool = pool.stream().filter(o -> this.isMerchantRarityAtLeast(o.rarity(), "rare")).toList();
+         pool = pool.stream().filter(o -> this.mifron().isMerchantRarityAtLeast(o.rarity(), "rare")).toList();
          if (pool.isEmpty()) {
-            pool = this.merchantOffers(weights, selling).stream().filter(o -> this.isMerchantRarityAtLeast(o.rarity(), "rare")).toList();
+            pool = this.mifron().merchantOffers(weights, selling).stream().filter(o -> this.mifron().isMerchantRarityAtLeast(o.rarity(), "rare")).toList();
          }
       }
       for (int i = 0; i < count; i++) {
-         MerchantOffer offer = this.randomWeightedMerchantOffer(used, pool, weights);
-         offers.add(new MerchantOffer(offer.material(), offer.amount(), offer.rarity(), this.randomMerchantPrice(offer.material(), selling)));
+         MerchantOffer offer = this.mifron().randomWeightedMerchantOffer(used, pool, weights);
+         offers.add(new MerchantOffer(offer.material(), offer.amount(), offer.rarity(), this.mifron().randomMerchantPrice(offer.material(), selling)));
       }
       return offers.stream().limit(count).toList();
    }
