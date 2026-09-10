@@ -141,6 +141,10 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected boolean shelfShopCatalogReady;
    protected final Object shutdownLock = new Object();
 
+   protected final Mifron mifron() {
+      return (Mifron) this;
+   }
+
    boolean isPlayerBuildWorld(Player player) {
       return player != null && this.buildWorldManager.isOwner(player, player.getWorld());
    }
