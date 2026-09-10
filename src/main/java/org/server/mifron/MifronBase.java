@@ -178,9 +178,9 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    }
    protected record JumpPadPower(int vertical, int horizontal) {}
    protected static final class KillRewardWindow {
-      private long startedAtMillis;
-      private int count;
-      private KillRewardWindow(long startedAtMillis) { this.startedAtMillis = startedAtMillis; }
+      long startedAtMillis;
+      int count;
+      KillRewardWindow(long startedAtMillis) { this.startedAtMillis = startedAtMillis; }
    }
    protected record MerchantOffer(Material material, int amount, String rarity, int price) {}
    protected record MerchantSale(int quantity, int totalPrice) {}

@@ -26,7 +26,7 @@ abstract class MifronPart12 extends MifronPart11x2 {
       ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       Set<String> notified = new HashSet<>(section.getStringList("unlocked-titles"));
       List<String> newlyUnlocked = new ArrayList<>();
-      for (Entry<String, TitleDefinition> entry : this.titleDefinitions().entrySet()) {
+      for (Entry<String, TitleDefinition> entry : this.mifron().titleDefinitions().entrySet()) {
          if (!notified.contains(entry.getKey()) && this.hasTitle(completed, entry.getValue())) {
             notified.add(entry.getKey());
             newlyUnlocked.add(entry.getKey());

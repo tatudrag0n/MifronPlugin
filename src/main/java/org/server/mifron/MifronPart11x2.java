@@ -6,7 +6,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import org.bukkit.Material;
 import org.bukkit.advancement.Advancement;
-import org.bukkit.advancement.AdvancementDisplay;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -34,7 +33,7 @@ abstract class MifronPart11x2 extends MifronPart11x1 {
       int slot = 9;
       int from = safePage * pageSize;
       for (Advancement advancement : advancements.subList(from, Math.min(advancements.size(), from + pageSize))) {
-         AdvancementDisplay display = advancement.getDisplay();
+         var display = advancement.getDisplay();
          boolean done = completed.contains(advancement.getKey().toString());
          Material icon = display != null && display.icon() != null ? display.icon().getType() : Material.PAPER;
          inventory.setItem(slot++, this.mifron().advancementItem(advancement, icon, done));
@@ -57,7 +56,7 @@ abstract class MifronPart11x2 extends MifronPart11x1 {
    protected void fillTitlesTab(Player player, Inventory inventory, int page) {
       Set<String> completed = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
       String selected = this.mifron().selectedTitle(player);
-      List<Entry<String, TitleDefinition>> titles = this.titleDefinitions().entrySet().stream().sorted(Entry.comparingByKey()).toList();
+      List<Entry<String, TitleDefinition>> titles = this.mifron().titleDefinitions().entrySet().stream().sorted(Entry.comparingByKey()).toList();
       int pageSize = 27;
       int maxPage = Math.max(0, (titles.size() - 1) / pageSize);
       int safePage = Math.max(0, Math.min(page, maxPage));
