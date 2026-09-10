@@ -7,7 +7,6 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
@@ -20,8 +19,8 @@ abstract class MifronPart6x1 extends MifronPart6 {
    }
 
    protected void initializeShopActivity(Block block) {
-      if (block != null && this.data.getLong(this.shopLastActivityPath(block), 0L) <= 0L) {
-         this.data.set(this.shopLastActivityPath(block), System.currentTimeMillis());
+      if (block != null && this.data.getLong(this.mifron().shopLastActivityPath(block), 0L) <= 0L) {
+         this.data.set(this.mifron().shopLastActivityPath(block), System.currentTimeMillis());
       }
    }
 
@@ -41,28 +40,28 @@ abstract class MifronPart6x1 extends MifronPart6 {
       Block block = player.getTargetBlockExact(5);
       ItemStack held = player.getInventory().getItemInOffHand();
       Material material = held == null ? Material.AIR : held.getType();
-      if (block == null || !this.isShelf(block.getType()) || material == Material.AIR || !this.isRandomShopItem(material) || this.utilityItemsFeature.getMifronItemId(held) != null) {
+      if (block == null || !this.mifron().isShelf(block.getType()) || material == Material.AIR || !this.mifron().isRandomShopItem(material) || this.utilityItemsFeature.getMifronItemId(held) != null) {
          player.sendMessage("\u00a7c\u68da\u3092\u898b\u306a\u304c\u3089\u3001\u30aa\u30d5\u30cf\u30f3\u30c9\u306b\u901a\u5e38\u30a2\u30a4\u30c6\u30e0\u3092\u6301\u3063\u3066\u5b9f\u884c\u3057\u3066\u304f\u3060\u3055\u3044\u3002");
          return;
       }
-      if (this.isShelfShop(block) && !this.canManageShop(player, block)) {
+      if (this.mifron().isShelfShop(block) && !this.mifron().canManageShop(player, block)) {
          player.sendMessage("\u00a7c\u4f5c\u6210\u8005\u307e\u305f\u306f\u7ba1\u7406\u8005\u306e\u307f\u8a2d\u5b9a\u3067\u304d\u307e\u3059\u3002");
          return;
       }
-      int selectedSlot = this.selectedShelfSlot(player, block);
-      this.assignCustomShelfShopSlot(block, selectedSlot, material);
-      String path = this.shelfShopPath(block);
+      int selectedSlot = this.mifron().selectedShelfSlot(player, block);
+      this.mifron().assignCustomShelfShopSlot(block, selectedSlot, material);
+      String path = this.mifron().shelfShopPath(block);
       this.data.set(path + ".custom-prices." + selectedSlot, price);
       this.data.set(path + ".custom-modes." + selectedSlot, mode);
-      this.setShopOwner(block, player.getUniqueId());
-      this.markShopActivity(block);
-      this.displayShelfShopOffers(block, this.customShelfShopMaterials(block));
+      this.mifron().setShopOwner(block, player.getUniqueId());
+      this.mifron().markShopActivity(block);
+      this.mifron().displayShelfShopOffers(block, this.customShelfShopMaterials(block));
       this.queueDataSave();
-      player.sendMessage("\u00a7a\u68da\u30b7\u30e7\u30c3\u30d7\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f: " + this.japaneseItemName(material) + " / " + mode + " / " + this.formatNumber(price) + "MP");
+      player.sendMessage("\u00a7a\u68da\u30b7\u30e7\u30c3\u30d7\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f: " + this.mifron().japaneseItemName(material) + " / " + mode + " / " + this.mifron().formatNumber(price) + "MP");
    }
 
    protected void markShopActivity(Block block) {
-      if (block != null) this.data.set(this.shopLastActivityPath(block), System.currentTimeMillis());
+      if (block != null) this.data.set(this.mifron().shopLastActivityPath(block), System.currentTimeMillis());
    }
 
    protected Block shopBlock(String worldId, String coordinates) {
@@ -85,11 +84,11 @@ abstract class MifronPart6x1 extends MifronPart6 {
             for (String coordinates : new ArrayList<>(entries.getKeys(false))) {
                Block block = this.shopBlock(worldId, coordinates);
                if (block == null) continue;
-               String activityPath = this.shopLastActivityPath(block);
+               String activityPath = this.mifron().shopLastActivityPath(block);
                long last = this.data.getLong(activityPath, 0L);
                if (last <= 0L) this.data.set(activityPath, System.currentTimeMillis());
                else if (last < cutoff) {
-                  this.clearShelfShopDisplay(block);
+                  this.mifron().clearShelfShopDisplay(block);
                   this.data.set("shelf-shops." + worldId + "." + coordinates, null);
                   this.data.set("shop-owners." + worldId + "." + coordinates, null);
                   this.data.set("shelf-shop-offers." + worldId + "." + coordinates, null);
@@ -101,16 +100,16 @@ abstract class MifronPart6x1 extends MifronPart6 {
       }
       if (removed > 0) {
          this.renumberSequentialShelfShops();
-         this.syncShelfShopDisplays();
-         this.saveData();
+         this.mifron().syncShelfShopDisplays();
+         this.mifron().saveData();
          this.getLogger().info("Removed inactive shops: " + removed);
       } else this.queueDataSave();
    }
 
    boolean isBarrelShop(Block block) {
-      return block != null && block.getType() == Material.BARREL && this.data.getBoolean(this.barrelShopPath(block), false);
+      return block != null && block.getType() == Material.BARREL && this.data.getBoolean(this.mifron().barrelShopPath(block), false);
    }
-   boolean isShopBlock(Block block) { return this.isShelfShop(block) || this.isBarrelShop(block); }
+   boolean isShopBlock(Block block) { return this.mifron().isShelfShop(block) || this.mifron().isBarrelShop(block); }
    boolean isAuctionFrame(Entity entity) { return this.auctionFeature.isAuctionFrame(entity); }
    boolean isAuctionInteractionItem(ItemStack item) { return this.auctionFeature.isAuctionInteractionItem(item); }
    void recordQuestProgress(Player player, String progressKey, int amount) { this.questService.addProgress(player, progressKey, amount); }
