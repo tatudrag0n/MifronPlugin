@@ -67,7 +67,7 @@ abstract class MifronPart5x2 extends MifronPart5x1 {
       });
       for (int i = 0; i < paths.size(); i++) this.data.set("shelf-shops." + paths.get(i) + ".order", i + 1);
       this.queueDataSave();
-      this.syncShelfShopDisplays();
+      this.mifron().syncShelfShopDisplays();
    }
 
    protected int shelfShopCatalogNumber(Material material) {
@@ -80,7 +80,7 @@ abstract class MifronPart5x2 extends MifronPart5x1 {
    protected int shelfShopStock(Material material) { return material == null ? 0 : Math.max(0, this.data.getInt(this.shelfShopStockPath(material), 0)); }
    protected void changeShelfShopStock(Material material, int delta) {
       if (material == null || delta == 0) return;
-      int next = (int) Math.max(0L, Math.min(2000000000L, (long) this.shelfShopStock(material) + delta));
+      int next = (int) Math.max(0L, Math.min(2000000000L, (long) this.mifron().shelfShopStock(material) + delta));
       this.data.set(this.shelfShopStockPath(material), next);
    }
    protected void recordAcquiredItem(Player player, Material material) {}

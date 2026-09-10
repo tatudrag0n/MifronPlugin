@@ -3,7 +3,6 @@ package org.server.mifron;
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
@@ -15,22 +14,22 @@ abstract class MifronPart5x3 extends MifronPart5x2 {
       ConfigurationSection shops = this.data.getConfigurationSection("shelf-shops");
       if (shops == null) {
          this.data.set("shelf-shop-offers", null);
-         this.saveData();
+         this.mifron().saveData();
          return 0;
       }
       List<String> removablePaths = new ArrayList<>();
       for (String worldId : new ArrayList<>(shops.getKeys(false))) {
          ConfigurationSection worldShops = shops.getConfigurationSection(worldId);
          if (worldShops == null) continue;
-         World world = this.worldFromId(worldId);
+         World world = this.mifron().worldFromId(worldId);
          for (String coordinates : new ArrayList<>(worldShops.getKeys(false))) {
-            Block block = world == null ? null : this.blockFromCoordinates(world, coordinates);
+            Block block = world == null ? null : this.mifron().blockFromCoordinates(world, coordinates);
             boolean slotMachine = !this.data.getString("slot-machines." + worldId + "." + coordinates + ".difficulty", "").isBlank();
             if (!slotMachine && block != null && this.slotMachineManager != null) slotMachine = this.slotMachineManager.isMachine(block);
             if (slotMachine) continue;
             removablePaths.add(worldId + "." + coordinates);
             if (block != null) {
-               try { this.clearShelfShopDisplay(block); }
+               try { this.mifron().clearShelfShopDisplay(block); }
                catch (Throwable e) { this.getLogger().warning("shelf display clear failed: " + worldId + " " + coordinates); }
             }
          }
@@ -40,14 +39,14 @@ abstract class MifronPart5x3 extends MifronPart5x2 {
          this.data.set("shop-owners." + path, null);
          this.data.set("shelf-shop-offers." + path, null);
       }
-      this.saveData();
-      this.syncShelfShopDisplays();
+      this.mifron().saveData();
+      this.mifron().syncShelfShopDisplays();
       return removablePaths.size();
    }
 
    protected void handleShelfShopCommand(CommandSender sender, String[] args) {
       if (args.length >= 2 && ("configure".equalsIgnoreCase(args[1]) || "set".equalsIgnoreCase(args[1]))) {
-         if (sender instanceof Player player) this.configureShelfShop(player, args);
+         if (sender instanceof Player player) this.mifron().configureShelfShop(player, args);
          else sender.sendMessage("\u00a7c\u30d7\u30ec\u30a4\u30e4\u30fc\u306e\u307f\u5b9f\u884c\u3067\u304d\u307e\u3059\u3002");
          return;
       }
@@ -68,8 +67,8 @@ abstract class MifronPart5x3 extends MifronPart5x2 {
       if (args.length >= 2 && ("reset".equalsIgnoreCase(args[1]) || "resetstock".equalsIgnoreCase(args[1]))) {
          this.data.set("shelf-shop-stock", null);
          this.data.set("shelf-shop-unlocked", null);
-         this.saveData();
-         this.syncShelfShopDisplays();
+         this.mifron().saveData();
+         this.mifron().syncShelfShopDisplays();
          sender.sendMessage("\u00a7a\u68da\u30b7\u30e7\u30c3\u30d7\u306e\u5171\u6709\u5728\u5eab\u30920\u306b\u30ea\u30bb\u30c3\u30c8\u3057\u307e\u3057\u305f\u3002");
          return;
       }
@@ -82,16 +81,16 @@ abstract class MifronPart5x3 extends MifronPart5x2 {
    }
 
    protected void setShelfShopRandomOffers(Block block, List<Material> materials) {
-      String path = this.shelfShopOfferPath(block);
+      String path = this.mifron().shelfShopOfferPath(block);
       this.data.set(path + ".type", ShopWandType.SHELF.key());
       this.data.set(path + ".material", materials.get(0).name());
       this.data.set(path + ".materials", materials.stream().map(Enum::name).toList());
       this.data.set(path + ".created-at", System.currentTimeMillis());
-      this.displayShelfShopOffers(block, materials);
+      this.mifron().displayShelfShopOffers(block, materials);
       this.queueDataSave();
    }
 
    protected void clearShelfShopRandomOffer(Block block) {
-      this.data.set(this.shelfShopOfferPath(block), null);
+      this.data.set(this.mifron().shelfShopOfferPath(block), null);
    }
 }
