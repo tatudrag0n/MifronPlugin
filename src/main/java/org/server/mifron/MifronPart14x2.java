@@ -40,12 +40,12 @@ abstract class MifronPart14x2 extends MifronPart14x1 {
       this.getConfig().set("hub.z", 0.0);
       this.getConfig().set("hub.yaw", 0.0);
       this.getConfig().set("hub.pitch", 0.0);
-      this.setIfMissing("world-rules.spawn.main.world", "world");
-      this.setIfMissing("world-rules.spawn.main.x", 0.0);
-      this.setIfMissing("world-rules.spawn.main.y", 0.0);
-      this.setIfMissing("world-rules.spawn.main.z", 0.0);
-      this.setIfMissing("world-rules.spawn.main.yaw", 0.0);
-      this.setIfMissing("world-rules.spawn.main.pitch", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.main.world", "world");
+      this.mifron().setIfMissing("world-rules.spawn.main.x", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.main.y", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.main.z", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.main.yaw", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.main.pitch", 0.0);
       this.saveConfig();
    }
 }

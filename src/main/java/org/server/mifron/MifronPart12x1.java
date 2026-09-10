@@ -19,7 +19,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 abstract class MifronPart12x1 extends MifronPart12 {
    protected ItemStack statusItem(Material material, String name, List<String> lore, boolean glint) {
-      ItemStack item = this.named(material, name, lore);
+      ItemStack item = this.mifron().named(material, name, lore);
       ItemMeta meta = item.getItemMeta();
       meta.setEnchantmentGlintOverride(glint);
       item.setItemMeta(meta);
@@ -58,16 +58,16 @@ abstract class MifronPart12x1 extends MifronPart12 {
    }
 
    protected int countCompletedAdvancements(Player player) {
-      Set<String> completed = new HashSet<>(this.getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
+      Set<String> completed = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
       int count = 0;
-      for (Advancement advancement : this.trackableAdvancements()) {
-         if (this.shouldTrackAdvancement(advancement) && completed.contains(advancement.getKey().toString())) count++;
+      for (Advancement advancement : this.mifron().trackableAdvancements()) {
+         if (this.mifron().shouldTrackAdvancement(advancement) && completed.contains(advancement.getKey().toString())) count++;
       }
       return count;
    }
 
    protected int countTrackableAdvancements() {
-      return this.trackableAdvancements().size();
+      return this.mifron().trackableAdvancements().size();
    }
 
    protected List<Advancement> trackableAdvancements() {
@@ -75,14 +75,14 @@ abstract class MifronPart12x1 extends MifronPart12 {
       Iterator<Advancement> iterator = Bukkit.advancementIterator();
       while (iterator.hasNext()) {
          Advancement advancement = iterator.next();
-         if (this.shouldTrackAdvancement(advancement)) advancements.add(advancement);
+         if (this.mifron().shouldTrackAdvancement(advancement)) advancements.add(advancement);
       }
       advancements.sort((first, second) -> {
-         int difficulty = Integer.compare(this.advancementDifficulty(first), this.advancementDifficulty(second));
+         int difficulty = Integer.compare(this.mifron().advancementDifficulty(first), this.mifron().advancementDifficulty(second));
          if (difficulty != 0) return difficulty;
          int category = Integer.compare(this.advancementCategoryOrder(first), this.advancementCategoryOrder(second));
          if (category != 0) return category;
-         int path = Integer.compare(this.advancementPathOrder(first), this.advancementPathOrder(second));
+         int path = Integer.compare(this.mifron().advancementPathOrder(first), this.mifron().advancementPathOrder(second));
          if (path != 0) return path;
          int frame = Integer.compare(this.advancementFrameOrder(first), this.advancementFrameOrder(second));
          return frame != 0 ? frame : first.getKey().toString().compareToIgnoreCase(second.getKey().toString());

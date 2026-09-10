@@ -35,6 +35,6 @@ abstract class MifronPart12x2 extends MifronPart12x1 {
          default -> List.of("root");
       };
       int index = ordered.indexOf(path);
-      return index >= 0 ? index : (path.equals("root") ? 0 : 1000 + this.advancementDifficulty(advancement));
+      return index >= 0 ? index : (path.equals("root") ? 0 : 1000 + this.mifron().advancementDifficulty(advancement));
    }
 }

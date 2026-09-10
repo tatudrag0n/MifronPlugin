@@ -26,7 +26,7 @@ abstract class MifronPart10x1 extends MifronPart10 {
          ItemStack item = contents[i];
          if (!this.isMerchantSellableStack(item, material)) continue;
          int removed = Math.min(item.getAmount(), remaining);
-         totalPrice = this.safeAdd(totalPrice, this.safeMultiply(this.merchantSaleUnitPrice(basePrice, item), removed));
+         totalPrice = this.mifron().safeAdd(totalPrice, this.mifron().safeMultiply(this.merchantSaleUnitPrice(basePrice, item), removed));
          item.setAmount(item.getAmount() - removed);
          remaining -= removed;
          if (item.getAmount() <= 0) contents[i] = null;
@@ -55,7 +55,7 @@ abstract class MifronPart10x1 extends MifronPart10 {
 
    protected int maxMerchantPurchaseQuantity(Player player, Material material, int price) {
       if (material.getMaxStackSize() <= 1 || price <= 0) return 0;
-      return Math.max(0, Math.min(Math.min(this.getEmeralds(player.getUniqueId()) / price, this.inventorySpaceFor(player, material)), material.getMaxStackSize()));
+      return Math.max(0, Math.min(Math.min(this.mifron().getEmeralds(player.getUniqueId()) / price, this.mifron().inventorySpaceFor(player, material)), material.getMaxStackSize()));
    }
 
    protected int maxMerchantSaleQuantity(Player player, Material material) {
@@ -73,7 +73,7 @@ abstract class MifronPart10x1 extends MifronPart10 {
    }
 
    protected void giveShopPurchasedItems(Player player, Material material, int amount) {
-      this.recordAcquiredItem(player, material);
+      this.mifron().recordAcquiredItem(player, material);
       int remaining = amount;
       int maxStack = material.getMaxStackSize();
       while (remaining > 0) {
@@ -113,7 +113,7 @@ abstract class MifronPart10x1 extends MifronPart10 {
          UUID merchantId = UUID.fromString(rawUuid);
          for (World world : Bukkit.getWorlds()) {
             Entity entity = world.getEntity(merchantId);
-            if (entity != null && this.isMifronMerchant(entity)) {
+            if (entity != null && this.mifron().isMifronMerchant(entity)) {
                entity.getPersistentDataContainer().set(this.merchantTradedKey, PersistentDataType.BOOLEAN, true);
                return;
             }

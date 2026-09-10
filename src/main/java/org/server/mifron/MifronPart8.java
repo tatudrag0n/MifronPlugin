@@ -19,8 +19,8 @@ abstract class MifronPart8 extends MifronPart7x2 {
             ? material.getMaxDurability() > 0 || name.endsWith("_SWORD") || name.endsWith("_AXE") || name.endsWith("_PICKAXE") || name.endsWith("_SHOVEL") || name.endsWith("_HOE") || name.endsWith("_HELMET") || name.endsWith("_CHESTPLATE") || name.endsWith("_LEGGINGS") || name.endsWith("_BOOTS") || name.contains("BOW") || name.contains("ARROW") || name.equals("SHIELD") || name.equals("TRIDENT") || name.equals("MACE")
             : name.contains("STONE") || name.contains("ORE") || name.contains("INGOT") || name.contains("COAL") || name.contains("COPPER") || name.contains("IRON") || name.contains("GOLD") || name.contains("REDSTONE") || name.contains("LAPIS") || name.contains("QUARTZ");
       }
-      if ("yellow".equals(merchantType)) return this.materialPrice(material) >= 100 && !name.endsWith("_SPAWN_EGG") && !name.equals("SPAWNER") && !name.equals("TRIAL_SPAWNER");
-      return !name.endsWith("_SPAWN_EGG") && !name.equals("SPAWNER") && !name.equals("TRIAL_SPAWNER") && this.materialPrice(material) < 1000;
+      if ("yellow".equals(merchantType)) return this.mifron().materialPrice(material) >= 100 && !name.endsWith("_SPAWN_EGG") && !name.equals("SPAWNER") && !name.equals("TRIAL_SPAWNER");
+      return !name.endsWith("_SPAWN_EGG") && !name.equals("SPAWNER") && !name.equals("TRIAL_SPAWNER") && this.mifron().materialPrice(material) < 1000;
    }
 
    protected MerchantOffer randomWeightedMerchantOffer(Set<Material> used, List<MerchantOffer> sourcePool, Map<String, Integer> weights) {
@@ -40,15 +40,15 @@ abstract class MifronPart8 extends MifronPart7x2 {
    protected List<MerchantOffer> merchantOffers(Map<String, Integer> weights, boolean selling) {
       List<MerchantOffer> offers = new ArrayList<>();
       for (Material material : Material.values()) {
-         if (!this.isMerchantWeightedPoolItem(material, weights)) continue;
-         int price = selling ? this.materialPrice(material) : this.materialBuyPrice(material);
-         if (price > 0) offers.add(new MerchantOffer(material, 1, this.merchantRarity(material), price));
+         if (!this.mifron().isMerchantWeightedPoolItem(material, weights)) continue;
+         int price = selling ? this.mifron().materialPrice(material) : this.mifron().materialBuyPrice(material);
+         if (price > 0) offers.add(new MerchantOffer(material, 1, this.mifron().merchantRarity(material), price));
       }
       return offers;
    }
 
    protected int randomMerchantPrice(Material material, boolean selling) {
-      int basePrice = selling ? this.materialPrice(material) : this.materialBuyPrice(material);
+      int basePrice = selling ? this.mifron().materialPrice(material) : this.mifron().materialBuyPrice(material);
       return (int) Math.max(1L, Math.min(2000000000L, (long) Math.max(1, basePrice) * (95 + this.random.nextInt(11)) / 100L));
    }
 
@@ -56,7 +56,7 @@ abstract class MifronPart8 extends MifronPart7x2 {
       List<MerchantOffer> offers = new ArrayList<>();
       for (Material material : Material.values()) {
          BarrelShopConfig config = this.barrelShopConfigs.get(material.name());
-         if (config != null && this.isBarrelShopPoolItem(material)) offers.add(new MerchantOffer(material, 1, config.tier(), this.materialPrice(material)));
+         if (config != null && this.mifron().isBarrelShopPoolItem(material)) offers.add(new MerchantOffer(material, 1, config.tier(), this.mifron().materialPrice(material)));
       }
       return offers;
    }
@@ -64,7 +64,7 @@ abstract class MifronPart8 extends MifronPart7x2 {
    protected List<Material> randomShopMaterials(int count) {
       if (count <= 0) return List.of();
       List<Material> materials = new ArrayList<>();
-      for (Material material : Material.values()) if (this.isRandomShopItem(material)) materials.add(material);
+      for (Material material : Material.values()) if (this.mifron().isRandomShopItem(material)) materials.add(material);
       if (materials.isEmpty()) return List.of();
       Collections.shuffle(materials, this.random);
       return materials.stream().limit(count).toList();
@@ -80,7 +80,7 @@ abstract class MifronPart8 extends MifronPart7x2 {
       if (configuredPrice > 0) return configuredPrice;
       int economyPrice = this.economyPriceTable.price(material);
       if (economyPrice > 0) return economyPrice;
-      Integer exact = this.exactMaterialPrice(material);
+      Integer exact = this.mifron().exactMaterialPrice(material);
       return exact == null ? 0 : Math.max(1, exact);
    }
 
@@ -91,12 +91,12 @@ abstract class MifronPart8 extends MifronPart7x2 {
 
    protected List<MerchantOffer> allMerchantOffers() {
       Map<Material, MerchantOffer> configured = new HashMap<>();
-      this.getConfig().getMapList("merchant-items").stream().map(this::readMerchantOffer).filter(Objects::nonNull).forEach(offer -> configured.put(offer.material(), offer));
+      this.getConfig().getMapList("merchant-items").stream().map(this.mifron()::readMerchantOffer).filter(Objects::nonNull).forEach(offer -> configured.put(offer.material(), offer));
       List<MerchantOffer> offers = new ArrayList<>();
       for (Material material : Material.values()) {
-         if (!this.isMerchantPoolItem(material)) continue;
+         if (!this.mifron().isMerchantPoolItem(material)) continue;
          MerchantOffer override = configured.get(material);
-         offers.add(override != null ? override : new MerchantOffer(material, 1, this.merchantRarity(material), this.materialPrice(material)));
+         offers.add(override != null ? override : new MerchantOffer(material, 1, this.mifron().merchantRarity(material), this.mifron().materialPrice(material)));
       }
       return offers;
    }
@@ -117,9 +117,9 @@ abstract class MifronPart8 extends MifronPart7x2 {
          String[] parts = raw.split(":");
          if (parts.length < 3) continue;
          Material material = Material.matchMaterial(parts[0]);
-         if (material == null || !this.isMerchantPoolItem(material)) continue;
-         int normalizedPrice = this.parsePositiveInt(parts[2], "buy".equals(key) ? this.materialBuyPrice(material) : this.materialPrice(material));
-         if (normalizedPrice > 0) offers.add(new MerchantOffer(material, 1, this.merchantRarity(material), normalizedPrice));
+         if (material == null || !this.mifron().isMerchantPoolItem(material)) continue;
+         int normalizedPrice = this.mifron().parsePositiveInt(parts[2], "buy".equals(key) ? this.mifron().materialBuyPrice(material) : this.mifron().materialPrice(material));
+         if (normalizedPrice > 0) offers.add(new MerchantOffer(material, 1, this.mifron().merchantRarity(material), normalizedPrice));
       }
       return offers;
    }

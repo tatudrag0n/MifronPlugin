@@ -56,7 +56,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
    }
 
    protected ItemStack actionItem(Material material, String name, List<String> lore, String action, String target) {
-      ItemStack item = this.named(material, name, lore);
+      ItemStack item = this.mifron().named(material, name, lore);
       ItemMeta meta = item.getItemMeta();
       PersistentDataContainer container = meta.getPersistentDataContainer();
       container.set(this.uiActionKey, PersistentDataType.STRING, action);
@@ -80,9 +80,9 @@ abstract class MifronPart13x1 extends MifronPart13 {
    }
 
    protected void handleTeleporterUiItem(Player player, ItemStack clicked) {
-      String action = this.getUiAction(clicked);
+      String action = this.mifron().getUiAction(clicked);
       String target = this.getUiTargetString(clicked);
-      if ("teleport".equals(action) && target != null) { this.playUiClickSound(player); this.teleportToConfigLocation(player, target); player.closeInventory(); }
+      if ("teleport".equals(action) && target != null) { this.playUiClickSound(player); this.mifron().teleportToConfigLocation(player, target); player.closeInventory(); }
       else if ("server_portal_bind".equals(action) && target != null) {
          String[] parts = target.split("\\|", 2);
          if (parts.length == 2) { this.serverPortalFeature.setServerPortalTarget(parts[0], parts[1]); this.playUiClickSound(player); player.sendMessage("\u00a7a\u30dd\u30fc\u30bf\u30eb\u306e\u79fb\u52d5\u5148\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f\u3002"); player.closeInventory(); }
@@ -98,10 +98,10 @@ abstract class MifronPart13x1 extends MifronPart13 {
          return;
       }
       if (event.getClickedInventory() == null) return;
-      String title = this.inventoryTitle(event.getView().title());
-      if ("\u00a73Mifron Friends".equals(title)) { event.setCancelled(true); this.handleFriendUiClick(player, event.getCurrentItem()); }
-      else if ("\u00a72Mifron Status".equals(title)) { event.setCancelled(true); this.handleStatusUiClick(player, event.getCurrentItem()); }
-      else if (QUEST_UI_TITLE.equals(title)) { event.setCancelled(true); this.handleQuestUiClick(player, event.getCurrentItem()); }
+      String title = this.mifron().inventoryTitle(event.getView().title());
+      if ("\u00a73Mifron Friends".equals(title)) { event.setCancelled(true); this.mifron().handleFriendUiClick(player, event.getCurrentItem()); }
+      else if ("\u00a72Mifron Status".equals(title)) { event.setCancelled(true); this.mifron().handleStatusUiClick(player, event.getCurrentItem()); }
+      else if (QUEST_UI_TITLE.equals(title)) { event.setCancelled(true); this.mifron().handleQuestUiClick(player, event.getCurrentItem()); }
       else if ("\u00a75Mifron Teleporter".equals(title)) { event.setCancelled(true); this.handleTeleporterUiItem(player, event.getCurrentItem()); }
       else if ("\u00a76Mifron Merchant".equals(title)) {
          if (event.getClickedInventory() != event.getView().getTopInventory()) return;
@@ -114,7 +114,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
    @EventHandler
    public void onInventoryDrag(InventoryDragEvent event) {
       if (this.isBarrelShopInventory(event.getView().getTopInventory())) { event.setCancelled(true); return; }
-      if (!"\u00a76Mifron Merchant".equals(this.inventoryTitle(event.getView().title()))) return;
+      if (!"\u00a76Mifron Merchant".equals(this.mifron().inventoryTitle(event.getView().title()))) return;
       int topSize = event.getView().getTopInventory().getSize();
       for (int rawSlot : event.getRawSlots()) if (rawSlot < topSize) { event.setCancelled(true); return; }
    }
@@ -125,6 +125,6 @@ abstract class MifronPart13x1 extends MifronPart13 {
    }
 
    protected boolean isBarrelShopInventory(Inventory inventory) {
-      return inventory != null && inventory.getHolder() instanceof Barrel barrel && this.isBarrelShop(barrel.getBlock());
+      return inventory != null && inventory.getHolder() instanceof Barrel barrel && this.mifron().isBarrelShop(barrel.getBlock());
    }
 }

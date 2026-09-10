@@ -31,28 +31,28 @@ abstract class MifronPart10 extends MifronPart9x2 {
       if (material == null || !material.isItem()) { player.sendMessage("\u00a7c\u5546\u4eba\u306e\u5546\u54c1\u304c\u4e0d\u6b63\u3067\u3059\u3002"); return; }
       price = Math.min(2000000000, Math.max(1, price));
       if ("buy".equals(action)) {
-         int quantity = bulk ? this.maxMerchantSaleQuantity(player, material) : 1;
+         int quantity = bulk ? this.mifron().maxMerchantSaleQuantity(player, material) : 1;
          if (bulk && quantity <= 0) { player.sendMessage("\u00a7c\u3053\u306e\u30a2\u30a4\u30c6\u30e0\u306f\u4e00\u62ec\u53d6\u5f15\u3067\u304d\u307e\u305b\u3093\u3002"); return; }
-         MerchantSale sale = this.removeItemsForMerchantSale(player, material, Math.max(1, quantity), price);
-         if (sale == null) { this.sendItemMessage(player, NamedTextColor.RED, "", material, "\u30921\u500b\u6301\u3063\u3066\u3044\u307e\u305b\u3093\u3002"); return; }
-         this.depositEmeralds(player.getUniqueId(), sale.totalPrice());
-         this.addPlayerStat(player.getUniqueId(), "total-trades", sale.quantity());
-         this.recordFarmingSubmission(player, material);
-         this.markMerchantTraded(container.get(this.merchantOfferMerchantKey, PersistentDataType.STRING));
-         this.playPurchaseSound(player);
-         this.sendItemMessage(player, NamedTextColor.GREEN, "\u58f2\u5374\u3057\u307e\u3057\u305f: ", material, " x" + sale.quantity() + " (+" + this.formatNumber(sale.totalPrice()) + "MP)");
+         MerchantSale sale = this.mifron().removeItemsForMerchantSale(player, material, Math.max(1, quantity), price);
+         if (sale == null) { this.mifron().sendItemMessage(player, NamedTextColor.RED, "", material, "\u30921\u500b\u6301\u3063\u3066\u3044\u307e\u305b\u3093\u3002"); return; }
+         this.mifron().depositEmeralds(player.getUniqueId(), sale.totalPrice());
+         this.mifron().addPlayerStat(player.getUniqueId(), "total-trades", sale.quantity());
+         this.mifron().recordFarmingSubmission(player, material);
+         this.mifron().markMerchantTraded(container.get(this.merchantOfferMerchantKey, PersistentDataType.STRING));
+         this.mifron().playPurchaseSound(player);
+         this.mifron().sendItemMessage(player, NamedTextColor.GREEN, "\u58f2\u5374\u3057\u307e\u3057\u305f: ", material, " x" + sale.quantity() + " (+" + this.mifron().formatNumber(sale.totalPrice()) + "MP)");
          return;
       }
-      int quantity = bulk ? this.maxMerchantPurchaseQuantity(player, material, price) : 1;
+      int quantity = bulk ? this.mifron().maxMerchantPurchaseQuantity(player, material, price) : 1;
       if (bulk && material.getMaxStackSize() <= 1) { player.sendMessage("\u00a7c\u3053\u306e\u30a2\u30a4\u30c6\u30e0\u306f\u4e00\u62ec\u8cfc\u5165\u3067\u304d\u307e\u305b\u3093\u3002"); return; }
-      if (quantity <= 0) { player.sendMessage(this.getEmeralds(player.getUniqueId()) < price ? "\u00a7cMP\u304c\u8db3\u308a\u307e\u305b\u3093\u3002" : "\u00a7c\u30a4\u30f3\u30d9\u30f3\u30c8\u30ea\u306b\u7a7a\u304d\u304c\u3042\u308a\u307e\u305b\u3093\u3002"); return; }
-      int total = this.safeMultiply(price, quantity);
-      if (!this.withdrawEmeralds(player.getUniqueId(), total)) { player.sendMessage("\u00a7cMP\u304c\u8db3\u308a\u307e\u305b\u3093\u3002"); return; }
-      this.giveShopPurchasedItems(player, material, quantity);
-      this.addPlayerStat(player.getUniqueId(), "total-trades", quantity);
-      this.markMerchantTraded(container.get(this.merchantOfferMerchantKey, PersistentDataType.STRING));
-      this.playPurchaseSound(player);
-      this.sendItemMessage(player, NamedTextColor.GREEN, "\u8cfc\u5165\u3057\u307e\u3057\u305f: ", material, " x" + quantity + " (" + this.formatNumber(total) + "MP)");
+      if (quantity <= 0) { player.sendMessage(this.mifron().getEmeralds(player.getUniqueId()) < price ? "\u00a7cMP\u304c\u8db3\u308a\u307e\u305b\u3093\u3002" : "\u00a7c\u30a4\u30f3\u30d9\u30f3\u30c8\u30ea\u306b\u7a7a\u304d\u304c\u3042\u308a\u307e\u305b\u3093\u3002"); return; }
+      int total = this.mifron().safeMultiply(price, quantity);
+      if (!this.mifron().withdrawEmeralds(player.getUniqueId(), total)) { player.sendMessage("\u00a7cMP\u304c\u8db3\u308a\u307e\u305b\u3093\u3002"); return; }
+      this.mifron().giveShopPurchasedItems(player, material, quantity);
+      this.mifron().addPlayerStat(player.getUniqueId(), "total-trades", quantity);
+      this.mifron().markMerchantTraded(container.get(this.merchantOfferMerchantKey, PersistentDataType.STRING));
+      this.mifron().playPurchaseSound(player);
+      this.mifron().sendItemMessage(player, NamedTextColor.GREEN, "\u8cfc\u5165\u3057\u307e\u3057\u305f: ", material, " x" + quantity + " (" + this.mifron().formatNumber(total) + "MP)");
    }
 
    protected void sendItemMessage(Player player, NamedTextColor color, String prefix, Material material, String suffix) {
@@ -60,12 +60,12 @@ abstract class MifronPart10 extends MifronPart9x2 {
    }
 
    protected void tryReincarnate(Player player, ItemStack star) {
-      ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
+      ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       if (!section.getBoolean("all-advancements-rewarded", false)) { player.sendMessage("\u00a7c\u5168\u9032\u6357\u9054\u6210\u5f8c\u306b\u8ee2\u751f\u3067\u304d\u307e\u3059\u3002"); return; }
-      int next = this.safeAdd(section.getInt("reincarnations", 0), 1);
-      int requiredEmeralds = this.safeMultiply(10000, next);
-      int requiredLevel = Math.min(1000, this.safeAdd(20, this.safeMultiply(10, next)));
-      int currentEmeralds = this.getEmeralds(player.getUniqueId());
+      int next = this.mifron().safeAdd(section.getInt("reincarnations", 0), 1);
+      int requiredEmeralds = this.mifron().safeMultiply(10000, next);
+      int requiredLevel = Math.min(1000, this.mifron().safeAdd(20, this.mifron().safeMultiply(10, next)));
+      int currentEmeralds = this.mifron().getEmeralds(player.getUniqueId());
       if (currentEmeralds < requiredEmeralds || player.getLevel() < requiredLevel) {
          player.sendMessage("\u00a7c\u8ee2\u751f\u6761\u4ef6\u3092\u6e80\u305f\u3057\u3066\u3044\u307e\u305b\u3093\u3002");
          return;
@@ -76,10 +76,10 @@ abstract class MifronPart10 extends MifronPart9x2 {
       section.set("advancement-bonus-percent", 0);
       section.set("income-bonus-percent", null);
       section.set("reincarnations", next);
-      section.set("reincarnation-bonus-percent", this.safeAdd(this.getReincarnationBonus(player.getUniqueId()), bonus));
+      section.set("reincarnation-bonus-percent", this.mifron().safeAdd(this.mifron().getReincarnationBonus(player.getUniqueId()), bonus));
       player.setLevel(0);
       player.setExp(0.0F);
-      this.saveData();
+      this.mifron().saveData();
       this.recordQuestProgress(player, "reincarnations", next);
       this.playReincarnationSound(player);
       player.sendMessage("\u00a7d\u8ee2\u751f\u3057\u307e\u3057\u305f: " + next + "\u56de\u76ee");
@@ -89,18 +89,18 @@ abstract class MifronPart10 extends MifronPart9x2 {
       Iterator<Advancement> iterator = Bukkit.advancementIterator();
       while (iterator.hasNext()) {
          Advancement advancement = iterator.next();
-         if (!this.shouldTrackAdvancement(advancement)) continue;
+         if (!this.mifron().shouldTrackAdvancement(advancement)) continue;
          AdvancementProgress progress = player.getAdvancementProgress(advancement);
          for (String criterion : new ArrayList<>(progress.getAwardedCriteria())) progress.revokeCriteria(criterion);
       }
    }
 
    protected void applyPendingAdvancementReset(Player player) {
-      ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
+      ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       if (!section.getBoolean("pending-advancement-reset", false)) return;
       this.resetAdvancements(player);
       section.set("pending-advancement-reset", null);
-      this.saveData();
+      this.mifron().saveData();
    }
 
    protected void playPurchaseSound(Player player) { player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.35F, 1.1F); }

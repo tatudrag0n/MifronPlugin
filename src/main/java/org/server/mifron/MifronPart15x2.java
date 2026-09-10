@@ -10,14 +10,14 @@ import org.bukkit.entity.Player;
 abstract class MifronPart15x2 extends MifronPart15x1 {
    protected void depositEmeralds(UUID uuid, int amount, boolean persist) {
       if (amount <= 0) return;
-      ConfigurationSection section = this.getPlayerSection(uuid);
+      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
       int added = Math.min(amount, 2000000000);
-      int before = this.getEmeralds(uuid);
-      int after = this.safeAdd(before, added);
+      int before = this.mifron().getEmeralds(uuid);
+      int after = this.mifron().safeAdd(before, added);
       int credited = Math.max(0, after - before);
       section.set("emeralds", after);
       this.trackEconomyAnalytics(uuid, "mp_earned", credited, after, "unclassified");
-      section.set("total-earned-emeralds", this.safeAdd(section.getInt("total-earned-emeralds", 0), credited));
+      section.set("total-earned-emeralds", this.mifron().safeAdd(section.getInt("total-earned-emeralds", 0), credited));
       if (credited > 0 && !section.getBoolean("analytics.first-mp-earned-recorded", false)) {
          section.set("analytics.first-mp-earned-pending", true);
          Player player = Bukkit.getPlayer(uuid);
@@ -26,19 +26,19 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
       if (credited > 0 && !section.getBoolean("analytics.first-reward-recorded", false)) {
          section.set("analytics.first-reward-recorded", true);
          Player player = Bukkit.getPlayer(uuid);
-         if (player != null) this.trackAnalytics(player, "first_reward", "first-reward:" + uuid);
+         if (player != null) this.mifron().trackAnalytics(player, "first_reward", "first-reward:" + uuid);
       }
       if (persist) this.queueDataSave();
    }
 
    boolean withdrawEmeralds(UUID uuid, int amount) {
-      return this.withdrawEmeralds(uuid, amount, true);
+      return this.mifron().withdrawEmeralds(uuid, amount, true);
    }
 
    protected boolean withdrawEmeralds(UUID uuid, int amount, boolean persist) {
       if (amount <= 0) return false;
-      ConfigurationSection section = this.getPlayerSection(uuid);
-      int current = this.getEmeralds(uuid);
+      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
+      int current = this.mifron().getEmeralds(uuid);
       if (current < amount) return false;
       section.set("emeralds", current - amount);
       this.trackEconomyAnalytics(uuid, "mp_spent", amount, current - amount, "unclassified");
@@ -64,7 +64,7 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
    }
 
    protected int getMfl(UUID uuid) {
-      ConfigurationSection section = this.getPlayerSection(uuid);
+      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
       long score = (long) Math.max(0, section.getInt("total-blocks-broken", 0))
          + Math.max(0L, section.getInt("total-blocks-placed", 0))
          + (long) Math.max(0, section.getInt("total-trades", 0)) * 5L
@@ -76,7 +76,7 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
    }
 
    protected String getMflRank(UUID uuid) {
-      int mfl = this.getMfl(uuid);
+      int mfl = this.mifron().getMfl(uuid);
       if (mfl >= 100) return "S";
       if (mfl >= 60) return "A";
       if (mfl >= 30) return "B";
@@ -84,20 +84,20 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
    }
 
    protected int getAdvancementBonus(UUID uuid) {
-      Set<String> completed = new HashSet<>(this.getPlayerSection(uuid).getStringList("completed-advancements"));
+      Set<String> completed = new HashSet<>(this.mifron().getPlayerSection(uuid).getStringList("completed-advancements"));
       return completed.isEmpty() ? 0 : this.calculateAdvancementBonus(completed);
    }
 
    int getReincarnationBonus(UUID uuid) {
-      return this.getPlayerSection(uuid).getInt("reincarnation-bonus-percent", 0);
+      return this.mifron().getPlayerSection(uuid).getInt("reincarnation-bonus-percent", 0);
    }
 
    protected int getTotalIncomeBonus(UUID uuid) {
-      return this.getReincarnationBonus(uuid);
+      return this.mifron().getReincarnationBonus(uuid);
    }
 
    protected int updateAdvancementBonus(UUID uuid, Set<String> completed) {
-      ConfigurationSection section = this.getPlayerSection(uuid);
+      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
       int bonus = this.calculateAdvancementBonus(completed);
       section.set("advancement-bonus-percent", bonus);
       section.set("income-bonus-percent", null);
@@ -110,16 +110,16 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
    }
 
    protected void addAdvancementBonus(UUID uuid, int percent) {
-      this.updateAdvancementBonus(uuid, new HashSet<>(this.getPlayerSection(uuid).getStringList("completed-advancements")));
+      this.mifron().updateAdvancementBonus(uuid, new HashSet<>(this.mifron().getPlayerSection(uuid).getStringList("completed-advancements")));
    }
 
    protected void addReincarnationBonus(UUID uuid, int percent) {
-      ConfigurationSection section = this.getPlayerSection(uuid);
-      section.set("reincarnation-bonus-percent", this.safeAdd(this.getReincarnationBonus(uuid), percent));
+      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
+      section.set("reincarnation-bonus-percent", this.mifron().safeAdd(this.mifron().getReincarnationBonus(uuid), percent));
       this.queueDataSave();
    }
 
    void addPlayerStat(UUID uuid, String key, int amount) {
-      this.addPlayerStat(uuid, key, amount, true);
+      this.mifron().addPlayerStat(uuid, key, amount, true);
    }
 }

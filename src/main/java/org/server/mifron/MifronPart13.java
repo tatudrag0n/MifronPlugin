@@ -44,36 +44,36 @@ abstract class MifronPart13 extends MifronPart12x2 {
 
    void openTeleportUi(Player player) {
       Inventory inventory = Bukkit.createInventory(player, org.bukkit.event.inventory.InventoryType.DROPPER, Component.text("\u00a75Mifron Teleporter"));
-      inventory.setItem(0, this.actionItem(Material.GRASS_BLOCK, "\u00a7a\u4e2d\u592e\u5e83\u5834", List.of(), "teleport", "hub"));
+      inventory.setItem(0, this.mifron().actionItem(Material.GRASS_BLOCK, "\u00a7a\u4e2d\u592e\u5e83\u5834", List.of(), "teleport", "hub"));
       ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
       if (servers != null) {
          int slot = 1;
          for (String key : servers.getKeys(false)) {
             if (!this.isSafeConfigKey(key) || slot >= 9) continue;
-            inventory.setItem(slot++, this.actionItem(this.serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "teleport", "servers." + key));
+            inventory.setItem(slot++, this.mifron().actionItem(this.mifron().serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "teleport", "servers." + key));
          }
       }
-      this.fillEmptyGuiSlots(inventory);
+      this.mifron().fillEmptyGuiSlots(inventory);
       player.openInventory(inventory);
    }
 
    void openServerPortalTargetUi(Player player, String portalKey) {
       Inventory inventory = Bukkit.createInventory(player, org.bukkit.event.inventory.InventoryType.DROPPER, Component.text("\u00a75Mifron Teleporter"));
-      inventory.setItem(0, this.named(Material.ENDER_EYE, "\u00a7d\u30dd\u30fc\u30bf\u30eb\u79fb\u52d5\u5148\u8a2d\u5b9a", List.of()));
+      inventory.setItem(0, this.mifron().named(Material.ENDER_EYE, "\u00a7d\u30dd\u30fc\u30bf\u30eb\u79fb\u52d5\u5148\u8a2d\u5b9a", List.of()));
       ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
       if (servers != null) {
          int slot = 1;
          for (String key : servers.getKeys(false)) {
             if (!this.isSafeConfigKey(key) || slot >= 9) continue;
-            inventory.setItem(slot++, this.actionItem(this.serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "server_portal_bind", portalKey + "|servers." + key));
+            inventory.setItem(slot++, this.mifron().actionItem(this.mifron().serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "server_portal_bind", portalKey + "|servers." + key));
          }
       }
-      this.fillEmptyGuiSlots(inventory);
+      this.mifron().fillEmptyGuiSlots(inventory);
       player.openInventory(inventory);
    }
 
    protected void fillEmptyGuiSlots(Inventory inventory) {
-      ItemStack filler = this.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of());
+      ItemStack filler = this.mifron().named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of());
       for (int slot = 0; slot < inventory.getSize(); slot++) {
          ItemStack item = inventory.getItem(slot);
          if (item == null || item.getType() == Material.AIR) inventory.setItem(slot, filler.clone());

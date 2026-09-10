@@ -29,7 +29,7 @@ import org.bukkit.persistence.PersistentDataType;
 abstract class MifronPart9x1 extends MifronPart9 {
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onCreatureSpawn(CreatureSpawnEvent event) {
-      if (this.isCentralPlazaLocation(event.getLocation())) { event.setCancelled(true); return; }
+      if (this.mifron().isCentralPlazaLocation(event.getLocation())) { event.setCancelled(true); return; }
       if (!"survival".equalsIgnoreCase(event.getLocation().getWorld().getName()) && switch (event.getSpawnReason()) {
          case NATURAL, CHUNK_GEN, REINFORCEMENTS, PATROL, RAID, VILLAGE_INVASION -> true;
          default -> false;
@@ -59,7 +59,7 @@ abstract class MifronPart9x1 extends MifronPart9 {
 
    @EventHandler
    public void onMerchantDamage(EntityDamageEvent event) {
-      if (!this.isMifronMerchant(event.getEntity())) return;
+      if (!this.mifron().isMifronMerchant(event.getEntity())) return;
       event.getEntity().setInvulnerable(false);
       if (!this.isPlayerCausedDamage(event)) { event.setCancelled(true); event.setDamage(0.0); }
    }
@@ -73,15 +73,15 @@ abstract class MifronPart9x1 extends MifronPart9 {
 
    @EventHandler
    public void onPlayerTrade(PlayerTradeEvent event) {
-      this.addPlayerStat(event.getPlayer().getUniqueId(), "total-trades", 1);
-      if (this.isMifronMerchant(event.getVillager())) {
+      this.mifron().addPlayerStat(event.getPlayer().getUniqueId(), "total-trades", 1);
+      if (this.mifron().isMifronMerchant(event.getVillager())) {
          event.getVillager().getPersistentDataContainer().set(this.merchantTradedKey, PersistentDataType.BOOLEAN, true);
       }
    }
 
    @EventHandler
    public void onMerchantInteract(PlayerInteractEntityEvent event) {
-      if (event.getRightClicked() instanceof AbstractVillager villager && this.isMifronMerchant(villager)) {
+      if (event.getRightClicked() instanceof AbstractVillager villager && this.mifron().isMifronMerchant(villager)) {
          event.setCancelled(true);
          villager.setAI(false);
          villager.setInvulnerable(false);
@@ -103,16 +103,16 @@ abstract class MifronPart9x1 extends MifronPart9 {
       }
       this.activeMerchantPages.put(player.getUniqueId(), 1);
       Inventory inventory = Bukkit.createInventory(player, 27, Component.text(MERCHANT_UI_TITLE));
-      inventory.setItem(18, this.named(Material.RED_STAINED_GLASS_PANE, "\u00a7c\u8cb7\u53d6\u5c02\u7528", List.of("\u00a77\u30a2\u30a4\u30c6\u30e0\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u5546\u4eba\u306b\u58f2\u5374")));
+      inventory.setItem(18, this.mifron().named(Material.RED_STAINED_GLASS_PANE, "\u00a7c\u8cb7\u53d6\u5c02\u7528", List.of("\u00a77\u30a2\u30a4\u30c6\u30e0\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u5546\u4eba\u306b\u58f2\u5374")));
       for (int i = 0; i < Math.min(18, buyOffers.size()); i++) {
-         inventory.setItem(i, this.createMerchantOfferIcon(villager, buyOffers.get(i), "buy"));
+         inventory.setItem(i, this.mifron().createMerchantOfferIcon(villager, buyOffers.get(i), "buy"));
       }
-      inventory.setItem(26, this.named(Material.BARRIER, "\u00a77\u8cb7\u53d6\u5c02\u7528", List.of("\u00a77\u8ca9\u58f2\u6a5f\u80fd\u306f\u3042\u308a\u307e\u305b\u3093\u3002")));
+      inventory.setItem(26, this.mifron().named(Material.BARRIER, "\u00a77\u8cb7\u53d6\u5c02\u7528", List.of("\u00a77\u8ca9\u58f2\u6a5f\u80fd\u306f\u3042\u308a\u307e\u305b\u3093\u3002")));
       player.openInventory(inventory);
    }
 
    protected ItemStack createMerchantNavigationIcon(Material material, String name, String action, UUID merchantId) {
-      ItemStack item = this.named(material, name, List.of("\u00a77\u30af\u30ea\u30c3\u30af\u3067\u5207\u308a\u66ff\u3048"));
+      ItemStack item = this.mifron().named(material, name, List.of("\u00a77\u30af\u30ea\u30c3\u30af\u3067\u5207\u308a\u66ff\u3048"));
       ItemMeta meta = item.getItemMeta();
       PersistentDataContainer container = meta.getPersistentDataContainer();
       container.set(this.uiActionKey, PersistentDataType.STRING, action);
@@ -122,12 +122,12 @@ abstract class MifronPart9x1 extends MifronPart9 {
    }
 
    protected void handleMerchantNavigation(Player player, ItemStack clicked) {
-      String action = this.getUiAction(clicked);
+      String action = this.mifron().getUiAction(clicked);
       if (!"merchant_sell".equals(action) && !"merchant_buy".equals(action)) return;
-      UUID merchantId = this.getUiTarget(clicked);
+      UUID merchantId = this.mifron().getUiTarget(clicked);
       if (merchantId == null) return;
-      Entity entity = this.findEntity(merchantId);
-      if (!(entity instanceof AbstractVillager villager) || !this.isMifronMerchant(entity)) {
+      Entity entity = this.mifron().findEntity(merchantId);
+      if (!(entity instanceof AbstractVillager villager) || !this.mifron().isMifronMerchant(entity)) {
          player.sendMessage("\u00a7c\u5546\u4eba\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3002");
          player.closeInventory();
          return;

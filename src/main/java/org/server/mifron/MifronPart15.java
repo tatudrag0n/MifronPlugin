@@ -30,12 +30,12 @@ abstract class MifronPart15 extends MifronPart14x2 {
       this.getConfig().set("servers.minigame.z", 0.0);
       this.getConfig().set("servers.minigame.yaw", 0.0);
       this.getConfig().set("servers.minigame.pitch", 0.0);
-      this.setIfMissing("world-rules.spawn.minigame.world", "minigame");
-      this.setIfMissing("world-rules.spawn.minigame.x", 0.0);
-      this.setIfMissing("world-rules.spawn.minigame.y", 0.0);
-      this.setIfMissing("world-rules.spawn.minigame.z", 0.0);
-      this.setIfMissing("world-rules.spawn.minigame.yaw", 0.0);
-      this.setIfMissing("world-rules.spawn.minigame.pitch", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.minigame.world", "minigame");
+      this.mifron().setIfMissing("world-rules.spawn.minigame.x", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.minigame.y", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.minigame.z", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.minigame.yaw", 0.0);
+      this.mifron().setIfMissing("world-rules.spawn.minigame.pitch", 0.0);
       this.saveConfig();
    }
 
@@ -64,7 +64,7 @@ abstract class MifronPart15 extends MifronPart14x2 {
             this.pendingFriendSearch.remove(sender.getUniqueId());
             if (!plainMessage.equalsIgnoreCase("clear") && !plainMessage.isBlank()) this.friendSearchFilters.put(sender.getUniqueId(), plainMessage);
             else this.friendSearchFilters.remove(sender.getUniqueId());
-            this.openFriendUi(sender);
+            this.mifron().openFriendUi(sender);
          });
          return;
       }
@@ -78,7 +78,7 @@ abstract class MifronPart15 extends MifronPart14x2 {
                this.activeFriendChatTarget.put(sender.getUniqueId(), chatTarget);
                this.friendChatDrafts.put(sender.getUniqueId(), plainMessage);
             }
-            this.openFriendUi(sender);
+            this.mifron().openFriendUi(sender);
          });
          return;
       }
@@ -89,32 +89,32 @@ abstract class MifronPart15 extends MifronPart14x2 {
    @EventHandler
    public void onAdvancement(PlayerAdvancementDoneEvent event) {
       Advancement advancement = event.getAdvancement();
-      if (!this.shouldTrackAdvancement(advancement)) return;
+      if (!this.mifron().shouldTrackAdvancement(advancement)) return;
       String fullKey = advancement.getKey().toString();
       Player player = event.getPlayer();
-      Set<String> completed = new HashSet<>(this.getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
+      Set<String> completed = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
       completed.add(fullKey);
-      this.getPlayerSection(player.getUniqueId()).set("completed-advancements", new ArrayList<>(completed));
+      this.mifron().getPlayerSection(player.getUniqueId()).set("completed-advancements", new ArrayList<>(completed));
       this.notifyUnlockedTitles(player, completed);
-      Set<String> rewarded = new HashSet<>(this.getPlayerSection(player.getUniqueId()).getStringList("rewarded-advancements"));
+      Set<String> rewarded = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("rewarded-advancements"));
       if (!rewarded.add(fullKey)) { this.queueDataSave(); return; }
-      this.getPlayerSection(player.getUniqueId()).set("rewarded-advancements", new ArrayList<>(rewarded));
+      this.mifron().getPlayerSection(player.getUniqueId()).set("rewarded-advancements", new ArrayList<>(rewarded));
       AdvancementDisplay display = advancement.getDisplay();
       Frame frame = display == null ? Frame.TASK : display.frame();
       int reward = this.advancementReward(frame, "emeralds");
       ConfigurationSection special = this.getConfig().getConfigurationSection("advancement-unlocks." + advancement.getKey().getKey());
       if (special != null) {
          reward = special.getInt("emeralds", reward);
-         this.applyUnlocks(player, special);
+         this.mifron().applyUnlocks(player, special);
       }
       double multiplier = Math.max(0.0D, Math.min(10.0D, this.getConfig().getDouble("advancement-rewards.multiplier", 5.0D)));
       reward = (int) Math.min(2000000000L, Math.max(0L, Math.round(reward * multiplier)));
-      int paidReward = this.applyIncomeBonus(player.getUniqueId(), reward);
-      this.depositEmeralds(player.getUniqueId(), paidReward);
-      this.updateAdvancementBonus(player.getUniqueId(), completed);
-      player.sendMessage("\u00a7a\u9032\u6357\u5831\u916c: +" + this.formatNumber(paidReward) + "MP");
-      this.checkAllAdvancementsCompleted(player);
-      this.refreshPlayerName(player);
+      int paidReward = this.mifron().applyIncomeBonus(player.getUniqueId(), reward);
+      this.mifron().depositEmeralds(player.getUniqueId(), paidReward);
+      this.mifron().updateAdvancementBonus(player.getUniqueId(), completed);
+      player.sendMessage("\u00a7a\u9032\u6357\u5831\u916c: +" + this.mifron().formatNumber(paidReward) + "MP");
+      this.mifron().checkAllAdvancementsCompleted(player);
+      this.mifron().refreshPlayerName(player);
    }
 
    protected int advancementReward(Frame frame, String field) {

@@ -125,7 +125,7 @@ abstract class MifronPart14x1 extends MifronPart14 {
       this.getConfig().set("servers.survival.z", 0.0);
       this.getConfig().set("servers.survival.yaw", 0.0);
       this.getConfig().set("servers.survival.pitch", 0.0);
-      this.setIfMissing("servers.survival.icon", "grass_block");
+      this.mifron().setIfMissing("servers.survival.icon", "grass_block");
       this.applyFixedSpawnLocation("survival", 0.0, 100.0, 0.0);
       this.saveConfig();
    }

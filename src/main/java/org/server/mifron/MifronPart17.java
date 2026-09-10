@@ -19,35 +19,35 @@ abstract class MifronPart17 extends MifronPart16 {
          return true;
       }
       switch (args[0].toLowerCase(Locale.ROOT)) {
-         case "check" -> { if (this.hasPermission(sender, "mifron.command.chunk")) this.handleChunkCommand((Player) sender); }
-         case "list" -> this.handleListCommand(sender);
-         case "tp" -> this.handleWorldTpCommand((Player) sender, args);
+         case "check" -> { if (this.mifron().hasPermission(sender, "mifron.command.chunk")) this.mifron().handleChunkCommand((Player) sender); }
+         case "list" -> this.mifron().handleListCommand(sender);
+         case "tp" -> this.mifron().handleWorldTpCommand((Player) sender, args);
          case "text" -> this.textDisplayFeature.handleCommand(sender, args);
          case "ffa" -> this.ffaManager.handleCommand(sender, args);
          case "structure" -> this.structureManager.handleCommand(sender, args);
          case "build" -> this.buildWorldManager.handleCommand(sender, args);
          case "proposal" -> this.proposalManager.handleCommand(sender, args);
-         case "gamerules" -> this.handleGamerulesCommand(sender, args);
-         case "info" -> this.handleInfoCommand(sender);
-         case "reload" -> this.handleReloadCommand(sender);
-         case "kit" -> { this.giveInitialItems((Player) sender); sender.sendMessage("\u00a7a\u521d\u671f\u914d\u5e03\u7269\u3092\u78ba\u8a8d\u3057\u307e\u3057\u305f\u3002"); }
-         case "balance" -> sender.sendMessage("\u00a7a\u6240\u6301MP: " + this.formatNumber(this.getEmeralds(((Player) sender).getUniqueId())));
-         case "pay" -> this.handlePayCommand((Player) sender, args);
-         case "merchant", "marchant" -> this.handleMerchantCommand((Player) sender, args);
-         case "minigame" -> this.handleMinigameCommand((Player) sender, args);
-         case "athletic" -> { if (!this.athleticManager.handleCommand((Player) sender, args)) this.handleAthleticCommand((Player) sender, args); }
-         case "quest" -> this.handleQuestCommand(sender, args);
-         case "mp", "em", "emerald" -> this.handleEmeraldCommand(sender, args);
-         case "regen" -> this.handleRegenCommand(sender, args);
-         case "chunk" -> { if (this.hasPermission(sender, "mifron.command.chunk")) this.handleChunkCommand((Player) sender); }
-         case "status" -> { if (this.hasPermission(sender, "mifron.command.status")) this.handleMifronStatusCommand((Player) sender, args); }
-         case "tutorial" -> this.handleTutorialCommand(sender);
+         case "gamerules" -> this.mifron().handleGamerulesCommand(sender, args);
+         case "info" -> this.mifron().handleInfoCommand(sender);
+         case "reload" -> this.mifron().handleReloadCommand(sender);
+         case "kit" -> { this.mifron().giveInitialItems((Player) sender); sender.sendMessage("\u00a7a\u521d\u671f\u914d\u5e03\u7269\u3092\u78ba\u8a8d\u3057\u307e\u3057\u305f\u3002"); }
+         case "balance" -> sender.sendMessage("\u00a7a\u6240\u6301MP: " + this.mifron().formatNumber(this.mifron().getEmeralds(((Player) sender).getUniqueId())));
+         case "pay" -> this.mifron().handlePayCommand((Player) sender, args);
+         case "merchant", "marchant" -> this.mifron().handleMerchantCommand((Player) sender, args);
+         case "minigame" -> this.mifron().handleMinigameCommand((Player) sender, args);
+         case "athletic" -> { if (!this.athleticManager.handleCommand((Player) sender, args)) this.mifron().handleAthleticCommand((Player) sender, args); }
+         case "quest" -> this.mifron().handleQuestCommand(sender, args);
+         case "mp", "em", "emerald" -> this.mifron().handleEmeraldCommand(sender, args);
+         case "regen" -> this.mifron().handleRegenCommand(sender, args);
+         case "chunk" -> { if (this.mifron().hasPermission(sender, "mifron.command.chunk")) this.mifron().handleChunkCommand((Player) sender); }
+         case "status" -> { if (this.mifron().hasPermission(sender, "mifron.command.status")) this.mifron().handleMifronStatusCommand((Player) sender, args); }
+         case "tutorial" -> this.mifron().handleTutorialCommand(sender);
          case "shelfshop" -> this.handleShelfShopCommand(sender, args);
          case "shopwand" -> this.giveTypedWand(sender, args.length < 2 ? this.createShopWand() : this.createShopWand(ShopWandType.fromKey(args[1])), "\u00a7a\u30b7\u30e7\u30c3\u30d7\u30ef\u30f3\u30c9\u3092\u5165\u624b\u3057\u307e\u3057\u305f\u3002");
          case "jumppadwand" -> {
             if (!sender.hasPermission("mifron.admin")) { sender.sendMessage("\u00a7c\u6a29\u9650\u304c\u3042\u308a\u307e\u305b\u3093\u3002"); return true; }
-            int verticalPower = args.length >= 2 ? this.parsePositiveInt(args[1], 5) : 5;
-            int horizontalPower = args.length >= 3 ? this.parsePositiveInt(args[2], verticalPower) : verticalPower;
+            int verticalPower = args.length >= 2 ? this.mifron().parsePositiveInt(args[1], 5) : 5;
+            int horizontalPower = args.length >= 3 ? this.mifron().parsePositiveInt(args[2], verticalPower) : verticalPower;
             this.giveTypedWand(sender, this.createJumpPadWand(verticalPower, horizontalPower), "\u00a7a\u30b8\u30e3\u30f3\u30d7\u30d1\u30c3\u30c9\u30ef\u30f3\u30c9\u3092\u5165\u624b\u3057\u307e\u3057\u305f\u3002");
          }
          case "slotwand" -> {
@@ -73,7 +73,7 @@ abstract class MifronPart17 extends MifronPart16 {
             this.saveConfig();
             sender.sendMessage("\u00a7a\u30b5\u30fc\u30d0\u30fc\u79fb\u52d5\u5148\u3092\u524a\u9664\u3057\u307e\u3057\u305f: " + args[1]);
          }
-         case "warning" -> this.handleWarningCommand(sender, args);
+         case "warning" -> this.mifron().handleWarningCommand(sender, args);
          default -> sender.sendMessage("\u00a7e/mifron check|list|tp|proposal|reload|kit|balance|quest|shelfshop|shopwand|warning");
       }
       return true;

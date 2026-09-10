@@ -23,7 +23,7 @@ abstract class MifronPart12 extends MifronPart11x2 {
    }
 
    protected void notifyUnlockedTitles(Player player, Set<String> completed) {
-      ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
+      ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       Set<String> notified = new HashSet<>(section.getStringList("unlocked-titles"));
       List<String> newlyUnlocked = new ArrayList<>();
       for (Entry<String, TitleDefinition> entry : this.titleDefinitions().entrySet()) {
@@ -40,7 +40,7 @@ abstract class MifronPart12 extends MifronPart11x2 {
    }
 
    public void unlockTitle(Player player, String title) {
-      ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
+      ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       Set<String> notified = new HashSet<>(section.getStringList("unlocked-titles"));
       if (notified.contains(title)) return;
       notified.add(title);
@@ -51,18 +51,18 @@ abstract class MifronPart12 extends MifronPart11x2 {
    }
 
    protected void fillKillsTab(Player player, Inventory inventory, int page) {
-      Set<String> killed = new HashSet<>(this.getPlayerSection(player.getUniqueId()).getStringList("killed-mobs"));
+      Set<String> killed = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("killed-mobs"));
       List<EntityType> mobs = this.killableMobTypes();
       int pageSize = 27;
       int maxPage = Math.max(0, (mobs.size() - 1) / pageSize);
       int safePage = Math.max(0, Math.min(page, maxPage));
-      inventory.setItem(45, this.named(Material.IRON_SWORD, "\u00a7c\u8a0e\u4f10\u6e08\u307fMob", List.of("\u00a77" + mobs.stream().filter(type -> killed.contains(type.name())).count() + "/" + mobs.size())));
+      inventory.setItem(45, this.mifron().named(Material.IRON_SWORD, "\u00a7c\u8a0e\u4f10\u6e08\u307fMob", List.of("\u00a77" + mobs.stream().filter(type -> killed.contains(type.name())).count() + "/" + mobs.size())));
       int slot = 9;
       int from = safePage * pageSize;
       for (EntityType type : mobs.subList(from, Math.min(mobs.size(), from + pageSize))) {
          Material egg = Material.matchMaterial(type.name() + "_SPAWN_EGG");
          boolean done = killed.contains(type.name());
-         inventory.setItem(slot++, this.statusItem(done && egg != null ? egg : Material.GRAY_STAINED_GLASS_PANE, (done ? "\u00a7a" : "\u00a78") + this.mobDisplayName(type), List.of(done ? "\u00a7a\u8a0e\u4f10\u6e08" : "\u00a77\u672a\u8a0e\u4f10"), done));
+         inventory.setItem(slot++, this.mifron().statusItem(done && egg != null ? egg : Material.GRAY_STAINED_GLASS_PANE, (done ? "\u00a7a" : "\u00a78") + this.mobDisplayName(type), List.of(done ? "\u00a7a\u8a0e\u4f10\u6e08" : "\u00a77\u672a\u8a0e\u4f10"), done));
       }
    }
 

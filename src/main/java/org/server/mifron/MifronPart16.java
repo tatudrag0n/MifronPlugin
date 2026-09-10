@@ -17,16 +17,16 @@ import org.bukkit.entity.Player;
 abstract class MifronPart16 extends MifronPart15x2 {
    protected void addPlayerStat(UUID uuid, String key, int amount, boolean persist) {
       if (amount <= 0) return;
-      ConfigurationSection section = this.getPlayerSection(uuid);
-      section.set(key, this.safeAdd(section.getInt(key, 0), amount));
+      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
+      section.set(key, this.mifron().safeAdd(section.getInt(key, 0), amount));
       this.questService.recordStat(uuid, key, amount);
       if (persist) this.queueDataSave();
    }
 
    protected void refreshPlayerName(Player player) {
-      String title = this.selectedTitle(player);
+      String title = this.mifron().selectedTitle(player);
       Component name = this.titlePrefix(player).append(Component.text(player.getName()));
-      Component tabName = name.append(Component.text(" MFL " + this.getMfl(player.getUniqueId()), NamedTextColor.AQUA));
+      Component tabName = name.append(Component.text(" MFL " + this.mifron().getMfl(player.getUniqueId()), NamedTextColor.AQUA));
       player.displayName(name);
       player.playerListName(tabName);
       player.customName(name);
@@ -34,15 +34,15 @@ abstract class MifronPart16 extends MifronPart15x2 {
    }
 
    protected Component titlePrefix(Player player) {
-      String title = this.selectedTitle(player);
+      String title = this.mifron().selectedTitle(player);
       return title.isBlank() ? Component.empty() : Component.text("[" + title + "] ", NamedTextColor.GOLD);
    }
 
    protected String selectedTitle(Player player) {
-      String title = this.getPlayerSection(player.getUniqueId()).getString("selected-title", "");
-      if (title != null && !title.isBlank() && this.canUseTitle(player, title)) return title;
+      String title = this.mifron().getPlayerSection(player.getUniqueId()).getString("selected-title", "");
+      if (title != null && !title.isBlank() && this.mifron().canUseTitle(player, title)) return title;
       if (title != null && !title.isBlank()) {
-         this.getPlayerSection(player.getUniqueId()).set("selected-title", null);
+         this.mifron().getPlayerSection(player.getUniqueId()).set("selected-title", null);
          this.queueDataSave();
       }
       return "";
@@ -51,7 +51,7 @@ abstract class MifronPart16 extends MifronPart15x2 {
    protected boolean canUseTitle(Player player, String title) {
       TitleDefinition definition = this.titleDefinitions().get(title);
       if (definition == null) return false;
-      Set<String> completed = new HashSet<>(this.getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
+      Set<String> completed = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
       return this.hasTitle(completed, definition);
    }
 
@@ -70,7 +70,7 @@ abstract class MifronPart16 extends MifronPart15x2 {
    }
 
    protected void resetStatusData(UUID uuid) {
-      ConfigurationSection section = this.getPlayerSection(uuid);
+      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
       for (String key : List.of("emeralds", "total-earned-emeralds", "income-bonus-percent", "advancement-bonus-percent",
          "reincarnation-bonus-percent", "reincarnations", "pending-advancement-reset", "session-minutes",
          "session-playtime-rewards", "total-minutes", "total-play-count", "login-streak", "total-logins",
@@ -91,7 +91,7 @@ abstract class MifronPart16 extends MifronPart15x2 {
 
    protected Set<UUID> getUuidSet(UUID owner, String key) {
       Set<UUID> result = new HashSet<>();
-      for (String value : this.getPlayerSection(owner).getStringList(key)) {
+      for (String value : this.mifron().getPlayerSection(owner).getStringList(key)) {
          try { result.add(UUID.fromString(value)); } catch (IllegalArgumentException ignored) {}
       }
       return result;
@@ -99,20 +99,20 @@ abstract class MifronPart16 extends MifronPart15x2 {
 
    boolean areFriends(UUID first, UUID second) {
       return first != null && second != null && !first.equals(second)
-         && (this.getUuidSet(first, "friends").contains(second) || this.getUuidSet(second, "friends").contains(first));
+         && (this.mifron().getUuidSet(first, "friends").contains(second) || this.mifron().getUuidSet(second, "friends").contains(first));
    }
 
    protected void setUuidSet(UUID owner, String key, Set<UUID> values) {
-      this.getPlayerSection(owner).set(key, values.stream().map(UUID::toString).toList());
+      this.mifron().getPlayerSection(owner).set(key, values.stream().map(UUID::toString).toList());
       this.queueDataSave();
    }
 
    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
       try {
-         if ("friend".equalsIgnoreCase(command.getName())) return this.handleFriendCommand(sender, args);
-         if ("status".equalsIgnoreCase(command.getName())) return this.handleStatusCommand(sender, args);
-         if ("tutorial".equalsIgnoreCase(command.getName())) return this.handleTutorialCommand(sender);
-         return this.handleMifronCommand(sender, args);
+         if ("friend".equalsIgnoreCase(command.getName())) return this.mifron().handleFriendCommand(sender, args);
+         if ("status".equalsIgnoreCase(command.getName())) return this.mifron().handleStatusCommand(sender, args);
+         if ("tutorial".equalsIgnoreCase(command.getName())) return this.mifron().handleTutorialCommand(sender);
+         return this.mifron().handleMifronCommand(sender, args);
       } catch (Throwable e) {
          this.getLogger().severe("Command failed: /" + label);
          e.printStackTrace();

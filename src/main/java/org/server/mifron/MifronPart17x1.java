@@ -12,7 +12,7 @@ import org.bukkit.generator.WorldInfo;
 abstract class MifronPart17x1 extends MifronPart17 {
    protected boolean handleTutorialCommand(CommandSender sender) {
       if (sender instanceof Player player) {
-         this.startTutorial(player, true);
+         this.mifron().startTutorial(player, true);
          return true;
       }
       sender.sendMessage("Player only.");
@@ -46,7 +46,7 @@ abstract class MifronPart17x1 extends MifronPart17 {
       }
       String key = args[1];
       if (this.getConfig().contains("servers." + key)) {
-         this.teleportToConfigLocation(player, "servers." + key);
+         this.mifron().teleportToConfigLocation(player, "servers." + key);
          return;
       }
       World world = Bukkit.getWorld(key);
@@ -96,7 +96,7 @@ abstract class MifronPart17x1 extends MifronPart17 {
       this.loadShopPrices();
       this.applyEconomyPriceTable();
       this.rebuildShelfShopCatalog();
-      this.syncShelfShopDisplays();
+      this.mifron().syncShelfShopDisplays();
       this.structureManager.load();
       this.proposalManager.load();
       this.ffaManager.load();
@@ -109,12 +109,12 @@ abstract class MifronPart17x1 extends MifronPart17 {
 
    protected void handleMifronStatusCommand(Player player, String[] args) {
       if (args.length < 2 || !"reset".equalsIgnoreCase(args[1])) {
-         ConfigurationSection section = this.getPlayerSection(player.getUniqueId());
+         ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
          player.sendMessage("\u00a7aMifron\u30b9\u30c6\u30fc\u30bf\u30b9");
-         player.sendMessage("\u00a77MFL: " + this.getMfl(player.getUniqueId()) + " / \u30e9\u30f3\u30af: " + this.getMflRank(player.getUniqueId()));
-         player.sendMessage("\u00a77\u6240\u6301MP: " + this.formatNumber(this.getEmeralds(player.getUniqueId())) + "MP");
-         player.sendMessage("\u00a77\u8ee2\u751f\u30dc\u30fc\u30ca\u30b9: +" + this.getReincarnationBonus(player.getUniqueId()) + "%");
-         player.sendMessage("\u00a77\u7dcf\u30d7\u30ec\u30a4\u6642\u9593: " + this.formatPlayTime(section.getInt("total-minutes", 0)));
+         player.sendMessage("\u00a77MFL: " + this.mifron().getMfl(player.getUniqueId()) + " / \u30e9\u30f3\u30af: " + this.getMflRank(player.getUniqueId()));
+         player.sendMessage("\u00a77\u6240\u6301MP: " + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId())) + "MP");
+         player.sendMessage("\u00a77\u8ee2\u751f\u30dc\u30fc\u30ca\u30b9: +" + this.mifron().getReincarnationBonus(player.getUniqueId()) + "%");
+         player.sendMessage("\u00a77\u7dcf\u30d7\u30ec\u30a4\u6642\u9593: " + this.mifron().formatPlayTime(section.getInt("total-minutes", 0)));
          player.sendMessage("\u00a7e\u30ea\u30bb\u30c3\u30c8: /mifron status reset");
          return;
       }

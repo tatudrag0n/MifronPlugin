@@ -118,7 +118,7 @@ abstract class MifronPart9 extends MifronPart8x1 {
       long now = System.currentTimeMillis();
       for (World world : Bukkit.getWorlds()) {
          for (Entity entity : world.getEntities()) {
-            if (!(entity instanceof AbstractVillager villager) || !this.isMifronMerchant(entity)) continue;
+            if (!(entity instanceof AbstractVillager villager) || !this.mifron().isMifronMerchant(entity)) continue;
             villager.setInvulnerable(false);
             villager.setAI(!this.activeMerchantViews.containsValue(villager.getUniqueId()));
             PersistentDataContainer container = entity.getPersistentDataContainer();
@@ -142,6 +142,6 @@ abstract class MifronPart9 extends MifronPart8x1 {
       Player anchor = world.getPlayers().get(this.random.nextInt(world.getPlayers().size()));
       Location base = anchor.getLocation().clone().add(this.random.nextInt(33) - 16, 0.0, this.random.nextInt(33) - 16);
       Location spawn = new Location(world, base.getBlockX() + 0.5, world.getHighestBlockYAt(base) + 1.0, base.getBlockZ() + 0.5);
-      if (!this.isCentralPlazaLocation(spawn)) this.spawnMerchant(spawn);
+      if (!this.mifron().isCentralPlazaLocation(spawn)) this.spawnMerchant(spawn);
    }
 }
