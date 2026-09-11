@@ -140,6 +140,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final Map<UUID, Map<String, KillRewardWindow>> mobRewardWindows = new ConcurrentHashMap<>();
    protected final Map<UUID, Long> lastJumpPadUse = new ConcurrentHashMap<>();
    protected final Map<UUID, Long> jumpPadFallProtectionUntil = new ConcurrentHashMap<>();
+   protected final ConcurrentHashMap<UUID, Object> economyLocks = new ConcurrentHashMap<>();
    protected BukkitTask scheduledShutdownTask;
    protected BukkitTask pendingDataSaveTask;
    protected List<Material> shelfShopCatalog = List.of();
