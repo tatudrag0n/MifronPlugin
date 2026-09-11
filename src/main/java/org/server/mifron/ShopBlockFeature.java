@@ -5,9 +5,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.Shelf;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -20,6 +23,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -60,7 +64,7 @@ public class ShopBlockFeature implements Listener {
          player.sendMessage(ChatColor.RED + "\u30b7\u30e7\u30c3\u30d7\u60c5\u5831\u3092\u4fdd\u5b58\u3067\u304d\u307e\u305b\u3093\u3002");
          return;
       }
-      player.sendMessage(ChatColor.GREEN + "\u30b7\u30e7\u30c3\u30d7\u3092\u8a2d\u7f6e\u3057\u307e\u3057\u305f\u3002\u9673\u5217\u306f\u30d0\u30cb\u30e9\u3001\u4fa1\u683c\u306f\u30b9\u30cb\u30fc\u30af\u53f3\u30af\u30ea\u30c3\u30af\u3067\u3059\u3002");
+      player.sendMessage(ChatColor.GREEN + "\u30b7\u30e7\u30c3\u30d7\u3092\u8a2d\u7f6e\u3057\u307e\u3057\u305f\u3002");
    }
 
    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -90,20 +94,17 @@ public class ShopBlockFeature implements Listener {
          return;
       }
       if (!shopType.contains("SHELF")) return;
+      this.showShelfPrice(player, block, slot);
       if (owner && !this.trades.isWallet(hand)) return;
       event.setCancelled(true);
       this.trades.tradeShelf(player, block, shopType, hand, slot);
    }
 
    @EventHandler
-   public void onClick(InventoryClickEvent event) {
-      this.prices.onClick(event);
-   }
+   public void onClick(InventoryClickEvent event) { this.prices.onClick(event); }
 
    @EventHandler
-   public void onClose(InventoryCloseEvent event) {
-      this.prices.onClose(event);
-   }
+   public void onClose(InventoryCloseEvent event) { this.prices.onClose(event); }
 
    @EventHandler(ignoreCancelled = true)
    public void onHopperMove(InventoryMoveItemEvent event) {
@@ -111,6 +112,17 @@ public class ShopBlockFeature implements Listener {
       if (!this.store.isShop(barrel.getBlock()) || !"SELL_BARREL".equals(this.store.shopType(barrel.getBlock()))) return;
       ItemStack moving = event.getItem();
       if (moving == null || this.trades.isSpecial(moving) || this.trades.isWallet(moving)) event.setCancelled(true);
+   }
+
+   private void showShelfPrice(Player player, Block block, int slot) {
+      int price = this.store.slotPrice(block, slot);
+      ItemStack displayed = null;
+      if (block.getState() instanceof Shelf shelf) {
+         Inventory inv = shelf.getInventory();
+         if (slot >= 0 && slot < inv.getSize()) displayed = inv.getItem(slot);
+      }
+      String name = displayed == null || displayed.getType().isAir() ? "\u7a7a" : displayed.getType().name();
+      player.sendActionBar(Component.text("\u67a0" + (slot + 1) + " " + name + "  " + price + " MP", NamedTextColor.YELLOW));
    }
 
    public boolean placeShopBlock(Player player, Block block, String shopType) {
