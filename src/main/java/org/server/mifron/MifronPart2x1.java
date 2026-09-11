@@ -75,6 +75,10 @@ abstract class MifronPart2x1 extends MifronPart2 {
    }
 
    ItemStack createOnlineShopProduct(String id) {
+      if (id != null && id.startsWith("item:")) {
+         Material catalog = Material.matchMaterial(id.substring(5));
+         return catalog == null ? null : new ItemStack(catalog);
+      }
       if ("shelf_shop_wand".equalsIgnoreCase(id)) return this.utilityItemsFeature.createShopWand(ShopWandType.SHELF);
       if ("barrel_shop_wand".equalsIgnoreCase(id)) return this.utilityItemsFeature.createShopWand(ShopWandType.BARREL);
       if ("sell-shelf".equalsIgnoreCase(id) || "sell-shelf-shop".equalsIgnoreCase(id)) return this.createShopBlockItem("SELL_SHELF", Material.OAK_SHELF, "\u00a7a\u8ca9\u58f2\u68da\u30b7\u30e7\u30c3\u30d7");
@@ -105,7 +109,7 @@ abstract class MifronPart2x1 extends MifronPart2 {
    public void onPlayerRespawn(PlayerRespawnEvent event) {
       if (event.getPlayer().getWorld() != null && "survival".equalsIgnoreCase(event.getPlayer().getWorld().getName())) {
          World survival = Bukkit.getWorld(this.getConfig().getString("survival-dimensions.overworld", "survival"));
-         if (survival != null) event.setRespawnLocation(new Location(survival, 0.5D, 100.0D, 0.5D, 0.0F, 0.0F));
+         if (survival != null) event.setRespawnLocation(new Location(survival, 0.5D, 101.0D, 0.5D, 0.0F, 0.0F));
       }
    }
 
