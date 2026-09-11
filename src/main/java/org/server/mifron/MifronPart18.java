@@ -114,9 +114,11 @@ abstract class MifronPart18 extends MifronPart17x1 {
       if (target == null) return;
       if (target.getUniqueId().equals(player.getUniqueId())) { player.sendMessage("\u00a7c\u81ea\u5206\u306b\u306f\u652f\u6255\u3048\u307e\u305b\u3093\u3002"); return; }
       int amount = this.mifron().parsePositiveInt(args[2], -1);
-      if (amount > 0 && this.mifron().withdrawEmeralds(player.getUniqueId(), amount)) {
-         this.mifron().depositEmeralds(target.getUniqueId(), amount);
+      if (amount > 0 && this.mifron().transferEmeralds(player.getUniqueId(), target.getUniqueId(), amount)) {
          player.sendMessage("\u00a7a" + this.mifron().safePlayerName(target) + " \u306b " + this.mifron().formatNumber(amount) + "MP \u652f\u6255\u3044\u307e\u3057\u305f\u3002");
+         if (target.isOnline() && target.getPlayer() != null) {
+            target.getPlayer().sendMessage("\u00a7a" + this.mifron().safePlayerName(player) + " \u304b\u3089 " + this.mifron().formatNumber(amount) + "MP \u3092\u53d7\u3051\u53d6\u308a\u307e\u3057\u305f\u3002");
+         }
       } else player.sendMessage("\u00a7c\u652f\u6255\u3044\u3067\u304d\u307e\u305b\u3093\u3002");
    }
 }
