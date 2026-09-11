@@ -23,6 +23,7 @@ import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.server.ServerCommandEvent;
@@ -44,6 +45,10 @@ final class WorldPolicyFeature implements Listener {
    void apply() {
       this.applyMainWorldBorder();
       this.applySurvivalSpawn();
+      Bukkit.getPluginManager().registerEvents(new QuestBookGuard(this.plugin), this.plugin);
+      for (Player player : Bukkit.getOnlinePlayers()) {
+         if (this.isCreativeWorld(player.getWorld())) this.attachCreative(player);
+      }
    }
 
    void applyMainWorldBorder() { this.plugin.applyMainWorldBorder(); }
@@ -56,6 +61,11 @@ final class WorldPolicyFeature implements Listener {
          this.plugin.getConfig().getInt("world-rules.spawn.survival.y", 101),
          this.plugin.getConfig().getInt("world-rules.spawn.survival.z", 0)
       );
+   }
+
+   @EventHandler
+   public void onJoin(PlayerJoinEvent event) {
+      if (this.isCreativeWorld(event.getPlayer().getWorld())) this.attachCreative(event.getPlayer());
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
