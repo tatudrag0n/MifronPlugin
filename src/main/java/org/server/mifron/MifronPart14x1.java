@@ -8,7 +8,6 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -16,6 +15,10 @@ import org.bukkit.entity.Player;
 
 abstract class MifronPart14x1 extends MifronPart14 {
    Location readLocation(String path) {
+      if (path != null && path.startsWith("servers.")) {
+         String key = path.substring("servers.".length()).split("\\.", 2)[0];
+         if (this.getConfig().getStringList("deleted-servers").contains(key)) return null;
+      }
       String worldName = this.getConfig().getString(path + ".world");
       World world = worldName == null ? null : Bukkit.getWorld(worldName);
       if (world == null) return null;
@@ -115,18 +118,18 @@ abstract class MifronPart14x1 extends MifronPart14 {
    protected void configureSurvivalSpawnLocation() {
       this.getConfig().set("world-rules.spawn.survival.world", "survival");
       this.getConfig().set("world-rules.spawn.survival.x", 0.0);
-      this.getConfig().set("world-rules.spawn.survival.y", 100.0);
+      this.getConfig().set("world-rules.spawn.survival.y", 101.0);
       this.getConfig().set("world-rules.spawn.survival.z", 0.0);
       this.getConfig().set("world-rules.spawn.survival.yaw", 0.0);
       this.getConfig().set("world-rules.spawn.survival.pitch", 0.0);
       this.getConfig().set("servers.survival.world", "survival");
       this.getConfig().set("servers.survival.x", 0.0);
-      this.getConfig().set("servers.survival.y", 100.0);
+      this.getConfig().set("servers.survival.y", 101.0);
       this.getConfig().set("servers.survival.z", 0.0);
       this.getConfig().set("servers.survival.yaw", 0.0);
       this.getConfig().set("servers.survival.pitch", 0.0);
       this.mifron().setIfMissing("servers.survival.icon", "grass_block");
-      this.applyFixedSpawnLocation("survival", 0.0, 100.0, 0.0);
+      this.applyFixedSpawnLocation("survival", 0.0, 101.0, 0.0);
       this.saveConfig();
    }
 }
