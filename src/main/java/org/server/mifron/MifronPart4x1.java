@@ -55,7 +55,7 @@ abstract class MifronPart4x1 extends MifronPart4 {
 
    protected void handleSlotWandClick(PlayerInteractEvent event, Player player, Block block, ShopWandType type) {
       event.setCancelled(true);
-      if (block == null || !this.mifron().isShelf(block.getType())) { player.sendMessage("\u00a7c\u68da\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u304f\u3060\u3055\u3044\u3002"); return; }
+      if (block == null || !block.getType().name().endsWith("_SHELF")) { player.sendMessage("\u00a7c\u68da\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u304f\u3060\u3055\u3044\u3002"); return; }
       if (!event.getAction().isRightClick()) return;
       SlotMachineManager.Difficulty difficulty = type.getSlotDifficulty();
       if (difficulty == null || this.slotMachineManager == null) { player.sendMessage("\u00a7c\u7121\u52b9\u306a\u30b9\u30ed\u30c3\u30c8\u30ef\u30f3\u30c9\u3067\u3059\u3002"); return; }
@@ -63,8 +63,12 @@ abstract class MifronPart4x1 extends MifronPart4 {
       this.data.set(this.mifron().shelfShopPath(block), null);
       this.data.set(this.mifron().shelfShopOfferPath(block), null);
       this.mifron().clearShopOwner(block);
+      if (!this.slotMachineManager.registerMachine(block, difficulty)) {
+         String path = "slot-machines." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
+         this.data.set(path + ".difficulty", difficulty.name());
+         this.data.set(path + ".created-at", System.currentTimeMillis());
+      }
       this.queueDataSave();
-      if (!this.slotMachineManager.registerMachine(block, difficulty)) { player.sendMessage("\u00a7c\u521d\u671f\u5316\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002"); return; }
       player.sendMessage("\u00a7b\u68da\u3092\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u5316\u3057\u307e\u3057\u305f\uff01");
    }
 
