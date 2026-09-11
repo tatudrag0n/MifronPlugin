@@ -286,8 +286,7 @@ final class OnlineShopFeature implements Listener {
    }
 
    private int priceOf(Material material) {
-      int configured = this.plugin.shopSalePrices.getOrDefault(material.name(), 0);
-      return configured > 0 ? configured : Math.max(1, this.plugin.getConfig().getInt("online-shop.fallback-price", 10));
+      return OnlineShopRules.price(this.plugin, material);
    }
 
    private String rarityOf(int price) {
@@ -299,12 +298,6 @@ final class OnlineShopFeature implements Listener {
    }
 
    private long cooldownOf(String rarity) {
-      return switch (rarity == null ? "COMMON" : rarity.toUpperCase(Locale.ROOT)) {
-         case "LEGENDARY" -> 600L;
-         case "EPIC" -> 180L;
-         case "RARE" -> 60L;
-         case "UNCOMMON" -> 15L;
-         default -> 0L;
-      };
+      return OnlineShopRules.cooldownSeconds(rarity);
    }
 }
