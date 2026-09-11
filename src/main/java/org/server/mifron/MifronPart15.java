@@ -131,5 +131,17 @@ abstract class MifronPart15 extends MifronPart14x2 {
       return this.getConfig().getInt(path + field, fallback);
    }
 
-   protected int advancementBonus(Frame frame) { return 0; }
+   protected int advancementBonus(Frame frame) {
+      String path = switch (frame) {
+         case CHALLENGE -> "advancement-rewards.challenge.bonus-percent";
+         case GOAL -> "advancement-rewards.goal.bonus-percent";
+         default -> "advancement-rewards.default.bonus-percent";
+      };
+      int fallback = switch (frame) {
+         case CHALLENGE -> 5;
+         case GOAL -> 2;
+         default -> 1;
+      };
+      return Math.max(0, this.getConfig().getInt(path, fallback));
+   }
 }
