@@ -63,14 +63,29 @@ abstract class MifronPart3x1 extends MifronPart3 {
       }
       if (item == null) return;
       if (this.isMifronItem(item, "emerald_bundle")) {
-         if (event.getAction().isRightClick() && event.getClickedBlock() == null) { event.setCancelled(true); return; }
-         if (event.getAction().isLeftClick()) { player.sendMessage("\u00a7a\u6240\u6301MP: " + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId()))); event.setCancelled(true); return; }
-         if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.mifron().tryShopPayment(player, event.getClickedBlock())) { event.setCancelled(true); return; }
+         event.setCancelled(true);
+         if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.mifron().tryShopPayment(player, event.getClickedBlock())) return;
+         player.sendMessage("\u00a7a\u6240\u6301MP: " + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId())));
+         return;
       }
-      if (this.isMifronItem(item, "friend_book") && event.getAction().isRightClick()) { this.mifron().openFriendUi(player); event.setCancelled(true); }
-      else if (this.isMifronItem(item, "quest_book") && event.getAction().isRightClick()) { this.mifron().openQuestUi(player, "categories"); event.setCancelled(true); }
-      else if (this.isReincarnationStar(item) && event.getAction().isRightClick()) { event.setCancelled(true); this.mifron().tryReincarnate(player, item); }
-      else if (this.isMifronItem(item, "teleporter") && event.getAction().isRightClick()) event.setCancelled(true);
+      if (this.isMifronItem(item, "friend_book") && event.getAction().isRightClick()) {
+         event.setCancelled(true);
+         this.mifron().openFriendUi(player);
+         this.restoreUtilityItem(player);
+      } else if (this.isMifronItem(item, "quest_book") && event.getAction().isRightClick()) {
+         event.setCancelled(true);
+         this.mifron().openQuestUi(player, "categories");
+         this.restoreUtilityItem(player);
+      } else if (this.isReincarnationStar(item) && event.getAction().isRightClick()) {
+         event.setCancelled(true);
+         this.mifron().tryReincarnate(player, item);
+      } else if (this.isMifronItem(item, "teleporter") && event.getAction().isRightClick()) {
+         event.setCancelled(true);
+      }
+   }
+
+   private void restoreUtilityItem(Player player) {
+      org.bukkit.Bukkit.getScheduler().runTask(this, () -> this.mifron().giveInitialItems(player));
    }
 
    @EventHandler
