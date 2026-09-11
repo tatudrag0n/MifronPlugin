@@ -96,12 +96,12 @@ final class QuestService {
                .toList()
          );
          return result;
-      } else if (type == QuestType.MONTHLY) {
+      } else if (type == QuestType.MONTHLY || type == QuestType.PERIODIC) {
          result.addAll(
             this.definitions
                .values()
                .stream()
-               .filter(definition -> definition.type() == QuestType.MONTHLY)
+               .filter(definition -> definition.type() == QuestType.MONTHLY || definition.type() == QuestType.PERIODIC)
                .sorted(Comparator.comparing(QuestDefinition::id))
                .toList()
          );
@@ -122,7 +122,7 @@ final class QuestService {
    boolean isVisible(Player player, QuestDefinition definition) {
       if (definition == null) {
          return false;
-      } else if (definition.type() != QuestType.SPECIAL && definition.type() != QuestType.MONTHLY) {
+      } else if (definition.type() != QuestType.SPECIAL && definition.type() != QuestType.MONTHLY && definition.type() != QuestType.PERIODIC) {
          this.ensurePeriods(player);
          return definition.isCompletionQuest()
             || this.playerSection(player.getUniqueId()).getStringList(this.questBase(definition.type()) + ".available").contains(definition.id());
@@ -189,19 +189,19 @@ final class QuestService {
    boolean claim(Player player, String questId) {
       QuestDefinition definition = this.definitions.get(questId);
       if (definition == null) {
-         player.sendMessage(ChatColor.RED + "クエストが見つかりません: " + questId);
+         player.sendMessage(ChatColor.RED + "\u30af\u30a8\u30b9\u30c8\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + questId);
          return false;
       } else {
          this.ensurePeriods(player);
          this.syncDerivedSpecialProgress(player);
          if (!this.isVisible(player, definition) || !this.isUnlocked(player, definition)) {
-            player.sendMessage(ChatColor.RED + "このクエストはまだ解放されていません。");
+            player.sendMessage(ChatColor.RED + "\u3053\u306e\u30af\u30a8\u30b9\u30c8\u306f\u307e\u3060\u89e3\u653e\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002");
             return false;
          } else if (this.isClaimed(player, definition)) {
-            player.sendMessage(ChatColor.YELLOW + "このクエスト報酬は受取済みです。");
+            player.sendMessage(ChatColor.YELLOW + "\u3053\u306e\u30af\u30a8\u30b9\u30c8\u5831\u916c\u306f\u53d7\u53d6\u6e08\u307f\u3067\u3059\u3002");
             return false;
          } else if (!this.isCompleted(player, definition)) {
-            player.sendMessage(ChatColor.RED + "クエスト条件を満たしていません。");
+            player.sendMessage(ChatColor.RED + "\u30af\u30a8\u30b9\u30c8\u6761\u4ef6\u3092\u6e80\u305f\u3057\u3066\u3044\u307e\u305b\u3093\u3002");
             return false;
          } else {
             ConfigurationSection section = this.playerSection(player.getUniqueId());
@@ -212,7 +212,7 @@ final class QuestService {
             this.plugin.saveData();
             int reward = this.effectiveReward(player, definition);
             this.plugin.depositEmeralds(player.getUniqueId(), reward);
-            player.sendMessage(ChatColor.GREEN + "クエスト報酬: " + definition.name() + " +" + this.formatNumber(reward) + "MP");
+            player.sendMessage(ChatColor.GREEN + "\u30af\u30a8\u30b9\u30c8\u5831\u916c: " + definition.name() + " +" + this.formatNumber(reward) + "MP");
             return true;
          }
       }
@@ -224,7 +224,7 @@ final class QuestService {
          this.syncDerivedSpecialProgress(player);
          boolean changed = false;
 
-         for (QuestType type : List.of(QuestType.DAILY, QuestType.WEEKLY, QuestType.MONTHLY, QuestType.ONE_SHOT, QuestType.HIDDEN, QuestType.SPECIAL)) {
+         for (QuestType type : List.of(QuestType.DAILY, QuestType.WEEKLY, QuestType.MONTHLY, QuestType.PERIODIC, QuestType.ONE_SHOT, QuestType.HIDDEN, QuestType.SPECIAL)) {
             if (this.hasQuestWithProgressKey(type, progressKey)) {
                changed |= this.addProgressAt(player.getUniqueId(), this.questBase(type) + ".progress." + progressKey, amount);
             }
@@ -267,7 +267,7 @@ final class QuestService {
    void setQuestProgress(Player player, String questId, int amount) {
       QuestDefinition definition = this.definitions.get(questId);
       if (definition == null) {
-         player.sendMessage(ChatColor.RED + "クエストが見つかりません: " + questId);
+         player.sendMessage(ChatColor.RED + "\u30af\u30a8\u30b9\u30c8\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + questId);
       } else {
          this.ensurePeriods(player);
          String path = definition.type() == QuestType.SPECIAL
@@ -275,7 +275,7 @@ final class QuestService {
             : this.questBase(definition.type()) + ".progress." + definition.progressKey();
          this.playerSection(player.getUniqueId()).set(path, Math.max(0, amount));
          this.plugin.saveData();
-         player.sendMessage(ChatColor.GREEN + definition.id() + " の進捗を " + Math.max(0, amount) + " にしました。");
+         player.sendMessage(ChatColor.GREEN + definition.id() + " \u306e\u9032\u6357\u3092 " + Math.max(0, amount) + " \u306b\u3057\u307e\u3057\u305f\u3002");
       }
    }
 
@@ -306,20 +306,20 @@ final class QuestService {
       ZonedDateTime end = switch (type) {
          case DAILY -> now.toLocalDate().plusDays(1L).atStartOfDay(zone);
          case WEEKLY -> now.plusDays(8 - now.getDayOfWeek().getValue()).toLocalDate().atStartOfDay(zone);
-         case MONTHLY -> YearMonth.now(zone).plusMonths(1L).atDay(1).atStartOfDay(zone);
+         case MONTHLY, PERIODIC -> YearMonth.now(zone).plusMonths(1L).atDay(1).atStartOfDay(zone);
          case SPECIAL, ONE_SHOT, HIDDEN -> null;
       };
       if (end == null) {
-         return "期限なし";
+         return "\u671f\u9650\u306a\u3057";
       } else {
          Duration duration = Duration.between(now, end);
          long days = duration.toDays();
          long hours = duration.minusDays(days).toHours();
          long minutes = duration.minusDays(days).minusHours(hours).toMinutes();
          if (days > 0L) {
-            return days + "日" + hours + "時間";
+            return days + "\u65e5" + hours + "\u6642\u9593";
          } else {
-            return hours > 0L ? hours + "時間" + minutes + "分" : Math.max(0L, minutes) + "分";
+            return hours > 0L ? hours + "\u6642\u9593" + minutes + "\u5206" : Math.max(0L, minutes) + "\u5206";
          }
       }
    }
@@ -329,6 +329,7 @@ final class QuestService {
       this.ensurePeriod(section, player.getUniqueId(), QuestType.DAILY, this.dailyKey());
       this.ensurePeriod(section, player.getUniqueId(), QuestType.WEEKLY, this.weeklyKey());
       this.ensurePeriod(section, player.getUniqueId(), QuestType.MONTHLY, this.monthlyKey());
+      this.ensurePeriod(section, player.getUniqueId(), QuestType.PERIODIC, this.monthlyKey());
    }
 
    private void ensurePeriod(ConfigurationSection section, UUID uuid, QuestType type, String currentKey) {
@@ -339,10 +340,10 @@ final class QuestService {
          section.set(base + ".claimed", null);
          if (type == QuestType.DAILY || type == QuestType.WEEKLY) {
             section.set(base + ".available", this.selectPeriodicQuestIds(uuid, type, currentKey));
-         } else if (type == QuestType.MONTHLY) {
+         } else if (type == QuestType.MONTHLY || type == QuestType.PERIODIC) {
             section.set(
                base + ".available",
-               this.definitions.values().stream().filter(definition -> definition.type() == QuestType.MONTHLY).map(QuestDefinition::id).sorted().toList()
+               this.definitions.values().stream().filter(definition -> definition.type() == type).map(QuestDefinition::id).sorted().toList()
             );
          }
 
