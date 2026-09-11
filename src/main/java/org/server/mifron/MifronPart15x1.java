@@ -133,7 +133,10 @@ abstract class MifronPart15x1 extends MifronPart15 {
    }
 
    int getEmeralds(UUID uuid) {
-      return Math.max(0, Math.min(2000000000, this.mifron().getPlayerSection(uuid).getInt("emeralds", 0)));
+      if (uuid == null) return 0;
+      synchronized (this.mifron().economyLock(uuid)) {
+         return Math.max(0, Math.min(2000000000, this.mifron().getPlayerSection(uuid).getInt("emeralds", 0)));
+      }
    }
 
    void depositEmeralds(UUID uuid, int amount) {
@@ -144,11 +147,13 @@ abstract class MifronPart15x1 extends MifronPart15 {
 
    void refundEmeralds(UUID uuid, int amount) {
       if (uuid == null || amount <= 0) return;
-      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
-      int before = this.mifron().getEmeralds(uuid);
-      int after = this.mifron().safeAdd(before, amount);
-      section.set("emeralds", after);
-      this.trackEconomyAnalytics(uuid, "mp_earned", Math.max(0, after - before), after, "refund");
+      synchronized (this.mifron().economyLock(uuid)) {
+         ConfigurationSection section = this.mifron().getPlayerSection(uuid);
+         int before = this.mifron().getEmeralds(uuid);
+         int after = this.mifron().safeAdd(before, amount);
+         section.set("emeralds", after);
+         this.trackEconomyAnalytics(uuid, "mp_earned", Math.max(0, after - before), after, "refund");
+      }
       this.queueDataSave();
    }
 }
