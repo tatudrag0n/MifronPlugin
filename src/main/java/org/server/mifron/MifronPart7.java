@@ -38,13 +38,14 @@ abstract class MifronPart7 extends MifronPart6x2 {
       }
    }
 
-   @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+   @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
    public void onPlayerMove(PlayerMoveEvent event) {
       Location to = event.getTo();
       Location from = event.getFrom();
       if (to == null || (from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY() && from.getBlockZ() == to.getBlockZ())) return;
       Player player = event.getPlayer();
       JumpPadPower power = this.jumpPadPower(to.clone().subtract(0.0, 1.0, 0.0).getBlock());
+      if (power == null) power = this.jumpPadPower(to.getBlock());
       if (power == null) return;
       long now = System.currentTimeMillis();
       if (now - this.lastJumpPadUse.getOrDefault(player.getUniqueId(), 0L) < 650L) return;
@@ -98,7 +99,10 @@ abstract class MifronPart7 extends MifronPart6x2 {
       }
       ConfigurationSection section = this.data.getConfigurationSection(path);
       if (section == null) return null;
-      if (!block.getType().name().equals(section.getString("material", ""))) return null;
+      String saved = section.getString("material", "");
+      if (saved != null && !saved.isBlank() && !saved.equals(block.getType().name()) && !"AIR".equals(block.getType().name())) {
+         this.data.set(path + ".material", block.getType().name());
+      }
       if (section.contains("power")) {
          int power = this.oldJumpPadPowerToNewPower(section.getInt("power", 3));
          this.setJumpPad(block, power, power);
