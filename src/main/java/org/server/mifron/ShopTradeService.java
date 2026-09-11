@@ -44,7 +44,7 @@ final class ShopTradeService {
          player.sendMessage(ChatColor.RED + "\u7279\u6b8a\u30a2\u30a4\u30c6\u30e0\u306f\u58f2\u8cb7\u3067\u304d\u307e\u305b\u3093\u3002");
          return;
       }
-      this.trade(player, block, "BUY_SHELF".equals(shopType), displayed, hand, this.store.slotPrice(block, slot));
+      this.trade(player, block, shopType, displayed, hand, this.store.slotPrice(block, slot));
    }
 
    void tradeBarrel(Player player, Block block, String shopType, ItemStack hand) {
@@ -68,14 +68,35 @@ final class ShopTradeService {
          player.sendMessage(ChatColor.YELLOW + "\u6a3d\u306b\u5546\u54c1\u304c\u5165\u3063\u3066\u3044\u307e\u305b\u3093\u3002");
          return;
       }
-      this.trade(player, block, "BUY_BARREL".equals(shopType), displayed, hand, this.store.slotPrice(block, 0));
+      this.trade(player, block, shopType, displayed, hand, this.store.slotPrice(block, 0));
    }
 
-   private void trade(Player player, Block block, boolean buyShop, ItemStack displayed, ItemStack hand, int price) {
+   private void trade(Player player, Block block, String shopType, ItemStack displayed, ItemStack hand, int price) {
+      boolean buyShop = "BUY_SHELF".equals(shopType) || "BUY_BARREL".equals(shopType);
       if (buyShop) {
          if (hand == null || hand.getType() != displayed.getType() || this.isSpecial(hand) || this.isWallet(hand)) {
             player.sendMessage(ChatColor.GOLD + "\u8cb7\u53d6: " + displayed.getType().name() + " = " + price + " MP");
             return;
+         }
+         if (price <= 0) {
+            player.sendMessage(ChatColor.RED + "\u8cb7\u53d6\u4fa1\u683c\u304c\u8a2d\u5b9a\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002");
+            return;
+         }
+         if ("BUY_BARREL".equals(shopType)) {
+            Block below = block.getRelative(BlockFace.DOWN);
+            if (below.getType() == Material.HOPPER && below.getState() instanceof Hopper hopper) {
+               ItemStack taken = displayed.clone();
+               taken.setAmount(1);
+               if (hopper.getInventory().addItem(taken).isEmpty()) {
+                  hand.setAmount(hand.getAmount() - 1);
+                  this.plugin.depositEmeralds(player.getUniqueId(), price);
+                  this.store.touch(block);
+                  player.sendMessage(ChatColor.GOLD + displayed.getType().name() + " \u3092 " + price + " MP \u3067\u58f2\u5374\u3057\u307e\u3057\u305f\u3002");
+                  return;
+               }
+               player.sendMessage(ChatColor.RED + "\u30db\u30c3\u30d1\u30fc\u304c\u6e80\u676f\u3067\u3059\u3002");
+               return;
+            }
          }
          hand.setAmount(hand.getAmount() - 1);
          this.plugin.depositEmeralds(player.getUniqueId(), price);
