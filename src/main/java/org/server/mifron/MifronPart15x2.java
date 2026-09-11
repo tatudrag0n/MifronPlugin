@@ -8,25 +8,63 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
 abstract class MifronPart15x2 extends MifronPart15x1 {
-   protected void depositEmeralds(UUID uuid, int amount, boolean persist) {
-      if (amount <= 0) return;
-      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
-      int added = Math.min(amount, 2000000000);
-      int before = this.mifron().getEmeralds(uuid);
-      int after = this.mifron().safeAdd(before, added);
-      int credited = Math.max(0, after - before);
-      section.set("emeralds", after);
-      this.trackEconomyAnalytics(uuid, "mp_earned", credited, after, "unclassified");
-      section.set("total-earned-emeralds", this.mifron().safeAdd(section.getInt("total-earned-emeralds", 0), credited));
-      if (credited > 0 && !section.getBoolean("analytics.first-mp-earned-recorded", false)) {
-         section.set("analytics.first-mp-earned-pending", true);
-         Player player = Bukkit.getPlayer(uuid);
-         if (player != null) this.flushPendingFirstMpEvent(player);
+   protected Object economyLock(UUID uuid) {
+      return this.economyLocks.computeIfAbsent(uuid, key -> new Object());
+   }
+
+   protected void withEconomyLocks(UUID first, UUID second, Runnable action) {
+      if (first.equals(second)) {
+         synchronized (this.economyLock(first)) {
+            action.run();
+         }
+         return;
       }
-      if (credited > 0 && !section.getBoolean("analytics.first-reward-recorded", false)) {
-         section.set("analytics.first-reward-recorded", true);
-         Player player = Bukkit.getPlayer(uuid);
-         if (player != null) this.mifron().trackAnalytics(player, "first_reward", "first-reward:" + uuid);
+      UUID a = first.compareTo(second) < 0 ? first : second;
+      UUID b = first.compareTo(second) < 0 ? second : first;
+      synchronized (this.economyLock(a)) {
+         synchronized (this.economyLock(b)) {
+            action.run();
+         }
+      }
+   }
+
+   boolean transferEmeralds(UUID from, UUID to, int amount) {
+      if (from == null || to == null || amount <= 0 || from.equals(to)) return false;
+      boolean[] ok = {false};
+      this.mifron().withEconomyLocks(from, to, () -> {
+         if (!this.mifron().withdrawEmeralds(from, amount, false)) return;
+         this.mifron().depositEmeralds(to, amount, false);
+         this.queueDataSave();
+         ok[0] = true;
+      });
+      if (ok[0]) {
+         Player online = Bukkit.getPlayer(to);
+         if (online != null) this.recordQuestProgress(online, "mp_gained", amount);
+      }
+      return ok[0];
+   }
+
+   protected void depositEmeralds(UUID uuid, int amount, boolean persist) {
+      if (uuid == null || amount <= 0) return;
+      synchronized (this.mifron().economyLock(uuid)) {
+         ConfigurationSection section = this.mifron().getPlayerSection(uuid);
+         int added = Math.min(amount, 2000000000);
+         int before = this.mifron().getEmeralds(uuid);
+         int after = this.mifron().safeAdd(before, added);
+         int credited = Math.max(0, after - before);
+         section.set("emeralds", after);
+         this.trackEconomyAnalytics(uuid, "mp_earned", credited, after, "unclassified");
+         section.set("total-earned-emeralds", this.mifron().safeAdd(section.getInt("total-earned-emeralds", 0), credited));
+         if (credited > 0 && !section.getBoolean("analytics.first-mp-earned-recorded", false)) {
+            section.set("analytics.first-mp-earned-pending", true);
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) this.flushPendingFirstMpEvent(player);
+         }
+         if (credited > 0 && !section.getBoolean("analytics.first-reward-recorded", false)) {
+            section.set("analytics.first-reward-recorded", true);
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) this.mifron().trackAnalytics(player, "first_reward", "first-reward:" + uuid);
+         }
       }
       if (persist) this.queueDataSave();
    }
@@ -36,14 +74,18 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
    }
 
    protected boolean withdrawEmeralds(UUID uuid, int amount, boolean persist) {
-      if (amount <= 0) return false;
-      ConfigurationSection section = this.mifron().getPlayerSection(uuid);
-      int current = this.mifron().getEmeralds(uuid);
-      if (current < amount) return false;
-      section.set("emeralds", current - amount);
-      this.trackEconomyAnalytics(uuid, "mp_spent", amount, current - amount, "unclassified");
+      if (uuid == null || amount <= 0) return false;
+      boolean ok;
+      synchronized (this.mifron().economyLock(uuid)) {
+         ConfigurationSection section = this.mifron().getPlayerSection(uuid);
+         int current = this.mifron().getEmeralds(uuid);
+         if (current < amount) return false;
+         section.set("emeralds", current - amount);
+         this.trackEconomyAnalytics(uuid, "mp_spent", amount, current - amount, "unclassified");
+         ok = true;
+      }
       if (persist) this.queueDataSave();
-      return true;
+      return ok;
    }
 
    protected int safeAdd(int current, int amount) {
