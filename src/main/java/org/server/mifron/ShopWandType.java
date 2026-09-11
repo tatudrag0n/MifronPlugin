@@ -23,12 +23,13 @@ enum ShopWandType {
    }
 
    static ShopWandType fromKey(String raw) {
-      if (raw != null && !raw.isBlank()) {
-         String normalized = raw.toLowerCase(Locale.ROOT);
-         return Arrays.stream(values()).filter(type -> type.key.equals(normalized)).findFirst().orElse(null);
-      } else {
-         return null;
+      if (raw == null || raw.isBlank()) return null;
+      String normalized = raw.toLowerCase(Locale.ROOT).replace('-', '_');
+      if (!normalized.startsWith("slot_") && (normalized.equals("easy") || normalized.equals("normal") || normalized.equals("hard") || normalized.equals("expert"))) {
+         normalized = "slot_" + normalized;
       }
+      if (normalized.equals("slot") || normalized.equals("slotwand") || normalized.equals("slot_wand")) normalized = "slot_normal";
+      return Arrays.stream(values()).filter(type -> type.key.equals(normalized)).findFirst().orElse(null);
    }
 
    boolean isSlotWand() {
@@ -37,16 +38,11 @@ enum ShopWandType {
 
    SlotMachineManager.Difficulty getSlotDifficulty() {
       switch (this) {
-         case SLOT_EASY:
-            return SlotMachineManager.Difficulty.EASY;
-         case SLOT_NORMAL:
-            return SlotMachineManager.Difficulty.NORMAL;
-         case SLOT_HARD:
-            return SlotMachineManager.Difficulty.HARD;
-         case SLOT_EXPERT:
-            return SlotMachineManager.Difficulty.EXPERT;
-         default:
-            return null;
+         case SLOT_EASY: return SlotMachineManager.Difficulty.EASY;
+         case SLOT_NORMAL: return SlotMachineManager.Difficulty.NORMAL;
+         case SLOT_HARD: return SlotMachineManager.Difficulty.HARD;
+         case SLOT_EXPERT: return SlotMachineManager.Difficulty.EXPERT;
+         default: return null;
       }
    }
 }

@@ -14,12 +14,20 @@ import org.bukkit.generator.WorldInfo;
 public final class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
       if (args.length == 1 && this.isMifronRootCommand(command)) {
-         return List.of(
+         List<String> all = new ArrayList<>(List.of(
             "check", "list", "tp", "text", "ffa", "structure", "build", "proposal", "gamerules",
             "info", "reload", "kit", "balance", "pay", "merchant", "marchant", "minigame", "athletic",
             "quest", "mp", "regen", "chunk", "status", "tutorial", "shelfshop", "shopwand", "slotwand",
-            "jumppadwand", "serverwand", "sethub", "setserver", "delserver", "warning"
-         );
+            "jumppadwand", "serverwand", "sethub", "setserver", "delserver", "serverorder", "servericon", "warning"
+         ));
+         if (!sender.isOp() && !sender.hasPermission("mifron.admin")) {
+            all.removeAll(List.of("reload", "regen", "gamerules", "kit", "shopwand", "slotwand", "jumppadwand",
+               "serverwand", "sethub", "setserver", "delserver", "serverorder", "servericon", "text", "structure", "warning", "mp"));
+         }
+         String prefix = args[0].toLowerCase();
+         List<String> matched = new ArrayList<>();
+         for (String value : all) if (value.startsWith(prefix)) matched.add(value);
+         return matched;
       }
       if (args.length >= 2 && this.isMifronRootCommand(command) && "text".equalsIgnoreCase(args[0])) return this.textDisplayFeature.tabComplete(args);
       if (args.length >= 2 && this.isMifronRootCommand(command) && "ffa".equalsIgnoreCase(args[0])) return this.ffaManager.tabComplete(args, sender);
