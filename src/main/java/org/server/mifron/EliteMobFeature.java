@@ -82,8 +82,11 @@ public class EliteMobFeature implements Listener {
             event.setDroppedExp(event.getDroppedExp() * 5);
             Player killer = entity.getKiller();
             if (killer != null) {
-                plugin.depositEmeralds(killer.getUniqueId(), 250);
-                killer.sendMessage(ChatColor.GOLD + "⚔️ エリートモブを討伐した！ (+250 MP & ドロップ5倍)");
+                String typeName = entity.getType().name();
+                int base = plugin.getConfig().getInt("elite-mobs.base-mp." + typeName, 10);
+                int reward = Math.max(5, base) * 5;
+                plugin.depositEmeralds(killer.getUniqueId(), reward);
+                killer.sendMessage(ChatColor.GOLD + "⚔️ エリートモブを討伐した！ (+" + reward + " MP / 5倍 & ドロップ5倍)");
                 killer.playSound(killer.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1.2f);
             }
         }

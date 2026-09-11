@@ -29,15 +29,8 @@ abstract class MifronPart18x2 extends MifronPart18x1 {
             OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);
             if (target != null) this.mifron().removeFriend(player, target);
          }
-         case "chat" -> {
-            if (args.length < 3) { player.sendMessage("\u00a7c/friend chat <player> <message>"); return true; }
-            OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);
-            if (target != null) {
-               String message = this.sanitizeTextInput(String.join(" ", List.of(args).subList(2, args.length)), 256);
-               this.sendFriendChat(player, target, message);
-            }
-         }
-         default -> player.sendMessage("\u00a7e/friend add|accept|remove|chat");
+         case "chat" -> player.sendMessage("\u00a7c\u30d5\u30ec\u30f3\u30c9\u30c1\u30e3\u30c3\u30c8\u306f\u5ec3\u6b62\u3057\u307e\u3057\u305f\u3002Discord\u306eVC\u3092\u4f7f\u3063\u3066\u304f\u3060\u3055\u3044\u3002");
+         default -> player.sendMessage("\u00a7e/friend add|accept|remove");
       }
       return true;
    }

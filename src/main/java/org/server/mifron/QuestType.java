@@ -4,6 +4,7 @@ enum QuestType {
    DAILY("daily", "デイリー"),
    WEEKLY("weekly", "ウィークリー"),
    MONTHLY("monthly", "マンスリー"),
+   PERIODIC("periodic", "定期"),
    SPECIAL("special", "スペシャル"),
    ONE_SHOT("one_shot", "単発"),
    HIDDEN("hidden", "隠し");

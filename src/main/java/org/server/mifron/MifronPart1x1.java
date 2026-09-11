@@ -76,6 +76,11 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register advanced anvil events", () -> Bukkit.getPluginManager().registerEvents(this.advancedAnvilFeature, this));
       this.mifron().runStartupStep("register shop block events", () -> Bukkit.getPluginManager().registerEvents(this.shopBlockFeature, this));
       this.mifron().runStartupStep("register quest proposal events", () -> Bukkit.getPluginManager().registerEvents(this.questProposalFeature, this));
+      this.mifron().runStartupStep("register world policy events", () -> Bukkit.getPluginManager().registerEvents(this.worldPolicyFeature, this));
+      this.mifron().runStartupStep("register special item events", () -> Bukkit.getPluginManager().registerEvents(this.specialItemsFeature, this));
+      this.mifron().runStartupStep("register elite mob events", () -> Bukkit.getPluginManager().registerEvents(this.eliteMobFeature, this));
+      this.mifron().runStartupStep("register store item events", () -> Bukkit.getPluginManager().registerEvents(this.storeItemFeature, this));
+      this.mifron().runStartupStep("register enchant max display events", () -> Bukkit.getPluginManager().registerEvents(this.enchantMaxDisplayFeature, this));
       if (Bukkit.getPluginManager().getPlugin("Geyser-Spigot") != null) {
          this.bedrockUiFeature = new BedrockUiFeature((Mifron) this);
          this.getLogger().info("Bedrock mobile Forms UI enabled through Geyser.");
@@ -92,6 +97,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
          this.onlineShopFeature = new OnlineShopFeature((Mifron) this);
          Bukkit.getPluginManager().registerEvents(this.onlineShopFeature, this);
       });
+      this.mifron().runStartupStep("apply world policy", this.worldPolicyFeature::apply);
       this.mifron().runStartupStep("apply world spawn locations", this.mifron()::applyWorldSpawnLocations);
       this.mifron().runStartupStep("normalize merchants", this.mifron()::normalizeMerchants);
       Bukkit.getScheduler().runTaskTimer(this, this.worldRulesFeature::enforceFixedDayWorlds, 1L, 100L);
