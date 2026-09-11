@@ -42,7 +42,7 @@ final class UtilityItemsFeature implements Listener {
    void giveInitialItems(Player player) {
       this.removeMifronItems(player, "hub_compass");
       this.updateOrGiveMifronItem(player, "online_shop", this.createMifronItem(
-         Material.CHEST, "online_shop", ChatColor.AQUA + "OnlineShop", List.of(ChatColor.GRAY + "右クリック: 商品一覧を開く")
+         Material.IRON_DOOR, "online_shop", ChatColor.AQUA + "OnlineShop", List.of(ChatColor.GRAY + "右クリック: 商品一覧を開く（Survivalのみ）")
       ));
       this.updateOrGiveMifronItem(
          player,
@@ -125,21 +125,13 @@ final class UtilityItemsFeature implements Listener {
    }
 
    private String getDifficultyDisplayName(SlotMachineManager.Difficulty difficulty) {
-      if (difficulty == null) {
-         return "不明";
-      }
-
+      if (difficulty == null) return "不明";
       switch (difficulty) {
-         case EASY:
-            return ChatColor.GREEN + "イージー";
-         case NORMAL:
-            return ChatColor.YELLOW + "ノーマル";
-         case HARD:
-            return ChatColor.RED + "ハード";
-         case EXPERT:
-            return "" + ChatColor.DARK_RED + ChatColor.BOLD + "エキスパート";
-         default:
-            return "不明";
+         case EASY: return ChatColor.GREEN + "イージー";
+         case NORMAL: return ChatColor.YELLOW + "ノーマル";
+         case HARD: return ChatColor.RED + "ハード";
+         case EXPERT: return "" + ChatColor.DARK_RED + ChatColor.BOLD + "エキスパート";
+         default: return "不明";
       }
    }
 
@@ -164,42 +156,27 @@ final class UtilityItemsFeature implements Listener {
    }
 
    int getJumpPadVerticalPower(ItemStack item) {
-      if (!this.isMifronItem(item, "jump_pad_wand")) {
-         return 5;
-      }
-
+      if (!this.isMifronItem(item, "jump_pad_wand")) return 5;
       PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
       Integer power = (Integer)container.get(this.jumpPadVerticalPowerKey, PersistentDataType.INTEGER);
-      if (power != null) {
-         return this.clampJumpPadPower(power);
-      }
-
+      if (power != null) return this.clampJumpPadPower(power);
       Integer oldPower = (Integer)container.get(this.jumpPadPowerKey, PersistentDataType.INTEGER);
       return oldPower == null ? 5 : this.oldPowerToNewPower(oldPower);
    }
 
    int getJumpPadHorizontalPower(ItemStack item) {
-      if (!this.isMifronItem(item, "jump_pad_wand")) {
-         return 5;
-      }
-
+      if (!this.isMifronItem(item, "jump_pad_wand")) return 5;
       PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
       Integer power = (Integer)container.get(this.jumpPadHorizontalPowerKey, PersistentDataType.INTEGER);
-      if (power != null) {
-         return this.clampJumpPadPower(power);
-      }
-
+      if (power != null) return this.clampJumpPadPower(power);
       Integer oldPower = (Integer)container.get(this.jumpPadPowerKey, PersistentDataType.INTEGER);
       return oldPower == null ? 5 : this.oldPowerToNewPower(oldPower);
    }
 
    boolean hasMifronItem(Player player, String id) {
       for (ItemStack item : player.getInventory().getContents()) {
-         if (this.isMifronItem(item, id)) {
-            return true;
-         }
+         if (this.isMifronItem(item, id)) return true;
       }
-
       return false;
    }
 
@@ -220,18 +197,16 @@ final class UtilityItemsFeature implements Listener {
       if (this.isShopWand(item) && item != null && item.hasItemMeta()) {
          String raw = (String)MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.shopWandTypeKey, PersistentDataType.STRING);
          return ShopWandType.fromKey(raw);
-      } else {
-         return null;
       }
+      return null;
    }
 
    String getMifronItemId(ItemStack item) {
       if (item != null && item.hasItemMeta()) {
          PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
          return (String)MifronPdc.get(container, this.mifronItemKey, PersistentDataType.STRING);
-      } else {
-         return null;
       }
+      return null;
    }
 
    @EventHandler(ignoreCancelled = true)
@@ -245,7 +220,7 @@ final class UtilityItemsFeature implements Listener {
 
    private void giveMifronItemIfMissing(Player player, String id, ItemStack item) {
       if (!this.hasMifronItem(player, id)) {
-         Map<Integer, ItemStack> leftovers = player.getInventory().addItem(new ItemStack[]{item});
+         Map leftovers = player.getInventory().addItem(new ItemStack[]{item});
          if (!leftovers.isEmpty()) {
             player.sendMessage(ChatColor.YELLOW + "インベントリに空きがないため、初期アイテムを配布できませんでした: " + id);
          }
@@ -254,12 +229,9 @@ final class UtilityItemsFeature implements Listener {
 
    private void updateOrGiveMifronItem(Player player, String id, ItemStack template) {
       boolean found = false;
-
       for (ItemStack item : player.getInventory().getContents()) {
          if (this.isMifronItem(item, id)) {
-            if (item.getType() != template.getType()) {
-               item.setType(template.getType());
-            }
+            if (item.getType() != template.getType()) item.setType(template.getType());
             ItemMeta meta = item.getItemMeta();
             ItemMeta templateMeta = template.getItemMeta();
             meta.displayName(templateMeta.displayName());
@@ -269,43 +241,26 @@ final class UtilityItemsFeature implements Listener {
                bookMeta.setAuthor(templateBookMeta.getAuthor());
                bookMeta.pages(templateBookMeta.pages());
             }
-
             item.setItemMeta(meta);
             found = true;
          }
       }
-
-      if (!found) {
-         this.giveMifronItemIfMissing(player, id, template);
-      }
+      if (!found) this.giveMifronItemIfMissing(player, id, template);
    }
 
    private void removeMifronItems(Player player, String id) {
       ItemStack[] contents = player.getInventory().getContents();
-
       for (int slot = 0; slot < contents.length; slot++) {
-         if (this.isMifronItem(contents[slot], id)) {
-            player.getInventory().setItem(slot, null);
-         }
+         if (this.isMifronItem(contents[slot], id)) player.getInventory().setItem(slot, null);
       }
    }
 
    private ItemStack createStatusBook() {
-      return this.createMifronItem(
-         Material.NETHER_STAR,
-         "friend_book",
-         ChatColor.GOLD + "ステータス",
-         List.of(ChatColor.GRAY + "右クリック: ステータス UI")
-      );
+      return this.createMifronItem(Material.NETHER_STAR, "friend_book", ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "右クリック: ステータス UI"));
    }
 
    private ItemStack createQuestBook() {
-      return this.createMifronItem(
-         Material.KNOWLEDGE_BOOK,
-         "quest_book",
-         ChatColor.AQUA + "クエスト",
-         List.of(ChatColor.GRAY + "右クリック: クエスト UI")
-      );
+      return this.createMifronItem(Material.KNOWLEDGE_BOOK, "quest_book", ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "右クリック: クエスト UI"));
    }
 
    private ItemStack createMifronItem(Material material, String id, String name, List<String> lore) {
@@ -319,10 +274,7 @@ final class UtilityItemsFeature implements Listener {
       meta.lore(lore.stream().map(Component::text).toList());
       meta.addItemFlags(new ItemFlag[]{ItemFlag.HIDE_ATTRIBUTES});
       meta.getPersistentDataContainer().set(this.mifronItemKey, PersistentDataType.STRING, id);
-      if (customizer != null) {
-         customizer.accept(meta);
-      }
-
+      if (customizer != null) customizer.accept(meta);
       item.setItemMeta(meta);
       return item;
    }
