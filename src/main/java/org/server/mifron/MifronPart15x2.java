@@ -1,9 +1,12 @@
 package org.server.mifron;
 
+import io.papermc.paper.advancement.AdvancementDisplay;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
+import org.bukkit.advancement.Advancement;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
@@ -14,17 +17,13 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
 
    protected void withEconomyLocks(UUID first, UUID second, Runnable action) {
       if (first.equals(second)) {
-         synchronized (this.economyLock(first)) {
-            action.run();
-         }
+         synchronized (this.economyLock(first)) { action.run(); }
          return;
       }
       UUID a = first.compareTo(second) < 0 ? first : second;
       UUID b = first.compareTo(second) < 0 ? second : first;
       synchronized (this.economyLock(a)) {
-         synchronized (this.economyLock(b)) {
-            action.run();
-         }
+         synchronized (this.economyLock(b)) { action.run(); }
       }
    }
 
@@ -135,7 +134,7 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
    }
 
    protected int getTotalIncomeBonus(UUID uuid) {
-      return this.mifron().getReincarnationBonus(uuid);
+      return this.mifron().safeAdd(this.mifron().getReincarnationBonus(uuid), this.mifron().getAdvancementBonus(uuid));
    }
 
    protected int updateAdvancementBonus(UUID uuid, Set<String> completed) {
@@ -148,7 +147,25 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
    }
 
    protected int calculateAdvancementBonus(Set<String> completed) {
-      return 0;
+      if (completed == null || completed.isEmpty()) return 0;
+      int total = 0;
+      for (String key : completed) {
+         total = this.mifron().safeAdd(total, this.bonusPercentForAdvancementKey(key));
+      }
+      return total;
+   }
+
+   protected int bonusPercentForAdvancementKey(String fullKey) {
+      if (fullKey == null || fullKey.isBlank()) return 0;
+      String shortKey = fullKey.contains(":") ? fullKey.substring(fullKey.indexOf(':') + 1) : fullKey;
+      ConfigurationSection special = this.getConfig().getConfigurationSection("advancement-unlocks." + shortKey);
+      if (special != null && special.contains("bonus-percent")) {
+         return Math.max(0, special.getInt("bonus-percent"));
+      }
+      Advancement advancement = Bukkit.getAdvancement(NamespacedKey.fromString(fullKey));
+      AdvancementDisplay display = advancement == null ? null : advancement.getDisplay();
+      AdvancementDisplay.Frame frame = display == null ? AdvancementDisplay.Frame.TASK : display.frame();
+      return this.mifron().advancementBonus(frame);
    }
 
    protected void addAdvancementBonus(UUID uuid, int percent) {
