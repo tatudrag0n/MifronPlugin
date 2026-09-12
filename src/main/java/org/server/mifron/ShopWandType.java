@@ -1,6 +1,5 @@
 package org.server.mifron;
 
-import java.util.Arrays;
 import java.util.Locale;
 
 enum ShopWandType {
@@ -28,8 +27,13 @@ enum ShopWandType {
       if (!normalized.startsWith("slot_") && (normalized.equals("easy") || normalized.equals("normal") || normalized.equals("hard") || normalized.equals("expert"))) {
          normalized = "slot_" + normalized;
       }
-      if (normalized.equals("slot") || normalized.equals("slotwand") || normalized.equals("slot_wand")) normalized = "slot_normal";
-      return Arrays.stream(values()).filter(type -> type.key.equals(normalized)).findFirst().orElse(null);
+      if (normalized.equals("slot") || normalized.equals("slotwand") || normalized.equals("slot_wand")) {
+         normalized = "slot_normal";
+      }
+      for (ShopWandType type : values()) {
+         if (type.key.equals(normalized)) return type;
+      }
+      return null;
    }
 
    boolean isSlotWand() {
