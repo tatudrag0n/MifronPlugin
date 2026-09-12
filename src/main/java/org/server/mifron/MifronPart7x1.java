@@ -49,6 +49,7 @@ abstract class MifronPart7x1 extends MifronPart7 {
       ));
       meta.getPersistentDataContainer().set(this.barrelOfferPriceKey, PersistentDataType.INTEGER, price);
       meta.getPersistentDataContainer().set(this.barrelOfferRarityKey, PersistentDataType.STRING, offer.rarity());
+      meta.getPersistentDataContainer().set(this.barrelOfferTokenKey(), PersistentDataType.STRING, UUID.randomUUID().toString());
       item.setItemMeta(meta);
       return item;
    }
@@ -56,12 +57,22 @@ abstract class MifronPart7x1 extends MifronPart7 {
    protected int barrelOfferPrice(MerchantOffer offer) {
       return (int) Math.max(1L, Math.min(2000000000L, (long) Math.max(1, offer.price()) * (75 + this.random.nextInt(51)) / 100L));
    }
+
+   protected NamespacedKey barrelOfferTokenKey() {
+      return new NamespacedKey(this, "barrel_offer_token");
+   }
    protected String barrelTierName(String tier) { return "bargain".equals(tier) ? "\u6398\u308a\u51fa\u3057\u7269" : "\u30b8\u30e3\u30f3\u30af"; }
    protected NamedTextColor barrelTierColor(String tier) { return "bargain".equals(tier) ? NamedTextColor.AQUA : NamedTextColor.GRAY; }
    protected int discountedPrice(int price, int discountPercent) { return Math.max(1, (int) ((long) Math.max(1, price) * (100 - discountPercent) / 100L)); }
 
    protected void buyBarrelOffer(Player player, ItemStack displayed, int selectedSlot, Inventory inventory) {
-      if (displayed == null || displayed.getType() == Material.AIR || !displayed.hasItemMeta()) return;
+      if (player == null || displayed == null || displayed.getType() == Material.AIR || !displayed.hasItemMeta()
+         || inventory == null || selectedSlot < 0 || selectedSlot >= inventory.getSize()) return;
+      ItemStack current = inventory.getItem(selectedSlot);
+      if (current == null || current.getType() == Material.AIR || !current.hasItemMeta()) return;
+      String displayedToken = displayed.getItemMeta().getPersistentDataContainer().get(this.barrelOfferTokenKey(), PersistentDataType.STRING);
+      String currentToken = current.getItemMeta().getPersistentDataContainer().get(this.barrelOfferTokenKey(), PersistentDataType.STRING);
+      if (displayedToken == null || currentToken == null || !displayedToken.equals(currentToken)) return;
       Integer basePrice = displayed.getItemMeta().getPersistentDataContainer().get(this.barrelOfferPriceKey, PersistentDataType.INTEGER);
       if (basePrice == null || basePrice <= 0) return;
       int price = this.mifron().applyShopDiscount(player, basePrice);
