@@ -15,7 +15,7 @@ public final class Mifron extends MifronPart18x2 implements Listener, TabExecuto
    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
       if (args.length == 1 && this.isMifronRootCommand(command)) {
          List<String> all = new ArrayList<>(List.of(
-            "check", "list", "tp", "text", "ffa", "structure", "build", "proposal", "gamerules",
+            "check", "list", "tp", "text", "ffa", "structure", "build", "proposal", "vote", "gamerules",
             "info", "reload", "kit", "balance", "pay", "merchant", "marchant", "minigame", "athletic",
             "quest", "mp", "regen", "chunk", "status", "tutorial", "shelfshop", "shopwand", "slotwand",
             "jumppadwand", "serverwand", "sethub", "setserver", "delserver", "serverorder", "servericon", "warning"

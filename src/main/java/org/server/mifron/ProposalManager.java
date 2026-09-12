@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map.Entry;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -77,6 +78,48 @@ final class ProposalManager {
       } else {
          return List.of();
       }
+   }
+
+   List<String> pendingIds() {
+      this.ensureLoaded();
+      ConfigurationSection pending = this.data.getConfigurationSection("proposals.pending");
+      return pending == null ? List.of() : pending.getKeys(false).stream().sorted().toList();
+   }
+
+   ConfigurationSection pendingProposal(String id) {
+      this.ensureLoaded();
+      return id == null ? null : this.data.getConfigurationSection("proposals.pending." + id);
+   }
+
+   int voteCount(String id) {
+      ConfigurationSection section = this.pendingProposal(id);
+      if (section == null) return 0;
+      List<String> voters = section.getStringList("voters");
+      return voters.isEmpty() ? Math.max(0, section.getInt("votes", 0)) : voters.size();
+   }
+
+   boolean hasVoted(String id, UUID voter) {
+      ConfigurationSection section = this.pendingProposal(id);
+      return section != null && voter != null && section.getStringList("voters").contains(voter.toString());
+   }
+
+   boolean toggleVote(String id, UUID voter) {
+      if (id == null || voter == null) return false;
+      this.ensureLoaded();
+      ConfigurationSection section = this.data.getConfigurationSection("proposals.pending." + id);
+      if (section == null) return false;
+      List<String> voters = new ArrayList<>(section.getStringList("voters"));
+      boolean voted;
+      if (voters.remove(voter.toString())) {
+         voted = false;
+      } else {
+         voters.add(voter.toString());
+         voted = true;
+      }
+      section.set("voters", voters);
+      section.set("votes", voters.size());
+      this.save();
+      return voted;
    }
 
    private boolean list(CommandSender sender) {

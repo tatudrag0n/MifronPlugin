@@ -11,7 +11,7 @@ import org.bukkit.inventory.ItemStack;
 abstract class MifronPart17 extends MifronPart16 {
    protected boolean handleMifronCommand(CommandSender sender, String[] args) {
       if (args.length == 0) {
-         sender.sendMessage("\u00a7e/mf check|list|tp|balance|pay|quest|status|tutorial|athletic|minigame|ffa|build|proposal");
+         sender.sendMessage("\u00a7e/mf check|list|tp|balance|pay|quest|status|tutorial|athletic|minigame|ffa|build|proposal|vote");
          return true;
       }
       if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "ffa", "structure", "proposal", "shelfshop").contains(args[0].toLowerCase(Locale.ROOT))) {
@@ -27,6 +27,10 @@ abstract class MifronPart17 extends MifronPart16 {
          case "structure" -> { if (this.denyUnlessAdmin(sender)) return true; this.structureManager.handleCommand(sender, args); }
          case "build" -> this.buildWorldManager.handleCommand(sender, args);
          case "proposal" -> this.proposalManager.handleCommand(sender, args);
+         case "vote" -> {
+            if (sender instanceof Player voter) this.openProposalUi(voter, 0);
+            else sender.sendMessage("Player only.");
+         }
          case "gamerules" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleGamerulesCommand(sender, args); }
          case "info" -> this.mifron().handleInfoCommand(sender);
          case "reload" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleReloadCommand(sender); }
