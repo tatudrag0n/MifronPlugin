@@ -32,7 +32,7 @@ if [ ! -f "$ENV_FILE" ]; then
   sudo tee "$ENV_FILE" >/dev/null <<'EOF'
 # Optional. Keep secrets on the VM only.
 # DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-HEALTH_TIMEOUT=120
+HEALTH_TIMEOUT=300
 # Required consecutive healthy seconds after restart.
 HEALTH_STABLE_SECONDS=8
 MINECRAFT_HOST=127.0.0.1
@@ -54,187 +54,19 @@ PLUGINS_DIR='$PLUGINS_DIR'
 SERVICE_NAME='$SERVICE_NAME'
 STATE_DIR='$STATE_DIR'
 ENV_FILE='$ENV_FILE'
-LOCK_FILE='$LOCK_FILE'
 EVENT_FILE='$EVENT_FILE'
-
+export DEPLOY_USER DEPLOY_HOME REPO_DIR PLUGINS_DIR SERVICE_NAME STATE_DIR ENV_FILE EVENT_FILE
 [ -f "\$ENV_FILE" ] && . "\$ENV_FILE"
-LOCK_FILE="\${LOCK_FILE:-\$STATE_DIR/repo-sync.lock}"
-mkdir -p "\$STATE_DIR"
-exec 9>"\$LOCK_FILE"
-flock -n 9 || exit 0
-HEALTH_TIMEOUT="\${HEALTH_TIMEOUT:-120}"
-HEALTH_STABLE_SECONDS="\${HEALTH_STABLE_SECONDS:-8}"
-MINECRAFT_HOST="\${MINECRAFT_HOST:-127.0.0.1}"
-MINECRAFT_PORT="\${MINECRAFT_PORT:-25565}"
-DISCORD_WEBHOOK_URL="\${DISCORD_WEBHOOK_URL:-}"
-EXTRA_HEALTHCHECK_CMD="\${EXTRA_HEALTHCHECK_CMD:-}"
-
-emit_event() {
-  local status="\$1" commit="\$2"
-  [ -n "\$commit" ] || return 0
-  mkdir -p "\$(dirname "\$EVENT_FILE")"
-  python3 - "\$status" "\$commit" "\$EVENT_FILE" <<'PY'
-import json, os, sys
-from datetime import datetime, timezone
-status, commit, path = sys.argv[1:]
-event = {"repository": "tatudrag0n/MifronPlugin", "commit": commit,
-         "status": status, "timestamp": datetime.now(timezone.utc).isoformat()}
-with open(path, "a", encoding="utf-8") as stream:
-    stream.write(json.dumps(event, ensure_ascii=False) + "\\n")
-    stream.flush()
-    os.fsync(stream.fileno())
-PY
-}
-
-deploy_remote="unknown"
-installed_new=0
-rollback_file=""
-
-run_user() {
-  sudo -u "\$DEPLOY_USER" -H "\$@"
-}
-
-notify() {
-  local status="\$1" message="\$2"
-  echo "[\$status] \$message"
-  [ -z "\$DISCORD_WEBHOOK_URL" ] && return 0
-  local payload
-  payload="\$(python3 - "\$status" "\$message" <<'PY'
-import json, sys
-print(json.dumps({"content": f"[MifronPlugin deploy][{sys.argv[1]}] {sys.argv[2]}"}, ensure_ascii=False))
-PY
-)"
-  curl -fsS --max-time 10 -H 'Content-Type: application/json' -d "\$payload" "\$DISCORD_WEBHOOK_URL" >/dev/null || true
-}
-
-build_maven() {
-  if [ -x "\$REPO_DIR/mvnw" ]; then
-    run_user "\$REPO_DIR/mvnw" -B clean package
-  elif [ -x "\$REPO_DIR/apache-maven/bin/mvn" ]; then
-    run_user "\$REPO_DIR/apache-maven/bin/mvn" -B clean package
-  elif [ -x "\$DEPLOY_HOME/apache-maven/bin/mvn" ]; then
-    run_user "\$DEPLOY_HOME/apache-maven/bin/mvn" -B clean package
-  else
-    local mvn_bin
-    mvn_bin="\$(command -v mvn || true)"
-    [ -n "\$mvn_bin" ] || return 127
-    run_user "\$mvn_bin" -B clean package
-  fi
-}
-
-port_open() {
-  case "\$MINECRAFT_PORT" in
-    (''|*[!0-9]*) return 1 ;;
-  esac
-  [ "\$MINECRAFT_PORT" -ge 1 ] && [ "\$MINECRAFT_PORT" -le 65535 ] || return 1
-  timeout 2 bash -c 'exec 3<>"/dev/tcp/\$1/\$2"' _ "\$MINECRAFT_HOST" "\$MINECRAFT_PORT" >/dev/null 2>&1
-}
-
-health_check() {
-  local started="\$(date +%s)"
-  while true; do
-    if systemctl is-active --quiet "\$SERVICE_NAME" && port_open; then
-      if [ -n "\$EXTRA_HEALTHCHECK_CMD" ]; then
-        bash -lc "\$EXTRA_HEALTHCHECK_CMD" || { sleep 2; continue; }
-      fi
-      sleep "\$HEALTH_STABLE_SECONDS"
-      if systemctl is-active --quiet "\$SERVICE_NAME" && port_open; then
-        if [ -z "\$EXTRA_HEALTHCHECK_CMD" ] || bash -lc "\$EXTRA_HEALTHCHECK_CMD"; then
-          return 0
-        fi
-      else
-        continue
-      fi
-    fi
-    if [ "\$(( \$(date +%s) - started ))" -ge "\$HEALTH_TIMEOUT" ]; then
-      return 1
-    fi
-    sleep 2
-  done
-}
-
-rollback() {
-  [ "\$installed_new" -eq 1 ] || return 1
-  [ -n "\$rollback_file" ] && [ -s "\$rollback_file" ] || return 1
-  notify ROLLBACK "Health check failed for \$deploy_remote; restoring previous JAR"
-  cp -f "\$rollback_file" "\$target.new"
-  mv -f "\$target.new" "\$target"
-  systemctl restart "\$SERVICE_NAME"
-  if health_check; then
-    notify ROLLBACK_OK "Previous MifronPlugin restored successfully"
-    return 0
-  fi
-  notify CRITICAL "Rollback completed but Minecraft health check still failed"
-  return 1
-}
-
-on_error() {
-  local code="\$?"
-  local event_status=FAILED
-  if [ "\$installed_new" -eq 1 ]; then
-    if rollback; then
-      event_status=ROLLED_BACK
-    else
-      event_status=CRITICAL
-    fi
-  fi
-  emit_event "\$event_status" "\$deploy_remote" || true
-  notify FAILED "Deployment failed for \$deploy_remote (exit=\$code)"
-  exit "\$code"
-}
-trap on_error ERR
-
 cd "\$REPO_DIR"
-run_user git fetch origin main
-deploy_remote="\$(run_user git rev-parse origin/main)"
-target="\$PLUGINS_DIR/mifronplugin-26.1.2.jar"
-last_deployed=""
-[ -f "\$STATE_DIR/last-deployed" ] && last_deployed="\$(tr -d '[:space:]' < "\$STATE_DIR/last-deployed")"
-
-if [ "\$last_deployed" = "\$deploy_remote" ] && [ -s "\$target" ]; then
-  echo "MifronPlugin already deployed: \$deploy_remote"
-  exit 0
+if [ "\$(id -un)" = "\$DEPLOY_USER" ]; then
+  git fetch origin main
+  git reset --hard origin/main
+else
+  sudo -u "\$DEPLOY_USER" -H git fetch origin main
+  sudo -u "\$DEPLOY_USER" -H git reset --hard origin/main
 fi
-
-notify START "Deploying \${last_deployed:-none} -> \$deploy_remote"
-run_user git reset --hard origin/main
-build_maven
-
-jar="\$(find "\$REPO_DIR/target" -maxdepth 1 -type f -name 'mifronplugin-*.jar' ! -name 'original-*' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
-test -n "\$jar"
-test -s "\$jar"
-
-mkdir -p "\$PLUGINS_DIR" "\$STATE_DIR/backups"
-timestamp="\$(date +%Y%m%d-%H%M%S)"
-if [ -s "\$target" ]; then
-  rollback_file="\$STATE_DIR/backups/mifronplugin-previous-\$timestamp.jar"
-  cp -f "\$target" "\$rollback_file"
-fi
-
-shopt -s nullglob
-for old in "\$PLUGINS_DIR"/mifronplugin-*.jar "\$PLUGINS_DIR"/MifronPlugin-*.jar; do
-  [ "\$old" = "\$target" ] && continue
-  cp -f "\$old" "\$STATE_DIR/backups/\$(basename "\$old").\$timestamp.bak"
-  rm -f "\$old"
-done
-shopt -u nullglob
-
-install -m 0644 "\$jar" "\$target.new"
-mv -f "\$target.new" "\$target"
-installed_new=1
-systemctl restart "\$SERVICE_NAME"
-health_check
-
-emit_event SUCCESS "\$deploy_remote" || true
-
-printf '%s\n' "\$deploy_remote" > "\$STATE_DIR/last-deployed"
-printf '%s  %s\n' "\$(sha256sum "\$target" | awk '{print \$1}')" "\$target" > "\$STATE_DIR/last-deployed-jar.sha256"
-
-# Keep the five newest rollback files.
-find "\$STATE_DIR/backups" -maxdepth 1 -type f -printf '%T@ %p\n' | sort -nr | tail -n +6 | cut -d' ' -f2- | xargs -r rm -f
-installed_new=0
-trap - ERR
-notify SUCCESS "MifronPlugin deployed: \$deploy_remote"
+chmod +x "\$REPO_DIR/deploy/run-auto-deploy.sh"
+exec "\$REPO_DIR/deploy/run-auto-deploy.sh"
 EOF
 sudo chmod 0755 /usr/local/sbin/mifronplugin-deploy
 
