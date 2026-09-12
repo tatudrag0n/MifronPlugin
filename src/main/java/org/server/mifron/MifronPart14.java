@@ -103,6 +103,26 @@ abstract class MifronPart14 extends MifronPart13x1 {
       }
    }
 
+   protected void handleProposalUiClick(Player player, ItemStack clicked) {
+      String action = this.mifron().getUiAction(clicked);
+      if (action == null) return;
+      this.playUiClickSound(player);
+      switch (action) {
+         case "proposal_close" -> player.closeInventory();
+         case "proposal_page" -> this.mifron().openProposalUi(player, this.mifron().parsePositiveInt(this.getUiTargetString(clicked), 0));
+         case "proposal_vote" -> {
+            String raw = this.getUiTargetString(clicked);
+            String[] parts = raw == null ? new String[0] : raw.split("\\|", 2);
+            if (parts.length == 0 || parts[0].isBlank()) return;
+            int page = parts.length > 1 ? this.mifron().parsePositiveInt(parts[1], 0) : 0;
+            boolean voted = this.proposalManager.toggleVote(parts[0], player.getUniqueId());
+            player.sendMessage(voted ? "\u00a7a\u8cdb\u6210\u6295\u7968\u3057\u307e\u3057\u305f\u3002" : "\u00a7e\u6295\u7968\u3092\u53d6\u308a\u6d88\u3057\u307e\u3057\u305f\u3002");
+            this.mifron().openProposalUi(player, page);
+         }
+         default -> {}
+      }
+   }
+
    BedrockUiFeature bedrockUiFeature() { return this.bedrockUiFeature; }
 
    void teleportToConfigLocation(Player player, String path) {

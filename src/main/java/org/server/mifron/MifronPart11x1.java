@@ -6,6 +6,7 @@ import java.util.Locale;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -87,6 +88,77 @@ abstract class MifronPart11x1 extends MifronPart11 {
       meta.setEnchantmentGlintOverride(completed && !claimed);
       item.setItemMeta(meta);
       return item;
+   }
+
+   protected void openProposalUi(Player player, int page) {
+      List<String> ids = this.proposalManager.pendingIds();
+      int pageSize = 45;
+      int maxPage = Math.max(0, (ids.size() - 1) / pageSize);
+      int safePage = Math.max(0, Math.min(page, maxPage));
+      Inventory inventory = Bukkit.createInventory(player, 54, Component.text(PROPOSAL_UI_TITLE));
+      int from = safePage * pageSize;
+      for (int index = from; index < Math.min(ids.size(), from + pageSize); index++) {
+         inventory.setItem(index - from, this.proposalItem(player, ids.get(index), safePage));
+      }
+      inventory.setItem(49, this.mifron().named(Material.PAPER, "\u00a7e\u63d0\u6848\u4e00\u89a7", List.of("\u00a77" + (safePage + 1) + "/" + (maxPage + 1), "\u00a77\u63d0\u6848\u6570: " + ids.size())));
+      if (safePage > 0) inventory.setItem(48, this.mifron().actionItem(Material.ARROW, "\u00a7f\u524d\u306e\u30da\u30fc\u30b8", List.of(), "proposal_page", String.valueOf(safePage - 1)));
+      if (safePage < maxPage) inventory.setItem(50, this.mifron().actionItem(Material.ARROW, "\u00a7f\u6b21\u306e\u30da\u30fc\u30b8", List.of(), "proposal_page", String.valueOf(safePage + 1)));
+      inventory.setItem(53, this.mifron().actionItem(Material.BARRIER, "\u00a7c\u9589\u3058\u308b", List.of(), "proposal_close", null));
+      this.mifron().fillEmptyGuiSlots(inventory);
+      player.openInventory(inventory);
+   }
+
+   protected ItemStack proposalItem(Player player, String id, int page) {
+      ConfigurationSection section = this.proposalManager.pendingProposal(id);
+      if (section == null) return this.mifron().named(Material.PAPER, "\u00a77" + id, List.of());
+      boolean voted = this.proposalManager.hasVoted(id, player.getUniqueId());
+      List<String> lore = new ArrayList<>();
+      lore.add("\u00a77\u7a2e\u5225: " + this.proposalTypeLabel(section.getString("type", "other")));
+      lore.add("\u00a77\u6295\u7968\u6570: \u00a7f" + this.proposalManager.voteCount(id) + (voted ? " \u00a7a(\u6295\u7968\u6e08\u307f)" : ""));
+      List<String> description = this.proposalLore(section.getString("description", ""), 34, 8);
+      if (!description.isEmpty()) {
+         lore.add("");
+         lore.addAll(description);
+      }
+      lore.add("");
+      lore.add(voted ? "\u00a7e\u30af\u30ea\u30c3\u30af\u3067\u6295\u7968\u3092\u53d6\u308a\u6d88\u3057" : "\u00a7a\u30af\u30ea\u30c3\u30af\u3067\u8cdb\u6210\u6295\u7968");
+      ItemStack item = this.mifron().actionItem(voted ? Material.LIME_DYE : Material.PAPER, (voted ? "\u00a7a" : "\u00a7f") + section.getString("name", id), lore, "proposal_vote", id + "|" + page);
+      ItemMeta meta = item.getItemMeta();
+      meta.setEnchantmentGlintOverride(voted);
+      item.setItemMeta(meta);
+      return item;
+   }
+
+   protected String proposalTypeLabel(String type) {
+      return switch (type == null ? "" : type.toLowerCase(Locale.ROOT)) {
+         case "quest" -> "\u00a7a\u30af\u30a8\u30b9\u30c8\u63d0\u6848";
+         case "bug" -> "\u00a7c\u30d0\u30b0\u5831\u544a";
+         case "feature" -> "\u00a7b\u6a5f\u80fd\u63d0\u6848";
+         case "title" -> "\u00a7d\u79f0\u53f7\u63d0\u6848";
+         case "custom_item" -> "\u00a76\u30a2\u30a4\u30c6\u30e0\u63d0\u6848";
+         default -> "\u00a77\u305d\u306e\u4ed6";
+      };
+   }
+
+   protected List<String> proposalLore(String text, int width, int maxLines) {
+      List<String> lines = new ArrayList<>();
+      if (text == null || text.isBlank()) return lines;
+      boolean truncated = false;
+      for (String raw : text.split("\\R")) {
+         String current = raw;
+         while (current.length() > width) {
+            if (lines.size() >= maxLines) { truncated = true; break; }
+            lines.add(current.substring(0, width));
+            current = current.substring(width);
+         }
+         if (lines.size() >= maxLines) { truncated = true; break; }
+         lines.add(current);
+      }
+      if (truncated) {
+         if (lines.size() >= maxLines) lines.set(maxLines - 1, "\u00a77\u2026");
+         else lines.add("\u00a77\u2026");
+      }
+      return lines;
    }
 
    protected QuestType questTypeFromTab(String tab) {

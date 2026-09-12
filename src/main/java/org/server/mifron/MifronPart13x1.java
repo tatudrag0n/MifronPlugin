@@ -102,6 +102,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
       if ("\u00a73Mifron Friends".equals(title)) { event.setCancelled(true); this.mifron().handleFriendUiClick(player, event.getCurrentItem()); }
       else if ("\u00a72Mifron Status".equals(title)) { event.setCancelled(true); this.mifron().handleStatusUiClick(player, event.getCurrentItem()); }
       else if (QUEST_UI_TITLE.equals(title)) { event.setCancelled(true); this.mifron().handleQuestUiClick(player, event.getCurrentItem()); }
+      else if (PROPOSAL_UI_TITLE.equals(title)) { event.setCancelled(true); this.mifron().handleProposalUiClick(player, event.getCurrentItem()); }
       else if ("\u00a75Mifron Teleporter".equals(title)) { event.setCancelled(true); this.handleTeleporterUiItem(player, event.getCurrentItem()); }
       else if ("\u00a76Mifron Merchant".equals(title)) {
          if (event.getClickedInventory() != event.getView().getTopInventory()) return;
@@ -114,6 +115,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
    @EventHandler
    public void onInventoryDrag(InventoryDragEvent event) {
       if (this.isBarrelShopInventory(event.getView().getTopInventory())) { event.setCancelled(true); return; }
+      if (PROPOSAL_UI_TITLE.equals(this.mifron().inventoryTitle(event.getView().title()))) { event.setCancelled(true); return; }
       if (!"\u00a76Mifron Merchant".equals(this.mifron().inventoryTitle(event.getView().title()))) return;
       int topSize = event.getView().getTopInventory().getSize();
       for (int rawSlot : event.getRawSlots()) if (rawSlot < topSize) { event.setCancelled(true); return; }

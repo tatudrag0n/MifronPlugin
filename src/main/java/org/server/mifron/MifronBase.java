@@ -23,6 +23,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected static final String FRIEND_UI_TITLE = "\u00a73Mifron Friends";
    protected static final String FRIEND_STATUS_UI_TITLE = "\u00a72Mifron Status";
    protected static final String QUEST_UI_TITLE = "\u00a7bMifron Quests";
+   protected static final String PROPOSAL_UI_TITLE = "\u00a7dMifron Proposals";
    protected static final String TELEPORT_UI_TITLE = "\u00a75Mifron Teleporter";
    protected static final String MERCHANT_UI_TITLE = "\u00a76Mifron Merchant";
    protected static final long MERCHANT_REROLL_MILLIS = 3600000L;
