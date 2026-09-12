@@ -1,5 +1,5 @@
 name: mifron
-version: 26.1.2-fixed-v15-inventory-groups
+version: 26.1.2-worldpolicy-20260912
 
 main: org.server.mifron.Mifron
 api-version: '1.21'
