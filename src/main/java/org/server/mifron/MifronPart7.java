@@ -101,7 +101,10 @@ abstract class MifronPart7 extends MifronPart6x2 {
    public void onJumpBlockPlace(BlockPlaceEvent event) {
       ItemStack item = event.getItemInHand();
       if (!this.utilityItemsFeature.isMifronItem(item, "jump_block")) return;
-      this.setJumpPad(event.getBlockPlaced(), this.utilityItemsFeature.getJumpPadVerticalPower(item), this.utilityItemsFeature.getJumpPadHorizontalPower(item));
+      int vertical = this.utilityItemsFeature.getJumpPadVerticalPower(item);
+      int horizontal = this.utilityItemsFeature.getJumpPadHorizontalPower(item);
+      this.getLogger().info("[mf-debug] jump block placed " + event.getBlockPlaced().getWorld().getName() + " " + event.getBlockPlaced().getX() + "," + event.getBlockPlaced().getY() + "," + event.getBlockPlaced().getZ() + " v=" + vertical + " h=" + horizontal);
+      this.setJumpPad(event.getBlockPlaced(), vertical, horizontal);
    }
 
    protected void setJumpPad(Block block, int verticalPower, int horizontalPower) {
