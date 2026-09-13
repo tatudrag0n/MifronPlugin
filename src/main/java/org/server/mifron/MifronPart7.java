@@ -2,6 +2,7 @@ package org.server.mifron;
 
 import java.util.List;
 import java.util.Set;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -49,6 +50,26 @@ abstract class MifronPart7 extends MifronPart6x2 {
       JumpPadPower power = this.jumpPadPower(to.clone().subtract(0.0, 1.0, 0.0).getBlock());
       if (power == null) power = this.jumpPadPower(to.getBlock());
       if (power == null) return;
+      this.launchFromJumpPad(player, power);
+   }
+
+   void startJumpPadTask() {
+      Bukkit.getScheduler().runTaskTimer(this, this::tickJumpPads, 1L, 1L);
+   }
+
+   private void tickJumpPads() {
+      long now = System.currentTimeMillis();
+      for (Player player : Bukkit.getOnlinePlayers()) {
+         if (now - this.lastJumpPadUse.getOrDefault(player.getUniqueId(), 0L) < 650L) continue;
+         Location location = player.getLocation();
+         JumpPadPower power = this.jumpPadPower(location.clone().subtract(0.0, 1.0, 0.0).getBlock());
+         if (power == null) power = this.jumpPadPower(location.getBlock());
+         if (power == null) continue;
+         this.launchFromJumpPad(player, power);
+      }
+   }
+
+   private void launchFromJumpPad(Player player, JumpPadPower power) {
       long now = System.currentTimeMillis();
       if (now - this.lastJumpPadUse.getOrDefault(player.getUniqueId(), 0L) < 650L) return;
       this.lastJumpPadUse.put(player.getUniqueId(), now);

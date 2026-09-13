@@ -123,6 +123,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
          this.mifron().data().set("regen.next-run-at", System.currentTimeMillis() + period * 50L);
       }
       this.mifron().runStartupStep("schedule chunk protection scan", this.chunkProtectionFeature::scheduleScan);
+      this.mifron().runStartupStep("start jump pad task", this.mifron()::startJumpPadTask);
       InventoryGroupFeature.install(this);
    }
 }
