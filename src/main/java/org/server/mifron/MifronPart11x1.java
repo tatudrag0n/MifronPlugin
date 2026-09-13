@@ -49,6 +49,9 @@ abstract class MifronPart11x1 extends MifronPart11 {
    protected void openQuestUi(Player player, String tab) {
       this.questService.ensurePeriods(player);
       this.siteQuestService.refreshIfStale();
+      // Register the latest successfully synchronized site quests so they use
+      // the same progress/claim/persistence engine as quests.yml entries.
+      this.questService.registerSiteQuests(this.siteQuestService.mappedDefinitions());
       Inventory inventory = Bukkit.createInventory(player, 54, Component.text(QUEST_UI_TITLE));
       if (tab == null || "categories".equals(tab)) {
          this.fillQuestCategoryTab(inventory);
@@ -62,9 +65,10 @@ abstract class MifronPart11x1 extends MifronPart11 {
    }
 
    protected void fillQuestCategoryTab(Inventory inventory) {
-      inventory.setItem(20, this.mifron().actionItem(Material.CLOCK, "\u00a7b\u30c7\u30a4\u30ea\u30fc", List.of(), "quest_category", QuestType.DAILY.key()));
-      inventory.setItem(21, this.mifron().actionItem(Material.WRITABLE_BOOK, "\u00a7b\u30a6\u30a3\u30fc\u30af\u30ea\u30fc", List.of(), "quest_category", QuestType.WEEKLY.key()));
-      inventory.setItem(23, this.mifron().actionItem(Material.MAP, "\u00a7b\u30de\u30f3\u30b9\u30ea\u30fc", List.of(), "quest_category", QuestType.MONTHLY.key()));
+      inventory.setItem(19, this.mifron().actionItem(Material.CLOCK, "\u00a7b\u30c7\u30a4\u30ea\u30fc", List.of(), "quest_category", QuestType.DAILY.key()));
+      inventory.setItem(20, this.mifron().actionItem(Material.WRITABLE_BOOK, "\u00a7b\u30a6\u30a3\u30fc\u30af\u30ea\u30fc", List.of(), "quest_category", QuestType.WEEKLY.key()));
+      inventory.setItem(21, this.mifron().actionItem(Material.MAP, "\u00a7b\u30de\u30f3\u30b9\u30ea\u30fc", List.of(), "quest_category", QuestType.MONTHLY.key()));
+      inventory.setItem(23, this.mifron().actionItem(Material.BOOK, "\u00a7b\u5358\u767a", List.of(), "quest_category", QuestType.ONE_SHOT.key()));
       inventory.setItem(24, this.mifron().actionItem(Material.NETHER_STAR, "\u00a7d\u30b9\u30da\u30b7\u30e3\u30eb", List.of(), "quest_category", QuestType.SPECIAL.key()));
    }
 

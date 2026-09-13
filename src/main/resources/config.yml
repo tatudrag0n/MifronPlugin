@@ -79,7 +79,7 @@ build-world:
   enabled: true
   world-prefix: "mifron_build_"
   world-name: "Creative"
-  spawn-y: 64
+  spawn-y: 0
   border-size: 256
   platform-radius: 16
 
@@ -114,7 +114,7 @@ world-rules:
     survival:
       world: survival
       x: 0.0
-      y: 101.0
+      y: 79.0
       z: 0.0
       yaw: 0.0
       pitch: 0.0
@@ -223,6 +223,10 @@ shops:
 creative-world:
   # Non-admins may use normal WorldEdit, but potentially large clipboard and
   # bulk-edit commands are restricted to avoid server-wide lag or crashes.
+  # max-block-changes is enforced on the WorldEdit session itself, so oversized
+  # //set, //replace, //paste, //stack and //move are rejected regardless of the
+  # command syntax used.
+  max-block-changes: 10000
   restricted-worldedit-commands: [paste, stack, move, deform, smooth, naturalize]
 
 hub:
@@ -270,7 +274,7 @@ servers:
     icon: grass_block
     world: survival
     x: 0.0
-    y: 101.0
+    y: 79.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0

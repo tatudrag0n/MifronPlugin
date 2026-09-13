@@ -88,6 +88,8 @@ final class FfaManager {
    private final NamespacedKey itemKey;
    private final NamespacedKey itemKindKey;
    private final NamespacedKey itemOwnerKey;
+   private final NamespacedKey exitItemKey;
+   private final Map<UUID, Long> combatUntil = new ConcurrentHashMap<>();
    private final NamespacedKey abilityKey;
    private final NamespacedKey projectileKindKey;
    private final NamespacedKey projectileOwnerKey;
@@ -125,6 +127,7 @@ final class FfaManager {
    private final Map<UUID, FfaManager.DamageCredit> damageCredits = new HashMap<>();
    private final Map<UUID, FfaManager.DeathLeaveRestore> deathLeaveRestores = new HashMap<>();
    private BukkitTask kitEffectTask;
+   private BukkitTask combatTask;
    private Map<UUID, Long> lastCrossbowShotTick;
 
    FfaManager(Mifron plugin) {
@@ -137,6 +140,7 @@ final class FfaManager {
       this.itemKey = new NamespacedKey(plugin, "ffa_item");
       this.itemKindKey = new NamespacedKey(plugin, "ffa_item_kind");
       this.itemOwnerKey = new NamespacedKey(plugin, "ffa_item_owner");
+      this.exitItemKey = new NamespacedKey(plugin, "ffa_exit_item");
       this.abilityKey = new NamespacedKey(plugin, "ffa_ability");
       this.projectileKindKey = new NamespacedKey(plugin, "ffa_projectile_kind");
       this.projectileOwnerKey = new NamespacedKey(plugin, "ffa_projectile_owner");
@@ -151,6 +155,7 @@ final class FfaManager {
       this.fieldItems.load();
       this.stands.hideSelectorLabels();
       this.startKitEffectTask();
+      this.startCombatTask();
    }
 
    void shutdown() {
@@ -166,6 +171,11 @@ final class FfaManager {
          this.kitEffectTask.cancel();
          this.kitEffectTask = null;
       }
+      if (this.combatTask != null) {
+         this.combatTask.cancel();
+         this.combatTask = null;
+      }
+      this.combatUntil.clear();
 
       this.sessions.clear();
       this.revolverAmmo.clear();
@@ -387,6 +397,7 @@ final class FfaManager {
             player.sendMessage("§c槍アイテムが現在の Paper API で見つかりません。Paper API / Minecraft バージョンを確認してください。");
          } else {
             boolean newSession = !this.sessions.containsKey(player.getUniqueId());
+            if (newSession) this.combatUntil.remove(player.getUniqueId());
             this.sessions.computeIfAbsent(player.getUniqueId(), ignored -> new FfaManager.FfaSession(selectedKit, FfaManager.PlayerState.capture(player)));
             FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
             this.cleanupKitRuntime(player);
@@ -410,10 +421,14 @@ final class FfaManager {
    void leave(Player player, boolean notify) {
       FfaManager.FfaSession session = this.sessions.remove(player.getUniqueId());
       if (session == null) {
+         this.combatUntil.remove(player.getUniqueId());
+         this.removeExitItem(player);
          if (notify) {
             player.sendMessage("§eFFAには参加していません。");
          }
       } else {
+         this.combatUntil.remove(player.getUniqueId());
+         this.removeExitItem(player);
          this.cleanupKitRuntime(player);
          this.clearTemporaryState(player);
          session.state.restore(player, this.leaveLocation(player.getWorld()));
@@ -535,6 +550,127 @@ final class FfaManager {
       return item != null
          && item.hasItemMeta()
          && Boolean.TRUE.equals(MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.itemKey, PersistentDataType.BOOLEAN));
+   }
+
+   private int combatTagSeconds() {
+      return Math.max(1, Math.min(300, this.plugin.getConfig().getInt("ffa.combat-tag-seconds", 15)));
+   }
+
+   boolean isInCombat(Player player) {
+      if (player == null) return false;
+      Long until = this.combatUntil.get(player.getUniqueId());
+      return until != null && System.currentTimeMillis() < until;
+   }
+
+   /**
+    * Starts/refreshes the combat tag for both fighters. While tagged the exit
+    * item is removed, so leaving FFA mid-fight is impossible. The tag is
+    * refreshed on every exchange and expires after the configured window.
+    */
+   void tagCombat(Player first, Player second) {
+      if (first == null || second == null) return;
+      if (!this.isPlaying(first) || !this.isPlaying(second)) return;
+      if (first.getUniqueId().equals(second.getUniqueId())) return;
+      long until = System.currentTimeMillis() + this.combatTagSeconds() * 1000L;
+      this.combatUntil.put(first.getUniqueId(), until);
+      this.combatUntil.put(second.getUniqueId(), until);
+      this.removeExitItem(first);
+      this.removeExitItem(second);
+   }
+
+   private void startCombatTask() {
+      if (this.combatTask != null) return;
+      this.combatTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickCombat, 20L, 20L);
+   }
+
+   private void tickCombat() {
+      long now = System.currentTimeMillis();
+      for (Player player : Bukkit.getOnlinePlayers()) {
+         if (!this.isPlaying(player)) {
+            this.combatUntil.remove(player.getUniqueId());
+            continue;
+         }
+         Long until = this.combatUntil.get(player.getUniqueId());
+         if (until == null) {
+            this.giveExitItem(player);
+         } else if (now >= until) {
+            this.combatUntil.remove(player.getUniqueId());
+            this.giveExitItem(player);
+            player.sendActionBar(Component.text("戦闘状態が解除されました。退場アイテムが戻りました。", NamedTextColor.GREEN));
+         } else {
+            long remaining = (until - now + 999L) / 1000L;
+            player.sendActionBar(Component.text("戦闘中: 残り " + remaining + " 秒", NamedTextColor.RED));
+         }
+      }
+   }
+
+   ItemStack createExitItem() {
+      ItemStack item = new ItemStack(Material.RED_BED);
+      ItemMeta meta = item.getItemMeta();
+      if (meta == null) return item;
+      meta.displayName(Component.text("FFA退場アイテム"));
+      meta.lore(List.of(
+         Component.text("右クリックでFFAから退出します"),
+         Component.text("戦闘中は使用できません")
+      ));
+      meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+      meta.getPersistentDataContainer().set(this.itemKey, PersistentDataType.BOOLEAN, true);
+      meta.getPersistentDataContainer().set(this.exitItemKey, PersistentDataType.BYTE, (byte) 1);
+      item.setItemMeta(meta);
+      return item;
+   }
+
+   boolean isExitItem(ItemStack item) {
+      return item != null
+         && item.hasItemMeta()
+         && MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.exitItemKey, PersistentDataType.BYTE) != null;
+   }
+
+   boolean hasExitItem(Player player) {
+      if (player == null) return false;
+      PlayerInventory inventory = player.getInventory();
+      for (ItemStack item : inventory.getContents()) {
+         if (this.isExitItem(item)) return true;
+      }
+      return this.isExitItem(inventory.getItemInOffHand());
+   }
+
+   void giveExitItem(Player player) {
+      if (player == null || !this.isPlaying(player) || this.isInCombat(player) || this.hasExitItem(player)) return;
+      ItemStack exit = this.createExitItem();
+      this.tagOwner(exit, player.getUniqueId());
+      if (!player.getInventory().addItem(exit).isEmpty()) {
+         player.sendMessage("§e退場アイテムを渡すインベントリの空きがありません。");
+      }
+   }
+
+   void removeExitItem(Player player) {
+      if (player == null) return;
+      PlayerInventory inventory = player.getInventory();
+      for (int slot = 0; slot < inventory.getSize(); slot++) {
+         if (this.isExitItem(inventory.getItem(slot))) inventory.setItem(slot, null);
+      }
+      if (this.isExitItem(inventory.getItemInOffHand())) inventory.setItemInOffHand(null);
+   }
+
+   boolean handleExitItemUse(PlayerInteractEvent event) {
+      if (event == null || !event.getAction().isRightClick() || !this.isExitItem(event.getItem())) return false;
+      event.setCancelled(true);
+      Player player = event.getPlayer();
+      if (this.isInCombat(player)) {
+         player.sendMessage("§c戦闘中はFFAから退出できません。");
+         return true;
+      }
+      if (this.isPlaying(player)) {
+         this.leave(player, true);
+      }
+      return true;
+   }
+
+   void cleanupOrphanExitItems(Player player) {
+      if (player == null || this.isPlaying(player)) return;
+      this.removeExitItem(player);
+      this.combatUntil.remove(player.getUniqueId());
    }
 
    boolean handleFieldItemPickup(EntityPickupItemEvent event) {
@@ -2046,6 +2182,7 @@ final class FfaManager {
       }
       this.applyArmorBonus(player);
       this.tagOwnedKitItems(player);
+      this.giveExitItem(player);
       if (kit == FfaKit.NECROMANCER) {
          this.restoreNecromancerEggCooldowns(player);
       }

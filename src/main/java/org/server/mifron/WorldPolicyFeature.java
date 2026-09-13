@@ -39,10 +39,14 @@ final class WorldPolicyFeature implements Listener {
       "paste", "stack", "move", "deform", "smooth", "naturalize", "sphere", "hsphere", "cyl", "hcyl", "drain", "regen", "replace"
    );
    private final Mifron plugin;
+   private final WorldEditHook worldEdit;
    private final Map<UUID, PermissionAttachment> creativePerms = new HashMap<>();
    private final Map<UUID, GameMode> creativeReturnModes = new HashMap<>();
 
-   WorldPolicyFeature(Mifron plugin) { this.plugin = plugin; }
+   WorldPolicyFeature(Mifron plugin) {
+      this.plugin = plugin;
+      this.worldEdit = new WorldEditHook(plugin);
+   }
 
    void apply() {
       this.applyMainWorldBorder();
@@ -60,7 +64,7 @@ final class WorldPolicyFeature implements Listener {
       if (survival == null) return;
       survival.setSpawnLocation(
          this.plugin.getConfig().getInt("world-rules.spawn.survival.x", 0),
-         this.plugin.getConfig().getInt("world-rules.spawn.survival.y", 101),
+         this.plugin.getConfig().getInt("world-rules.spawn.survival.y", 79),
          this.plugin.getConfig().getInt("world-rules.spawn.survival.z", 0)
       );
    }
@@ -96,7 +100,7 @@ final class WorldPolicyFeature implements Listener {
       event.setRespawnLocation(new org.bukkit.Location(
          world,
          this.plugin.getConfig().getDouble("world-rules.spawn.survival.x", 0.0D),
-         this.plugin.getConfig().getDouble("world-rules.spawn.survival.y", 101.0D),
+         this.plugin.getConfig().getDouble("world-rules.spawn.survival.y", 79.0D),
          this.plugin.getConfig().getDouble("world-rules.spawn.survival.z", 0.0D)
       ));
    }
@@ -131,6 +135,10 @@ final class WorldPolicyFeature implements Listener {
       else if (raw.startsWith("/worldedit ")) raw = raw.substring("/worldedit ".length()).trim();
       else return;
       String name = raw.split("\\s+", 2)[0];
+      // Enforce the real block-count ceiling on the player's WorldEdit session
+      // before the operation runs. This catches oversized edits that do not use
+      // a blocked command name.
+      this.worldEdit.applyBlockChangeLimit(player, this.plugin.getConfig().getInt("creative-world.max-block-changes", 10000));
       List<String> extra = this.plugin.getConfig().getStringList("creative-world.restricted-worldedit-commands");
       boolean blocked = RESTRICTED_WORLDEDIT.contains(name) || extra.stream().anyMatch(value -> value.equalsIgnoreCase(name));
       if (blocked) {

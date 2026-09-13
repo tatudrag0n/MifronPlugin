@@ -40,10 +40,6 @@ abstract class MifronPart3x1 extends MifronPart3 {
    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
    public void onInteract(PlayerInteractEvent event) {
       ItemStack item = event.getItem();
-      String debugId = this.utilityItemsFeature.getMifronItemId(item);
-      if (debugId != null) {
-         this.getLogger().info("[mf-debug] interact id=" + debugId + " action=" + event.getAction() + " hand=" + event.getHand() + " cancelled=" + event.isCancelled());
-      }
       if (event.getHand() != null && event.getHand() != EquipmentSlot.HAND && !this.serverPortalFeature.isServerWand(item)) return;
       Player player = event.getPlayer();
       this.trackFirstAction(player);

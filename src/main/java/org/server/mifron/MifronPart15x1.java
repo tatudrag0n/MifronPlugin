@@ -21,7 +21,6 @@ abstract class MifronPart15x1 extends MifronPart15 {
       if (!player.isOnline()) return;
       ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       Set<String> completed = new HashSet<>(section.getStringList("completed-advancements"));
-      Set<String> rewarded = new HashSet<>(section.getStringList("rewarded-advancements"));
       boolean changed = false;
       Iterator<Advancement> iterator = Bukkit.advancementIterator();
       while (iterator.hasNext()) {
@@ -30,17 +29,19 @@ abstract class MifronPart15x1 extends MifronPart15 {
          String key = advancement.getKey().toString();
          AdvancementProgress progress = player.getAdvancementProgress(advancement);
          if (progress.isDone()) {
-            changed |= completed.add(key);
-            changed |= rewarded.add(key);
+            if (completed.add(key)) changed = true;
+            // Reconciliation: pay any done advancement that was never rewarded
+            // (for example completed while the plugin was offline). rewardAdvancement
+            // is idempotent through the rewarded-advancements marker.
+            this.mifron().rewardAdvancement(player, advancement, section);
          } else if (completed.contains(key)) {
-            changed |= rewarded.add(key);
             for (String criterion : new ArrayList<>(progress.getRemainingCriteria())) progress.awardCriteria(criterion);
             changed = true;
+            this.mifron().rewardAdvancement(player, advancement, section);
          }
       }
       if (changed) {
          section.set("completed-advancements", new ArrayList<>(completed));
-         section.set("rewarded-advancements", new ArrayList<>(rewarded));
       }
       this.mifron().updateAdvancementBonus(player.getUniqueId(), completed);
       this.queueDataSave();

@@ -29,6 +29,10 @@ final class EnchantMaxDisplayFeature implements Listener {
 
    @EventHandler(priority = EventPriority.MONITOR)
    public void onAnvil(PrepareAnvilEvent event) {
+      // The advanced anvil already renders its own enchant tooltip and stores an
+      // explicit cost line. Mutating that result would desynchronise the
+      // transaction snapshot in AdvancedAnvilFeature and cause a false refund.
+      if (AdvancedAnvilFeature.isAdvancedAnvilResult(this.plugin, event.getResult())) return;
       this.apply(event.getResult());
    }
 
@@ -45,8 +49,10 @@ final class EnchantMaxDisplayFeature implements Listener {
       }
       List<String> extra = new ArrayList<>();
       for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
-         int vanillaMax = entry.getKey().getMaxLevel();
-         if (entry.getValue() >= vanillaMax) {
+         // MAX must reflect the actual Mifron ceiling, not the vanilla one. A
+         // vanilla-level-V enchantment is not MAX while Mifron allows level 20.
+         int mifronMax = AdvancedAnvilFeature.enchantmentLevelLimit(this.plugin, entry.getKey());
+         if (entry.getValue() >= mifronMax) {
             extra.add(ChatColor.LIGHT_PURPLE + displayName(entry.getKey()) + " " + toRoman(entry.getValue()) + " " + MARKER);
          }
       }

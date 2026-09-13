@@ -118,18 +118,18 @@ abstract class MifronPart14x1 extends MifronPart14 {
    protected void configureSurvivalSpawnLocation() {
       this.getConfig().set("world-rules.spawn.survival.world", "survival");
       this.getConfig().set("world-rules.spawn.survival.x", 0.0);
-      this.getConfig().set("world-rules.spawn.survival.y", 101.0);
+      this.getConfig().set("world-rules.spawn.survival.y", 79.0);
       this.getConfig().set("world-rules.spawn.survival.z", 0.0);
       this.getConfig().set("world-rules.spawn.survival.yaw", 0.0);
       this.getConfig().set("world-rules.spawn.survival.pitch", 0.0);
       this.getConfig().set("servers.survival.world", "survival");
       this.getConfig().set("servers.survival.x", 0.0);
-      this.getConfig().set("servers.survival.y", 101.0);
+      this.getConfig().set("servers.survival.y", 79.0);
       this.getConfig().set("servers.survival.z", 0.0);
       this.getConfig().set("servers.survival.yaw", 0.0);
       this.getConfig().set("servers.survival.pitch", 0.0);
       this.mifron().setIfMissing("servers.survival.icon", "grass_block");
-      this.applyFixedSpawnLocation("survival", 0.0, 101.0, 0.0);
+      this.applyFixedSpawnLocation("survival", 0.0, 79.0, 0.0);
       this.saveConfig();
    }
 }

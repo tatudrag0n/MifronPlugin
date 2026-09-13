@@ -39,11 +39,27 @@ final class BuildWorldManager implements Listener {
       this.plugin.getConfig().addDefault("build-world.enabled", true);
       this.plugin.getConfig().addDefault("build-world.world-prefix", WORLD_PREFIX);
       this.plugin.getConfig().addDefault("build-world.world-name", "Creative");
-      this.plugin.getConfig().addDefault("build-world.spawn-y", 64);
+      this.plugin.getConfig().addDefault("build-world.spawn-y", 0);
       this.plugin.getConfig().addDefault("build-world.border-size", 256);
       this.plugin.getConfig().addDefault("build-world.platform-radius", 16);
       this.plugin.getConfig().options().copyDefaults(true);
+      // Migrate the old default Creative spawn height to the required 0,0,0.
+      if (this.plugin.getConfig().getInt("build-world.spawn-y", 0) == 64) {
+         this.plugin.getConfig().set("build-world.spawn-y", 0);
+      }
       this.plugin.saveConfig();
+      this.applyCreativeSpawnLocation();
+   }
+
+   /** Keeps the Creative world spawn authoritative at the configured Y (0,0,0). */
+   void applyCreativeSpawnLocation() {
+      World world = Bukkit.getWorld(this.worldName(null));
+      if (world == null) return;
+      Location spawn = this.spawn(world);
+      world.setSpawnLocation(spawn);
+      if (!world.getBlockAt(spawn.getBlockX(), spawn.getBlockY() - 1, spawn.getBlockZ()).getType().isSolid()) {
+         this.createPlatform(world, spawn);
+      }
    }
 
    void shutdown() {
@@ -162,7 +178,7 @@ final class BuildWorldManager implements Listener {
    }
 
    private Location spawn(World world) {
-      return new Location(world, 0.5, this.plugin.getConfig().getDouble("build-world.spawn-y", 64.0), 0.5);
+      return new Location(world, 0.0, this.plugin.getConfig().getDouble("build-world.spawn-y", 0.0), 0.0);
    }
 
    private void createPlatform(World world, Location center) {

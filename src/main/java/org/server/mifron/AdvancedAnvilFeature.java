@@ -391,8 +391,31 @@ final class AdvancedAnvilFeature implements Listener {
    }
 
    private int maximumEnchantmentLevel() {
-      int configured = this.plugin.getConfig().getInt("advanced-enchanting.max-enchantment-level", 20);
+      return globalMaximumEnchantmentLevel(this.plugin);
+   }
+
+   /**
+    * Single authoritative source for the Mifron enchantment ceiling. Used by
+    * the anvil merge/validation and by the MAX tooltip renderer so the two can
+    * never disagree.
+    */
+   static int globalMaximumEnchantmentLevel(Mifron plugin) {
+      int configured = plugin.getConfig().getInt("advanced-enchanting.max-enchantment-level", 20);
       return Math.max(1, Math.min(255, configured));
+   }
+
+   static int enchantmentLevelLimit(Mifron plugin, Enchantment enchantment) {
+      int global = globalMaximumEnchantmentLevel(plugin);
+      if (enchantment == null) return global;
+      String key = enchantment.getKey().getKey().toLowerCase(Locale.ROOT);
+      int configured = plugin.getConfig().getInt("advanced-enchanting.enchantment-level-limits." + key, global);
+      return Math.max(1, Math.min(global, configured));
+   }
+
+   static boolean isAdvancedAnvilResult(Mifron plugin, ItemStack item) {
+      if (item == null || !item.hasItemMeta()) return false;
+      return item.getItemMeta().getPersistentDataContainer()
+         .has(new NamespacedKey(plugin, "advanced_anvil_cost_display"), org.bukkit.persistence.PersistentDataType.BYTE);
    }
 
    private int mpCost(int xpCost, ItemStack result, ItemStack left) {
@@ -409,11 +432,7 @@ final class AdvancedAnvilFeature implements Listener {
    }
 
    private int enchantmentLevelLimit(Enchantment enchantment) {
-      int global = this.maximumEnchantmentLevel();
-      if (enchantment == null) return global;
-      String key = enchantment.getKey().getKey().toLowerCase(Locale.ROOT);
-      int configured = this.plugin.getConfig().getInt("advanced-enchanting.enchantment-level-limits." + key, global);
-      return Math.max(1, Math.min(global, configured));
+      return enchantmentLevelLimit(this.plugin, enchantment);
    }
 
    private int mpCostMultiplier(Enchantment enchantment) {
@@ -674,7 +693,25 @@ final class AdvancedAnvilFeature implements Listener {
    }
 
    private boolean isSameResult(ItemStack actual, ItemStack expected) {
-      return !this.isEmpty(actual) && expected != null && actual.isSimilar(expected);
+      if (this.isEmpty(actual) || expected == null || actual.getType() != expected.getType()) {
+         return false;
+      }
+      // Verify the real outcome: material plus enchantment state. Display lore
+      // is transient (the MAX renderer and the cost line both mutate it), so it
+      // must never be the sole success criterion or a successful synthesis is
+      // refunded. Enchantment levels must be at least the prepared result.
+      Map<Enchantment, Integer> expectedEnchants = this.enchantments(expected);
+      Map<Enchantment, Integer> actualEnchants = this.enchantments(actual);
+      if (expectedEnchants.isEmpty()) {
+         return actualEnchants.isEmpty();
+      }
+      for (Map.Entry<Enchantment, Integer> entry : expectedEnchants.entrySet()) {
+         Integer actualLevel = actualEnchants.get(entry.getKey());
+         if (actualLevel == null || actualLevel < entry.getValue()) {
+            return false;
+         }
+      }
+      return true;
    }
 
    private record PendingResult(ItemStack result, int xpCost, int mpCost) {

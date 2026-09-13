@@ -92,13 +92,29 @@ abstract class MifronPart15 extends MifronPart14x2 {
       if (!this.mifron().shouldTrackAdvancement(advancement)) return;
       String fullKey = advancement.getKey().toString();
       Player player = event.getPlayer();
-      Set<String> completed = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
+      ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
+      Set<String> completed = new HashSet<>(section.getStringList("completed-advancements"));
       completed.add(fullKey);
-      this.mifron().getPlayerSection(player.getUniqueId()).set("completed-advancements", new ArrayList<>(completed));
+      section.set("completed-advancements", new ArrayList<>(completed));
       this.notifyUnlockedTitles(player, completed);
-      Set<String> rewarded = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("rewarded-advancements"));
-      if (!rewarded.add(fullKey)) { this.queueDataSave(); return; }
-      this.mifron().getPlayerSection(player.getUniqueId()).set("rewarded-advancements", new ArrayList<>(rewarded));
+      this.mifron().rewardAdvancement(player, advancement, section);
+      this.mifron().updateAdvancementBonus(player.getUniqueId(), completed);
+      this.mifron().checkAllAdvancementsCompleted(player);
+      this.mifron().refreshPlayerName(player);
+      this.queueDataSave();
+   }
+
+   /**
+    * Pays the reward for one tracked advancement exactly once. The rewarded
+    * marker is written only after the deposit call, so a crash or a failed
+    * payment cannot silently swallow the reward, and a replayed event cannot
+    * pay it twice.
+    */
+   protected boolean rewardAdvancement(Player player, Advancement advancement, ConfigurationSection section) {
+      if (player == null || advancement == null || section == null) return false;
+      String fullKey = advancement.getKey().toString();
+      Set<String> rewarded = new HashSet<>(section.getStringList("rewarded-advancements"));
+      if (rewarded.contains(fullKey)) return false;
       AdvancementDisplay display = advancement.getDisplay();
       Frame frame = display == null ? Frame.TASK : display.frame();
       int reward = this.advancementReward(frame, "emeralds");
@@ -111,10 +127,11 @@ abstract class MifronPart15 extends MifronPart14x2 {
       reward = (int) Math.min(2000000000L, Math.max(0L, Math.round(reward * multiplier)));
       int paidReward = this.mifron().applyIncomeBonus(player.getUniqueId(), reward);
       this.mifron().depositEmeralds(player.getUniqueId(), paidReward);
-      this.mifron().updateAdvancementBonus(player.getUniqueId(), completed);
+      rewarded.add(fullKey);
+      section.set("rewarded-advancements", new ArrayList<>(rewarded));
       player.sendMessage("\u00a7a\u9032\u6357\u5831\u916c: +" + this.mifron().formatNumber(paidReward) + "MP");
-      this.mifron().checkAllAdvancementsCompleted(player);
-      this.mifron().refreshPlayerName(player);
+      this.queueDataSave();
+      return true;
    }
 
    protected int advancementReward(Frame frame, String field) {

@@ -31,6 +31,7 @@ final class QuestService {
    private static final int DAILY_WEEKLY_SELECTION_SIZE = 5;
    private final Mifron plugin;
    private final Map<String, QuestDefinition> definitions = new LinkedHashMap<>();
+   private final Map<String, QuestDefinition> siteDefinitions = new LinkedHashMap<>();
 
    QuestService(Mifron plugin) {
       this.plugin = plugin;
@@ -78,7 +79,35 @@ final class QuestService {
    }
 
    QuestDefinition definition(String id) {
-      return this.definitions.get(id);
+      QuestDefinition local = this.definitions.get(id);
+      return local != null ? local : this.siteDefinitions.get(id);
+   }
+
+   /**
+    * Registers quests synchronized from the website. They participate in the
+    * same progress/claim/persistence engine as quests.yml definitions, keyed by
+    * their mapped progress key. quests.yml definitions always win on id clash.
+    */
+   void registerSiteQuests(java.util.Collection<QuestDefinition> defs) {
+      this.siteDefinitions.clear();
+      if (defs == null) return;
+      for (QuestDefinition definition : defs) {
+         if (definition == null || definition.id() == null || definition.progressKey() == null || definition.progressKey().isBlank()) continue;
+         if (this.definitions.containsKey(definition.id())) continue;
+         this.siteDefinitions.put(definition.id(), definition);
+      }
+   }
+
+   boolean hasSiteDefinition(String id) {
+      return this.siteDefinitions.containsKey(id);
+   }
+
+   private void appendSiteQuests(QuestType type, List<QuestDefinition> result) {
+      for (QuestDefinition definition : this.siteDefinitions.values()) {
+         if (definition.type() != type) continue;
+         if (result.stream().anyMatch(existing -> existing.id().equals(definition.id()))) continue;
+         result.add(definition);
+      }
    }
 
    List<QuestDefinition> visibleQuests(Player player, QuestType type) {
@@ -95,6 +124,7 @@ final class QuestService {
                .sorted(Comparator.comparing(QuestDefinition::id))
                .toList()
          );
+         this.appendSiteQuests(type, result);
          return result;
       } else if (type == QuestType.MONTHLY || type == QuestType.PERIODIC) {
          result.addAll(
@@ -105,6 +135,7 @@ final class QuestService {
                .sorted(Comparator.comparing(QuestDefinition::id))
                .toList()
          );
+         this.appendSiteQuests(type, result);
          return result;
       } else {
          Set<String> selected = new HashSet<>(this.playerSection(player.getUniqueId()).getStringList(this.questBase(type) + ".available"));
@@ -115,6 +146,7 @@ final class QuestService {
             .filter(definition -> selected.contains(definition.id()) || definition.isCompletionQuest())
             .sorted(Comparator.comparing(QuestDefinition::id))
             .forEach(result::add);
+         this.appendSiteQuests(type, result);
          return result;
       }
    }
@@ -122,6 +154,8 @@ final class QuestService {
    boolean isVisible(Player player, QuestDefinition definition) {
       if (definition == null) {
          return false;
+      } else if (this.siteDefinitions.containsKey(definition.id())) {
+         return true;
       } else if (definition.type() != QuestType.SPECIAL && definition.type() != QuestType.MONTHLY && definition.type() != QuestType.PERIODIC) {
          this.ensurePeriods(player);
          return definition.isCompletionQuest()
@@ -187,7 +221,7 @@ final class QuestService {
    }
 
    boolean claim(Player player, String questId) {
-      QuestDefinition definition = this.definitions.get(questId);
+      QuestDefinition definition = this.definition(questId);
       if (definition == null) {
          player.sendMessage(ChatColor.RED + "\u30af\u30a8\u30b9\u30c8\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + questId);
          return false;
@@ -204,14 +238,17 @@ final class QuestService {
             player.sendMessage(ChatColor.RED + "\u30af\u30a8\u30b9\u30c8\u6761\u4ef6\u3092\u6e80\u305f\u3057\u3066\u3044\u307e\u305b\u3093\u3002");
             return false;
          } else {
+            int reward = this.effectiveReward(player, definition);
             ConfigurationSection section = this.playerSection(player.getUniqueId());
             String claimPath = this.questBase(definition.type()) + ".claimed";
             List<String> claimed = new ArrayList<>(section.getStringList(claimPath));
-            claimed.add(definition.id());
+            if (!claimed.contains(definition.id())) claimed.add(definition.id());
+            // Stage the claim, then pay; the single save below flushes both the
+            // balance and the claim together. A crash before the flush leaves
+            // neither change persisted, so the reward is never lost or doubled.
             section.set(claimPath, claimed);
-            this.plugin.saveData();
-            int reward = this.effectiveReward(player, definition);
             this.plugin.depositEmeralds(player.getUniqueId(), reward);
+            this.plugin.saveData();
             player.sendMessage(ChatColor.GREEN + "\u30af\u30a8\u30b9\u30c8\u5831\u916c: " + definition.name() + " +" + this.formatNumber(reward) + "MP");
             return true;
          }
@@ -265,7 +302,7 @@ final class QuestService {
    }
 
    void setQuestProgress(Player player, String questId, int amount) {
-      QuestDefinition definition = this.definitions.get(questId);
+      QuestDefinition definition = this.definition(questId);
       if (definition == null) {
          player.sendMessage(ChatColor.RED + "\u30af\u30a8\u30b9\u30c8\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + questId);
       } else {
@@ -389,7 +426,8 @@ final class QuestService {
    }
 
    private boolean hasQuestWithProgressKey(QuestType type, String progressKey) {
-      return this.definitions.values().stream().anyMatch(definition -> definition.type() == type && definition.progressKey().equals(progressKey));
+      return this.definitions.values().stream().anyMatch(definition -> definition.type() == type && definition.progressKey().equals(progressKey))
+         || this.siteDefinitions.values().stream().anyMatch(definition -> definition.type() == type && definition.progressKey().equals(progressKey));
    }
 
    private boolean addProgressAt(UUID uuid, String path, int amount) {

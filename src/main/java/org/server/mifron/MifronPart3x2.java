@@ -76,7 +76,11 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
    }
 
    protected boolean isFfaSummonedMob(LivingEntity entity) {
-      return "summon".equals(entity.getPersistentDataContainer().get(this.ffaEntityKindKey, PersistentDataType.STRING));
+      String kind = entity.getPersistentDataContainer().get(this.ffaEntityKindKey, PersistentDataType.STRING);
+      // Summoned pets and Bug Mania silverfish are FFA-owned entities; their
+      // rewards are handled by the FFA flow and must not also pay the generic
+      // mob-kill reward.
+      return "summon".equals(kind) || "bug_silverfish".equals(kind);
    }
 
    protected int adjustedMobKillReward(UUID uuid, EntityType type, int baseReward) {

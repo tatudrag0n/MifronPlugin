@@ -102,16 +102,11 @@ abstract class MifronPart2x1 extends MifronPart2 {
 
    public boolean canPlaceShopBlock(Player player) { return this.shopBlockFeature == null || this.shopBlockFeature.canPlaceShopBlock(player); }
    public void recordShopBlockPlacement(Player player) { if (this.shopBlockFeature != null) this.shopBlockFeature.recordShopBlockPlacement(player); }
-   void grantOnlineShopProduct(Player player, ItemStack item) { if (player != null && item != null) player.getInventory().addItem(item); }
-   boolean canReceiveOnlineShopProduct(Player player, ItemStack item) { return player != null && item != null && this.mifron().inventorySpaceFor(player, item.getType()) >= item.getAmount(); }
-
-   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-   public void onPlayerRespawn(PlayerRespawnEvent event) {
-      if (event.getPlayer().getWorld() != null && "survival".equalsIgnoreCase(event.getPlayer().getWorld().getName())) {
-         World survival = Bukkit.getWorld(this.getConfig().getString("survival-dimensions.overworld", "survival"));
-         if (survival != null) event.setRespawnLocation(new Location(survival, 0.5D, 101.0D, 0.5D, 0.0F, 0.0F));
-      }
+   boolean grantOnlineShopProduct(Player player, ItemStack item) {
+      if (player == null || item == null) return false;
+      return player.getInventory().addItem(item).isEmpty();
    }
+   boolean canReceiveOnlineShopProduct(Player player, ItemStack item) { return player != null && item != null && this.mifron().inventorySpaceFor(player, item.getType()) >= item.getAmount(); }
 
    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
    public void onPlayerBanCommand(PlayerCommandPreprocessEvent event) {

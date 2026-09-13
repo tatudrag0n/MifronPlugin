@@ -108,6 +108,30 @@ final class WorldEditHook {
       }
    }
 
+   /**
+    * Applies a hard per-operation block-change limit to a player's WorldEdit
+    * session. This is the real enforcement point: it caps //set, //replace,
+    * //paste, //stack and //move regardless of command syntax, while allowing
+    * normal small edits under the limit.
+    */
+   void applyBlockChangeLimit(Player player, int limit) {
+      if (!this.available() || player == null || limit <= 0) return;
+      try {
+         Object actor = this.callStatic("com.sk89q.worldedit.bukkit.BukkitAdapter", "adapt", new Class[]{Player.class}, player);
+         Object worldEdit = this.callStatic("com.sk89q.worldedit.WorldEdit", "getInstance", new Class[0]);
+         Object sessionManager = this.call(worldEdit, "getSessionManager", new Class[0]);
+         Object session = this.call(
+            sessionManager, "get", new Class[]{Class.forName("com.sk89q.worldedit.extension.platform.Actor")}, actor);
+         try {
+            this.call(session, "setBlockChangeLimit", new Class[]{int.class}, limit);
+         } catch (NoSuchMethodException missing) {
+            this.call(session, "setMaxBlocksChanged", new Class[]{int.class}, limit);
+         }
+      } catch (Throwable error) {
+         this.plugin.getLogger().warning("WorldEdit block-change limit could not be applied: " + error.getMessage());
+      }
+   }
+
    int[] readSchematicSize(File file) {
       if (this.available() && file != null && file.exists()) {
          try (InputStream input = Files.newInputStream(file.toPath())) {

@@ -3,6 +3,8 @@ package org.server.mifron;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -10,12 +12,15 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
@@ -29,7 +34,9 @@ final class UtilityItemsFeature implements Listener {
       "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand", "jump_block"
    );
    private static final int MAX_JUMP_PAD_POWER = 100;
+   private static final long UTILITY_USE_DEBOUNCE_MILLIS = 150L;
    private final Mifron plugin;
+   private final Map<UUID, Long> lastUtilityUse = new ConcurrentHashMap<>();
    private final NamespacedKey mifronItemKey;
    private final NamespacedKey shopWandTypeKey;
    private final NamespacedKey jumpPadPowerKey;
@@ -241,31 +248,66 @@ final class UtilityItemsFeature implements Listener {
 
    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
    public void onInteract(PlayerInteractEvent event) {
-      if (event.isCancelled()) return;
+      Player player = event.getPlayer();
+      if (player == null) return;
+
+      // Resolve the item for the hand that fired this event. Paper does not
+      // always populate getItem() for both hands, so fall back to the inventory.
       ItemStack item = event.getItem();
+      if (item == null || item.getType() == Material.AIR) {
+         EquipmentSlot hand = event.getHand();
+         item = hand == EquipmentSlot.OFF_HAND
+            ? player.getInventory().getItemInOffHand()
+            : player.getInventory().getItemInMainHand();
+      }
       String id = this.getMifronItemId(item);
       if (id == null) return;
-      this.plugin.getLogger().info("[mf-debug] UTILITY interact id=" + id + " action=" + event.getAction() + " hand=" + event.getHand());
-      Player player = event.getPlayer();
+
+      // When both hands hold a Mifron item, only the main hand may act. This
+      // prevents the same utility item from opening twice from one click.
+      if (event.getHand() == EquipmentSlot.OFF_HAND
+         && this.getMifronItemId(player.getInventory().getItemInMainHand()) != null) {
+         return;
+      }
+
+      // A block interaction that another listener already cancelled is a shop
+      // or protected-block transaction; do not run the item action twice.
+      if (event.isCancelled() && event.getAction() == Action.RIGHT_CLICK_BLOCK) return;
+
       if ("emerald_bundle".equals(id)) {
          event.setCancelled(true);
+         event.setUseItemInHand(Event.Result.DENY);
          if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.plugin.tryShopPayment(player, event.getClickedBlock())) return;
          player.sendMessage(ChatColor.GREEN + "所持MP: " + this.plugin.formatNumber(this.plugin.getEmeralds(player.getUniqueId())));
          return;
       }
+
+      long now = System.currentTimeMillis();
+      Long last = this.lastUtilityUse.get(player.getUniqueId());
+      if (last != null && now - last < UTILITY_USE_DEBOUNCE_MILLIS) {
+         event.setCancelled(true);
+         return;
+      }
+
       boolean clicked = event.getAction().isRightClick() || event.getAction().isLeftClick();
       if ("friend_book".equals(id) && clicked) {
          event.setCancelled(true);
+         event.setUseItemInHand(Event.Result.DENY);
+         this.lastUtilityUse.put(player.getUniqueId(), now);
          this.plugin.openFriendUi(player);
          this.scheduleRestore(player);
       } else if ("quest_book".equals(id) && clicked) {
          event.setCancelled(true);
+         event.setUseItemInHand(Event.Result.DENY);
+         this.lastUtilityUse.put(player.getUniqueId(), now);
          this.plugin.openQuestUi(player, "categories");
          this.scheduleRestore(player);
       } else if ("teleporter".equals(id) && event.getAction().isRightClick()) {
          event.setCancelled(true);
+         this.lastUtilityUse.put(player.getUniqueId(), now);
       } else if (this.plugin.isReincarnationStar(item) && event.getAction().isRightClick()) {
          event.setCancelled(true);
+         this.lastUtilityUse.put(player.getUniqueId(), now);
          this.plugin.tryReincarnate(player, item);
       }
    }

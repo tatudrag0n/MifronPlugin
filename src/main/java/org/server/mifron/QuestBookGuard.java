@@ -30,8 +30,10 @@ final class QuestBookGuard implements Listener {
    public void onUse(PlayerInteractEvent event) {
       ItemStack item = event.getItem();
       if (!this.isUtilityBook(item)) return;
+      // Normalize the legacy material only. Opening the UI is owned by
+      // UtilityItemsFeature; cancelling here would suppress that handler and
+      // break utility book clicks in air for whichever listener ran first.
       if ("quest_book".equals(this.id(item)) && item.getType() != Material.BOOK) item.setType(Material.BOOK);
-      event.setCancelled(true);
    }
 
    private void convert(Player player) {
@@ -50,6 +52,6 @@ final class QuestBookGuard implements Listener {
 
    private String id(ItemStack item) {
       if (item == null || !item.hasItemMeta()) return null;
-      return item.getItemMeta().getPersistentDataContainer().get(this.itemKey, PersistentDataType.STRING);
+      return MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.itemKey, PersistentDataType.STRING);
    }
 }

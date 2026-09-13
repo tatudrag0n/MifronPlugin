@@ -32,6 +32,7 @@ import org.bukkit.event.inventory.InventoryPickupItemEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -129,6 +130,7 @@ final class FfaListener implements Listener {
          } else if (victimInFfa && attackerInFfa) {
             event.setCancelled(false);
             this.ffa.adjustFfaDamage(event, attacker, victim);
+            this.ffa.tagCombat(attacker, victim);
          } else {
             event.setCancelled(true);
             if (attacker != null) {
@@ -359,6 +361,13 @@ final class FfaListener implements Listener {
       }
    }
 
+   @EventHandler
+   public void onJoin(PlayerJoinEvent event) {
+      // FFA sessions are in-memory; after a restart a leftover exit item must
+      // not stay in a player's inventory.
+      this.ffa.cleanupOrphanExitItems(event.getPlayer());
+   }
+
    private Player attackingPlayer(Entity damager) {
       if (damager instanceof Player player) {
          return player;
@@ -453,6 +462,7 @@ final class FfaListener implements Listener {
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onInteract(PlayerInteractEvent var1) {
+      if (this.ffa.handleExitItemUse(var1)) return;
       if (this.ffa.handleManualKitProjectileUse(var1)) {
          var1.setCancelled(true);
          return;

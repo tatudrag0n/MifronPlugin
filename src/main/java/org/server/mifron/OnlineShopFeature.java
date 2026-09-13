@@ -4,11 +4,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -20,7 +17,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
@@ -36,7 +32,8 @@ final class OnlineShopFeature implements Listener {
    private final NamespacedKey accessKey;
    private final NamespacedKey productKey;
    private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
-   private final Map<UUID, Set<Material>> appliedCooldowns = new HashMap<>();
+   private final Map<String, Long> configuredCooldowns = new HashMap<>();
+   private final Map<String, String> configuredRarities = new HashMap<>();
    private final Map<UUID, Integer> pages = new HashMap<>();
    private final Map<UUID, Category> selected = new HashMap<>();
    private final EnumMap<Category, List<Material>> catalog = new EnumMap<>(Category.class);
@@ -69,6 +66,26 @@ final class OnlineShopFeature implements Listener {
          if (this.isPurchasable(material)) this.catalog.get(this.categoryOf(material)).add(material);
       }
       for (List<Material> list : this.catalog.values()) list.sort(Comparator.comparing(Material::name));
+      this.rebuildConfiguredCooldowns();
+   }
+
+   private void rebuildConfiguredCooldowns() {
+      this.configuredCooldowns.clear();
+      this.configuredRarities.clear();
+      for (String section : List.of("online-shop.items", "online-shop-new.items")) {
+         var root = this.plugin.getConfig().getConfigurationSection(section);
+         if (root == null) continue;
+         for (String key : root.getKeys(false)) {
+            String materialName = root.getString(key + ".material", "");
+            Material material = Material.matchMaterial(materialName);
+            if (material == null) continue;
+            if (root.contains(key + ".cooldown-seconds")) {
+               this.configuredCooldowns.put(material.name(), Math.max(0L, root.getLong(key + ".cooldown-seconds")));
+            }
+            String rarity = root.getString(key + ".rarity", "");
+            if (!rarity.isBlank()) this.configuredRarities.put(material.name(), rarity);
+         }
+      }
    }
 
    @EventHandler
@@ -177,22 +194,14 @@ final class OnlineShopFeature implements Listener {
    }
 
    private void applyCooldownOverlay(Player player, List<Material> materials) {
-      Set<Material> applied = this.appliedCooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashSet<>());
+      // The vanilla item cooldown is the single source of truth and must
+      // survive closing/reopening the GUI. Earlier code zeroed it from
+      // InventoryCloseEvent, which ran right after createInventory set it and
+      // made the cooldown animation disappear.
       for (Material material : materials) {
          long remaining = this.remainingSeconds(player, "item:" + material.name());
-         if (remaining <= 0L) continue;
-         player.setCooldown(material, (int) Math.min(Integer.MAX_VALUE, remaining * 20L));
-         applied.add(material);
+         player.setCooldown(material, remaining <= 0L ? 0 : (int) Math.min(Integer.MAX_VALUE, remaining * 20L));
       }
-   }
-
-   @EventHandler
-   public void onClose(InventoryCloseEvent event) {
-      if (!(event.getPlayer() instanceof Player player)) return;
-      if (!TITLE.equals(event.getView().getTitle())) return;
-      Set<Material> applied = this.appliedCooldowns.remove(player.getUniqueId());
-      if (applied == null) return;
-      for (Material material : applied) player.setCooldown(material, 0);
    }
 
    private ItemStack catalogIcon(Player player, Material material) {
@@ -258,8 +267,14 @@ final class OnlineShopFeature implements Listener {
          player.sendMessage(ChatColor.RED + "MP \u304c\u8db3\u308a\u307e\u305b\u3093\u3002\u5fc5\u8981 MP: " + price);
          return;
       }
-      this.plugin.grantOnlineShopProduct(player, product);
-      long cooldownSeconds = this.cooldownOf(this.rarityOf(price));
+      if (!this.plugin.grantOnlineShopProduct(player, product)) {
+         // Delivery failed after payment; refund atomically rather than
+         // silently dropping the item and keeping the MP.
+         if (price > 0) this.plugin.refundEmeralds(player.getUniqueId(), price);
+         player.sendMessage(ChatColor.RED + "\u30a2\u30a4\u30c6\u30e0\u3092\u6e21\u305b\u307e\u305b\u3093\u3067\u3057\u305f\u3002MP\u3092\u8fd4\u5374\u3057\u307e\u3057\u305f\u3002");
+         return;
+      }
+      long cooldownSeconds = this.cooldownSecondsFor(material);
       long until = System.currentTimeMillis() + cooldownSeconds * 1000L;
       this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(id, until);
       this.plugin.data().set("online-shop-cooldowns." + player.getUniqueId() + "." + id, until);
@@ -323,7 +338,16 @@ final class OnlineShopFeature implements Listener {
       return "COMMON";
    }
 
-   private long cooldownOf(String rarity) {
+   /**
+    * Explicit per-item {@code cooldown-seconds} config is authoritative. Rarity
+    * (configured, else derived from price) is only a fallback so a missing
+    * explicit value still yields a sane cooldown.
+    */
+   private long cooldownSecondsFor(Material material) {
+      Long explicit = this.configuredCooldowns.get(material.name());
+      if (explicit != null) return explicit;
+      String rarity = this.configuredRarities.get(material.name());
+      if (rarity == null || rarity.isBlank()) rarity = this.rarityOf(this.priceOf(material));
       return OnlineShopRules.cooldownSeconds(rarity);
    }
 }
