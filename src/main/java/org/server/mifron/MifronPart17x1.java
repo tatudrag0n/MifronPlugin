@@ -93,6 +93,8 @@ abstract class MifronPart17x1 extends MifronPart17 {
       this.applyMainWorldBorder();
       this.economyPriceTable.load();
       this.questService.load();
+      this.siteQuestService.invalidate();
+      this.siteQuestService.refreshIfStale();
       this.loadShopPrices();
       this.applyEconomyPriceTable();
       this.rebuildShelfShopCatalog();

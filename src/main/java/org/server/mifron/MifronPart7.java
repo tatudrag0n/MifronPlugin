@@ -11,10 +11,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 abstract class MifronPart7 extends MifronPart6x2 {
@@ -70,6 +72,13 @@ abstract class MifronPart7 extends MifronPart6x2 {
    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
    public void onJumpPadBlockBreak(BlockBreakEvent event) {
       if (this.jumpPadPower(event.getBlock()) != null) this.setJumpPad(event.getBlock(), false);
+   }
+
+   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+   public void onJumpBlockPlace(BlockPlaceEvent event) {
+      ItemStack item = event.getItemInHand();
+      if (!this.utilityItemsFeature.isMifronItem(item, "jump_block")) return;
+      this.setJumpPad(event.getBlockPlaced(), this.utilityItemsFeature.getJumpPadVerticalPower(item), this.utilityItemsFeature.getJumpPadHorizontalPower(item));
    }
 
    protected void setJumpPad(Block block, int verticalPower, int horizontalPower) {

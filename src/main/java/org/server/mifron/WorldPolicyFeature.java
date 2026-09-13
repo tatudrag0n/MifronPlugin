@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.advancement.Advancement;
@@ -39,6 +40,7 @@ final class WorldPolicyFeature implements Listener {
    );
    private final Mifron plugin;
    private final Map<UUID, PermissionAttachment> creativePerms = new HashMap<>();
+   private final Map<UUID, GameMode> creativeReturnModes = new HashMap<>();
 
    WorldPolicyFeature(Mifron plugin) { this.plugin = plugin; }
 
@@ -47,7 +49,7 @@ final class WorldPolicyFeature implements Listener {
       this.applySurvivalSpawn();
       Bukkit.getPluginManager().registerEvents(new QuestBookGuard(this.plugin), this.plugin);
       for (Player player : Bukkit.getOnlinePlayers()) {
-         if (this.isCreativeWorld(player.getWorld())) this.attachCreative(player);
+         if (this.isCreativeWorld(player.getWorld())) this.enterCreative(player);
       }
    }
 
@@ -65,7 +67,12 @@ final class WorldPolicyFeature implements Listener {
 
    @EventHandler
    public void onJoin(PlayerJoinEvent event) {
-      if (this.isCreativeWorld(event.getPlayer().getWorld())) this.attachCreative(event.getPlayer());
+      Player player = event.getPlayer();
+      if (this.isCreativeWorld(player.getWorld())) {
+         this.enterCreative(player);
+      } else if (!player.isOp() && !player.hasPermission("mifron.admin") && player.getGameMode() == GameMode.CREATIVE) {
+         player.setGameMode(GameMode.SURVIVAL);
+      }
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -163,14 +170,59 @@ final class WorldPolicyFeature implements Listener {
       String from = event.getFrom() == null ? "" : event.getFrom().getName();
       String to = player.getWorld() == null ? "" : player.getWorld().getName();
       if ("athletic".equalsIgnoreCase(from) && !"athletic".equalsIgnoreCase(to)) this.hideAthleticBoard(player);
-      if (this.isCreativeWorld(player.getWorld())) this.attachCreative(player);
-      else this.detachCreative(player);
+      if (this.isCreativeWorld(player.getWorld())) {
+         this.enterCreative(player);
+      } else if (this.isCreativeWorld(event.getFrom()) || this.creativeReturnModes.containsKey(player.getUniqueId())) {
+         this.leaveCreative(player);
+      } else {
+         this.detachCreative(player);
+      }
+   }
+
+   private void enterCreative(Player player) {
+      if (player == null) return;
+      this.attachCreative(player);
+      this.creativeReturnModes.putIfAbsent(player.getUniqueId(), player.getGameMode());
+      if (player.getGameMode() != GameMode.CREATIVE) player.setGameMode(GameMode.CREATIVE);
+   }
+
+   private void leaveCreative(Player player) {
+      if (player == null) return;
+      this.detachCreative(player);
+      GameMode prior = this.creativeReturnModes.remove(player.getUniqueId());
+      if (player.isOp() || player.hasPermission("mifron.admin")) {
+         player.setGameMode(prior == null ? GameMode.SURVIVAL : prior);
+      } else {
+         player.setGameMode(GameMode.SURVIVAL);
+      }
    }
 
    private void attachCreative(Player player) {
       if (player == null || this.creativePerms.containsKey(player.getUniqueId())) return;
       PermissionAttachment attachment = player.addAttachment(this.plugin);
-      attachment.setPermission("worldedit.*", true);
+      attachment.setPermission("worldedit.wand", true);
+      attachment.setPermission("worldedit.selection.pos", true);
+      attachment.setPermission("worldedit.selection.expand", true);
+      attachment.setPermission("worldedit.selection.contract", true);
+      attachment.setPermission("worldedit.selection.hpos", true);
+      attachment.setPermission("worldedit.selection.shift", true);
+      attachment.setPermission("worldedit.selection.size", true);
+      attachment.setPermission("worldedit.region.set", true);
+      attachment.setPermission("worldedit.region.replace", true);
+      attachment.setPermission("worldedit.region.walls", true);
+      attachment.setPermission("worldedit.region.hollow", true);
+      attachment.setPermission("worldedit.region.overlay", true);
+      attachment.setPermission("worldedit.region.faces", true);
+      attachment.setPermission("worldedit.region.line", true);
+      attachment.setPermission("worldedit.region.curve", true);
+      attachment.setPermission("worldedit.region.flora", true);
+      attachment.setPermission("worldedit.history.undo", true);
+      attachment.setPermission("worldedit.history.redo", true);
+      attachment.setPermission("worldedit.clipboard.copy", true);
+      attachment.setPermission("worldedit.clipboard.cut", true);
+      attachment.setPermission("worldedit.clipboard.clear", true);
+      attachment.setPermission("worldedit.clipboard.rotate", true);
+      attachment.setPermission("worldedit.clipboard.flip", true);
       attachment.setPermission("minecraft.command.teleport", true);
       attachment.setPermission("minecraft.command.tp", true);
       attachment.setPermission("bukkit.command.teleport", true);

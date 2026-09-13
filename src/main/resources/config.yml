@@ -6,6 +6,15 @@ survival-safety:
   disable-lava: true
   allow-admin-bypass: true
 
+chunk-protection:
+  enabled: true
+  discord-channel-id: "1538131813497700352"
+  warn-days-before: 7
+  min-base-blocks: 8
+  reject-protect-days: 90
+  approved-protect-days: 0
+  scan-interval-minutes: 60
+
 # Survival's normal portals use these dimensions instead of the main world's
 # Nether and End. Names are configurable so existing worlds are not renamed.
 survival-dimensions:
@@ -312,6 +321,10 @@ mob-kill-rewards:
   first-kill-bonus-minimum: 25
 
 quests:
+  site-sync:
+    enabled: true
+    url: "https://mifron.mct-official.com/api/quests"
+    cache-seconds: 600
   reward:
     apply-reincarnation-bonus: true
     reincarnation-bonus-compression-percent: 25

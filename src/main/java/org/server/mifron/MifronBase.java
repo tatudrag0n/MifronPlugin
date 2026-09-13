@@ -89,6 +89,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected FileConfiguration data;
    protected final EconomyPriceTable economyPriceTable = new EconomyPriceTable((Mifron) this);
    protected final QuestService questService = new QuestService((Mifron) this);
+   protected final SiteQuestService siteQuestService = new SiteQuestService((Mifron) this);
    protected final ChunkProtectionFeature chunkProtectionFeature = new ChunkProtectionFeature((Mifron) this);
    protected final ProtectionService protectionService = new ProtectionService((Mifron) this, this.chunkProtectionFeature);
    protected final ServerPortalFeature serverPortalFeature = new ServerPortalFeature((Mifron) this);

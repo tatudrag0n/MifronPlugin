@@ -1,9 +1,14 @@
 package org.server.mifron;
 
+import java.io.File;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,6 +20,8 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -24,6 +31,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 
 final class ChunkProtectionFeature implements Listener {
+   private static final String PROTECTION_FILE = "chunk-protection.yml";
    private final Mifron plugin;
    private final Map<UUID, String> lastChunkWarning = new ConcurrentHashMap<>();
 
@@ -45,6 +53,7 @@ final class ChunkProtectionFeature implements Listener {
          event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
       } else {
          this.plugin.addPlayerStat(event.getPlayer().getUniqueId(), "total-blocks-broken", 1);
+         this.recordBaseBlock(event.getPlayer(), event.getBlock().getChunk(), event.getBlock().getType(), -1);
       }
    }
 
@@ -63,6 +72,7 @@ final class ChunkProtectionFeature implements Listener {
             this.sendChunkWarning(event.getPlayer(), event.getBlockPlaced().getChunk());
          }
 
+         this.recordBaseBlock(event.getPlayer(), event.getBlockPlaced().getChunk(), event.getBlockPlaced().getType(), 1);
          this.plugin.addPlayerStat(event.getPlayer().getUniqueId(), "total-blocks-placed", 1);
       }
    }
@@ -130,6 +140,255 @@ final class ChunkProtectionFeature implements Listener {
       }
    }
 
+   // ---- Chunk protection / Discord warnings ----
+
+   private boolean chunkProtectionEnabled() {
+      return this.plugin.getConfig().getBoolean("chunk-protection.enabled", true);
+   }
+
+   private int minBaseBlocks() {
+      return Math.max(1, this.plugin.getConfig().getInt("chunk-protection.min-base-blocks", 8));
+   }
+
+   private int warnDaysBefore() {
+      return Math.max(0, this.plugin.getConfig().getInt("chunk-protection.warn-days-before", 7));
+   }
+
+   private int rejectProtectDays() {
+      return Math.max(0, this.plugin.getConfig().getInt("chunk-protection.reject-protect-days", 90));
+   }
+
+   private int approvedProtectDays() {
+      return Math.max(0, this.plugin.getConfig().getInt("chunk-protection.approved-protect-days", 0));
+   }
+
+   private int scanIntervalMinutes() {
+      return Math.max(1, this.plugin.getConfig().getInt("chunk-protection.scan-interval-minutes", 60));
+   }
+
+   private long regenIntervalMillis() {
+      long days = Math.max(1L, Math.min(365L, this.plugin.getConfig().getLong("regen.interval-days", 30L)));
+      return days * 86400000L;
+   }
+
+   private boolean isBaseBlock(Material material) {
+      return material != null
+         && (this.isWarningPlacement(material) || material == Material.BEACON || material == Material.RESPAWN_ANCHOR || material == Material.LODESTONE);
+   }
+
+   private void recordBaseBlock(Player player, Chunk chunk, Material material, int delta) {
+      if (player == null || chunk == null || chunk.getWorld() == null) return;
+      if (!"survival".equalsIgnoreCase(chunk.getWorld().getName()) || !this.isBaseBlock(material)) return;
+      String path = this.baseBlockPath(chunk) + "." + player.getUniqueId();
+      int next = this.plugin.data().getInt(path, 0) + delta;
+      if (next <= 0) this.plugin.data().set(path, null);
+      else this.plugin.data().set(path, next);
+      this.plugin.queueDataSave();
+   }
+
+   private String baseBlockPath(Chunk chunk) {
+      return "chunk-blocks." + chunk.getWorld().getName() + "." + chunk.getX() + "_" + chunk.getZ();
+   }
+
+   private String protectionPath(Chunk chunk) {
+      return "chunk-protect." + chunk.getWorld().getName() + "." + chunk.getX() + "_" + chunk.getZ();
+   }
+
+   private boolean isChunkProtected(Chunk chunk) {
+      return chunk != null && this.isChunkProtected(chunk.getWorld().getName(), chunk.getX(), chunk.getZ());
+   }
+
+   private boolean isChunkProtected(String worldName, int x, int z) {
+      String path = "chunk-protect." + worldName + "." + x + "_" + z;
+      if (!this.plugin.data().contains(path + ".until")) return false;
+      long until = this.plugin.data().getLong(path + ".until", 0L);
+      return until < 0L || until > System.currentTimeMillis();
+   }
+
+   private void protectChunk(Chunk chunk, String mode, long until) {
+      String path = this.protectionPath(chunk);
+      this.plugin.data().set(path + ".mode", mode);
+      this.plugin.data().set(path + ".until", until);
+      this.plugin.data().set(path + ".protected-at", System.currentTimeMillis());
+      this.plugin.saveData();
+   }
+
+   private void unprotectChunk(Chunk chunk) {
+      this.plugin.data().set(this.protectionPath(chunk), null);
+      this.plugin.saveData();
+   }
+
+   void scheduleScan() {
+      if (!this.chunkProtectionEnabled()) return;
+      long interval = this.scanIntervalMinutes() * 60L * 20L;
+      Bukkit.getScheduler().runTaskTimer(this.plugin, this::runProtectionScan, interval, interval);
+   }
+
+   void runProtectionScan() {
+      if (!this.chunkProtectionEnabled()) return;
+      World world = Bukkit.getWorld(this.plugin.getConfig().getString("survival-dimensions.overworld", "survival"));
+      if (world == null) return;
+      long nextRunAt = this.plugin.data().getLong("regen.next-run-at", 0L);
+      if (nextRunAt <= 0L) return;
+      long warnAt = nextRunAt - this.warnDaysBefore() * 86400000L;
+      if (System.currentTimeMillis() < warnAt) return;
+
+      ConfigurationSection chunks = this.plugin.data().getConfigurationSection("chunk-blocks." + world.getName());
+      if (chunks == null) return;
+
+      YamlConfiguration file = this.loadProtectionFile();
+      boolean changed = false;
+      for (String key : chunks.getKeys(false)) {
+         ConfigurationSection owners = chunks.getConfigurationSection(key);
+         if (owners == null) continue;
+         int total = 0;
+         Map<String, Integer> counts = new LinkedHashMap<>();
+         for (String owner : owners.getKeys(false)) {
+            int count = owners.getInt(owner, 0);
+            if (count <= 0) continue;
+            total += count;
+            counts.put(owner, count);
+         }
+         if (total < this.minBaseBlocks()) continue;
+         String[] coordinates = key.split("_", 2);
+         if (coordinates.length != 2) continue;
+         int x;
+         int z;
+         try {
+            x = Integer.parseInt(coordinates[0]);
+            z = Integer.parseInt(coordinates[1]);
+         } catch (NumberFormatException ignored) {
+            continue;
+         }
+         if (this.isChunkProtected(world.getName(), x, z)) continue;
+         String warnedPath = "chunk-warn." + world.getName() + "." + key + ".warned-at";
+         if (this.plugin.data().getLong(warnedPath, 0L) >= warnAt) continue;
+
+         String id = "cp_" + System.currentTimeMillis() + "_" + key.replace('-', 'n');
+         file.set("warnings." + id + ".world", world.getName());
+         file.set("warnings." + id + ".x", x);
+         file.set("warnings." + id + ".z", z);
+         file.set("warnings." + id + ".base-blocks", total);
+         file.set("warnings." + id + ".regen-at", nextRunAt);
+         file.set("warnings." + id + ".status", "pending");
+         file.set("warnings." + id + ".owners", new ArrayList<>(counts.keySet()));
+         this.plugin.data().set(warnedPath, System.currentTimeMillis());
+         changed = true;
+      }
+      if (changed) {
+         this.saveProtectionFile(file);
+         this.plugin.saveData();
+      }
+   }
+
+   void handleProtectCommand(CommandSender sender, String[] args) {
+      if (!(sender instanceof Player player)) {
+         sender.sendMessage("Player only.");
+         return;
+      }
+      if (args.length < 2 || !"chunk".equalsIgnoreCase(args[1])) {
+         player.sendMessage(ChatColor.YELLOW + "/mf protect chunk");
+         return;
+      }
+      Chunk chunk = player.getLocation().getChunk();
+      if (!"survival".equalsIgnoreCase(chunk.getWorld().getName())) {
+         player.sendMessage(ChatColor.RED + "\u3053\u306e\u30b3\u30de\u30f3\u30c9\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u7528\u3067\u304d\u307e\u3059\u3002");
+         return;
+      }
+      if (this.isChunkProtected(chunk)) {
+         player.sendMessage(ChatColor.YELLOW + "\u3053\u306e\u30c1\u30e3\u30f3\u30af\u306f\u3059\u3067\u306b\u4fdd\u8b77\u3055\u308c\u3066\u3044\u307e\u3059\u3002");
+         return;
+      }
+      YamlConfiguration file = this.loadProtectionFile();
+      String id = "cp_" + System.currentTimeMillis() + "_" + chunk.getX() + "n" + chunk.getZ();
+      String base = "proposals." + id;
+      file.set(base + ".world", chunk.getWorld().getName());
+      file.set(base + ".x", chunk.getX());
+      file.set(base + ".z", chunk.getZ());
+      file.set(base + ".requester", player.getUniqueId().toString());
+      file.set(base + ".requester-name", player.getName());
+      file.set(base + ".status", "pending");
+      file.set(base + ".created-at", System.currentTimeMillis());
+      this.saveProtectionFile(file);
+      player.sendMessage(ChatColor.GREEN + "\u30c1\u30e3\u30f3\u30af\u4fdd\u8b77\u306e\u63d0\u6848\u3092Discord\u3078\u9001\u4fe1\u3057\u307e\u3057\u305f\u3002\u7ba1\u7406\u8005\u306e\u627f\u8a8d\u3092\u304a\u5f85\u3061\u304f\u3060\u3055\u3044\u3002");
+   }
+
+   void handleChunkProtectCommand(CommandSender sender, String[] args) {
+      if (!this.plugin.hasPermission(sender, "mifron.admin")) {
+         sender.sendMessage(ChatColor.RED + "\u6a29\u9650\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
+         return;
+      }
+      if (args.length < 4 || !"apply".equalsIgnoreCase(args[1])) {
+         sender.sendMessage(ChatColor.YELLOW + "/mf chunkprotect apply <id> <decision>");
+         return;
+      }
+      String id = args[2];
+      String decision = args[3].toLowerCase(java.util.Locale.ROOT);
+      YamlConfiguration file = this.loadProtectionFile();
+      String kind = null;
+      ConfigurationSection entry = file.getConfigurationSection("warnings." + id);
+      if (entry != null) kind = "warnings";
+      if (entry == null) {
+         entry = file.getConfigurationSection("proposals." + id);
+         if (entry != null) kind = "proposals";
+      }
+      if (entry == null) {
+         sender.sendMessage(ChatColor.RED + "\u5bfe\u8c61\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + id);
+         return;
+      }
+      World world = Bukkit.getWorld(entry.getString("world", "survival"));
+      if (world == null) {
+         sender.sendMessage(ChatColor.RED + "\u30ef\u30fc\u30eb\u30c9\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3002");
+         return;
+      }
+      Chunk chunk = world.getChunkAt(entry.getInt("x", 0), entry.getInt("z", 0));
+      boolean protect;
+      long until;
+      if ("reject".equals(decision)) {
+         protect = true;
+         until = this.durationUntil(this.rejectProtectDays());
+      } else if ("approve".equals(decision)) {
+         protect = true;
+         until = this.durationUntil(this.approvedProtectDays());
+      } else {
+         protect = false;
+         until = 0L;
+      }
+      if (protect) {
+         this.protectChunk(chunk, decision, until);
+      } else {
+         this.unprotectChunk(chunk);
+         this.plugin.data().set("chunk-warn." + world.getName() + "." + chunk.getX() + "_" + chunk.getZ() + ".warned-at", null);
+      }
+      file.set(kind + "." + id + ".status", protect ? decision : "denied");
+      file.set(kind + "." + id + ".decision", decision);
+      file.set(kind + "." + id + ".decided-at", System.currentTimeMillis());
+      this.saveProtectionFile(file);
+      sender.sendMessage(ChatColor.GREEN + "\u30c1\u30e3\u30f3\u30af\u4fdd\u8b77\u306e\u6c7a\u5b9a\u3092\u53cd\u6620\u3057\u307e\u3057\u305f: " + id + " / " + decision);
+   }
+
+   private long durationUntil(int days) {
+      return days <= 0 ? -1L : System.currentTimeMillis() + days * 86400000L;
+   }
+
+   private File protectionFile() {
+      return new File(this.plugin.getDataFolder(), PROTECTION_FILE);
+   }
+
+   private YamlConfiguration loadProtectionFile() {
+      File file = this.protectionFile();
+      return file.exists() ? YamlConfiguration.loadConfiguration(file) : new YamlConfiguration();
+   }
+
+   private void saveProtectionFile(YamlConfiguration config) {
+      try {
+         if (!this.plugin.getDataFolder().exists()) this.plugin.getDataFolder().mkdirs();
+         config.save(this.protectionFile());
+      } catch (IOException error) {
+         this.plugin.getLogger().warning("Could not save " + PROTECTION_FILE + ": " + error.getMessage());
+      }
+   }
+
    void handleChunkCommand(Player player) {
       this.sendChunkInfo(player, player.getLocation().getChunk(), false);
    }
@@ -144,10 +403,12 @@ final class ChunkProtectionFeature implements Listener {
       int regenerated = 0;
       for (Chunk chunk : world.getLoadedChunks()) {
          if (regenerated >= limit) break;
+         if (this.isChunkProtected(chunk)) continue;
          if (this.isChunkRegenerationAllowed(chunk) && this.regenerateChunkNow(Bukkit.getConsoleSender(), chunk)) {
             regenerated++;
          }
       }
+      this.plugin.data().set("regen.next-run-at", System.currentTimeMillis() + this.regenIntervalMillis());
       this.plugin.saveData();
       this.plugin.getLogger().info("Monthly Survival regeneration completed: " + regenerated + " chunk(s).");
    }
@@ -295,7 +556,7 @@ final class ChunkProtectionFeature implements Listener {
    }
 
    private boolean regenerateChunkNow(CommandSender sender, Chunk chunk) {
-      if (this.isChunkRegenerationSafe(chunk)) {
+      if (this.isChunkRegenerationSafe(chunk) || this.isChunkProtected(chunk)) {
          return false;
       }
 

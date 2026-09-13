@@ -14,7 +14,7 @@ abstract class MifronPart17 extends MifronPart16 {
          sender.sendMessage("\u00a7e/mf check|list|tp|balance|pay|quest|status|tutorial|athletic|minigame|ffa|build|proposal|vote");
          return true;
       }
-      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "ffa", "structure", "proposal", "shelfshop").contains(args[0].toLowerCase(Locale.ROOT))) {
+      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "ffa", "structure", "proposal", "shelfshop", "chunkprotect").contains(args[0].toLowerCase(Locale.ROOT))) {
          sender.sendMessage("Player only.");
          return true;
       }
@@ -44,6 +44,8 @@ abstract class MifronPart17 extends MifronPart16 {
          case "mp", "em", "emerald" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleEmeraldCommand(sender, args); }
          case "regen" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleRegenCommand(sender, args); }
          case "chunk" -> { if (this.mifron().hasPermission(sender, "mifron.command.chunk")) this.mifron().handleChunkCommand((Player) sender); }
+         case "protect" -> this.chunkProtectionFeature.handleProtectCommand(sender, args);
+         case "chunkprotect" -> this.chunkProtectionFeature.handleChunkProtectCommand(sender, args);
          case "status" -> { if (this.mifron().hasPermission(sender, "mifron.command.status")) this.mifron().handleMifronStatusCommand((Player) sender, args); }
          case "tutorial" -> this.mifron().handleTutorialCommand(sender);
          case "shelfshop" -> this.handleShelfShopCommand(sender, args);
@@ -53,6 +55,12 @@ abstract class MifronPart17 extends MifronPart16 {
             int verticalPower = args.length >= 2 ? this.mifron().parsePositiveInt(args[1], 5) : 5;
             int horizontalPower = args.length >= 3 ? this.mifron().parsePositiveInt(args[2], verticalPower) : verticalPower;
             this.giveTypedWand(sender, this.createJumpPadWand(verticalPower, horizontalPower), "\u00a7a\u30b8\u30e3\u30f3\u30d7\u30d1\u30c3\u30c9\u30ef\u30f3\u30c9\u3092\u5165\u624b\u3057\u307e\u3057\u305f\u3002");
+         }
+         case "jumpblock" -> {
+            if (this.denyUnlessAdmin(sender)) return true;
+            int jumpVertical = args.length >= 2 ? this.mifron().parsePositiveInt(args[1], 10) : 10;
+            int jumpHorizontal = args.length >= 3 ? this.mifron().parsePositiveInt(args[2], jumpVertical) : jumpVertical;
+            this.giveTypedWand(sender, this.utilityItemsFeature.createJumpBlock(jumpVertical, jumpHorizontal), "\u00a7a\u30b8\u30e3\u30f3\u30d7\u30d6\u30ed\u30c3\u30af\u3092\u5165\u624b\u3057\u307e\u3057\u305f\u3002");
          }
          case "slotwand" -> {
             if (this.denyUnlessAdmin(sender)) return true;

@@ -11,6 +11,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -22,7 +23,7 @@ import org.bukkit.persistence.PersistentDataType;
 final class UtilityItemsFeature implements Listener {
    private static final Set<String> INITIAL_ITEM_IDS = Set.of("emerald_bundle", "friend_book", "quest_book", "teleporter", "online_shop");
    private static final Set<String> FIXED_ITEM_IDS = Set.of(
-      "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand"
+      "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand", "jump_block"
    );
    private static final int MAX_JUMP_PAD_POWER = 100;
    private final NamespacedKey mifronItemKey;
@@ -48,7 +49,7 @@ final class UtilityItemsFeature implements Listener {
          player,
          "emerald_bundle",
          this.createMifronItem(
-            Material.BUNDLE, "emerald_bundle", ChatColor.GREEN + "ウォレット", List.of(ChatColor.GRAY + "左クリック: MP残高確認", ChatColor.GRAY + "棚ショップ・スロットに右クリック: 使用", ChatColor.GRAY + "アイテム収納不可")
+            Material.BUNDLE, "emerald_bundle", ChatColor.GREEN + "ウォレット", List.of(ChatColor.GRAY + "右クリック: MP残高確認", ChatColor.GRAY + "棚ショップ・スロットに右クリック: 使用", ChatColor.GRAY + "アイテム収納不可")
          )
       );
       this.updateOrGiveMifronItem(player, "friend_book", this.createStatusBook());
@@ -155,8 +156,32 @@ final class UtilityItemsFeature implements Listener {
       );
    }
 
+   ItemStack createJumpBlock(int verticalPower, int horizontalPower) {
+      int safeVerticalPower = this.clampJumpPadPower(verticalPower);
+      int safeHorizontalPower = this.clampJumpPadPower(horizontalPower);
+      return this.createMifronItem(
+         Material.CHISELED_TUFF,
+         "jump_block",
+         ChatColor.AQUA + "ジャンプブロック",
+         List.of(
+            ChatColor.GRAY + "縦の強さ: " + safeVerticalPower,
+            ChatColor.GRAY + "横の強さ: " + safeHorizontalPower,
+            ChatColor.GRAY + "設置するとジャンプ台になります",
+            ChatColor.GRAY + "縦横: 0〜100"
+         ),
+         meta -> {
+            meta.getPersistentDataContainer().set(this.jumpPadVerticalPowerKey, PersistentDataType.INTEGER, safeVerticalPower);
+            meta.getPersistentDataContainer().set(this.jumpPadHorizontalPowerKey, PersistentDataType.INTEGER, safeHorizontalPower);
+         }
+      );
+   }
+
+   private boolean isJumpPowerItem(ItemStack item) {
+      return this.isMifronItem(item, "jump_pad_wand") || this.isMifronItem(item, "jump_block");
+   }
+
    int getJumpPadVerticalPower(ItemStack item) {
-      if (!this.isMifronItem(item, "jump_pad_wand")) return 5;
+      if (!this.isJumpPowerItem(item)) return 5;
       PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
       Integer power = (Integer)container.get(this.jumpPadVerticalPowerKey, PersistentDataType.INTEGER);
       if (power != null) return this.clampJumpPadPower(power);
@@ -165,7 +190,7 @@ final class UtilityItemsFeature implements Listener {
    }
 
    int getJumpPadHorizontalPower(ItemStack item) {
-      if (!this.isMifronItem(item, "jump_pad_wand")) return 5;
+      if (!this.isJumpPowerItem(item)) return 5;
       PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
       Integer power = (Integer)container.get(this.jumpPadHorizontalPowerKey, PersistentDataType.INTEGER);
       if (power != null) return this.clampJumpPadPower(power);
@@ -215,6 +240,25 @@ final class UtilityItemsFeature implements Listener {
       if (this.isInitialMifronItem(stack) || this.isFixedMifronUtilityItem(stack)) {
          event.setCancelled(true);
          event.getPlayer().sendMessage(ChatColor.YELLOW + "Mifronの固定アイテムは捨てられません。");
+      }
+   }
+
+   @EventHandler(ignoreCancelled = true)
+   public void onInventoryClick(InventoryClickEvent event) {
+      ItemStack cursor = event.getCursor();
+      ItemStack current = event.getCurrentItem();
+      boolean cursorWallet = this.isMifronItem(cursor, "emerald_bundle");
+      boolean currentWallet = this.isMifronItem(current, "emerald_bundle");
+      if (!cursorWallet && !currentWallet) return;
+      if (cursorWallet && currentWallet) return;
+      boolean cursorEmpty = cursor == null || cursor.getType() == Material.AIR;
+      boolean currentEmpty = current == null || current.getType() == Material.AIR;
+      if (cursorWallet && !currentEmpty) {
+         event.setCancelled(true);
+         if (event.getWhoClicked() instanceof Player player) player.sendMessage(ChatColor.YELLOW + "ウォレットにはアイテムを収納できません。");
+      } else if (currentWallet && !cursorEmpty) {
+         event.setCancelled(true);
+         if (event.getWhoClicked() instanceof Player player) player.sendMessage(ChatColor.YELLOW + "ウォレットにはアイテムを収納できません。");
       }
    }
 
@@ -290,7 +334,7 @@ final class UtilityItemsFeature implements Listener {
    }
 
    private int clampJumpPadPower(int power) {
-      return Math.max(1, Math.min(100, power));
+      return Math.max(0, Math.min(100, power));
    }
 
    private int oldPowerToNewPower(int power) {

@@ -68,10 +68,96 @@ abstract class MifronPart11 extends MifronPart10x2 {
 
    protected void fillStatusBox(Player player, Inventory inventory) {
       ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
-      inventory.setItem(36, this.mifron().named(Material.EXPERIENCE_BOTTLE, "\u00a7bMFL", List.of("\u00a77" + this.mifron().getMfl(player.getUniqueId()))));
-      inventory.setItem(37, this.mifron().named(Material.EMERALD, "\u00a7a\u6240\u6301MP", List.of("\u00a77" + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId())) + "MP")));
-      inventory.setItem(38, this.mifron().named(Material.EMERALD_BLOCK, "\u00a7a\u7dcf\u7372\u5f97MP", List.of("\u00a77" + this.mifron().formatNumber(section.getInt("total-earned-emeralds", 0)) + "MP")));
-      inventory.setItem(39, this.mifron().named(Material.CLOCK, "\u00a7e\u7dcf\u30d7\u30ec\u30a4\u6642\u9593", List.of("\u00a77" + this.mifron().formatPlayTime(section.getInt("total-minutes", 0)))));
+      inventory.setItem(
+         36,
+         this.mifron().actionItem(
+            Material.EXPERIENCE_BOTTLE,
+            "\u00a7bMFL",
+            List.of("\u00a77" + this.mifron().getMfl(player.getUniqueId()) + " \u00a78(\u30e9\u30f3\u30af " + this.mifron().getMflRank(player.getUniqueId()) + ")"),
+            "friend_status_detail",
+            null
+         )
+      );
+      inventory.setItem(
+         37,
+         this.mifron().actionItem(
+            Material.EMERALD,
+            "\u00a7a\u6240\u6301MP",
+            List.of("\u00a77" + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId())) + "MP"),
+            "friend_status_detail",
+            null
+         )
+      );
+      inventory.setItem(
+         38,
+         this.mifron().actionItem(
+            Material.EMERALD_BLOCK,
+            "\u00a7a\u7dcf\u7372\u5f97MP",
+            List.of("\u00a77" + this.mifron().formatNumber(section.getInt("total-earned-emeralds", 0)) + "MP"),
+            "friend_status_detail",
+            null
+         )
+      );
+      inventory.setItem(
+         39,
+         this.mifron().actionItem(
+            Material.CLOCK,
+            "\u00a7e\u7dcf\u30d7\u30ec\u30a4\u6642\u9593",
+            List.of("\u00a77" + this.mifron().formatPlayTime(section.getInt("total-minutes", 0))),
+            "friend_status_detail",
+            null
+         )
+      );
+      inventory.setItem(
+         40,
+         this.mifron().actionItem(
+            Material.IRON_PICKAXE,
+            "\u00a76\u63a1\u6398\u30d6\u30ed\u30c3\u30af",
+            List.of("\u00a77" + this.mifron().formatNumber(section.getInt("total-blocks-broken", 0)) + " \u500b"),
+            "friend_status_detail",
+            null
+         )
+      );
+      inventory.setItem(
+         41,
+         this.mifron().actionItem(
+            Material.BRICKS,
+            "\u00a76\u8a2d\u7f6e\u30d6\u30ed\u30c3\u30af",
+            List.of("\u00a77" + this.mifron().formatNumber(section.getInt("total-blocks-placed", 0)) + " \u500b"),
+            "friend_status_detail",
+            null
+         )
+      );
+      inventory.setItem(
+         42,
+         this.mifron().actionItem(
+            Material.IRON_SWORD,
+            "\u00a7c\u7dcf\u30e2\u30d6\u8a0e\u4f10\u6570",
+            List.of("\u00a77" + this.mifron().formatNumber(section.getInt("total-mob-kills", 0)) + " \u4f53"),
+            "friend_status_detail",
+            null
+         )
+      );
+      inventory.setItem(
+         43,
+         this.mifron().actionItem(
+            Material.SKELETON_SKULL,
+            "\u00a7c\u8a0e\u4f10\u6e08\u307fMob",
+            List.of("\u00a77" + section.getStringList("killed-mobs").size() + " \u7a2e\u985e"),
+            "friend_status_detail",
+            null
+         )
+      );
+      inventory.setItem(
+         44,
+         this.mifron().actionItem(
+            Material.WRITABLE_BOOK,
+            "\u00a7d\u9054\u6210\u9032\u6357",
+            List.of("\u00a77" + this.mifron().countCompletedAdvancements(player) + " / " + this.mifron().countTrackableAdvancements()),
+            "friend_status_detail",
+            null
+         )
+      );
    }
 
    protected void openDetailedStatusUi(Player player) { this.mifron().openStatusUi(player, "progress:0"); }

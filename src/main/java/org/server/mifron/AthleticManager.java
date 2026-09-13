@@ -316,6 +316,17 @@ final class AthleticManager implements Listener {
       this.showRanking(player, run.name(), "alltime");
       player.sendMessage(ChatColor.GOLD + "ゴール！ タイム: " + this.formatTime(elapsed));
       player.sendMessage(ChatColor.GREEN + "通常報酬: +" + paid + "MP" + (personalBest ? " / 自己ベスト更新報酬あり" : ""));
+      this.teleportToAthleticSpawn(player);
+   }
+
+   private void teleportToAthleticSpawn(Player player) {
+      Location target = this.plugin.readLocation("servers.athletic");
+      if (target == null) {
+         org.bukkit.World world = Bukkit.getWorld(this.plugin.getConfig().getString("servers.athletic.world", "athletic"));
+         if (world == null) return;
+         target = world.getSpawnLocation();
+      }
+      player.teleport(target);
    }
 
    private void tick() {

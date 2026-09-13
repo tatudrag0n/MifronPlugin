@@ -17,11 +17,11 @@ public final class Mifron extends MifronPart18x2 implements Listener, TabExecuto
          List<String> all = new ArrayList<>(List.of(
             "check", "list", "tp", "text", "ffa", "structure", "build", "proposal", "vote", "gamerules",
             "info", "reload", "kit", "balance", "pay", "merchant", "marchant", "minigame", "athletic",
-            "quest", "mp", "regen", "chunk", "status", "tutorial", "shelfshop", "shopwand", "slotwand",
-            "jumppadwand", "serverwand", "sethub", "setserver", "delserver", "serverorder", "servericon", "warning"
+            "quest", "mp", "regen", "chunk", "protect", "status", "tutorial", "shelfshop", "shopwand", "slotwand",
+            "jumppadwand", "jumpblock", "serverwand", "sethub", "setserver", "delserver", "serverorder", "servericon", "warning"
          ));
          if (!sender.isOp() && !sender.hasPermission("mifron.admin")) {
-            all.removeAll(List.of("reload", "regen", "gamerules", "kit", "shopwand", "slotwand", "jumppadwand",
+            all.removeAll(List.of("reload", "regen", "gamerules", "kit", "shopwand", "slotwand", "jumppadwand", "jumpblock",
                "serverwand", "sethub", "setserver", "delserver", "serverorder", "servericon", "text", "structure", "warning", "mp"));
          }
          String prefix = args[0].toLowerCase();

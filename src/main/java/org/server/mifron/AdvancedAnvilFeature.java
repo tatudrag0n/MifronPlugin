@@ -43,7 +43,7 @@ final class AdvancedAnvilFeature implements Listener {
    private static final Set<String> DEFAULT_EXCLUDED_IDS = Set.of(
       "emerald_bundle", "friend_book", "quest_book", "teleporter",
       "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand",
-      "jump_pad_wand", "hub_compass"
+      "jump_pad_wand", "jump_block", "hub_compass"
    );
    private final Mifron plugin;
    private final NamespacedKey currentItemKey;

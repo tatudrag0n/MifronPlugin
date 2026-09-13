@@ -43,7 +43,7 @@ final class SlotMachineManager implements Listener {
    }
 
    boolean registerMachine(Block shelf, SlotMachineManager.Difficulty difficulty) {
-      if (shelf != null && difficulty != null && shelf.getState() instanceof Shelf) {
+      if (shelf != null && difficulty != null && this.isShelfLike(shelf)) {
          this.unregisterMachine(shelf);
          if (!this.applyDifficultyShelf(shelf, difficulty)) {
             return false;
@@ -59,6 +59,10 @@ final class SlotMachineManager implements Listener {
       }
    }
 
+   private boolean isShelfLike(Block block) {
+      return block.getState() instanceof Shelf || "CHISELED_BOOKSHELF".equals(block.getType().name());
+   }
+
    private boolean applyDifficultyShelf(Block shelf, SlotMachineManager.Difficulty difficulty) {
       Material material = Material.matchMaterial(switch (difficulty) {
          case EASY -> "BAMBOO_SHELF";
@@ -71,6 +75,9 @@ final class SlotMachineManager implements Listener {
       }
 
       BlockFace facing = shelf.getBlockData() instanceof Directional directional ? directional.getFacing() : null;
+      if (!(shelf.getState() instanceof Shelf)) {
+         shelf.setType(Material.OAK_SHELF, false);
+      }
       shelf.setType(material, false);
       if (facing != null && shelf.getBlockData() instanceof Directional directional) {
          directional.setFacing(facing);

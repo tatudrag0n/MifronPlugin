@@ -334,19 +334,39 @@ final class QuestService {
 
    private void ensurePeriod(ConfigurationSection section, UUID uuid, QuestType type, String currentKey) {
       String base = this.questBase(type);
-      if (!currentKey.equals(section.getString(base + ".period"))) {
+      boolean dirty = !currentKey.equals(section.getString(base + ".period"));
+      if (dirty) {
          section.set(base + ".period", currentKey);
          section.set(base + ".progress", null);
          section.set(base + ".claimed", null);
-         if (type == QuestType.DAILY || type == QuestType.WEEKLY) {
-            section.set(base + ".available", this.selectPeriodicQuestIds(uuid, type, currentKey));
-         } else if (type == QuestType.MONTHLY || type == QuestType.PERIODIC) {
-            section.set(
-               base + ".available",
-               this.definitions.values().stream().filter(definition -> definition.type() == type).map(QuestDefinition::id).sorted().toList()
-            );
-         }
+      }
 
+      List<String> available = section.getStringList(base + ".available");
+      if (type == QuestType.DAILY || type == QuestType.WEEKLY) {
+         if (dirty || available.isEmpty()) {
+            List<String> selected = this.selectPeriodicQuestIds(uuid, type, currentKey);
+            if (!selected.isEmpty() && !selected.equals(available)) {
+               section.set(base + ".available", selected);
+               dirty = true;
+            }
+         }
+      } else if (type == QuestType.MONTHLY || type == QuestType.PERIODIC) {
+         if (dirty || available.isEmpty()) {
+            List<String> selected = this.definitions
+               .values()
+               .stream()
+               .filter(definition -> definition.type() == type)
+               .map(QuestDefinition::id)
+               .sorted()
+               .toList();
+            if (!selected.isEmpty() && !selected.equals(available)) {
+               section.set(base + ".available", selected);
+               dirty = true;
+            }
+         }
+      }
+
+      if (dirty) {
          this.plugin.saveData();
       }
    }

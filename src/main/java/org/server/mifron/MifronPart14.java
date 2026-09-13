@@ -47,6 +47,10 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "friend_chat_open" -> { if (targetId != null) { this.activeFriendChatTarget.put(player.getUniqueId(), targetId); this.mifron().openFriendUi(player); } }
          case "friend_chat_close" -> { this.activeFriendChatTarget.remove(player.getUniqueId()); this.friendChatDrafts.remove(player.getUniqueId()); this.mifron().openFriendUi(player); }
          case "friend_status_detail" -> this.openDetailedStatusUi(player);
+         case "status_tab_progress" -> this.mifron().openStatusUi(player, "progress:0");
+         case "status_tab_reincarnation" -> this.mifron().openStatusUi(player, "reincarnation");
+         case "status_tab_titles" -> this.mifron().openStatusUi(player, "titles:0");
+         case "status_tab_kills" -> this.mifron().openStatusUi(player, "kills:0");
          default -> {}
       }
    }

@@ -28,6 +28,16 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.getConfig().addDefault("advancement-rewards.multiplier", 5.0D);
       this.getConfig().addDefault("mob-kill-rewards.first-kill-bonus-multiplier", 5.0D);
       this.getConfig().addDefault("mob-kill-rewards.first-kill-bonus-minimum", 25);
+      this.getConfig().addDefault("quests.site-sync.enabled", true);
+      this.getConfig().addDefault("quests.site-sync.url", "https://mifron.mct-official.com/api/quests");
+      this.getConfig().addDefault("quests.site-sync.cache-seconds", 600L);
+      this.getConfig().addDefault("chunk-protection.enabled", true);
+      this.getConfig().addDefault("chunk-protection.discord-channel-id", "1538131813497700352");
+      this.getConfig().addDefault("chunk-protection.warn-days-before", 7);
+      this.getConfig().addDefault("chunk-protection.min-base-blocks", 8);
+      this.getConfig().addDefault("chunk-protection.reject-protect-days", 90);
+      this.getConfig().addDefault("chunk-protection.approved-protect-days", 0);
+      this.getConfig().addDefault("chunk-protection.scan-interval-minutes", 60);
       this.getConfig().addDefault("advanced-enchanting.enabled", true);
       this.getConfig().addDefault("advanced-enchanting.allowed-worlds", List.of("survival"));
       this.getConfig().addDefault("survival-dimensions.enabled", true);
@@ -44,6 +54,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("normalize spawn locations to origin", this.mifron()::normalizeSpawnLocationsToOrigin);
       this.mifron().runStartupStep("load economy price table", this.economyPriceTable::load);
       this.mifron().runStartupStep("load quest definitions", this.questService::load);
+      this.mifron().runStartupStep("refresh site quest sync", this.siteQuestService::refreshIfStale);
       this.mifron().runStartupStep("load shop prices", this.mifron()::loadShopPrices);
       this.mifron().runStartupStep("apply economy price table", this.mifron()::applyEconomyPriceTable);
       this.mifron().runStartupStep("cache shelf shop catalog", this.mifron()::rebuildShelfShopCatalog);
@@ -109,7 +120,9 @@ abstract class MifronPart1x1 extends MifronPart1 {
          long days = Math.max(1L, Math.min(365L, this.getConfig().getLong("regen.interval-days", 30L)));
          long period = days * 20L * 60L * 60L * 24L;
          Bukkit.getScheduler().runTaskTimer(this, this.chunkProtectionFeature::runMonthlyMaintenance, period, period);
+         this.mifron().data().set("regen.next-run-at", System.currentTimeMillis() + period * 50L);
       }
+      this.mifron().runStartupStep("schedule chunk protection scan", this.chunkProtectionFeature::scheduleScan);
       InventoryGroupFeature.install(this);
    }
 }

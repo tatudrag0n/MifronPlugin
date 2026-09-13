@@ -180,7 +180,29 @@ final class BuildWorldManager implements Listener {
          return;
       }
       PermissionAttachment attachment = player.addAttachment(this.plugin);
-      attachment.setPermission("worldedit.*", true);
+      attachment.setPermission("worldedit.wand", true);
+      attachment.setPermission("worldedit.selection.pos", true);
+      attachment.setPermission("worldedit.selection.expand", true);
+      attachment.setPermission("worldedit.selection.contract", true);
+      attachment.setPermission("worldedit.selection.hpos", true);
+      attachment.setPermission("worldedit.selection.shift", true);
+      attachment.setPermission("worldedit.selection.size", true);
+      attachment.setPermission("worldedit.region.set", true);
+      attachment.setPermission("worldedit.region.replace", true);
+      attachment.setPermission("worldedit.region.walls", true);
+      attachment.setPermission("worldedit.region.hollow", true);
+      attachment.setPermission("worldedit.region.overlay", true);
+      attachment.setPermission("worldedit.region.faces", true);
+      attachment.setPermission("worldedit.region.line", true);
+      attachment.setPermission("worldedit.region.curve", true);
+      attachment.setPermission("worldedit.region.flora", true);
+      attachment.setPermission("worldedit.history.undo", true);
+      attachment.setPermission("worldedit.history.redo", true);
+      attachment.setPermission("worldedit.clipboard.copy", true);
+      attachment.setPermission("worldedit.clipboard.cut", true);
+      attachment.setPermission("worldedit.clipboard.clear", true);
+      attachment.setPermission("worldedit.clipboard.rotate", true);
+      attachment.setPermission("worldedit.clipboard.flip", true);
       this.worldEditAttachments.put(player.getUniqueId(), attachment);
    }
 

@@ -1,8 +1,10 @@
 package org.server.mifron;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -46,9 +48,14 @@ abstract class MifronPart11x1 extends MifronPart11 {
 
    protected void openQuestUi(Player player, String tab) {
       this.questService.ensurePeriods(player);
+      this.siteQuestService.refreshIfStale();
       Inventory inventory = Bukkit.createInventory(player, 54, Component.text(QUEST_UI_TITLE));
-      if (tab == null || "categories".equals(tab)) this.fillQuestCategoryTab(inventory);
-      else this.fillQuestListTab(player, inventory, this.questTypeFromTab(tab));
+      if (tab == null || "categories".equals(tab)) {
+         this.fillQuestCategoryTab(inventory);
+      } else {
+         QuestType type = this.questTypeFromTab(tab);
+         if (!this.fillSiteQuestListTab(player, inventory, type)) this.fillQuestListTab(player, inventory, type);
+      }
       inventory.setItem(53, this.mifron().actionItem(Material.BARRIER, "\u00a7c\u9589\u3058\u308b", List.of(), "quest_close", null));
       this.mifron().fillEmptyGuiSlots(inventory);
       player.openInventory(inventory);
@@ -70,6 +77,44 @@ abstract class MifronPart11x1 extends MifronPart11 {
          if (slot >= 45) break;
          inventory.setItem(slot++, this.questItem(player, definition));
       }
+   }
+
+   protected boolean fillSiteQuestListTab(Player player, Inventory inventory, QuestType type) {
+      List<SiteQuestService.SiteQuest> siteQuests = this.siteQuestService.quests();
+      if (siteQuests.isEmpty()) return false;
+      Set<String> visibleIds = new HashSet<>();
+      for (QuestDefinition definition : this.questService.visibleQuests(player, type)) visibleIds.add(definition.id());
+      inventory.setItem(
+         45,
+         this.mifron().named(
+            Material.PAPER,
+            "\u00a7e" + type.label() + "\u30af\u30a8\u30b9\u30c8",
+            List.of("\u00a77" + this.questService.remainingTime(type), "\u00a78\u30b5\u30a4\u30c8\u540c\u671f\u6e08\u307f")
+         )
+      );
+      inventory.setItem(48, this.mifron().actionItem(Material.ARROW, "\u00a7f\u30ab\u30c6\u30b4\u30ea\u306b\u623b\u308b", List.of(), "quest_home", null));
+      int slot = 18;
+      for (SiteQuestService.SiteQuest quest : siteQuests) {
+         if (slot >= 45) break;
+         if (QuestType.fromLabel(quest.type()) != type) continue;
+         QuestDefinition definition = this.questService.definition(quest.id());
+         if (definition != null) {
+            if (!visibleIds.contains(definition.id())) continue;
+            inventory.setItem(slot++, this.questItem(player, definition));
+         } else {
+            inventory.setItem(slot++, this.siteQuestItem(quest));
+         }
+      }
+      return true;
+   }
+
+   protected ItemStack siteQuestItem(SiteQuestService.SiteQuest quest) {
+      List<String> lore = new ArrayList<>();
+      if (quest.condition() != null && !quest.condition().isBlank()) lore.add("\u00a77" + quest.condition());
+      if (quest.description() != null && !quest.description().isBlank()) lore.add("\u00a77" + quest.description());
+      if (quest.reward() != null && !quest.reward().isBlank()) lore.add("\u00a77\u5831\u916c: " + quest.reward());
+      lore.add("\u00a78\u30b5\u30a4\u30c8\u540c\u671f\u6e08\u307f");
+      return this.mifron().named(Material.PAPER, "\u00a7f" + quest.name(), lore);
    }
 
    protected ItemStack questItem(Player player, QuestDefinition definition) {
