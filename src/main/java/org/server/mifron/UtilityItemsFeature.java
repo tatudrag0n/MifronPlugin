@@ -5,14 +5,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
@@ -26,6 +29,7 @@ final class UtilityItemsFeature implements Listener {
       "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand", "jump_block"
    );
    private static final int MAX_JUMP_PAD_POWER = 100;
+   private final Mifron plugin;
    private final NamespacedKey mifronItemKey;
    private final NamespacedKey shopWandTypeKey;
    private final NamespacedKey jumpPadPowerKey;
@@ -33,6 +37,7 @@ final class UtilityItemsFeature implements Listener {
    private final NamespacedKey jumpPadHorizontalPowerKey;
 
    UtilityItemsFeature(Mifron plugin) {
+      this.plugin = plugin;
       this.mifronItemKey = new NamespacedKey(plugin, "item");
       this.shopWandTypeKey = new NamespacedKey(plugin, "shop_wand_type");
       this.jumpPadPowerKey = new NamespacedKey(plugin, "jump_pad_power");
@@ -232,6 +237,41 @@ final class UtilityItemsFeature implements Listener {
          return (String)MifronPdc.get(container, this.mifronItemKey, PersistentDataType.STRING);
       }
       return null;
+   }
+
+   @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
+   public void onInteract(PlayerInteractEvent event) {
+      if (event.isCancelled()) return;
+      ItemStack item = event.getItem();
+      String id = this.getMifronItemId(item);
+      if (id == null) return;
+      this.plugin.getLogger().info("[mf-debug] UTILITY interact id=" + id + " action=" + event.getAction() + " hand=" + event.getHand());
+      Player player = event.getPlayer();
+      if ("emerald_bundle".equals(id)) {
+         event.setCancelled(true);
+         if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.plugin.tryShopPayment(player, event.getClickedBlock())) return;
+         player.sendMessage(ChatColor.GREEN + "所持MP: " + this.plugin.formatNumber(this.plugin.getEmeralds(player.getUniqueId())));
+         return;
+      }
+      boolean clicked = event.getAction().isRightClick() || event.getAction().isLeftClick();
+      if ("friend_book".equals(id) && clicked) {
+         event.setCancelled(true);
+         this.plugin.openFriendUi(player);
+         this.scheduleRestore(player);
+      } else if ("quest_book".equals(id) && clicked) {
+         event.setCancelled(true);
+         this.plugin.openQuestUi(player, "categories");
+         this.scheduleRestore(player);
+      } else if ("teleporter".equals(id) && event.getAction().isRightClick()) {
+         event.setCancelled(true);
+      } else if (this.plugin.isReincarnationStar(item) && event.getAction().isRightClick()) {
+         event.setCancelled(true);
+         this.plugin.tryReincarnate(player, item);
+      }
+   }
+
+   private void scheduleRestore(Player player) {
+      Bukkit.getScheduler().runTask(this.plugin, () -> this.plugin.giveInitialItems(player));
    }
 
    @EventHandler(ignoreCancelled = true)

@@ -46,6 +46,13 @@ abstract class MifronPart17 extends MifronPart16 {
          case "chunk" -> { if (this.mifron().hasPermission(sender, "mifron.command.chunk")) this.mifron().handleChunkCommand((Player) sender); }
          case "protect" -> this.chunkProtectionFeature.handleProtectCommand(sender, args);
          case "chunkprotect" -> this.chunkProtectionFeature.handleChunkProtectCommand(sender, args);
+         case "debugopen" -> {
+            if (!(sender instanceof Player debugPlayer)) return true;
+            String debugWhich = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "quest";
+            if ("status".equals(debugWhich)) this.mifron().openFriendUi(debugPlayer);
+            else this.mifron().openQuestUi(debugPlayer, "categories");
+            this.getLogger().info("[mf-debug] open " + debugWhich + " -> " + debugPlayer.getOpenInventory().getTitle());
+         }
          case "status" -> { if (this.mifron().hasPermission(sender, "mifron.command.status")) this.mifron().handleMifronStatusCommand((Player) sender, args); }
          case "tutorial" -> this.mifron().handleTutorialCommand(sender);
          case "shelfshop" -> this.handleShelfShopCommand(sender, args);

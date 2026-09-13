@@ -54,6 +54,7 @@ abstract class MifronPart7 extends MifronPart6x2 {
    }
 
    void startJumpPadTask() {
+      this.getLogger().info("[mf-debug] jump pad task scheduled");
       Bukkit.getScheduler().runTaskTimer(this, this::tickJumpPads, 1L, 1L);
    }
 
@@ -72,6 +73,7 @@ abstract class MifronPart7 extends MifronPart6x2 {
    private void launchFromJumpPad(Player player, JumpPadPower power) {
       long now = System.currentTimeMillis();
       if (now - this.lastJumpPadUse.getOrDefault(player.getUniqueId(), 0L) < 650L) return;
+      this.getLogger().info("[mf-debug] jump launch " + player.getName() + " v=" + power.vertical() + " h=" + power.horizontal());
       this.lastJumpPadUse.put(player.getUniqueId(), now);
       this.jumpPadFallProtectionUntil.put(player.getUniqueId(), now + 60000L);
       player.setFallDistance(0.0F);
