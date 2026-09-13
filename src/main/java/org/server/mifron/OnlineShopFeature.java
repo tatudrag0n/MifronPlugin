@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -18,6 +20,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
@@ -33,6 +36,7 @@ final class OnlineShopFeature implements Listener {
    private final NamespacedKey accessKey;
    private final NamespacedKey productKey;
    private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
+   private final Map<UUID, Set<Material>> appliedCooldowns = new HashMap<>();
    private final Map<UUID, Integer> pages = new HashMap<>();
    private final Map<UUID, Category> selected = new HashMap<>();
    private final EnumMap<Category, List<Material>> catalog = new EnumMap<>(Category.class);
@@ -168,7 +172,27 @@ final class OnlineShopFeature implements Listener {
       inventory.setItem(45, this.actionIcon(Material.ARROW, "\u00a7e\u524d\u306e\u30da\u30fc\u30b8", "page:prev"));
       inventory.setItem(49, this.actionIcon(Material.PAPER, "\u00a7f" + current.label + "  " + (page + 1) + "/" + totalPages, "cat:" + current.name()));
       inventory.setItem(53, this.actionIcon(Material.ARROW, "\u00a7e\u6b21\u306e\u30da\u30fc\u30b8", "page:next"));
+      this.applyCooldownOverlay(player, items);
       return inventory;
+   }
+
+   private void applyCooldownOverlay(Player player, List<Material> materials) {
+      Set<Material> applied = this.appliedCooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashSet<>());
+      for (Material material : materials) {
+         long remaining = this.remainingSeconds(player, "item:" + material.name());
+         if (remaining <= 0L) continue;
+         player.setCooldown(material, (int) Math.min(Integer.MAX_VALUE, remaining * 20L));
+         applied.add(material);
+      }
+   }
+
+   @EventHandler
+   public void onClose(InventoryCloseEvent event) {
+      if (!(event.getPlayer() instanceof Player player)) return;
+      if (!TITLE.equals(event.getView().getTitle())) return;
+      Set<Material> applied = this.appliedCooldowns.remove(player.getUniqueId());
+      if (applied == null) return;
+      for (Material material : applied) player.setCooldown(material, 0);
    }
 
    private ItemStack catalogIcon(Player player, Material material) {
@@ -240,8 +264,6 @@ final class OnlineShopFeature implements Listener {
       this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(id, until);
       this.plugin.data().set("online-shop-cooldowns." + player.getUniqueId() + "." + id, until);
       this.plugin.queueDataSave();
-      int cooldownTicks = (int) Math.min(Integer.MAX_VALUE, cooldownSeconds * 20L);
-      if (cooldownTicks > 0) player.setCooldown(material, cooldownTicks);
       player.sendMessage(ChatColor.GREEN + "\u8cfc\u5165\u3057\u307e\u3057\u305f: " + material.name() + " (" + price + " MP)");
       player.openInventory(this.createInventory(player));
    }

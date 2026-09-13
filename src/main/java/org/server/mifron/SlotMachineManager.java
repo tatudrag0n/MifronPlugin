@@ -71,7 +71,7 @@ final class SlotMachineManager implements Listener {
          case EXPERT -> "WARPED_SHELF";
       });
       if (material == null) {
-         return false;
+         material = Material.OAK_SHELF;
       }
 
       BlockFace facing = shelf.getBlockData() instanceof Directional directional ? directional.getFacing() : null;
@@ -84,7 +84,7 @@ final class SlotMachineManager implements Listener {
          shelf.setBlockData(directional, false);
       }
 
-      return shelf.getState() instanceof Shelf;
+      return shelf.getType().name().endsWith("_SHELF");
    }
 
    boolean isMachine(Block shelf) {

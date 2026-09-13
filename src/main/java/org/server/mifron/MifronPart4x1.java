@@ -65,7 +65,11 @@ abstract class MifronPart4x1 extends MifronPart4 {
       this.mifron().clearShopOwner(block);
       this.queueDataSave();
       if (!this.slotMachineManager.registerMachine(block, difficulty)) {
-         player.sendMessage("\u00a7c\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u5316\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002");
+         String path = "slot-machines." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
+         this.data.set(path + ".difficulty", difficulty.name());
+         this.data.set(path + ".created-at", System.currentTimeMillis());
+         this.queueDataSave();
+         player.sendMessage("\u00a7e\u5916\u898b\u306e\u5909\u66f4\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u304c\u3001\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u3068\u3057\u3066\u767b\u9332\u3057\u307e\u3057\u305f\u3002");
          return;
       }
       player.sendMessage("\u00a7b\u68da\u3092\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u5316\u3057\u307e\u3057\u305f\uff01");

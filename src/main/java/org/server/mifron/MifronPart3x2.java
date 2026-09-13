@@ -100,10 +100,15 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
    }
 
    protected boolean isDirectPlayerKill(LivingEntity entity, Player killer) {
+      if (killer == null) return false;
+      Player actualKiller = entity.getKiller();
+      if (actualKiller != null && actualKiller.getUniqueId().equals(killer.getUniqueId())) return true;
       if (!(entity.getLastDamageCause() instanceof EntityDamageByEntityEvent entityDamage)) return false;
       Entity damager = entityDamage.getDamager();
       if (damager instanceof Player player) return player.getUniqueId().equals(killer.getUniqueId());
-      return damager instanceof Projectile projectile && projectile.getShooter() instanceof Player player && player.getUniqueId().equals(killer.getUniqueId());
+      if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Player shooter) return shooter.getUniqueId().equals(killer.getUniqueId());
+      if (damager instanceof org.bukkit.entity.Tameable tameable && tameable.getOwner() instanceof Player owner) return owner.getUniqueId().equals(killer.getUniqueId());
+      return false;
    }
 
    protected boolean addKilledMob(UUID uuid, EntityType type) {

@@ -68,11 +68,11 @@ abstract class MifronPart3x1 extends MifronPart3 {
          player.sendMessage("\u00a7a\u6240\u6301MP: " + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId())));
          return;
       }
-      if (this.isMifronItem(item, "friend_book") && event.getAction().isRightClick()) {
+      if (this.isMifronItem(item, "friend_book") && (event.getAction().isRightClick() || event.getAction().isLeftClick())) {
          event.setCancelled(true);
          this.mifron().openFriendUi(player);
          this.restoreUtilityItem(player);
-      } else if (this.isMifronItem(item, "quest_book") && event.getAction().isRightClick()) {
+      } else if (this.isMifronItem(item, "quest_book") && (event.getAction().isRightClick() || event.getAction().isLeftClick())) {
          event.setCancelled(true);
          this.mifron().openQuestUi(player, "categories");
          this.restoreUtilityItem(player);
