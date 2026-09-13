@@ -8,6 +8,10 @@ import org.bukkit.entity.Player;
 
 abstract class MifronPart18 extends MifronPart17x1 {
    protected void handleQuestCommand(CommandSender sender, String[] args) {
+      if (sender instanceof Player player && args.length < 2) {
+         this.mifron().openQuestUi(player, "categories");
+         return;
+      }
       if (sender instanceof Player player && this.questProposalFeature.handleCommand(player, args)) return;
       if (!sender.hasPermission("mifron.admin")) {
          sender.sendMessage("\u00a7e/mf quest propose  \u3067\u30af\u30a8\u30b9\u30c8\u3092\u63d0\u6848\u3067\u304d\u307e\u3059\u3002");
