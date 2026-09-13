@@ -235,11 +235,15 @@ final class OnlineShopFeature implements Listener {
          return;
       }
       this.plugin.grantOnlineShopProduct(player, product);
-      long until = System.currentTimeMillis() + this.cooldownOf(this.rarityOf(price)) * 1000L;
+      long cooldownSeconds = this.cooldownOf(this.rarityOf(price));
+      long until = System.currentTimeMillis() + cooldownSeconds * 1000L;
       this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(id, until);
       this.plugin.data().set("online-shop-cooldowns." + player.getUniqueId() + "." + id, until);
       this.plugin.queueDataSave();
+      int cooldownTicks = (int) Math.min(Integer.MAX_VALUE, cooldownSeconds * 20L);
+      if (cooldownTicks > 0) player.setCooldown(material, cooldownTicks);
       player.sendMessage(ChatColor.GREEN + "\u8cfc\u5165\u3057\u307e\u3057\u305f: " + material.name() + " (" + price + " MP)");
+      player.openInventory(this.createInventory(player));
    }
 
    private boolean inSurvivalWorld(Player player) {

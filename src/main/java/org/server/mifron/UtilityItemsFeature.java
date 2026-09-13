@@ -245,21 +245,12 @@ final class UtilityItemsFeature implements Listener {
 
    @EventHandler(ignoreCancelled = true)
    public void onInventoryClick(InventoryClickEvent event) {
-      ItemStack cursor = event.getCursor();
+      if (!this.isMifronItem(event.getCursor(), "emerald_bundle")) return;
       ItemStack current = event.getCurrentItem();
-      boolean cursorWallet = this.isMifronItem(cursor, "emerald_bundle");
-      boolean currentWallet = this.isMifronItem(current, "emerald_bundle");
-      if (!cursorWallet && !currentWallet) return;
-      if (cursorWallet && currentWallet) return;
-      boolean cursorEmpty = cursor == null || cursor.getType() == Material.AIR;
-      boolean currentEmpty = current == null || current.getType() == Material.AIR;
-      if (cursorWallet && !currentEmpty) {
-         event.setCancelled(true);
-         if (event.getWhoClicked() instanceof Player player) player.sendMessage(ChatColor.YELLOW + "ウォレットにはアイテムを収納できません。");
-      } else if (currentWallet && !cursorEmpty) {
-         event.setCancelled(true);
-         if (event.getWhoClicked() instanceof Player player) player.sendMessage(ChatColor.YELLOW + "ウォレットにはアイテムを収納できません。");
-      }
+      if (current == null || current.getType() == Material.AIR) return;
+      if (this.isMifronItem(current, "emerald_bundle")) return;
+      event.setCancelled(true);
+      if (event.getWhoClicked() instanceof Player player) player.sendMessage(ChatColor.YELLOW + "ウォレットにはアイテムを収納できません。");
    }
 
    private void giveMifronItemIfMissing(Player player, String id, ItemStack item) {

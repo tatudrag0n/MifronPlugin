@@ -80,30 +80,28 @@ abstract class MifronPart11x1 extends MifronPart11 {
    }
 
    protected boolean fillSiteQuestListTab(Player player, Inventory inventory, QuestType type) {
-      List<SiteQuestService.SiteQuest> siteQuests = this.siteQuestService.quests();
-      if (siteQuests.isEmpty()) return false;
-      Set<String> visibleIds = new HashSet<>();
-      for (QuestDefinition definition : this.questService.visibleQuests(player, type)) visibleIds.add(definition.id());
+      List<QuestDefinition> visible = this.questService.visibleQuests(player, type);
       inventory.setItem(
          45,
          this.mifron().named(
             Material.PAPER,
             "\u00a7e" + type.label() + "\u30af\u30a8\u30b9\u30c8",
-            List.of("\u00a77" + this.questService.remainingTime(type), "\u00a78\u30b5\u30a4\u30c8\u540c\u671f\u6e08\u307f")
+            List.of("\u00a77" + this.questService.remainingTime(type))
          )
       );
       inventory.setItem(48, this.mifron().actionItem(Material.ARROW, "\u00a7f\u30ab\u30c6\u30b4\u30ea\u306b\u623b\u308b", List.of(), "quest_home", null));
       int slot = 18;
-      for (SiteQuestService.SiteQuest quest : siteQuests) {
+      Set<String> localIds = new HashSet<>();
+      for (QuestDefinition definition : visible) {
          if (slot >= 45) break;
+         localIds.add(definition.id());
+         inventory.setItem(slot++, this.questItem(player, definition));
+      }
+      for (SiteQuestService.SiteQuest quest : this.siteQuestService.quests()) {
+         if (slot >= 45) break;
+         if (localIds.contains(quest.id()) || this.questService.definition(quest.id()) != null) continue;
          if (QuestType.fromLabel(quest.type()) != type) continue;
-         QuestDefinition definition = this.questService.definition(quest.id());
-         if (definition != null) {
-            if (!visibleIds.contains(definition.id())) continue;
-            inventory.setItem(slot++, this.questItem(player, definition));
-         } else {
-            inventory.setItem(slot++, this.siteQuestItem(quest));
-         }
+         inventory.setItem(slot++, this.siteQuestItem(quest));
       }
       return true;
    }

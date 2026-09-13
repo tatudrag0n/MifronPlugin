@@ -154,7 +154,7 @@ public final class InventoryGroupFeature implements Listener {
    }
 
    private void ensureInitialItems(Player player, InventoryGroupFeature.Group group) {
-      if (group == InventoryGroupFeature.Group.SURVIVAL && this.plugin instanceof Mifron mifron) {
+      if (group != InventoryGroupFeature.Group.FFA && this.plugin instanceof Mifron mifron) {
          mifron.giveInitialItemsAfterInventoryRestore(player);
       }
    }
