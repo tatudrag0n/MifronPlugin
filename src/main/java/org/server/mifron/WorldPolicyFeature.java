@@ -137,7 +137,7 @@ final class WorldPolicyFeature implements Listener {
       String name = raw.split("\\s+", 2)[0];
       // Enforce the real block-count ceiling on the player's WorldEdit session
       // before the operation runs. This catches oversized edits that do not use
-      // a blocked command name.
+      // a blocked command name. OPs/admins are already exempt above.
       this.worldEdit.applyBlockChangeLimit(player, this.plugin.getConfig().getInt("creative-world.max-block-changes", 10000));
       List<String> extra = this.plugin.getConfig().getStringList("creative-world.restricted-worldedit-commands");
       boolean blocked = RESTRICTED_WORLDEDIT.contains(name) || extra.stream().anyMatch(value -> value.equalsIgnoreCase(name));
@@ -192,6 +192,12 @@ final class WorldPolicyFeature implements Listener {
       this.attachCreative(player);
       this.creativeReturnModes.putIfAbsent(player.getUniqueId(), player.getGameMode());
       if (player.getGameMode() != GameMode.CREATIVE) player.setGameMode(GameMode.CREATIVE);
+      // OPs/admins are exempt from the block-change ceiling.
+      if (!player.isOp() && !player.hasPermission("mifron.admin")) {
+         this.worldEdit.applyBlockChangeLimit(player, this.plugin.getConfig().getInt("creative-world.max-block-changes", 10000));
+      } else {
+         this.worldEdit.applyBlockChangeLimit(player, -1);
+      }
    }
 
    private void leaveCreative(Player player) {

@@ -29,10 +29,12 @@ import org.bukkit.permissions.PermissionAttachment;
 final class BuildWorldManager implements Listener {
    private static final String WORLD_PREFIX = "mifron_build_";
    private final Mifron plugin;
+   private final WorldEditHook worldEdit;
    private final Map<UUID, PermissionAttachment> worldEditAttachments = new ConcurrentHashMap<>();
 
    BuildWorldManager(Mifron plugin) {
       this.plugin = plugin;
+      this.worldEdit = new WorldEditHook(plugin);
    }
 
    void load() {
@@ -251,7 +253,8 @@ final class BuildWorldManager implements Listener {
    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
    public void onWorldEditCommand(PlayerCommandPreprocessEvent event) {
       Player player = event.getPlayer();
-      if (!this.isBuildWorld(player.getWorld()) || player.hasPermission("mifron.admin")) {
+      // OPs/admins have no WorldEdit restrictions.
+      if (!this.isBuildWorld(player.getWorld()) || player.isOp() || player.hasPermission("mifron.admin")) {
          return;
       }
       String command = event.getMessage().trim().toLowerCase(java.util.Locale.ROOT);
@@ -274,8 +277,11 @@ final class BuildWorldManager implements Listener {
    public void onChangedWorld(PlayerChangedWorldEvent event) {
       Player player = event.getPlayer();
       if (this.isBuildWorld(player.getWorld())) {
-         if (player.hasPermission("mifron.admin") || this.isOwner(player, player.getWorld())) {
+         if (player.isOp() || player.hasPermission("mifron.admin") || this.isOwner(player, player.getWorld())) {
             this.attachWorldEdit(player);
+            if (player.isOp() || player.hasPermission("mifron.admin")) {
+               this.worldEdit.applyBlockChangeLimit(player, -1);
+            }
          } else {
             this.exit(player);
          }
