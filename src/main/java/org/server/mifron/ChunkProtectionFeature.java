@@ -34,6 +34,7 @@ final class ChunkProtectionFeature implements Listener {
    private static final String PROTECTION_FILE = "chunk-protection.yml";
    private final Mifron plugin;
    private final Map<UUID, String> lastChunkWarning = new ConcurrentHashMap<>();
+   private org.bukkit.scheduler.BukkitTask scanTask;
 
    ChunkProtectionFeature(Mifron plugin) {
       this.plugin = plugin;
@@ -229,10 +230,20 @@ final class ChunkProtectionFeature implements Listener {
       this.plugin.saveData();
    }
 
+   void shutdown() {
+      if (this.scanTask != null) {
+         this.scanTask.cancel();
+         this.scanTask = null;
+      }
+   }
+
    void scheduleScan() {
+      if (this.scanTask != null) {
+         this.scanTask.cancel();
+      }
       if (!this.chunkProtectionEnabled()) return;
       long interval = this.scanIntervalMinutes() * 60L * 20L;
-      Bukkit.getScheduler().runTaskTimer(this.plugin, this::runProtectionScan, interval, interval);
+      this.scanTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::runProtectionScan, interval, interval);
    }
 
    void runProtectionScan() {

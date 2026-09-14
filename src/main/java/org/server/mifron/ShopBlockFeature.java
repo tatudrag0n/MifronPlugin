@@ -153,6 +153,10 @@ public class ShopBlockFeature implements Listener {
       return item.getItemMeta().getPersistentDataContainer().get(this.store.keys.shopType, PersistentDataType.STRING);
    }
 
+   boolean isPdcShop(Block block) {
+      return block != null && this.store.isShop(block);
+   }
+
    private boolean isShopBlockType(Material type) {
       return type.name().endsWith("_SHELF") || type == Material.BARREL || type == Material.HOPPER;
    }

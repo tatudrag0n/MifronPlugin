@@ -587,7 +587,9 @@ final class FfaManager {
    }
 
    private void startCombatTask() {
-      if (this.combatTask != null) return;
+      if (this.combatTask != null) {
+         this.combatTask.cancel();
+      }
       this.combatTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickCombat, 20L, 20L);
    }
 

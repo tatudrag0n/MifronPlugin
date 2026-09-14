@@ -27,6 +27,7 @@ abstract class MifronPart1x2 extends MifronPart1x1 {
    public void onDisable() {
       this.cancelScheduledAutoShutdown("the plugin is disabling");
       this.minoruBridgeFeature.stop();
+      try { this.chunkProtectionFeature.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to disable chunk protection cleanly."); e.printStackTrace(); }
       try { this.auctionFeature.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to disable auction settlement cleanly."); e.printStackTrace(); }
       try { this.ffaManager.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to disable FFA cleanly."); e.printStackTrace(); }
       try { this.athleticManager.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to disable athletic cleanly."); e.printStackTrace(); }
