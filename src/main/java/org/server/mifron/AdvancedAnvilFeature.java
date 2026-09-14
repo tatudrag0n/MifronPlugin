@@ -100,7 +100,6 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
-      ItemStack vanillaResult = event.getResult();
       // Do not use the vanilla result as the data source. Paper can copy the
       // right-hand book into that result before this listener runs, and a
       // high-level/legacy book can then retain both direct and stored forms of
@@ -121,9 +120,7 @@ final class AdvancedAnvilFeature implements Listener {
       int mpCost = exceedsVanillaLevel ? this.mpCost(totalCost, result, left) : 0;
       event.getView().setRepairCost(xpCost);
       this.configureMaximumRepairCost(event.getView());
-      if (vanillaResult == null) {
-         this.applyRepairPenalty(result, left, right);
-      }
+      this.applyRepairPenalty(result, left, right);
       this.applyAnvilDisplay(result, xpCost, mpCost);
       event.setResult(result);
       this.pendingResults.put(inventory, new PendingResult(result.clone(), xpCost, mpCost));

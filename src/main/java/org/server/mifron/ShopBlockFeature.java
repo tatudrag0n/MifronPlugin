@@ -22,6 +22,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -38,6 +39,11 @@ public class ShopBlockFeature implements Listener {
       this.store = new ShopBlockStore(plugin);
       this.prices = new ShopPriceMenu(this.store);
       this.trades = new ShopTradeService(plugin, this.store);
+   }
+
+   @EventHandler
+   public void onQuit(PlayerQuitEvent event) {
+      this.placements.remove(event.getPlayer().getUniqueId());
    }
 
    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

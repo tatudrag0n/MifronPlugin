@@ -109,10 +109,10 @@ public class SpecialItemsFeature implements Listener {
 
     @EventHandler
     public void onCraft(CraftItemEvent event) {
-        if (event.getWhoClicked() instanceof Player) {
+        if (event.getWhoClicked() instanceof Player player) {
             ItemStack result = event.getCurrentItem();
             if (result != null) {
-                tryTransform(result, (Player) event.getWhoClicked());
+                tryTransform(result, player);
             }
         }
     }

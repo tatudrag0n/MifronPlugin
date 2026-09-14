@@ -15,7 +15,9 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.RegisteredListener;
@@ -48,6 +50,14 @@ final class CompassFeature implements Listener {
       }
    }
 
+   @EventHandler
+   public void onQuit(PlayerQuitEvent event) {
+      UUID uuid = event.getPlayer().getUniqueId();
+      this.teleportBlockUntil.remove(uuid);
+      this.clickLocations.remove(uuid);
+      this.lastDiagnosticLog.remove(uuid);
+   }
+
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onCompassClickLate(PlayerInteractEvent event) {
       this.handleCompassClick(event);
@@ -55,6 +65,10 @@ final class CompassFeature implements Listener {
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onCompassTeleport(PlayerTeleportEvent event) {
+      TeleportCause cause = event.getCause();
+      if (cause != TeleportCause.PLUGIN && cause != TeleportCause.UNKNOWN) {
+         return;
+      }
       Long blockedUntil = this.teleportBlockUntil.get(event.getPlayer().getUniqueId());
       if (blockedUntil != null) {
          if (System.currentTimeMillis() <= blockedUntil) {

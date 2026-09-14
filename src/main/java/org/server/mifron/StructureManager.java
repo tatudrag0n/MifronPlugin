@@ -361,9 +361,15 @@ final class StructureManager implements Listener {
          this.ensureLoaded();
          ConfigurationSection rules = this.data.getConfigurationSection("structures.generation-rules");
          if (rules != null) {
-            for (String name : rules.getKeys(false)) {
-               this.tryGenerateInChunk(name, event.getChunk());
-            }
+            Chunk chunk = event.getChunk();
+            Bukkit.getScheduler().runTask(this.plugin, () -> {
+               if (!chunk.isLoaded()) {
+                  return;
+               }
+               for (String name : rules.getKeys(false)) {
+                  this.tryGenerateInChunk(name, chunk);
+               }
+            });
          }
       }
    }
@@ -633,7 +639,7 @@ final class StructureManager implements Listener {
          int highest = world.getHighestBlockYAt(x, z);
 
          int y = switch (mode) {
-            case GROUND -> highest + 1;
+            case GROUND -> Math.min(highest + 1, world.getMaxHeight() - sizeY);
             case SEMIUNDERGROUND -> Math.max(world.getMinHeight() + 1, highest - Math.max(1, sizeY / 2));
             case UNDERGROUND -> {
                int min = world.getMinHeight() + 8;

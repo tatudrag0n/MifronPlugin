@@ -167,13 +167,18 @@ final class FfaFieldItemManager {
    }
 
    boolean handlePickup(EntityPickupItemEvent event) {
-      if (!(event.getEntity() instanceof Player player) || !this.ffa.isPlaying(player)) {
+      if (!(event.getEntity() instanceof Player player)) {
          return false;
       }
 
       Item item = event.getItem();
       if (!this.isFieldItem(item)) {
          return false;
+      }
+
+      if (!this.ffa.isPlaying(player)) {
+         event.setCancelled(true);
+         return true;
       }
 
       event.setCancelled(true);
@@ -184,7 +189,13 @@ final class FfaFieldItemManager {
          String rarity = item.getPersistentDataContainer().get(this.fieldTypeKey, PersistentDataType.STRING);
          String lootId = item.getPersistentDataContainer().get(this.fieldLootKey, PersistentDataType.STRING);
          List<ItemStack> exactReward = this.pendingLoot.remove(item.getUniqueId());
-         this.giveLoot(player, rarity, lootId, exactReward);
+         if (this.giveLoot(player, rarity, lootId, exactReward)) {
+            this.fieldItems.remove(item.getUniqueId());
+            item.remove();
+         } else {
+            this.pendingLoot.put(item.getUniqueId(), exactReward);
+         }
+         return true;
       }
 
       this.fieldItems.remove(item.getUniqueId());
@@ -321,7 +332,7 @@ final class FfaFieldItemManager {
       }
    }
 
-   private void giveLoot(Player player, String rarity, String lootId, List<ItemStack> exactReward) {
+   private boolean giveLoot(Player player, String rarity, String lootId, List<ItemStack> exactReward) {
       FfaFieldItemManager.LootDrop storedDrop = this.lootById(lootId);
       List<ItemStack> items;
       if (exactReward != null && !exactReward.isEmpty()) {
@@ -332,9 +343,9 @@ final class FfaFieldItemManager {
          items = this.cloneLoot(this.rollLoot(rarity == null ? "common" : rarity).items());
       }
 
-      if (this.ffa.currentKit(player) == FfaKit.GRAPPLER && items.stream().anyMatch(item -> this.isFieldEquipment(item.getType()))) {
+      if (this.ffa.currentKit(player) == FfaKit.GRAPPLER && items.stream().anyMatch(entry -> this.isFieldEquipment(entry.getType()))) {
          player.sendActionBar(Component.text("グラップラーはフィールド装備を取得できません", NamedTextColor.RED));
-         return;
+         return false;
       }
 
       for (ItemStack item : items) {
@@ -343,10 +354,12 @@ final class FfaFieldItemManager {
          meta.getPersistentDataContainer().set(new NamespacedKey(this.plugin, "ffa_field_owned"), PersistentDataType.BOOLEAN, true);
          meta.getPersistentDataContainer().set(this.ffaOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
          item.setItemMeta(meta);
-         player.getInventory().addItem(item);
+         player.getInventory().addItem(item).values()
+            .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
       }
 
       player.sendActionBar(Component.text("フィールドアイテム取得: " + this.itemName(items.get(0)), NamedTextColor.GOLD));
+      return true;
    }
 
    private void startEvent(String rawType, Player activator) {

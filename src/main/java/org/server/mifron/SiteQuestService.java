@@ -199,31 +199,37 @@ final class SiteQuestService {
       if (now - this.lastAttempt < this.cacheMillis()) return;
       this.lastAttempt = now;
       this.fetching = true;
-      Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
-         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(this.url()))
-               .timeout(Duration.ofSeconds(8L))
-               .header("Accept", "application/json")
-               .GET()
-               .build();
-            HttpResponse<String> response = this.client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() == 200) {
-               List<SiteQuestService.SiteQuest> parsed = parse(response.body());
-               // Only replace a good cache with a good response. A parse failure
-               // or network error keeps the previous quests and player progress.
-               this.cache = parsed;
-               this.plugin.getLogger().info("Site quest sync loaded " + parsed.size() + " quests.");
-            } else {
-               this.plugin.getLogger().warning("Site quest sync returned HTTP " + response.statusCode() + ".");
+      try {
+         Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
+            try {
+               HttpRequest request = HttpRequest.newBuilder(URI.create(this.url()))
+                  .timeout(Duration.ofSeconds(8L))
+                  .header("Accept", "application/json")
+                  .GET()
+                  .build();
+               HttpResponse<String> response = this.client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+               if (response.statusCode() == 200) {
+                  List<SiteQuestService.SiteQuest> parsed = parse(response.body());
+                  // Only replace a good cache with a good response. A parse failure
+                  // or network error keeps the previous quests and player progress.
+                  this.cache = parsed;
+                  this.plugin.getLogger().info("Site quest sync loaded " + parsed.size() + " quests.");
+               } else {
+                  this.plugin.getLogger().warning("Site quest sync returned HTTP " + response.statusCode() + ".");
+                  this.retrySooner();
+               }
+            } catch (Exception error) {
+               this.plugin.getLogger().warning("Site quest sync failed: " + error.getMessage());
                this.retrySooner();
+            } finally {
+               this.fetching = false;
             }
-         } catch (Exception error) {
-            this.plugin.getLogger().warning("Site quest sync failed: " + error.getMessage());
-            this.retrySooner();
-         } finally {
-            this.fetching = false;
-         }
-      });
+         });
+      } catch (Exception rejected) {
+         // Scheduler refused the task (plugin disabling); reset so a later
+         // call can retry instead of the flag being stuck true forever.
+         this.fetching = false;
+      }
    }
 
    private void retrySooner() {

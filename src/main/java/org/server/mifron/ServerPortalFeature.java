@@ -246,6 +246,23 @@ final class ServerPortalFeature implements Listener {
       }
    }
 
+   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+   public void onFrameBreak(org.bukkit.event.block.BlockBreakEvent event) {
+      if (event.getBlock().getType() == Material.END_PORTAL_FRAME) {
+         this.removeFrameLabel(event.getBlock());
+      }
+   }
+
+   private void removeFrameLabel(Block frame) {
+      String key = this.blockKey(frame);
+      for (org.bukkit.entity.Display display : frame.getWorld().getEntitiesByClass(org.bukkit.entity.Display.class)) {
+         if (display instanceof org.bukkit.entity.TextDisplay text
+            && key.equals(text.getPersistentDataContainer().get(this.frameLabelKey, PersistentDataType.STRING))) {
+            text.remove();
+         }
+      }
+   }
+
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onWorldTeleporterHit(EntityDamageByEntityEvent event) {
       if (!(event.getDamager() instanceof Player player) || !(event.getEntity() instanceof Interaction interaction)) {
@@ -396,6 +413,7 @@ final class ServerPortalFeature implements Listener {
          hitbox.setInteractionWidth(0.08F);
          hitbox.setInteractionHeight(0.08F);
          hitbox.setResponsive(true);
+         hitbox.setPersistent(false);
          hitbox.getPersistentDataContainer().set(this.teleporterOptionKey, PersistentDataType.STRING, destination.key());
          hitbox.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
          spawned.add(hitbox.getUniqueId());
@@ -406,6 +424,7 @@ final class ServerPortalFeature implements Listener {
          icon.setBillboard(Display.Billboard.CENTER);
          icon.setViewRange(0.95F);
          icon.setShadowStrength(0.6F);
+         icon.setPersistent(false);
          icon.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
          spawned.add(icon.getUniqueId());
          animated.add(new TeleporterAnimatedEntity(icon.getUniqueId(), origin.clone().add(0.0, 0.18, 0.0), iconLocation.clone().add(0.0, 0.18, 0.0), 0.0F, 0.0F, delay));
@@ -416,6 +435,7 @@ final class ServerPortalFeature implements Listener {
          label.setSeeThrough(true);
          label.setShadowed(true);
          label.setViewRange(0.95F);
+         label.setPersistent(false);
          label.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
          spawned.add(label.getUniqueId());
          animated.add(new TeleporterAnimatedEntity(label.getUniqueId(), origin.clone().add(0.0, -0.48, 0.0), iconLocation.clone().add(0.0, -0.48, 0.0), 0.0F, 0.0F, delay));
@@ -629,6 +649,7 @@ final class ServerPortalFeature implements Listener {
       this.pendingFrameRenameKeys.remove(uuid);
       this.teleporterSelections.remove(uuid);
       this.teleporterSelectionExpires.remove(uuid);
+      this.portalUseCooldowns.remove(uuid);
       this.closeWorldTeleporter(event.getPlayer());
    }
 
@@ -670,6 +691,14 @@ final class ServerPortalFeature implements Listener {
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onServerPortalMove(PlayerMoveEvent event) {
       if (event.getTo() != null && !event.getFrom().getBlock().equals(event.getTo().getBlock())) {
+         long now = System.currentTimeMillis();
+         if (this.portalUseCooldowns.getOrDefault(event.getPlayer().getUniqueId(), 0L) > now) {
+            return;
+         }
+         if (event.getTo().getWorld() != null
+            && event.getTo().getWorld().getBlockAt(event.getTo()).getType() != Material.NETHER_PORTAL) {
+            return;
+         }
          this.tryUseServerPortal(event.getPlayer(), true);
       }
    }
@@ -689,7 +718,12 @@ final class ServerPortalFeature implements Listener {
       String target = this.serverPortalTarget(portal);
       if (target != null && !target.isBlank()) {
          this.portalUseCooldowns.put(player.getUniqueId(), now + 2000L);
-         this.plugin.teleportToConfigLocation(player, target);
+         Block portalBlock = portal;
+         this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
+            if (player.isOnline()) {
+               this.plugin.teleportToConfigLocation(player, target);
+            }
+         });
          return true;
       }
 

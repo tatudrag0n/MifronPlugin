@@ -134,6 +134,15 @@ enum FfaKit {
       inventory.clear();
       inventory.setArmorContents(armor(config, this, plugin));
       inventory.setItemInOffHand(null);
+      org.bukkit.entity.HumanEntity holder = inventory.getHolder();
+      java.util.function.Consumer<ItemStack> add = item -> {
+         inventory.addItem(new ItemStack[]{item}).values()
+            .forEach(leftover -> {
+               if (holder instanceof org.bukkit.entity.Player p) {
+                  p.getWorld().dropItemNaturally(p.getLocation(), leftover);
+               }
+            });
+      };
       switch (this) {
          case AXE:
             inventory.addItem(
@@ -291,18 +300,18 @@ enum FfaKit {
 
       if (this != VAMPIRE) {
          for (ItemStack food : configuredFoodItems(config, this, plugin)) {
-            inventory.addItem(new ItemStack[]{food});
+            add.accept(food);
          }
       }
 
       if (this != WIZARD) {
          for (ItemStack potion : configuredPotions(config, this, plugin)) {
-            inventory.addItem(new ItemStack[]{potion});
+            add.accept(potion);
          }
       }
 
       for (ItemStack item : configuredItems(config, this, plugin)) {
-         inventory.addItem(new ItemStack[]{item});
+         add.accept(item);
       }
    }
 

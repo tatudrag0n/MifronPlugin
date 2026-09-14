@@ -19,6 +19,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
@@ -323,6 +324,11 @@ final class UtilityItemsFeature implements Listener {
          event.setCancelled(true);
          event.getPlayer().sendMessage(ChatColor.YELLOW + "Mifronの固定アイテムは捨てられません。");
       }
+   }
+
+   @EventHandler
+   public void onQuit(PlayerQuitEvent event) {
+      this.lastUtilityUse.remove(event.getPlayer().getUniqueId());
    }
 
    @EventHandler(ignoreCancelled = true)

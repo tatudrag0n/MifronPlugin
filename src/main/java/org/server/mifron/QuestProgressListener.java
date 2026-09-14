@@ -34,6 +34,7 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerFishEvent.State;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -63,6 +64,13 @@ final class QuestProgressListener implements Listener {
    @EventHandler
    public void onChangedWorld(PlayerChangedWorldEvent event) {
       this.awardWorldProgress(event.getPlayer());
+   }
+
+   @EventHandler
+   public void onQuit(PlayerQuitEvent event) {
+      UUID uuid = event.getPlayer().getUniqueId();
+      this.recentPlacedBlocks.remove(uuid);
+      this.lastBlockActions.remove(uuid);
    }
 
    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
@@ -102,7 +110,7 @@ final class QuestProgressListener implements Listener {
          Set<String> seen = new HashSet<>(this.plugin.data().getStringList(path));
          if (seen.add(key)) {
             this.plugin.data().set(path, new ArrayList<>(seen));
-            this.plugin.saveData();
+            this.plugin.queueDataSave();
             this.quests.addProgress(player, "exploration_chunks", 1);
          }
       }
@@ -283,7 +291,11 @@ final class QuestProgressListener implements Listener {
 
    private void rememberPlacedBlock(Player player, Block block) {
       String signature = this.blockSignature(block);
-      this.recentPlacedBlocks.computeIfAbsent(player.getUniqueId(), ignored -> new ConcurrentHashMap<>()).put(signature, System.currentTimeMillis());
+      Map<String, Long> placed = this.recentPlacedBlocks.computeIfAbsent(player.getUniqueId(), ignored -> new ConcurrentHashMap<>());
+      long window = Math.max(1, this.plugin.getConfig().getInt("quests.anti-abuse.repeated-block-window-seconds", 30)) * 1000L;
+      long cutoff = System.currentTimeMillis() - window * 2L;
+      placed.entrySet().removeIf(entry -> entry.getValue() < cutoff);
+      placed.put(signature, System.currentTimeMillis());
    }
 
    private boolean wasRecentlyPlacedBy(Player player, Block block) {

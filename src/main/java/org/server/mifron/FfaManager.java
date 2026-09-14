@@ -193,6 +193,9 @@ final class FfaManager {
       this.restoreAllTraps();
       this.damageCredits.clear();
       this.deathLeaveRestores.clear();
+      this.killRewardStates.clear();
+      this.killRewardWindowStates.clear();
+      this.reciprocalKillStates.clear();
       this.crusherExplosionAttemptTick.clear();
    }
 
@@ -238,6 +241,11 @@ final class FfaManager {
          case "leave":
             if (!(sender instanceof Player player)) {
                sender.sendMessage("Player only.");
+               return true;
+            }
+
+            if (this.isInCombat(player)) {
+               player.sendMessage("§c戦闘中は退出できません。");
                return true;
             }
 
@@ -431,7 +439,7 @@ final class FfaManager {
          this.removeExitItem(player);
          this.cleanupKitRuntime(player);
          this.clearTemporaryState(player);
-         session.state.restore(player, this.leaveLocation(player.getWorld()));
+         session.state.restore(player);
          if (notify) {
             player.sendMessage("§eFFAから退出しました。");
             player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.6F, 0.8F);
@@ -2016,6 +2024,10 @@ final class FfaManager {
          if (!attacker.getUniqueId().equals(victim.getUniqueId())) {
             this.recordDamage(attacker, victim);
             Object damager = event.getDamager();
+            if (event.isCancelled()) {
+               this.damageCredits.remove(victim.getUniqueId());
+               return;
+            }
             if (damager instanceof Projectile projectile
                && "event_one_shot_arrow".equals(projectile.getPersistentDataContainer().get(this.projectileKindKey, PersistentDataType.STRING))) {
                if (!this.plugin.isStructureProtectedLocation(victim.getLocation())) {
@@ -2122,8 +2134,14 @@ final class FfaManager {
       return this.config.leaveOnWorldExit();
    }
 
-   boolean isFfaWorld(World world) {
-      if (world == null) {
+   void forgetPlayer(UUID uuid) {
+      this.killRewardStates.remove(uuid);
+      this.killRewardWindowStates.remove(uuid);
+      this.reciprocalKillStates.values().removeIf(state -> uuid.equals(state.first()) || uuid.equals(state.second()));
+      this.damageCredits.remove(uuid);
+   }
+
+   boolean isFfaWorld(World world) {      if (world == null) {
          return false;
       }
 
@@ -3036,9 +3054,9 @@ final class FfaManager {
             return true;
          }
 
-         int ammo = this.sniperAmmo.getOrDefault(id, 1);
+         int ammo = this.sniperAmmo.getOrDefault(id, session.kit.sniperCapacity(this.config));
          if (ammo <= 0) {
-            this.startCrossbowReload(player, FfaKit.SNIPER, this.sniperAmmo, this.sniperReloadTasks, 1, "スナイパー");
+            this.startCrossbowReload(player, FfaKit.SNIPER, this.sniperAmmo, this.sniperReloadTasks, session.kit.sniperCapacity(this.config), "スナイパー");
             return true;
          }
 
@@ -3120,7 +3138,8 @@ final class FfaManager {
             Map<String, FfaManager.TrapState> var4 = this.traps.get(var3);
             if (var4 != null) {
                for (FfaManager.TrapState var6 : new ArrayList<FfaManager.TrapState>(var4.values())) {
-                  if (var1.getWorld().equals(var6.location().getWorld())
+                  if (!var6.owner().equals(var1.getUniqueId())
+                     && var1.getWorld().equals(var6.location().getWorld())
                      && var1.getLocation().distanceSquared(var6.location().clone().add(0.5, 0.0, 0.5)) <= 1.2) {
                      var4.remove(var6.type());
                      this.triggerTrap(var6, var1);

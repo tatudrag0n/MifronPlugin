@@ -2,6 +2,7 @@ package org.server.mifron;
 
 import java.util.UUID;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
@@ -356,6 +357,7 @@ final class FfaListener implements Listener {
 
    @EventHandler
    public void onQuit(PlayerQuitEvent event) {
+      this.ffa.forgetPlayer(event.getPlayer().getUniqueId());
       if (this.ffa.isPlaying(event.getPlayer())) {
          this.ffa.leave(event.getPlayer(), false);
       }
@@ -402,7 +404,7 @@ final class FfaListener implements Listener {
       return false;
    }
 
-   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onLethalFfaDamage(EntityDamageEvent event) {
       if (!(event.getEntity() instanceof Player player) || !this.ffa.isPlaying(player) || event.isCancelled()) {
          return;
@@ -410,6 +412,11 @@ final class FfaListener implements Listener {
 
       double remainingHealth = player.getHealth() + player.getAbsorptionAmount();
       if (event.getFinalDamage() < remainingHealth) {
+         return;
+      }
+
+      if (player.getInventory().getItemInMainHand().getType() == Material.TOTEM_OF_UNDYING
+         || player.getInventory().getItemInOffHand().getType() == Material.TOTEM_OF_UNDYING) {
          return;
       }
 

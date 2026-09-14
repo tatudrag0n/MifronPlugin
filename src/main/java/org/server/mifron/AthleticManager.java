@@ -245,14 +245,17 @@ final class AthleticManager implements Listener {
 
    @EventHandler
    public void onQuit(PlayerQuitEvent event) {
+      this.removeControlItems(event.getPlayer());
       this.activeRuns.remove(event.getPlayer().getUniqueId());
    }
 
    private void beginRun(Player player, String name, Location start) {
       this.activeRuns.put(player.getUniqueId(), new AthleticManager.Run(name, start.clone().add(0.5, 0.0, 0.5), System.currentTimeMillis()));
       this.removeControlItems(player);
-      player.getInventory().addItem(new ItemStack[]{this.controlItem("return", Material.COMPASS, "§bスタート地点へ戻る")});
-      player.getInventory().addItem(new ItemStack[]{this.controlItem("end", Material.BARRIER, "§cアスレチックを終了")});
+      player.getInventory().addItem(new ItemStack[]{this.controlItem("return", Material.COMPASS, "§bスタート地点へ戻る")})
+         .values().forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
+      player.getInventory().addItem(new ItemStack[]{this.controlItem("end", Material.BARRIER, "§cアスレチックを終了")})
+         .values().forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
       player.sendMessage(ChatColor.GREEN + "アスレチック開始: " + name);
    }
 

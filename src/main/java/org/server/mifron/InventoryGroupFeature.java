@@ -97,7 +97,15 @@ public final class InventoryGroupFeature implements Listener {
    @EventHandler(priority = EventPriority.LOWEST)
    public void onWorldChange(PlayerChangedWorldEvent var1) {
       Player var2 = var1.getPlayer();
-      if (this.switching.putIfAbsent(var2.getUniqueId(), Boolean.TRUE) == null) {
+      if (this.switching.putIfAbsent(var2.getUniqueId(), Boolean.TRUE) != null) {
+         // A previous transition is still pending; re-run once it clears so the
+         // last world change is not swallowed.
+         Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            if (var2.isOnline()) {
+               this.onWorldChange(new PlayerChangedWorldEvent(var2, var2.getWorld()));
+            }
+         }, 2L);
+      } else {
          InventoryGroupFeature.Group var3 = this.groupOf(var1.getFrom());
          InventoryGroupFeature.Group var4 = this.groupOf(var2.getWorld());
 

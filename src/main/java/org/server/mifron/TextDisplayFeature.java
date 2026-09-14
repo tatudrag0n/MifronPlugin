@@ -319,12 +319,13 @@ final class TextDisplayFeature implements Listener {
          this.plugin.getLogger().warning("Could not spawn TextDisplay because world is missing: " + entry.id() + " / " + entry.worldName());
       } else {
          Chunk chunk = location.getChunk();
-         if (!chunk.isLoaded() && !chunk.load()) {
-            this.plugin.getLogger().warning("Could not spawn TextDisplay because its chunk could not be loaded: " + entry.id());
+         if (!chunk.isLoaded()) {
+            // Do not force-load chunks during startup or edits; the display is
+            // spawned later by the ChunkLoad listener.
             return;
          }
          TextDisplay display = (TextDisplay)location.getWorld().spawn(location, TextDisplay.class);
-         display.setPersistent(false);
+         display.setPersistent(true);
          display.getPersistentDataContainer().set(this.displayKey, PersistentDataType.STRING, entry.id());
          this.applyProperties(display, entry);
          this.displays.put(entry.id(), display);
@@ -464,6 +465,24 @@ final class TextDisplayFeature implements Listener {
 
    private boolean isManagedDisplay(Entity entity) {
       return entity instanceof TextDisplay && entity.getPersistentDataContainer().has(this.displayKey, PersistentDataType.STRING);
+   }
+
+   @EventHandler
+   public void onChunkLoad(org.bukkit.event.world.ChunkLoadEvent event) {
+      if (event.isNewChunk()) {
+         return;
+      }
+      for (TextDisplayFeature.Entry entry : this.entries.values()) {
+         Location location = entry.location();
+         if (location != null
+            && location.getWorld() != null
+            && location.getWorld().equals(event.getWorld())
+            && location.getBlockX() >> 4 == event.getChunk().getX()
+            && location.getBlockZ() >> 4 == event.getChunk().getZ()
+            && !this.displays.containsKey(entry.id())) {
+            this.spawn(entry);
+         }
+      }
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)

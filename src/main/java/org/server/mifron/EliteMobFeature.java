@@ -33,9 +33,17 @@ public class EliteMobFeature implements Listener {
         this.ffaKindKey = new NamespacedKey(plugin, "ffa_entity_kind");
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
     public void onSpawn(CreatureSpawnEvent event) {
         if (!(event.getEntity() instanceof Monster)) return;
+        switch (event.getSpawnReason()) {
+            case SPAWNER, SPAWNER_EGG, CUSTOM, COMMAND -> { return; }
+            default -> { }
+        }
+        String worldName = event.getEntity().getWorld().getName();
+        if (plugin.ffaManager != null && plugin.ffaManager.isFfaWorld(event.getEntity().getWorld())) return;
+        String hubWorld = plugin.getConfig().getString("hub.world", "world");
+        if (worldName.equalsIgnoreCase(hubWorld)) return;
         Monster mob = (Monster) event.getEntity();
         if (random.nextDouble() < 0.002) {
             makeElite(mob);

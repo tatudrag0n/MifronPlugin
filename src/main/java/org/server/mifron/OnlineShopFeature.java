@@ -19,6 +19,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -91,6 +92,14 @@ final class OnlineShopFeature implements Listener {
    @EventHandler
    public void onJoin(PlayerJoinEvent event) {
       Bukkit.getScheduler().runTask(this.plugin, () -> this.ensureAccessItem(event.getPlayer()));
+   }
+
+   @EventHandler
+   public void onQuit(PlayerQuitEvent event) {
+      UUID uuid = event.getPlayer().getUniqueId();
+      this.cooldowns.remove(uuid);
+      this.pages.remove(uuid);
+      this.selected.remove(uuid);
    }
 
    private void ensureAccessItem(Player player) {

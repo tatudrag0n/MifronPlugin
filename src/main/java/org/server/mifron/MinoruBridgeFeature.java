@@ -154,7 +154,9 @@ final class MinoruBridgeFeature {
          this.server.stop(1);
          this.server = null;
       }
-      this.saveState();
+      synchronized (this.state) {
+         this.saveState();
+      }
    }
 
    private void handleHealth(HttpExchange exchange) throws IOException {
@@ -236,6 +238,10 @@ final class MinoruBridgeFeature {
                      result = null;
                      replay = false;
                      transactionError = "transaction_id_reused";
+                  } else if (this.state.getBoolean("transactions." + key + ".pending", false)) {
+                     result = null;
+                     replay = false;
+                     transactionError = "transaction_still_processing";
                   } else {
                      result = new Result(balance, applied, before, storedRequested, storedSetMode);
                      replay = true;
@@ -244,13 +250,28 @@ final class MinoruBridgeFeature {
                   // Keep the idempotency check, MP mutation, and durable record
                   // under one lock. Without this, two concurrent retries with
                   // the same transactionId could both change the balance.
-                  result = onMain(() -> applyMp(uuid, requested, setMode));
+                  // If onMain times out the queued task may still apply the MP
+                  // change later, so record a pending marker first to keep the
+                  // transaction idempotent across a client retry.
                   this.state.set("transactions." + key + ".uuid", uuid.toString());
+                  this.state.set("transactions." + key + ".requested", requested);
+                  this.state.set("transactions." + key + ".setMode", setMode);
+                  this.state.set("transactions." + key + ".pending", true);
+                  this.state.set("transactions." + key + ".at", System.currentTimeMillis());
+                  saveState();
+                  try {
+                     result = onMain(() -> applyMp(uuid, requested, setMode));
+                  } catch (Exception timeout) {
+                     this.state.set("transactions." + key + ".failed-at", System.currentTimeMillis());
+                     saveState();
+                     throw timeout;
+                  }
                   this.state.set("transactions." + key + ".before", result.before);
                   this.state.set("transactions." + key + ".requested", result.requested);
                   this.state.set("transactions." + key + ".setMode", result.setMode);
                   this.state.set("transactions." + key + ".balance", result.balance);
                   this.state.set("transactions." + key + ".applied", result.applied);
+                  this.state.set("transactions." + key + ".pending", null);
                   this.state.set("transactions." + key + ".source", "minoru-bridge");
                   this.state.set("transactions." + key + ".at", System.currentTimeMillis());
                   trimTransactions();

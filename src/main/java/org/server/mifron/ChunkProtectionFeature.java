@@ -87,6 +87,11 @@ final class ChunkProtectionFeature implements Listener {
       event.blockList().removeIf(this.plugin::isShopBlock);
    }
 
+   @EventHandler
+   public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+      this.lastChunkWarning.remove(event.getPlayer().getUniqueId());
+   }
+
    void handleRegenCommand(CommandSender sender, String[] args) {
       if (this.plugin.hasPermission(sender, "mifron.admin.regen.force") && sender instanceof Player player) {
          if (args.length >= 2 && ("allow".equalsIgnoreCase(args[1]) || "deny".equalsIgnoreCase(args[1]))) {
@@ -126,6 +131,12 @@ final class ChunkProtectionFeature implements Listener {
             for (int x = center.getX() - radius; x <= center.getX() + radius; x++) {
                for (int z = center.getZ() - radius; z <= center.getZ() + radius; z++) {
                   Chunk chunk = center.getWorld().getChunkAt(x, z);
+                  if (!chunk.isLoaded()) {
+                     // Skip unloaded chunks to avoid a synchronous load spike;
+                     // unloaded chunks contain no player builds to preserve.
+                     skipped++;
+                     continue;
+                  }
                   if (this.regenerateChunkNow(sender, chunk)) {
                      count++;
                   } else {
@@ -451,7 +462,8 @@ final class ChunkProtectionFeature implements Listener {
    }
 
    private boolean isBuildProtectedChunk(Chunk chunk) {
-      return this.isCentralProtectedChunk(chunk) || this.isConfiguredProtectedChunk(chunk);
+      return chunk != null && chunk.isLoaded()
+         && (this.isCentralProtectedChunk(chunk) || this.isConfiguredProtectedChunk(chunk));
    }
 
    private String chunkKey(Chunk chunk) {

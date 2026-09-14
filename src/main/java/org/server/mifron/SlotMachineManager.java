@@ -99,6 +99,7 @@ final class SlotMachineManager implements Listener {
          }
 
          this.plugin.data().set(this.machinePath(shelf), null);
+         this.plugin.saveData();
       }
    }
 
@@ -146,10 +147,19 @@ final class SlotMachineManager implements Listener {
          return;
       }
 
+      if (this.busyMachines.containsKey(this.machineKey(clicked))) {
+         event.setCancelled(true);
+         event.getPlayer().sendMessage("§cこの台はほかのプレイヤーが使用中です。");
+         return;
+      }
+
       if (this.plugin.isMifronItem(event.getItem(), "emerald_bundle")) {
          event.setCancelled(true);
          this.startSpin(event.getPlayer(), clicked, difficulty);
+         return;
       }
+
+      event.setCancelled(true);
    }
 
    @EventHandler
@@ -327,6 +337,7 @@ final class SlotMachineManager implements Listener {
       this.updateShelfDisplay(session.shelf, session.pendingResult, session.jackpotMode);
       Runnable completion = session.pendingCompletion;
       session.pendingCompletion = null;
+      session.pendingResult = null;
       if (completion != null) {
          completion.run();
       }
@@ -450,7 +461,17 @@ final class SlotMachineManager implements Listener {
 
          this.activeSessions.remove(session.player.getUniqueId(), session);
          this.busyMachines.remove(session.machineKey, session.player.getUniqueId());
+         if (session.pendingCompletion == null && !this.outcomeResolved(session)) {
+            if (session.player.isOnline()) {
+               this.plugin.depositEmeralds(session.player.getUniqueId(), session.difficulty.wager);
+               session.player.sendMessage("§eスロットが中断されたため" + session.difficulty.wager + "MPを返金しました。");
+            }
+         }
       }
+   }
+
+   private boolean outcomeResolved(SlotMachineManager.SpinSession session) {
+      return session.pendingResult != null;
    }
 
    private boolean enableJackpotMode(SlotMachineManager.SpinSession var1) {
