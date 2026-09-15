@@ -2,12 +2,9 @@ package org.server.mifron;
 
 import io.papermc.paper.advancement.AdvancementDisplay;
 import io.papermc.paper.advancement.AdvancementDisplay.Frame;
-import io.papermc.paper.event.player.AsyncChatEvent;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.advancement.Advancement;
@@ -51,39 +48,6 @@ abstract class MifronPart15 extends MifronPart14x2 {
       this.getConfig().set(path + ".yaw", location.getYaw());
       this.getConfig().set(path + ".pitch", location.getPitch());
       this.saveConfig();
-   }
-
-   @EventHandler
-   public void onChat(AsyncChatEvent event) {
-      Player sender = event.getPlayer();
-      String rawMessage = PlainTextComponentSerializer.plainText().serialize(event.message());
-      if (this.pendingFriendSearch.containsKey(sender.getUniqueId())) {
-         event.setCancelled(true);
-         Bukkit.getScheduler().runTask(this, () -> {
-            String plainMessage = this.sanitizeTextInput(rawMessage, 32);
-            this.pendingFriendSearch.remove(sender.getUniqueId());
-            if (!plainMessage.equalsIgnoreCase("clear") && !plainMessage.isBlank()) this.friendSearchFilters.put(sender.getUniqueId(), plainMessage);
-            else this.friendSearchFilters.remove(sender.getUniqueId());
-            this.mifron().openFriendUi(sender);
-         });
-         return;
-      }
-      if (this.pendingFriendChatInput.containsKey(sender.getUniqueId())) {
-         event.setCancelled(true);
-         Bukkit.getScheduler().runTask(this, () -> {
-            UUID chatTarget = this.pendingFriendChatInput.remove(sender.getUniqueId());
-            if (chatTarget == null) return;
-            String plainMessage = this.sanitizeTextInput(rawMessage, 256);
-            if (!plainMessage.isBlank()) {
-               this.activeFriendChatTarget.put(sender.getUniqueId(), chatTarget);
-               this.friendChatDrafts.put(sender.getUniqueId(), plainMessage);
-            }
-            this.mifron().openFriendUi(sender);
-         });
-         return;
-      }
-      event.setCancelled(true);
-      Bukkit.getScheduler().runTask(this, () -> sender.sendMessage("\u00a77\u901a\u5e38\u30c1\u30e3\u30c3\u30c8\u306fDiscord\u3067\u3054\u5229\u7528\u304f\u3060\u3055\u3044\u3002"));
    }
 
    @EventHandler

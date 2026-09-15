@@ -10,7 +10,7 @@ import org.bukkit.inventory.Inventory;
 abstract class MifronPart10x2 extends MifronPart10x1 {
    protected void openFriendUi(Player player) {
       Inventory inventory = Bukkit.createInventory(player, 54, Component.text("\u00a73Mifron Friends"));
-      String filter = this.friendSearchFilters.getOrDefault(player.getUniqueId(), "");
+      String filter = this.friendChatService.searchFilter(player.getUniqueId());
       inventory.setItem(0, this.mifron().actionItem(Material.OAK_SIGN, "\u00a7e\u691c\u7d22\u30d0\u30fc",
          List.of("\u00a77" + (filter.isBlank() ? "\u30af\u30ea\u30c3\u30af\u3057\u3066\u691c\u7d22\u8a9e\u3092\u5165\u529b" : "\u691c\u7d22\u4e2d: " + filter), "\u00a77\u7a7a\u5165\u529b\u3067\u691c\u7d22\u89e3\u9664"), "friend_search", null));
       this.fillFriendTopTabs(inventory);

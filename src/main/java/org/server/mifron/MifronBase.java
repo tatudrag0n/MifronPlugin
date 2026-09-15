@@ -1,7 +1,6 @@
 package org.server.mifron;
 
 import java.io.File;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -88,6 +87,9 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected File dataFile;
    protected FileConfiguration data;
    protected final EconomyPriceTable economyPriceTable = new EconomyPriceTable((Mifron) this);
+   protected final PricingService pricingService = new PricingService(this, this.economyPriceTable);
+   protected final EconomyManager economyManager = new EconomyManager((Mifron) this);
+   protected final FriendChatService friendChatService = new FriendChatService((Mifron) this);
    protected final QuestService questService = new QuestService((Mifron) this);
    protected final SiteQuestService siteQuestService = new SiteQuestService((Mifron) this);
    protected final ChunkProtectionFeature chunkProtectionFeature = new ChunkProtectionFeature((Mifron) this);
@@ -120,16 +122,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final EnchantMaxDisplayFeature enchantMaxDisplayFeature = new EnchantMaxDisplayFeature((Mifron) this);
    protected OnlineShopFeature onlineShopFeature;
    protected final Random random = new Random();
-   protected final Map<String, Integer> shopSalePrices = new HashMap<>();
-   protected final Map<String, Integer> shopBuyPrices = new HashMap<>();
-   protected final Map<String, Integer> merchantBuyWeights = new HashMap<>();
-   protected final Map<String, Integer> merchantSellWeights = new HashMap<>();
-   protected final Map<String, BarrelShopConfig> barrelShopConfigs = new HashMap<>();
-   protected final Map<UUID, String> friendSearchFilters = new ConcurrentHashMap<>();
-   protected final Map<UUID, String> pendingFriendSearch = new ConcurrentHashMap<>();
-   protected final Map<UUID, UUID> pendingFriendChatInput = new ConcurrentHashMap<>();
-   protected final Map<UUID, UUID> activeFriendChatTarget = new ConcurrentHashMap<>();
-   protected final Map<UUID, String> friendChatDrafts = new ConcurrentHashMap<>();
    protected final Set<UUID> merchantTransactions = ConcurrentHashMap.newKeySet();
    protected final Map<UUID, Long> lastMerchantTransaction = new ConcurrentHashMap<>();
    protected final Map<UUID, UUID> activeMerchantViews = new ConcurrentHashMap<>();
@@ -142,7 +134,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final Map<UUID, Map<String, KillRewardWindow>> mobRewardWindows = new ConcurrentHashMap<>();
    protected final Map<UUID, Long> lastJumpPadUse = new ConcurrentHashMap<>();
    protected final Map<UUID, Long> jumpPadFallProtectionUntil = new ConcurrentHashMap<>();
-   protected final ConcurrentHashMap<UUID, Object> economyLocks = new ConcurrentHashMap<>();
    protected BukkitTask scheduledShutdownTask;
    protected BukkitTask pendingDataSaveTask;
    protected List<Material> shelfShopCatalog = List.of();
@@ -164,7 +155,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
       return player != null && this.buildWorldManager.isOwner(player, player.getWorld());
    }
 
-   protected record BarrelShopConfig(String tier, int weight) {}
    static final class ChatColor {
       static final String DARK_AQUA = "\u00a73";
       static final String DARK_GREEN = "\u00a72";

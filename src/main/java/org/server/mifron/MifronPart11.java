@@ -41,9 +41,9 @@ abstract class MifronPart11 extends MifronPart10x2 {
    }
 
    protected void fillNotificationOrChatBox(Player player, Inventory inventory) {
-      UUID chatTarget = this.activeFriendChatTarget.get(player.getUniqueId());
+      UUID chatTarget = this.friendChatService.activeTarget(player.getUniqueId());
       if (chatTarget != null) {
-         String draft = this.friendChatDrafts.getOrDefault(player.getUniqueId(), "");
+         String draft = this.friendChatService.draft(player.getUniqueId());
          inventory.setItem(7, this.mifron().actionItem(Material.WRITABLE_BOOK, "\u00a7e\u672c\u6587\u5165\u529b", List.of("\u00a77" + (draft.isBlank() ? "\u672a\u5165\u529b" : draft)), "friend_chat_input", chatTarget.toString()));
          inventory.setItem(8, this.mifron().actionItem(Material.LIME_CONCRETE, "\u00a7a\u9001\u4fe1", List.of(), "friend_chat_send", chatTarget.toString()));
          inventory.setItem(15, this.mifron().actionItem(Material.BARRIER, "\u00a7c\u30c1\u30e3\u30c3\u30c8\u6b04\u3092\u9589\u3058\u308b", List.of(), "friend_chat_close", chatTarget.toString()));

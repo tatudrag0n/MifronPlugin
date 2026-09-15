@@ -40,12 +40,12 @@ abstract class MifronPart14 extends MifronPart13x1 {
       this.playUiClickSound(player);
       UUID targetId = this.mifron().getUiTarget(clicked);
       switch (action) {
-         case "friend_search" -> { this.pendingFriendSearch.put(player.getUniqueId(), ""); player.closeInventory(); player.sendMessage("\u00a7e\u691c\u7d22\u3059\u308b\u30e6\u30fc\u30b6\u30fc\u540d\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002"); }
+         case "friend_search" -> this.friendChatService.beginSearch(player);
          case "friend_request" -> { if (targetId != null) { this.mifron().sendFriendRequest(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
          case "friend_accept" -> { if (targetId != null) { this.mifron().acceptFriendRequest(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
          case "friend_remove" -> { if (targetId != null) { this.mifron().removeFriend(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
-         case "friend_chat_open" -> { if (targetId != null) { this.activeFriendChatTarget.put(player.getUniqueId(), targetId); this.mifron().openFriendUi(player); } }
-         case "friend_chat_close" -> { this.activeFriendChatTarget.remove(player.getUniqueId()); this.friendChatDrafts.remove(player.getUniqueId()); this.mifron().openFriendUi(player); }
+         case "friend_chat_open" -> { if (targetId != null) { this.friendChatService.openChat(player.getUniqueId(), targetId); this.mifron().openFriendUi(player); } }
+         case "friend_chat_close" -> { this.friendChatService.closeChat(player.getUniqueId()); this.mifron().openFriendUi(player); }
          case "friend_status_detail" -> this.openDetailedStatusUi(player);
          case "status_tab_progress" -> this.mifron().openStatusUi(player, "progress:0");
          case "status_tab_reincarnation" -> this.mifron().openStatusUi(player, "reincarnation");
