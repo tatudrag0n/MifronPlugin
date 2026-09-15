@@ -89,8 +89,11 @@ final class QuestService {
     * their mapped progress key. quests.yml definitions always win on id clash.
     */
    void registerSiteQuests(java.util.Collection<QuestDefinition> defs) {
+      // Never wipe the registrations on an empty/stale snapshot: an empty list
+      // means "not synced yet" far more often than "the site has no quests".
+      // A later good sync replaces the map in full.
+      if (defs == null || defs.isEmpty()) return;
       this.siteDefinitions.clear();
-      if (defs == null) return;
       for (QuestDefinition definition : defs) {
          if (definition == null || definition.id() == null || definition.progressKey() == null || definition.progressKey().isBlank()) continue;
          if (this.definitions.containsKey(definition.id())) continue;

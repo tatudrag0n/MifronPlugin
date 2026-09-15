@@ -3,6 +3,7 @@ package org.server.mifron;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -99,17 +100,33 @@ abstract class MifronPart13x1 extends MifronPart13 {
       }
       if (event.getClickedInventory() == null) return;
       String title = this.mifron().inventoryTitle(event.getView().title());
-      if ("\u00a73Mifron Friends".equals(title)) { event.setCancelled(true); this.mifron().handleFriendUiClick(player, event.getCurrentItem()); }
-      else if ("\u00a72Mifron Status".equals(title)) { event.setCancelled(true); this.mifron().handleStatusUiClick(player, event.getCurrentItem()); }
-      else if (QUEST_UI_TITLE.equals(title)) { event.setCancelled(true); this.mifron().handleQuestUiClick(player, event.getCurrentItem()); }
-      else if (PROPOSAL_UI_TITLE.equals(title)) { event.setCancelled(true); this.mifron().handleProposalUiClick(player, event.getCurrentItem()); }
-      else if ("\u00a75Mifron Teleporter".equals(title)) { event.setCancelled(true); this.handleTeleporterUiItem(player, event.getCurrentItem()); }
+      if ("\u00a73Mifron Friends".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleFriendUiClick(player, event.getCurrentItem()); }
+      else if ("\u00a72Mifron Status".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleStatusUiClick(player, event.getCurrentItem()); }
+      else if (QUEST_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleQuestUiClick(player, event.getCurrentItem()); }
+      else if (PROPOSAL_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleProposalUiClick(player, event.getCurrentItem()); }
+      else if ("\u00a75Mifron Teleporter".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.handleTeleporterUiItem(player, event.getCurrentItem()); }
       else if ("\u00a76Mifron Merchant".equals(title)) {
          if (event.getClickedInventory() != event.getView().getTopInventory()) return;
          event.setCancelled(true);
+         this.reconcileMifronCursor(player, event);
          if (this.isMerchantOffer(event.getCurrentItem())) this.buyMerchantOffer(player, event.getCurrentItem(), event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT);
          else this.handleMerchantNavigation(player, event.getCurrentItem());
       }
+   }
+
+   /**
+    * A Mifron fixed item left on the cursor (for example the utility item used
+    * to open the GUI) would otherwise be frozen there, because every click in a
+    * Mifron GUI is cancelled. Return it to the player inventory and clear the
+    * cursor so the GUI stays fully operable. If the inventory has no room the
+    * item is left untouched so it can never be deleted.
+    */
+   private void reconcileMifronCursor(Player player, InventoryClickEvent event) {
+      ItemStack cursor = event.getCursor();
+      if (cursor == null || cursor.getType().isAir()) return;
+      if (this.utilityItemsFeature.getMifronItemId(cursor) == null) return;
+      Map<Integer, ItemStack> leftovers = player.getInventory().addItem(cursor.clone());
+      if (leftovers.isEmpty()) player.setItemOnCursor(null);
    }
 
    @EventHandler

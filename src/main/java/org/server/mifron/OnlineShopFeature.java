@@ -28,12 +28,16 @@ import org.bukkit.persistence.PersistentDataType;
 
 final class OnlineShopFeature implements Listener {
    static final String TITLE = "\u00a7bMifron OnlineShop";
-   private static final int PAGE_SIZE = 36;
-   private static final int PAGE_SIZE_PER_ROW = 8;
+   // Five product rows (45 slots); the bottom row holds prev/next navigation.
+   private static final int PAGE_SIZE = 45;
+   private static final int PREV_SLOT = 45;
+   private static final int PAGE_SLOT = 49;
+   private static final int NEXT_SLOT = 53;
    private final Mifron plugin;
    private final NamespacedKey accessKey;
    private final NamespacedKey productKey;
    private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
+   private final Map<UUID, Integer> pages = new HashMap<>();
    private final Map<String, Long> configuredCooldowns = new HashMap<>();
    private final Map<String, String> configuredRarities = new HashMap<>();
    private final EnumMap<Category, List<Material>> catalog = new EnumMap<>(Category.class);
@@ -96,6 +100,7 @@ final class OnlineShopFeature implements Listener {
    @EventHandler
    public void onQuit(PlayerQuitEvent event) {
       this.cooldowns.remove(event.getPlayer().getUniqueId());
+      this.pages.remove(event.getPlayer().getUniqueId());
    }
 
    private void ensureAccessItem(Player player) {
@@ -152,30 +157,49 @@ final class OnlineShopFeature implements Listener {
       if (clicked == null || !clicked.hasItemMeta()) return;
       String action = clicked.getItemMeta().getPersistentDataContainer().get(this.productKey, PersistentDataType.STRING);
       if (action == null) return;
-      if (action.startsWith("cat:")) return; // Row header; not clickable.
+      if (action.equals("page:prev") || action.equals("page:next")) {
+         this.changePage(player, action);
+         return;
+      }
       this.purchase(player, action);
    }
 
+   private void changePage(Player player, String action) {
+      int page = this.pages.getOrDefault(player.getUniqueId(), 0);
+      if (action.equals("page:next")) page++;
+      else page = Math.max(0, page - 1);
+      this.pages.put(player.getUniqueId(), page);
+      player.openInventory(this.createInventory(player));
+   }
+
+   /**
+    * Flattens the catalog in {@link Category} declaration order so the single
+    * shop screen keeps category grouping while exposing every purchasable item
+    * through paging (no category tabs, no unreachable products).
+    */
+   private List<Material> flatProducts() {
+      List<Material> flat = new ArrayList<>();
+      for (Category category : Category.values()) flat.addAll(this.catalog.getOrDefault(category, List.of()));
+      return flat;
+   }
+
    private Inventory createInventory(Player player) {
+      List<Material> flat = this.flatProducts();
+      int maxPage = Math.max(0, (flat.size() - 1) / PAGE_SIZE);
+      int page = Math.max(0, Math.min(maxPage, this.pages.getOrDefault(player.getUniqueId(), 0)));
+      this.pages.put(player.getUniqueId(), page);
       Inventory inventory = Bukkit.createInventory(player, 54, TITLE);
-      // Single-screen layout: one labeled row per category, no tab navigation.
-      // Each category shows its first PAGE_SIZE_PER_ROW items; the full catalog
-      // remains purchasable via the item ids even if a row overflows.
-      int slot = 0;
-      List<Material> all = new ArrayList<>();
-      for (Category category : Category.values()) {
-         List<Material> items = this.catalog.getOrDefault(category, List.of());
-         if (items.isEmpty()) continue;
-         if (slot + 9 > 54) break;
-         inventory.setItem(slot, this.actionIcon(category.icon, "\u00a76" + category.label, "cat:" + category.name()));
-         int shown = Math.min(items.size(), PAGE_SIZE_PER_ROW);
-         for (int i = 0; i < shown && slot + 1 + i < 54; i++) {
-            inventory.setItem(slot + 1 + i, this.catalogIcon(player, items.get(i)));
-            all.add(items.get(i));
-         }
-         slot += 9;
+      int start = page * PAGE_SIZE;
+      List<Material> shown = new ArrayList<>();
+      for (int i = 0; i < PAGE_SIZE && start + i < flat.size(); i++) {
+         Material material = flat.get(start + i);
+         inventory.setItem(i, this.catalogIcon(player, material));
+         shown.add(material);
       }
-      this.applyCooldownOverlay(player, all);
+      if (page > 0) inventory.setItem(PREV_SLOT, this.actionIcon(Material.ARROW, "\u00a7e\u524d\u306e\u30da\u30fc\u30b8", "page:prev"));
+      inventory.setItem(PAGE_SLOT, this.actionIcon(Material.PAPER, "\u00a7e\u30da\u30fc\u30b8 " + (page + 1) + " / " + (maxPage + 1), null));
+      if (page < maxPage) inventory.setItem(NEXT_SLOT, this.actionIcon(Material.ARROW, "\u00a7e\u6b21\u306e\u30da\u30fc\u30b8", "page:next"));
+      this.applyCooldownOverlay(player, shown);
       return inventory;
    }
 
@@ -214,7 +238,7 @@ final class OnlineShopFeature implements Listener {
       ItemStack item = new ItemStack(material);
       ItemMeta meta = item.getItemMeta();
       meta.setDisplayName(name);
-      meta.getPersistentDataContainer().set(this.productKey, PersistentDataType.STRING, action);
+      if (action != null) meta.getPersistentDataContainer().set(this.productKey, PersistentDataType.STRING, action);
       item.setItemMeta(meta);
       return item;
    }
@@ -253,7 +277,16 @@ final class OnlineShopFeature implements Listener {
          player.sendMessage(ChatColor.RED + "MP \u304c\u8db3\u308a\u307e\u305b\u3093\u3002\u5fc5\u8981 MP: " + price);
          return;
       }
-      if (!this.plugin.grantOnlineShopProduct(player, product)) {
+      boolean delivered;
+      try {
+         delivered = this.plugin.grantOnlineShopProduct(player, product);
+      } catch (RuntimeException error) {
+         // A thrown delivery would otherwise leave the MP withdrawn with no
+         // item; treat it as a failure so the buyer is always refunded.
+         this.plugin.getLogger().warning("Online shop delivery failed for " + player.getName() + ": " + error.getMessage());
+         delivered = false;
+      }
+      if (!delivered) {
          // Delivery failed after payment; refund atomically rather than
          // silently dropping the item and keeping the MP.
          if (price > 0) this.plugin.refundEmeralds(player.getUniqueId(), price);

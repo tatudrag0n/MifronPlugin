@@ -398,6 +398,8 @@ final class AdvancedAnvilFeature implements Listener {
     */
    static int globalMaximumEnchantmentLevel(Mifron plugin) {
       int configured = plugin.getConfig().getInt("advanced-enchanting.max-enchantment-level", 20);
+      // A non-positive value means "unset/broken config", not "cap level 1".
+      if (configured <= 0) configured = 20;
       return Math.max(1, Math.min(255, configured));
    }
 
@@ -406,6 +408,9 @@ final class AdvancedAnvilFeature implements Listener {
       if (enchantment == null) return global;
       String key = enchantment.getKey().getKey().toLowerCase(Locale.ROOT);
       int configured = plugin.getConfig().getInt("advanced-enchanting.enchantment-level-limits." + key, global);
+      // 0/negative must fall back to the global ceiling, otherwise a mis-typed
+      // limit would make the "-MAX" tag appear at level 1 (before the real cap).
+      if (configured <= 0) configured = global;
       return Math.max(1, Math.min(global, configured));
    }
 

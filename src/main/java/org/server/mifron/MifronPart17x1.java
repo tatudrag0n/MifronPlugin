@@ -98,6 +98,7 @@ abstract class MifronPart17x1 extends MifronPart17 {
       this.loadShopPrices();
       this.applyEconomyPriceTable();
       this.rebuildShelfShopCatalog();
+      if (this.onlineShopFeature != null) this.onlineShopFeature.rebuildCatalog();
       this.mifron().syncShelfShopDisplays();
       this.structureManager.load();
       this.proposalManager.load();

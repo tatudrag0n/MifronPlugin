@@ -276,18 +276,22 @@ final class UtilityItemsFeature implements Listener {
       // or protected-block transaction; do not run the item action twice.
       if (event.isCancelled() && event.getAction() == Action.RIGHT_CLICK_BLOCK) return;
 
-      if ("emerald_bundle".equals(id)) {
-         event.setCancelled(true);
-         event.setUseItemInHand(Event.Result.DENY);
-         if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.plugin.tryShopPayment(player, event.getClickedBlock())) return;
-         player.sendMessage(ChatColor.GREEN + "所持MP: " + this.plugin.formatNumber(this.plugin.getEmeralds(player.getUniqueId())));
-         return;
-      }
-
+      // A single right-click can deliver the event more than once (dual-hand
+      // dispatch and block/air pass), so debounce the wallet exactly like the
+      // other utility items. Without this the balance was printed twice.
       long now = System.currentTimeMillis();
       Long last = this.lastUtilityUse.get(player.getUniqueId());
       if (last != null && now - last < UTILITY_USE_DEBOUNCE_MILLIS) {
          event.setCancelled(true);
+         return;
+      }
+
+      if ("emerald_bundle".equals(id)) {
+         event.setCancelled(true);
+         event.setUseItemInHand(Event.Result.DENY);
+         this.lastUtilityUse.put(player.getUniqueId(), now);
+         if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.plugin.tryShopPayment(player, event.getClickedBlock())) return;
+         player.sendMessage(ChatColor.GREEN + "所持MP: " + this.plugin.formatNumber(this.plugin.getEmeralds(player.getUniqueId())));
          return;
       }
 

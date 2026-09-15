@@ -208,13 +208,22 @@ final class SiteQuestService {
                   .GET()
                   .build();
                HttpResponse<String> response = this.client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-               if (response.statusCode() == 200) {
-                  List<SiteQuestService.SiteQuest> parsed = parse(response.body());
-                  // Only replace a good cache with a good response. A parse failure
-                  // or network error keeps the previous quests and player progress.
-                  this.cache = parsed;
-                  this.plugin.getLogger().info("Site quest sync loaded " + parsed.size() + " quests.");
-               } else {
+                if (response.statusCode() == 200) {
+                   List<SiteQuestService.SiteQuest> parsed = parse(response.body());
+                   // parse() returns null for a body that is not a JSON array
+                   // (error envelope, HTML, empty). Never let such a response
+                   // replace the last good cache with an empty quest list.
+                   if (parsed == null) {
+                      this.plugin.getLogger().warning("Site quest sync returned an unexpected body; keeping cached quests.");
+                      this.retrySooner();
+                   } else {
+                      this.cache = parsed;
+                      this.plugin.getLogger().info("Site quest sync loaded " + parsed.size() + " quests.");
+                      // Register on the main thread as soon as a good sync lands,
+                      // so progress tracks before the player ever opens the UI.
+                      Bukkit.getScheduler().runTask(this.plugin, () -> this.plugin.questService.registerSiteQuests(this.mappedDefinitions()));
+                   }
+                } else {
                   this.plugin.getLogger().warning("Site quest sync returned HTTP " + response.statusCode() + ".");
                   this.retrySooner();
                }
@@ -241,11 +250,16 @@ final class SiteQuestService {
       this.lastAttempt = 0L;
    }
 
+   /**
+    * @return the parsed quests, or {@code null} when the payload is not a JSON
+    *     array (so a malformed/HTML/error response can never wipe the cache).
+    *     A valid empty array returns an empty list.
+    */
    private static List<SiteQuestService.SiteQuest> parse(String body) {
       List<SiteQuestService.SiteQuest> result = new ArrayList<>();
-      if (body == null || body.isBlank()) return result;
+      if (body == null || body.isBlank()) return null;
       JsonElement root = JsonParser.parseString(body);
-      if (!root.isJsonArray()) return result;
+      if (!root.isJsonArray()) return null;
       JsonArray array = root.getAsJsonArray();
       for (JsonElement element : array) {
          if (!element.isJsonObject()) continue;
