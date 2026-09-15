@@ -29,14 +29,13 @@ import org.bukkit.persistence.PersistentDataType;
 final class OnlineShopFeature implements Listener {
    static final String TITLE = "\u00a7bMifron OnlineShop";
    private static final int PAGE_SIZE = 36;
+   private static final int PAGE_SIZE_PER_ROW = 8;
    private final Mifron plugin;
    private final NamespacedKey accessKey;
    private final NamespacedKey productKey;
    private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
    private final Map<String, Long> configuredCooldowns = new HashMap<>();
    private final Map<String, String> configuredRarities = new HashMap<>();
-   private final Map<UUID, Integer> pages = new HashMap<>();
-   private final Map<UUID, Category> selected = new HashMap<>();
    private final EnumMap<Category, List<Material>> catalog = new EnumMap<>(Category.class);
 
    enum Category {
@@ -96,10 +95,7 @@ final class OnlineShopFeature implements Listener {
 
    @EventHandler
    public void onQuit(PlayerQuitEvent event) {
-      UUID uuid = event.getPlayer().getUniqueId();
-      this.cooldowns.remove(uuid);
-      this.pages.remove(uuid);
-      this.selected.remove(uuid);
+      this.cooldowns.remove(event.getPlayer().getUniqueId());
    }
 
    private void ensureAccessItem(Player player) {
@@ -156,49 +152,30 @@ final class OnlineShopFeature implements Listener {
       if (clicked == null || !clicked.hasItemMeta()) return;
       String action = clicked.getItemMeta().getPersistentDataContainer().get(this.productKey, PersistentDataType.STRING);
       if (action == null) return;
-      if (action.startsWith("cat:")) {
-         try {
-            this.selected.put(player.getUniqueId(), Category.valueOf(action.substring(4)));
-            this.pages.put(player.getUniqueId(), 0);
-         } catch (IllegalArgumentException ignored) { return; }
-         player.openInventory(this.createInventory(player));
-         return;
-      }
-      if ("page:prev".equals(action)) {
-         this.pages.merge(player.getUniqueId(), -1, Integer::sum);
-         player.openInventory(this.createInventory(player));
-         return;
-      }
-      if ("page:next".equals(action)) {
-         this.pages.merge(player.getUniqueId(), 1, Integer::sum);
-         player.openInventory(this.createInventory(player));
-         return;
-      }
+      if (action.startsWith("cat:")) return; // Row header; not clickable.
       this.purchase(player, action);
    }
 
    private Inventory createInventory(Player player) {
       Inventory inventory = Bukkit.createInventory(player, 54, TITLE);
-      Category current = this.selected.getOrDefault(player.getUniqueId(), Category.BLOCKS);
-      List<Material> items = this.catalog.getOrDefault(current, List.of());
-      int totalPages = Math.max(1, (items.size() + PAGE_SIZE - 1) / PAGE_SIZE);
-      int page = Math.max(0, Math.min(totalPages - 1, this.pages.getOrDefault(player.getUniqueId(), 0)));
-      this.pages.put(player.getUniqueId(), page);
-      int start = page * PAGE_SIZE;
-      int slot = 9;
-      for (int i = start; i < Math.min(start + PAGE_SIZE, items.size()); i++) {
-         inventory.setItem(slot++, this.catalogIcon(player, items.get(i)));
+      // Single-screen layout: one labeled row per category, no tab navigation.
+      // Each category shows its first PAGE_SIZE_PER_ROW items; the full catalog
+      // remains purchasable via the item ids even if a row overflows.
+      int slot = 0;
+      List<Material> all = new ArrayList<>();
+      for (Category category : Category.values()) {
+         List<Material> items = this.catalog.getOrDefault(category, List.of());
+         if (items.isEmpty()) continue;
+         if (slot + 9 > 54) break;
+         inventory.setItem(slot, this.actionIcon(category.icon, "\u00a76" + category.label, "cat:" + category.name()));
+         int shown = Math.min(items.size(), PAGE_SIZE_PER_ROW);
+         for (int i = 0; i < shown && slot + 1 + i < 54; i++) {
+            inventory.setItem(slot + 1 + i, this.catalogIcon(player, items.get(i)));
+            all.add(items.get(i));
+         }
+         slot += 9;
       }
-      Category[] values = Category.values();
-      for (int i = 0; i < values.length && i < 9; i++) {
-         Category category = values[i];
-         String name = (category == current ? "\u00a7a\u25b6 " : "\u00a77") + category.label;
-         inventory.setItem(i, this.actionIcon(category.icon, name, "cat:" + category.name()));
-      }
-      inventory.setItem(45, this.actionIcon(Material.ARROW, "\u00a7e\u524d\u306e\u30da\u30fc\u30b8", "page:prev"));
-      inventory.setItem(49, this.actionIcon(Material.PAPER, "\u00a7f" + current.label + "  " + (page + 1) + "/" + totalPages, "cat:" + current.name()));
-      inventory.setItem(53, this.actionIcon(Material.ARROW, "\u00a7e\u6b21\u306e\u30da\u30fc\u30b8", "page:next"));
-      this.applyCooldownOverlay(player, items);
+      this.applyCooldownOverlay(player, all);
       return inventory;
    }
 
