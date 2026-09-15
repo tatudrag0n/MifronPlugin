@@ -18,6 +18,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -339,6 +340,32 @@ final class UtilityItemsFeature implements Listener {
       if (this.isMifronItem(current, "emerald_bundle")) return;
       event.setCancelled(true);
       if (event.getWhoClicked() instanceof Player player) player.sendMessage(ChatColor.YELLOW + "ウォレットにはアイテムを収納できません。");
+   }
+
+   /**
+    * Mifron fixed items (wallet/status/quest books/teleporter/wands/jump block)
+    * may move freely inside the player's own inventory, but must never be
+    * stored in an external container (Chest/Barrel/Hopper/etc). Only clicks
+    * that would move the item from the player inventory into the open top
+    * container are cancelled; all other inventory operations pass through.
+    */
+   @EventHandler(ignoreCancelled = true)
+   public void onFixedItemStoreClick(InventoryClickEvent event) {
+      if (!(event.getWhoClicked() instanceof Player player)) return;
+      ItemStack clicked = event.getCurrentItem();
+      if (clicked == null || !this.isFixedMifronUtilityItem(clicked)) return;
+      if (event.getClickedInventory() != player.getInventory()) return;
+      if (event.getView().getTopInventory().getHolder() instanceof org.bukkit.inventory.PlayerInventory) return;
+      // Collect-to-cursor (double click with a matching cursor stack) gathers
+      // from both inventories; leave that path to vanilla.
+      if (event.getCursor() != null && !event.getCursor().getType().isAir() && event.getCursor().isSimilar(clicked)) return;
+      event.setCancelled(true);
+      player.sendMessage(ChatColor.YELLOW + "Mifronの固定アイテムはチェストなどに収納できません。");
+   }
+
+   @EventHandler(ignoreCancelled = true)
+   public void onFixedItemHopperMove(InventoryMoveItemEvent event) {
+      if (this.isFixedMifronUtilityItem(event.getItem())) event.setCancelled(true);
    }
 
    private void giveMifronItemIfMissing(Player player, String id, ItemStack item) {
