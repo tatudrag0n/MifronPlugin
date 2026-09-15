@@ -639,8 +639,9 @@ ffa:
       icon: "zombie_spawn_egg"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
-      max-owned-mobs: 3
-      max-global-mobs: 20
+      # One shared cooldown for the summon ability; it rolls one of the 7 kit
+      # summons plus the phantom at random, with no cap on active summons.
+      summon-cooldown-seconds: 15
       items: []
       potions: []
     trapper:
@@ -692,6 +693,9 @@ ffa:
   field-items:
     enabled: true
     min-players: 2
+    # Per-player cap on carried field items, so a full inventory can never stop
+    # the FFA exit item from being delivered.
+    max-owned-items: 9
     event-despawn-seconds: 60
     loot-despawn-seconds: 90
     event-interval-min-seconds: 150

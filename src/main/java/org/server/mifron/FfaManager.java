@@ -78,7 +78,12 @@ import org.bukkit.scoreboard.Scoreboard;
 final class FfaManager {
    private static final String CENTER_MISSING = "§cFFA中央地点が設定されていません。管理者に /mf ffa setcenter を実行してもらってください。";
    private static final String KIT_SELECTOR_TITLE = "FFAキット選択";
-   private static final List<String> NECROMANCER_MOBS = List.of("zombie", "husk", "drowned", "skeleton", "stray", "bogged", "wither_skeleton");
+   // The summon ability rolls one mob at random from the 7 kit summons plus the
+   // phantom. There is no cap on how many summons may exist at once.
+   private static final List<String> NECROMANCER_SUMMON_POOL = List.of(
+      "zombie", "husk", "drowned", "skeleton", "stray", "bogged", "wither_skeleton", "phantom"
+   );
+   private static final String NECROMANCER_SUMMON_KEY = "necromancer_summon";
    private final Mifron plugin;
    private final FfaConfig config;
    private final FfaStatsManager stats;
@@ -649,9 +654,22 @@ final class FfaManager {
       if (player == null || !this.isPlaying(player) || this.isInCombat(player) || this.hasExitItem(player)) return;
       ItemStack exit = this.createExitItem();
       this.tagOwner(exit, player.getUniqueId());
-      if (!player.getInventory().addItem(exit).isEmpty()) {
-         player.sendMessage("§e退場アイテムを渡すインベントリの空きがありません。");
+      PlayerInventory inventory = player.getInventory();
+      if (inventory.addItem(exit).isEmpty()) return;
+      // The inventory is full. The exit item must still be delivered or the
+      // player can never leave FFA, so fall back to the off-hand and then to a
+      // hotbar slot, dropping the displaced item on the ground (never deleting).
+      if (inventory.getItemInOffHand().getType().isAir()) {
+         inventory.setItemInOffHand(exit);
+         player.updateInventory();
+         return;
       }
+      ItemStack displaced = inventory.getItem(8);
+      inventory.setItem(8, exit);
+      if (displaced != null && !displaced.getType().isAir()) {
+         player.getWorld().dropItemNaturally(player.getLocation(), displaced);
+      }
+      player.sendMessage("§eインベントリが満杯のため、退場アイテムを強制配布しました。");
    }
 
    void removeExitItem(Player player) {
@@ -742,13 +760,16 @@ final class FfaManager {
 
          return true;
       } else if (kind.startsWith("summon_") && session.kit == FfaKit.NECROMANCER) {
-         String mob = kind.substring("summon_".length());
-         long seconds = this.summonCooldownSeconds(mob);
-         if (this.beginCooldown(player, "summon_" + mob, seconds, "召喚")) {
+         String eggMob = kind.substring("summon_".length());
+         long seconds = this.summonCooldownSeconds();
+         // One shared 15s cooldown gates every summon, and the summoned mob is
+         // picked at random from the 7 kit summons plus the phantom.
+         if (this.beginCooldown(player, NECROMANCER_SUMMON_KEY, seconds, "召喚")) {
             ItemStack egg = item.clone();
             egg.setAmount(1);
-            if (this.summonNecromancerMob(player, mob)) {
-               this.startSummonEggRefill(player, mob, egg);
+            String summoned = NECROMANCER_SUMMON_POOL.get(ThreadLocalRandom.current().nextInt(NECROMANCER_SUMMON_POOL.size()));
+            if (this.summonNecromancerMob(player, summoned)) {
+               this.startSummonEggRefill(player, eggMob, egg, NECROMANCER_SUMMON_KEY);
             }
          }
 
@@ -923,16 +944,8 @@ final class FfaManager {
       return count;
    }
 
-   private long summonCooldownSeconds(String mob) {
-      return switch (mob) {
-         case "zombie" -> 5L;
-         case "husk", "stray" -> 15L;
-         case "drowned", "phantom" -> 30L;
-         case "skeleton" -> 10L;
-         case "bogged" -> 20L;
-         case "wither_skeleton" -> 60L;
-         default -> 15L;
-      };
+   private long summonCooldownSeconds() {
+      return Math.max(1L, this.plugin.getConfig().getLong(this.config.kitPath(FfaKit.NECROMANCER, "summon-cooldown-seconds"), 15L));
    }
 
    private boolean summonNecromancerMob(Player owner, String mob) {
@@ -943,19 +956,6 @@ final class FfaManager {
       }
 
       UUID ownerId = owner.getUniqueId();
-      int maxOwned = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.NECROMANCER, "max-owned-mobs"), 3));
-      int maxGlobal = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.NECROMANCER, "max-global-mobs"), 20));
-      int ownedCount = this.activeSummonCount(ownerId);
-      int globalCount = this.activeSummonCount();
-      if (!canSpawnSummon(ownedCount, globalCount, maxOwned, maxGlobal)) {
-         if (ownedCount >= maxOwned) {
-            owner.sendMessage("§e召喚上限に達しています（自分: " + maxOwned + "体）。");
-         } else {
-            owner.sendMessage("§eFFA全体の召喚上限に達しています。少し待ってから再度お試しください。");
-         }
-         return false;
-      }
-
       Location spawn = owner.getLocation().clone().add(owner.getLocation().getDirection().setY(0).normalize().multiply(1.5));
       Entity entity = owner.getWorld().spawnEntity(spawn, type);
       entity.getPersistentDataContainer().set(this.entityKindKey, PersistentDataType.STRING, "summon");
@@ -1009,7 +1009,7 @@ final class FfaManager {
       return count;
    }
 
-   private void startSummonEggRefill(Player player, String mob, ItemStack egg) {
+   private void startSummonEggRefill(Player player, String mob, ItemStack egg, String cooldownKey) {
       String kind = "summon_" + mob;
       this.removeFfaItems(player, kind);
       this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
@@ -1025,7 +1025,7 @@ final class FfaManager {
          old.cancel();
       }
 
-      long remainingMillis = Math.max(1L, this.cooldownUntil(player.getUniqueId(), kind) - System.currentTimeMillis());
+      long remainingMillis = Math.max(1L, this.cooldownUntil(player.getUniqueId(), cooldownKey) - System.currentTimeMillis());
       long delay = Math.max(1L, (remainingMillis + 49L) / 50L);
       BukkitTask task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {
          Map<String, BukkitTask> currentTasks = this.summonEggRefillTasks.get(player.getUniqueId());
@@ -1064,20 +1064,6 @@ final class FfaManager {
          player.getInventory().setItem(slot, egg);
          if (displaced != null && displaced.getType() != Material.AIR) {
             player.getInventory().addItem(new ItemStack[]{displaced});
-         }
-      }
-   }
-
-   private void restoreNecromancerEggCooldowns(Player player) {
-      long now = System.currentTimeMillis();
-
-      for (String mob : NECROMANCER_MOBS) {
-         String kind = "summon_" + mob;
-         if (this.cooldownUntil(player.getUniqueId(), kind) > now) {
-            ItemStack egg = this.findKitItem(player, kind);
-            if (egg != null) {
-               this.startSummonEggRefill(player, mob, egg.clone());
-            }
          }
       }
    }
@@ -2203,9 +2189,6 @@ final class FfaManager {
       this.applyArmorBonus(player);
       this.tagOwnedKitItems(player);
       this.giveExitItem(player);
-      if (kit == FfaKit.NECROMANCER) {
-         this.restoreNecromancerEggCooldowns(player);
-      }
 
       if (kit == FfaKit.CROSSBOW) {
          this.revolverAmmo.put(player.getUniqueId(), kit.revolverCapacity(this.config));

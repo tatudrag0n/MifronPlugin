@@ -50,6 +50,7 @@ final class FfaFieldItemManager {
    private final NamespacedKey ffaItemKindKey;
    private final NamespacedKey ffaOwnerKey;
    private final NamespacedKey projectileKindKey;
+   private final NamespacedKey fieldOwnedKey;
    private final Set<UUID> fieldItems = new HashSet<>();
    private final Map<String, BukkitTask> channelTasks = new HashMap<>();
    private final Map<String, String> activeEvents = new HashMap<>();
@@ -71,6 +72,7 @@ final class FfaFieldItemManager {
       this.ffaItemKindKey = new NamespacedKey(plugin, "ffa_item_kind");
       this.ffaOwnerKey = new NamespacedKey(plugin, "ffa_item_owner");
       this.projectileKindKey = new NamespacedKey(plugin, "ffa_projectile_kind");
+      this.fieldOwnedKey = new NamespacedKey(plugin, "ffa_field_owned");
    }
 
    void load() {
@@ -348,10 +350,18 @@ final class FfaFieldItemManager {
          return false;
       }
 
+      // Cap how many field items a player may carry so the inventory cannot be
+      // filled, which would prevent the FFA exit item from being delivered.
+      int maxOwned = Math.max(0, this.plugin.getConfig().getInt("ffa.field-items.max-owned-items", 9));
+      if (maxOwned > 0 && this.countOwnedFieldItems(player) + items.size() > maxOwned) {
+         player.sendActionBar(Component.text("保持できるフィールドアイテムの上限に達しています", NamedTextColor.RED));
+         return false;
+      }
+
       for (ItemStack item : items) {
          FfaKit.tagItem(this.plugin, FfaKit.SWORD, "field_" + (rarity == null ? "common" : rarity.toLowerCase(Locale.ROOT)), item, Map.of());
          ItemMeta meta = item.getItemMeta();
-         meta.getPersistentDataContainer().set(new NamespacedKey(this.plugin, "ffa_field_owned"), PersistentDataType.BOOLEAN, true);
+         meta.getPersistentDataContainer().set(this.fieldOwnedKey, PersistentDataType.BOOLEAN, true);
          meta.getPersistentDataContainer().set(this.ffaOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
          item.setItemMeta(meta);
          player.getInventory().addItem(item).values()
@@ -360,6 +370,20 @@ final class FfaFieldItemManager {
 
       player.sendActionBar(Component.text("フィールドアイテム取得: " + this.itemName(items.get(0)), NamedTextColor.GOLD));
       return true;
+   }
+
+   private int countOwnedFieldItems(Player player) {
+      int count = 0;
+      for (ItemStack item : player.getInventory().getContents()) {
+         if (this.isOwnedFieldItem(item)) count++;
+      }
+      if (this.isOwnedFieldItem(player.getInventory().getItemInOffHand())) count++;
+      return count;
+   }
+
+   private boolean isOwnedFieldItem(ItemStack item) {
+      return item != null && item.hasItemMeta()
+         && Boolean.TRUE.equals(MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.fieldOwnedKey, PersistentDataType.BOOLEAN));
    }
 
    private void startEvent(String rawType, Player activator) {
