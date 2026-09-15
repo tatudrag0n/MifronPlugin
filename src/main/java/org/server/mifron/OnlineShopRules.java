@@ -6,7 +6,7 @@ final class OnlineShopRules {
    private OnlineShopRules() {}
 
    static int price(Mifron plugin, Material material) {
-      int configured = plugin.shopSalePrices.getOrDefault(material.name(), 0);
+      int configured = plugin.pricingService.salePrice(material);
       int raw = configured > 0 ? configured : Math.max(1, plugin.getConfig().getInt("online-shop.fallback-price", 10));
       return Math.max(raw, minimumPrice(material));
    }

@@ -97,10 +97,10 @@ abstract class MifronPart18x1 extends MifronPart18 {
    }
 
    protected void sendFriendChatDraft(Player player, OfflinePlayer target) {
-      String message = this.friendChatDrafts.getOrDefault(player.getUniqueId(), "").trim();
+      String message = this.friendChatService.draft(player.getUniqueId()).trim();
       if (message.isBlank()) { player.sendMessage("\u00a7c\u672c\u6587\u304c\u672a\u5165\u529b\u3067\u3059\u3002"); return; }
       this.sendFriendChat(player, target, message);
-      this.friendChatDrafts.remove(player.getUniqueId());
+      this.friendChatService.takeDraft(player.getUniqueId());
    }
 
    protected void sendFriendChat(Player player, OfflinePlayer target, String message) {

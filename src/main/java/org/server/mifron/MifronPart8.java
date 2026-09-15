@@ -23,13 +23,13 @@ abstract class MifronPart8 extends MifronPart7x2 {
       return !name.endsWith("_SPAWN_EGG") && !name.equals("SPAWNER") && !name.equals("TRIAL_SPAWNER") && this.mifron().materialPrice(material) < 1000;
    }
 
-   protected MerchantOffer randomWeightedMerchantOffer(Set<Material> used, List<MerchantOffer> sourcePool, Map<String, Integer> weights) {
+   protected MerchantOffer randomWeightedMerchantOffer(Set<Material> used, List<MerchantOffer> sourcePool, boolean selling) {
       List<MerchantOffer> pool = sourcePool.stream().filter(o -> !used.contains(o.material())).toList();
       if (pool.isEmpty()) { used.clear(); pool = sourcePool; }
-      int totalWeight = pool.stream().mapToInt(o -> Math.max(1, weights.getOrDefault(o.material().name(), 1))).sum();
+      int totalWeight = pool.stream().mapToInt(o -> Math.max(1, this.pricingService.merchantWeight(selling, o.material()))).sum();
       int selected = this.random.nextInt(Math.max(1, totalWeight));
       for (MerchantOffer offer : pool) {
-         selected -= Math.max(1, weights.getOrDefault(offer.material().name(), 1));
+         selected -= Math.max(1, this.pricingService.merchantWeight(selling, offer.material()));
          if (selected < 0) { used.add(offer.material()); return offer; }
       }
       MerchantOffer offer = pool.get(this.random.nextInt(pool.size()));
@@ -37,10 +37,10 @@ abstract class MifronPart8 extends MifronPart7x2 {
       return offer;
    }
 
-   protected List<MerchantOffer> merchantOffers(Map<String, Integer> weights, boolean selling) {
+   protected List<MerchantOffer> merchantOffers(boolean selling) {
       List<MerchantOffer> offers = new ArrayList<>();
       for (Material material : Material.values()) {
-         if (!this.mifron().isMerchantWeightedPoolItem(material, weights)) continue;
+         if (!this.mifron().isMerchantWeightedPoolItem(material, selling)) continue;
          int price = selling ? this.mifron().materialPrice(material) : this.mifron().materialBuyPrice(material);
          if (price > 0) offers.add(new MerchantOffer(material, 1, this.mifron().merchantRarity(material), price));
       }
@@ -55,8 +55,8 @@ abstract class MifronPart8 extends MifronPart7x2 {
    protected List<MerchantOffer> barrelShopOffers() {
       List<MerchantOffer> offers = new ArrayList<>();
       for (Material material : Material.values()) {
-         BarrelShopConfig config = this.barrelShopConfigs.get(material.name());
-         if (config != null && this.mifron().isBarrelShopPoolItem(material)) offers.add(new MerchantOffer(material, 1, config.tier(), this.mifron().materialPrice(material)));
+         if (!this.pricingService.isBarrelPoolItem(material) || !this.mifron().isBarrelShopPoolItem(material)) continue;
+         offers.add(new MerchantOffer(material, 1, this.pricingService.barrelTier(material), this.mifron().materialPrice(material)));
       }
       return offers;
    }
@@ -76,7 +76,7 @@ abstract class MifronPart8 extends MifronPart7x2 {
 
    protected int randomShopPrice(Material material) {
       if (material == null) return 0;
-      int configuredPrice = this.shopSalePrices.getOrDefault(material.name(), 0);
+      int configuredPrice = this.pricingService.salePrice(material);
       if (configuredPrice > 0) return configuredPrice;
       int economyPrice = this.economyPriceTable.price(material);
       if (economyPrice > 0) return economyPrice;
@@ -85,8 +85,7 @@ abstract class MifronPart8 extends MifronPart7x2 {
    }
 
    protected int barrelShopWeight(Material material) {
-      BarrelShopConfig config = this.barrelShopConfigs.get(material.name());
-      return config == null ? 0 : config.weight();
+      return this.pricingService.barrelWeight(material);
    }
 
    protected List<MerchantOffer> allMerchantOffers() {

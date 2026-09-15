@@ -21,17 +21,17 @@ abstract class MifronPart8x1 extends MifronPart8 {
          && !Set.of("AIR", "BARRIER", "BEDROCK", "COMMAND_BLOCK", "CHAIN_COMMAND_BLOCK", "REPEATING_COMMAND_BLOCK", "COMMAND_BLOCK_MINECART", "STRUCTURE_BLOCK", "STRUCTURE_VOID", "JIGSAW", "LIGHT", "DEBUG_STICK", "KNOWLEDGE_BOOK").contains(name);
    }
 
-   protected boolean isMerchantWeightedPoolItem(Material material, Map<String, Integer> weights) {
-      return this.mifron().isMerchantPoolItem(material) && weights.getOrDefault(material.name(), 0) > 0;
+   protected boolean isMerchantWeightedPoolItem(Material material, boolean selling) {
+      return this.mifron().isMerchantPoolItem(material) && this.pricingService.merchantWeight(selling, material) > 0;
    }
 
    protected boolean isBarrelShopPoolItem(Material material) {
       String name = material.name();
-      return this.mifron().isPricedShopItem(material) && this.barrelShopConfigs.containsKey(name) && !name.endsWith("_SPAWN_EGG") && !MERCHANT_EXCLUDED_ITEMS.contains(material);
+      return this.mifron().isPricedShopItem(material) && this.pricingService.isBarrelPoolItem(material) && !name.endsWith("_SPAWN_EGG") && !MERCHANT_EXCLUDED_ITEMS.contains(material);
    }
 
    protected boolean isPricedShopItem(Material material) {
-      return material != null && material.isItem() && this.shopSalePrices.getOrDefault(material.name(), 0) > 0;
+      return material != null && material.isItem() && this.pricingService.salePrice(material) > 0;
    }
 
    protected String merchantRarity(Material material) {
@@ -58,8 +58,8 @@ abstract class MifronPart8x1 extends MifronPart8 {
 
    protected int materialPrice(Material material) {
       String name = material.name();
-      Integer configuredPrice = this.shopSalePrices.get(name);
-      if (configuredPrice != null && configuredPrice > 0) return configuredPrice;
+      int configuredPrice = this.pricingService.salePrice(material);
+      if (configuredPrice > 0) return configuredPrice;
       Integer exact = this.mifron().exactMaterialPrice(material);
       if (exact != null) return exact;
       if (name.equals("NETHERITE_UPGRADE_SMITHING_TEMPLATE")) return 1000;
@@ -82,7 +82,7 @@ abstract class MifronPart8x1 extends MifronPart8 {
    }
 
    protected int materialBuyPrice(Material material) {
-      int configuredBuyPrice = this.shopBuyPrices.getOrDefault(material.name(), 0);
+      int configuredBuyPrice = this.pricingService.buyPrice(material);
       return configuredBuyPrice <= 0 ? 0 : Math.max(1, Math.min(2000000000, configuredBuyPrice));
    }
 }
