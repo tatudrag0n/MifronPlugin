@@ -129,6 +129,7 @@ final class FfaManager {
    private final Map<UUID, UUID> knightHorses = new HashMap<>();
    private final Map<UUID, Long> infestedBugOwnerExpires = new HashMap<>();
    private final Map<UUID, Map<String, FfaManager.TrapState>> traps = new HashMap<>();
+   private final Set<TemporaryWebRestore> temporaryWebRestores = new HashSet<>();
    private final Map<UUID, FfaManager.DamageCredit> damageCredits = new HashMap<>();
    private final Map<UUID, FfaManager.DeathLeaveRestore> deathLeaveRestores = new HashMap<>();
    private BukkitTask kitEffectTask;
@@ -164,6 +165,9 @@ final class FfaManager {
    }
 
    void shutdown() {
+      for (TemporaryWebRestore restore : new ArrayList<>(this.temporaryWebRestores)) {
+         restore.run();
+      }
       this.fieldItems.shutdown();
 
       for (Player player : new ArrayList<Player>(this.plugin.getServer().getOnlinePlayers())) {
@@ -1258,7 +1262,32 @@ final class FfaManager {
          }
       }
 
-      this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> originals.forEach(state -> state.update(true, false)), 80L);
+      TemporaryWebRestore restore = new TemporaryWebRestore(originals, this.temporaryWebRestores);
+      this.temporaryWebRestores.add(restore);
+      restore.task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, restore, 80L);
+   }
+
+   static final class TemporaryWebRestore implements Runnable {
+      private final List<BlockState> originals;
+      private final Set<TemporaryWebRestore> pending;
+      BukkitTask task;
+
+      TemporaryWebRestore(List<BlockState> originals, Set<TemporaryWebRestore> pending) {
+         this.originals = List.copyOf(originals);
+         this.pending = pending;
+      }
+
+      @Override
+      public void run() {
+         if (!this.pending.remove(this)) {
+            return;
+         }
+         this.originals.forEach(state -> state.update(true, false));
+         if (this.task != null) {
+            this.task.cancel();
+            this.task = null;
+         }
+      }
    }
 
    private void restoreTrap(FfaManager.TrapState trap) {
@@ -1867,14 +1896,21 @@ final class FfaManager {
          return true;
       }
       String kind = trident.getPersistentDataContainer().get(this.projectileKindKey, PersistentDataType.STRING);
+      if (!"trident".equals(kind)) {
+         return true;
+      }
       UUID owner = this.parseUuid(trident.getPersistentDataContainer().get(this.projectileOwnerKey, PersistentDataType.STRING));
       Player player = event.getPlayer();
       FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
-      return "trident".equals(kind) && owner != null && owner.equals(player.getUniqueId()) && session != null && session.kit == FfaKit.TRIDENT;
+      return owner != null && owner.equals(player.getUniqueId()) && session != null && session.kit == FfaKit.TRIDENT;
    }
 
    boolean handleArrowPickup(PlayerPickupArrowEvent event) {
       AbstractArrow arrow = event.getArrow();
+      if (arrow instanceof Trident
+         && !"trident".equals(arrow.getPersistentDataContainer().get(this.projectileKindKey, PersistentDataType.STRING))) {
+         return false;
+      }
       if (arrow instanceof Trident && !this.isSafeFfaTridentPickup(event)) {
          event.setCancelled(true);
          arrow.remove();
@@ -3255,6 +3291,10 @@ final class FfaManager {
          player.setExp(this.exp);
          player.setLevel(this.level);
          player.setTotalExperience(this.totalExperience);
+         for (PotionEffect effect : this.effects) {
+            player.addPotionEffect(effect);
+         }
+
          AttributeInstance maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
          if (maxHealth != null) {
             maxHealth.setBaseValue(this.maxHealthBase);
@@ -3264,10 +3304,6 @@ final class FfaManager {
          player.setHealth(Math.max(1.0, Math.min(max, this.health)));
          player.setFoodLevel(this.food);
          player.setSaturation(this.saturation);
-
-         for (PotionEffect effect : this.effects) {
-            player.addPotionEffect(effect);
-         }
 
          player.setFireTicks(this.fireTicks);
          player.setScoreboard(this.scoreboard);

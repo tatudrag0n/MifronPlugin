@@ -63,13 +63,7 @@ abstract class MifronPart10x1 extends MifronPart10 {
    }
 
    protected int inventorySpaceFor(Player player, Material material) {
-      int space = 0;
-      int maxStack = material.getMaxStackSize();
-      for (ItemStack item : player.getInventory().getStorageContents()) {
-         if (item == null || item.getType() == Material.AIR) space += maxStack;
-         else if (item.getType() == material && item.getAmount() < maxStack) space += maxStack - item.getAmount();
-      }
-      return space;
+      return ShelfShopTradeRules.inventorySpaceFor(player.getInventory(), this.createShopPurchasedItem(material, 1));
    }
 
    protected void giveShopPurchasedItems(Player player, Material material, int amount) {

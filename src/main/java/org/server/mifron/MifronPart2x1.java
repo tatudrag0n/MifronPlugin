@@ -106,7 +106,7 @@ abstract class MifronPart2x1 extends MifronPart2 {
       if (player == null || item == null) return false;
       return player.getInventory().addItem(item).isEmpty();
    }
-   boolean canReceiveOnlineShopProduct(Player player, ItemStack item) { return player != null && item != null && this.mifron().inventorySpaceFor(player, item.getType()) >= item.getAmount(); }
+   boolean canReceiveOnlineShopProduct(Player player, ItemStack item) { return player != null && item != null && ShelfShopTradeRules.inventorySpaceFor(player.getInventory(), item) >= item.getAmount(); }
 
    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
    public void onPlayerBanCommand(PlayerCommandPreprocessEvent event) {

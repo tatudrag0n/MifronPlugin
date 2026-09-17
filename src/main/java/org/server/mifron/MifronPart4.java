@@ -52,7 +52,10 @@ abstract class MifronPart4 extends MifronPart3x2 {
       int price = Math.max(0, Math.min(this.mifron().materialBuyPrice(material), offer.price() - 1));
       if (price <= 0) { this.mifron().showTemporaryActionBar(player, "\u8cb7\u3044\u53d6\u308a\u5bfe\u8c61\u5916\u3067\u3059\u3002"); return true; }
       if (this.utilityItemsFeature.getMifronItemId(held) != null || this.isShopWand(held)) return true;
-      this.mifron().depositEmeralds(player.getUniqueId(), price, false);
+      if (!this.economyManager.depositExact(player.getUniqueId(), price, false)) {
+         this.mifron().showTemporaryActionBar(player, "MP balance limit reached.");
+         return true;
+      }
       held.setAmount(held.getAmount() - 1);
       this.mifron().changeShelfShopStock(material, 1);
       this.mifron().markShopActivity(block);

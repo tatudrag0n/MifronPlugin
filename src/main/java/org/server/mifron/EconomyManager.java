@@ -75,6 +75,23 @@ final class EconomyManager {
       if (persist) this.plugin.queueDataSave();
    }
 
+   static boolean canCreditExact(int balance, long amount) {
+      return balance >= 0 && balance <= MAX_EMERALDS && amount > 0L && amount <= MAX_EMERALDS - balance;
+   }
+
+   boolean depositExact(UUID uuid, int amount, boolean persist) {
+      if (uuid == null) return false;
+      synchronized (this.lock(uuid)) {
+         if (!canCreditExact(this.balance(uuid), amount)) return false;
+         this.deposit(uuid, amount, persist);
+         return true;
+      }
+   }
+
+   static boolean canTransferExact(int fromBalance, int toBalance, int amount) {
+      return fromBalance >= amount && fromBalance <= MAX_EMERALDS && canCreditExact(toBalance, amount);
+   }
+
    boolean withdraw(UUID uuid, int amount, boolean persist) {
       if (uuid == null || amount <= 0) return false;
       boolean ok;
@@ -106,6 +123,7 @@ final class EconomyManager {
       if (from == null || to == null || amount <= 0 || from.equals(to)) return false;
       boolean[] ok = {false};
       this.withLocks(from, to, () -> {
+         if (!canTransferExact(this.balance(from), this.balance(to), amount)) return;
          if (!this.withdraw(from, amount, false)) return;
          this.deposit(to, amount, false);
          this.plugin.queueDataSave();

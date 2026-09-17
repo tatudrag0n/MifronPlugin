@@ -90,6 +90,13 @@ abstract class MifronPart1x3 extends MifronPart1x2 {
    protected void loadData() {
       this.dataFile = new File(this.getDataFolder(), "data.yml");
       if (!this.dataFile.exists()) this.saveResource("data.yml", false);
-      this.data = YamlConfiguration.loadConfiguration(this.dataFile);
+      this.data = null;
+      YamlConfiguration loaded = new YamlConfiguration();
+      try {
+         loaded.load(this.dataFile);
+      } catch (IOException | org.bukkit.configuration.InvalidConfigurationException e) {
+         throw new IllegalStateException("Could not load data.yml; existing data has been preserved", e);
+      }
+      this.data = loaded;
    }
 }
