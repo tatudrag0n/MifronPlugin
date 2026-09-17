@@ -46,6 +46,8 @@ abstract class MifronPart1x2 extends MifronPart1x1 {
    public void onPlayerQuit(PlayerQuitEvent event) {
       Player player = event.getPlayer();
       this.shopWandActionUntil.remove(player.getUniqueId());
+      this.lastJumpPadUse.remove(player.getUniqueId());
+      this.jumpPadFallProtectionUntil.remove(player.getUniqueId());
       ConfigurationSection session = this.mifron().getPlayerSection(player.getUniqueId());
       String sessionId = session.getString("analytics.session-id", "");
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_end", sessionId, "session-end:" + (sessionId.isBlank() ? player.getUniqueId() + ":" + System.currentTimeMillis() : sessionId));
