@@ -210,7 +210,7 @@ final class OnlineShopFeature implements Listener {
       // made the cooldown animation disappear.
       for (Material material : materials) {
          long remaining = this.remainingSeconds(player, "item:" + material.name());
-         player.setCooldown(material, remaining <= 0L ? 0 : (int) Math.min(Integer.MAX_VALUE, remaining * 20L));
+         player.setCooldown(material, OnlineShopRules.cooldownTicks(remaining));
       }
    }
 
@@ -250,7 +250,7 @@ final class OnlineShopFeature implements Listener {
          this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).getOrDefault(id, 0L),
          this.plugin.data().getLong(path, 0L)
       );
-      return Math.max(0L, (until - now + 999L) / 1000L);
+      return OnlineShopRules.remainingSeconds(now, until);
    }
 
    private void purchase(Player player, String id) {
@@ -294,7 +294,7 @@ final class OnlineShopFeature implements Listener {
          return;
       }
       long cooldownSeconds = this.cooldownSecondsFor(material);
-      long until = System.currentTimeMillis() + cooldownSeconds * 1000L;
+      long until = OnlineShopRules.cooldownDeadline(System.currentTimeMillis(), cooldownSeconds);
       this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(id, until);
       this.plugin.data().set("online-shop-cooldowns." + player.getUniqueId() + "." + id, until);
       this.plugin.queueDataSave();

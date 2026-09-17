@@ -1,0 +1,34 @@
+package org.server.mifron;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class OnlineShopRulesTest {
+   @Test
+   void normalCooldownTimingIsUnchanged() {
+      assertEquals(9000L, OnlineShopRules.cooldownDeadline(1000L, 8L));
+      assertEquals(8L, OnlineShopRules.remainingSeconds(1000L, 9000L));
+      assertEquals(1L, OnlineShopRules.remainingSeconds(8999L, 9000L));
+      assertEquals(0L, OnlineShopRules.remainingSeconds(9000L, 9000L));
+      assertEquals(160, OnlineShopRules.cooldownTicks(8L));
+   }
+
+   @Test
+   void largeConfiguredDurationDoesNotExpireImmediately() {
+      assertEquals(Long.MAX_VALUE, OnlineShopRules.cooldownDeadline(1000L, Long.MAX_VALUE));
+      assertEquals(Long.MAX_VALUE, OnlineShopRules.cooldownDeadline(Long.MAX_VALUE - 500L, 1L));
+   }
+
+   @Test
+   void distantDeadlineDoesNotOverflowRounding() {
+      assertEquals(9223372036854776L, OnlineShopRules.remainingSeconds(0L, Long.MAX_VALUE));
+      assertEquals(0L, OnlineShopRules.remainingSeconds(1000L, Long.MIN_VALUE));
+   }
+
+   @Test
+   void overlayTicksSaturateWithoutOverflow() {
+      assertEquals(Integer.MAX_VALUE, OnlineShopRules.cooldownTicks(Long.MAX_VALUE));
+      assertEquals(0, OnlineShopRules.cooldownTicks(0L));
+   }
+}

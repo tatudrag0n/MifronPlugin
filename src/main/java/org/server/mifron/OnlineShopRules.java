@@ -22,6 +22,31 @@ final class OnlineShopRules {
       return 0;
    }
 
+   static long cooldownDeadline(long now, long seconds) {
+      if (seconds <= 0L) return now;
+      try {
+         return Math.addExact(now, Math.multiplyExact(seconds, 1000L));
+      } catch (ArithmeticException e) {
+         return Long.MAX_VALUE;
+      }
+   }
+
+   static long remainingSeconds(long now, long until) {
+      if (until <= now) return 0L;
+      long remaining;
+      try {
+         remaining = Math.subtractExact(until, now);
+      } catch (ArithmeticException e) {
+         remaining = Long.MAX_VALUE;
+      }
+      return remaining / 1000L + (remaining % 1000L == 0L ? 0L : 1L);
+   }
+
+   static int cooldownTicks(long seconds) {
+      if (seconds <= 0L) return 0;
+      return seconds > Integer.MAX_VALUE / 20L ? Integer.MAX_VALUE : (int) (seconds * 20L);
+   }
+
    static long cooldownSeconds(String rarity) {
       return switch (rarity == null ? "COMMON" : rarity.toUpperCase()) {
          case "LEGENDARY" -> 1800L;
