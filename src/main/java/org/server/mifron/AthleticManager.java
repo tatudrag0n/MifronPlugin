@@ -581,19 +581,46 @@ final class AthleticManager implements Listener {
       }
       List<AthleticManager.Score> scores = this.scoresForMonth(name, previous);
       List<Integer> rewards = this.plugin.getConfig().getIntegerList("athletic.defaults.monthly-rank-rewards");
-      for (int index = 0; index < Math.min(scores.size(), rewards.size()); index++) {
-         String uuid = scores.get(index).uuid();
-         if (uuid == null) {
+      // Record each winner as paid immediately after paying them, so a crash
+      // mid-settlement never pays anyone twice on the next run.
+      List<String> paid = new ArrayList<>(this.plugin.data().getStringList(path + ".paid"));
+      List<String> ranked = new ArrayList<>();
+      for (AthleticManager.Score score : scores) ranked.add(score.uuid());
+      for (String uuid : unpaidMonthlyWinners(ranked, paid, rewards.size())) {
+         // Ranked uuids are unique month-score keys, so indexOf recovers the
+         // rank whose reward applies. unpaidMonthlyWinners only returns ranks
+         // inside the reward slots, so the lookup below cannot miss.
+         int amount = Math.max(0, rewards.get(ranked.indexOf(uuid)));
+         try {
+            this.plugin.depositEmeralds(UUID.fromString(uuid), this.plugin.applyIncomeBonus(UUID.fromString(uuid), amount));
+         } catch (IllegalArgumentException ignored) {
             continue;
          }
-         try {
-            this.plugin.depositEmeralds(UUID.fromString(uuid), this.plugin.applyIncomeBonus(UUID.fromString(uuid), Math.max(0, rewards.get(index))));
-         } catch (IllegalArgumentException ignored) {
-         }
+         paid.add(uuid);
+         this.plugin.data().set(path + ".paid", new ArrayList<>(paid));
+         this.plugin.saveData();
       }
       this.plugin.data().set(path + ".settled", true);
       this.plugin.data().set(path + ".settled-at", System.currentTimeMillis());
       this.plugin.saveData();
+   }
+
+   /**
+    * Winners still owed a monthly payout: ranked entrants within the reward
+    * slots that are neither null nor already recorded as paid. A crash between
+    * payouts leaves the paid list on disk, so the resumed settlement pays only
+    * the remainder instead of paying everyone again.
+    */
+   static List<String> unpaidMonthlyWinners(List<String> rankedUuids, List<String> paid, int slots) {
+      List<String> unpaid = new ArrayList<>();
+      if (rankedUuids == null || slots <= 0) return unpaid;
+      for (int index = 0; index < Math.min(rankedUuids.size(), slots); index++) {
+         String uuid = rankedUuids.get(index);
+         if (uuid != null && (paid == null || !paid.contains(uuid))) {
+            unpaid.add(uuid);
+         }
+      }
+      return unpaid;
    }
 
    private List<AthleticManager.Score> scoresForMonth(String name, String month) {
@@ -641,11 +668,22 @@ final class AthleticManager implements Listener {
       return item;
    }
 
+   boolean isControlItem(ItemStack item) {
+      return item != null && item.hasItemMeta()
+         && MifronPdc.has(item.getItemMeta().getPersistentDataContainer(), this.controlKey, PersistentDataType.STRING);
+   }
+
    private void removeControlItems(Player player) {
       for (ItemStack item : player.getInventory().getContents()) {
          if (item != null && item.hasItemMeta() && MifronPdc.has(item.getItemMeta().getPersistentDataContainer(), this.controlKey, PersistentDataType.STRING)) {
             item.setAmount(0);
          }
+      }
+      // getContents() excludes the off hand; a control item parked there
+      // would otherwise survive quits and leak into normal play.
+      ItemStack offhand = player.getInventory().getItemInOffHand();
+      if (this.isControlItem(offhand)) {
+         offhand.setAmount(0);
       }
    }
 

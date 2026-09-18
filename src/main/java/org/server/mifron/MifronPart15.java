@@ -90,7 +90,13 @@ abstract class MifronPart15 extends MifronPart14x2 {
       double multiplier = Math.max(0.0D, Math.min(10.0D, this.getConfig().getDouble("advancement-rewards.multiplier", 5.0D)));
       reward = (int) Math.min(2000000000L, Math.max(0L, Math.round(reward * multiplier)));
       int paidReward = this.mifron().applyIncomeBonus(player.getUniqueId(), reward);
-      this.mifron().depositEmeralds(player.getUniqueId(), paidReward);
+      // The rewarded marker is only meaningful once the full amount lands.
+      // Without the exact-fit gate a capped wallet would keep the marker while
+      // receiving nothing, with no retry path left.
+      if (paidReward > 0 && !this.mifron().economyManager.depositExact(player.getUniqueId(), paidReward, false)) {
+         player.sendMessage("\u00a7cMP\u4e0a\u9650\u306e\u305f\u3081\u9032\u6357\u5831\u916c\u3092\u53d7\u3051\u53d6\u308c\u307e\u305b\u3093\u3067\u3057\u305f\u3002MP\u3092\u6d88\u8cbb\u3057\u3066\u304b\u3089\u518d\u5ea6\u304a\u8a66\u3057\u304f\u3060\u3055\u3044\u3002");
+         return false;
+      }
       rewarded.add(fullKey);
       section.set("rewarded-advancements", new ArrayList<>(rewarded));
       player.sendMessage("\u00a7a\u9032\u6357\u5831\u916c: +" + this.mifron().formatNumber(paidReward) + "MP");

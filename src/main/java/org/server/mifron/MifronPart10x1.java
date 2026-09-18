@@ -16,6 +16,26 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.persistence.PersistentDataType;
 
 abstract class MifronPart10x1 extends MifronPart10 {
+   /**
+    * Read-only preview of {@link #removeItemsForMerchantSale}: the exact total
+    * that would be paid, or -1 when the player lacks the items. Used to verify
+    * the capped balance can take the full payout BEFORE anything is removed.
+    */
+   protected int previewMerchantSaleTotal(Player player, Material material, int amount, int basePrice) {
+      int available = this.countItemsByType(player, material);
+      if (available < amount) return -1;
+      int remaining = amount;
+      int totalPrice = 0;
+      for (ItemStack item : player.getInventory().getContents()) {
+         if (remaining <= 0) break;
+         if (!this.isMerchantSellableStack(item, material)) continue;
+         int removed = Math.min(item.getAmount(), remaining);
+         totalPrice = this.mifron().safeAdd(totalPrice, this.mifron().safeMultiply(this.merchantSaleUnitPrice(basePrice, item), removed));
+         remaining -= removed;
+      }
+      return remaining > 0 ? -1 : totalPrice;
+   }
+
    protected MerchantSale removeItemsForMerchantSale(Player player, Material material, int amount, int basePrice) {
       int available = this.countItemsByType(player, material);
       if (available < amount) return null;

@@ -237,7 +237,16 @@ final class AuctionFeature implements Listener {
          this.refundEscrow(path, null, "オークションを精算できなかったため、入札MPを返金しました。");
          this.plugin.data().set(path, null);
          this.notifyPlayer(owner, "商品または預かりMPを確認できなかったため、オークションを取消しました。");
-      } else {
+       } else if (!this.plugin.economyManager.canCreditExact(this.plugin.getEmeralds(owner), highest)) {
+         // The seller's capped balance cannot take the full price. Completing
+         // the sale would move the item while swallowing (part of) the
+         // payment, so cancel instead: everybody is refunded and the item
+         // stays in the frame.
+         this.refundEscrow(path, null, "出品者のMP上限のため、オークションを取消しました。入札MPは返金済みです。");
+         this.plugin.data().set(path, null);
+         this.notifyPlayer(owner, "MP上限のためオークションを取消しました。MPを消費してから再出品してください。");
+         this.notifyPlayer(winner, "出品者のMP上限のためオークションを取消しました。入札MPは返金済みです。");
+       } else {
          this.refundEscrow(path, winner, "オークション終了に伴い、入札MPを返金しました。");
          this.plugin.data().set(path + ".escrow." + winner, null);
          if (owner != null) {

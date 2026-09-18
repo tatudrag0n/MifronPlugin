@@ -54,6 +54,12 @@ public class StoreItemFeature implements Listener {
         for (ItemStack item : player.getInventory().getContents()) {
             if (isStoreItem(item)) return true;
         }
+        // getContents() excludes armor and the off hand; without these checks
+        // parking the link item there re-issues a duplicate on every join.
+        if (isStoreItem(player.getInventory().getItemInOffHand())) return true;
+        for (ItemStack item : player.getInventory().getArmorContents()) {
+            if (isStoreItem(item)) return true;
+        }
         return false;
     }
 

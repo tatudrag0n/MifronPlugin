@@ -259,11 +259,23 @@ final class MinoruBridgeFeature {
                   this.state.set("transactions." + key + ".pending", true);
                   this.state.set("transactions." + key + ".at", System.currentTimeMillis());
                   saveState();
-                  try {
-                     result = onMain(() -> applyMp(uuid, requested, setMode));
+                   java.util.concurrent.Future<Result> applyFuture = null;
+                   try {
+                     if (Bukkit.isPrimaryThread()) {
+                        result = applyMp(uuid, requested, setMode);
+                     } else {
+                        applyFuture = Bukkit.getScheduler().callSyncMethod(this.plugin, () -> applyMp(uuid, requested, setMode));
+                        result = applyFuture.get(5, TimeUnit.SECONDS);
+                     }
                   } catch (Exception timeout) {
-                     this.state.set("transactions." + key + ".failed-at", System.currentTimeMillis());
-                     saveState();
+                     // The main-thread task is still queued and may apply the
+                     // MP change AFTER this timeout. Clearing `pending` here
+                     // would let a retry double-apply, while keeping it
+                     // forever would wedge the transaction. Reconcile instead:
+                     // wait for the task's real outcome off the HTTP thread,
+                     // then write the idempotency record (retry replays it) or
+                     // release the marker (retry starts over) exactly once.
+                     reconcileTimedOutTransaction(key, uuid, requested, setMode, applyFuture);
                      throw timeout;
                   }
                   this.state.set("transactions." + key + ".before", result.before);
@@ -401,4 +413,45 @@ final class MinoruBridgeFeature {
 
    private record LinkCode(UUID uuid, String name, long expiresAt) {}
    private record Result(int balance, int applied, int before, int requested, boolean setMode) {}
+
+   /**
+    * Reconciles a main-thread MP task that outlived the 5s HTTP wait. Runs
+    * off the HTTP thread: if the task eventually applies, its outcome is
+    * recorded so a client retry replays instead of double-paying; if the task
+    * never runs, the pending marker is released so a retry starts over.
+    */
+   private void reconcileTimedOutTransaction(String key, UUID uuid, int requested, boolean setMode,
+      java.util.concurrent.Future<Result> applyFuture) {
+      Thread reconcile = new Thread(() -> {
+         try {
+            Result late = applyFuture == null ? null : applyFuture.get(60, TimeUnit.SECONDS);
+            synchronized (this.state) {
+               if (late != null
+                  && this.state.getBoolean("transactions." + key + ".pending", false)
+                  && uuid.toString().equals(this.state.getString("transactions." + key + ".uuid", ""))) {
+                  this.state.set("transactions." + key + ".before", late.before());
+                  this.state.set("transactions." + key + ".requested", late.requested());
+                  this.state.set("transactions." + key + ".setMode", late.setMode());
+                  this.state.set("transactions." + key + ".balance", late.balance());
+                  this.state.set("transactions." + key + ".applied", late.applied());
+                  this.state.set("transactions." + key + ".pending", null);
+                  this.state.set("transactions." + key + ".source", "minoru-bridge");
+                  this.state.set("transactions." + key + ".at", System.currentTimeMillis());
+                  trimTransactions();
+               } else if (late == null) {
+                  this.state.set("transactions." + key + ".pending", null);
+               }
+               saveState();
+            }
+         } catch (Exception lateFailure) {
+            synchronized (this.state) {
+               this.state.set("transactions." + key + ".pending", null);
+               this.state.set("transactions." + key + ".failed-at", System.currentTimeMillis());
+               saveState();
+            }
+         }
+      }, "minoru-bridge-reconcile");
+      reconcile.setDaemon(true);
+      reconcile.start();
+   }
 }

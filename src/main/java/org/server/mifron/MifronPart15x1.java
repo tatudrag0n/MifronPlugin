@@ -60,7 +60,10 @@ abstract class MifronPart15x1 extends MifronPart15 {
       ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       if (section.getBoolean("all-advancements-rewarded", false)) return;
       int paidReward = this.mifron().applyIncomeBonus(player.getUniqueId(), 10000);
-      this.mifron().depositEmeralds(player.getUniqueId(), paidReward);
+      if (!this.mifron().economyManager.depositExact(player.getUniqueId(), paidReward, false)) {
+         player.sendMessage("\u00a7cMP\u4e0a\u9650\u306e\u305f\u3081\u5168\u9032\u6357\u9054\u6210\u5831\u916c\u3092\u53d7\u3051\u53d6\u308c\u307e\u305b\u3093\u3067\u3057\u305f\u3002MP\u3092\u6d88\u8cbb\u3057\u3066\u304b\u3089\u518d\u5ea6\u304a\u8a66\u3057\u304f\u3060\u3055\u3044\u3002");
+         return;
+      }
       this.mifron().updateAdvancementBonus(player.getUniqueId(), new HashSet<>(section.getStringList("completed-advancements")));
       section.set("all-advancements-rewarded", true);
       this.queueDataSave();

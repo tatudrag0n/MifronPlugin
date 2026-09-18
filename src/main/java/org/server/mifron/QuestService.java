@@ -242,6 +242,10 @@ final class QuestService {
             return false;
          } else {
             int reward = this.effectiveReward(player, definition);
+            if (reward > 0 && !this.plugin.economyManager.depositExact(player.getUniqueId(), reward, false)) {
+               player.sendMessage(ChatColor.RED + "MP上限に達しているため報酬を受け取れません。MPを消費してから再度お試しください。");
+               return false;
+            }
             ConfigurationSection section = this.playerSection(player.getUniqueId());
             String claimPath = this.questBase(definition.type()) + ".claimed";
             List<String> claimed = new ArrayList<>(section.getStringList(claimPath));
@@ -249,8 +253,9 @@ final class QuestService {
             // Stage the claim, then pay; the single save below flushes both the
             // balance and the claim together. A crash before the flush leaves
             // neither change persisted, so the reward is never lost or doubled.
+            // depositExact above guarantees the capped balance can take the
+            // full reward, so a capped wallet never swallows a claimed reward.
             section.set(claimPath, claimed);
-            this.plugin.depositEmeralds(player.getUniqueId(), reward);
             this.plugin.saveData();
             player.sendMessage(ChatColor.GREEN + "\u30af\u30a8\u30b9\u30c8\u5831\u916c: " + definition.name() + " +" + this.formatNumber(reward) + "MP");
             return true;

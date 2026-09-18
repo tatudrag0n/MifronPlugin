@@ -48,6 +48,11 @@ abstract class MifronPart1x2 extends MifronPart1x1 {
       this.shopWandActionUntil.remove(player.getUniqueId());
       this.lastJumpPadUse.remove(player.getUniqueId());
       this.jumpPadFallProtectionUntil.remove(player.getUniqueId());
+      // Pure UI state only. Gameplay gates (shop cooldowns, farm windows,
+      // merchant transactions) are intentionally kept so a relog cannot
+      // bypass them.
+      this.temporaryActionBarMessages.remove(player.getUniqueId());
+      this.temporaryActionBarUntil.remove(player.getUniqueId());
       ConfigurationSection session = this.mifron().getPlayerSection(player.getUniqueId());
       String sessionId = session.getString("analytics.session-id", "");
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_end", sessionId, "session-end:" + (sessionId.isBlank() ? player.getUniqueId() + ":" + System.currentTimeMillis() : sessionId));

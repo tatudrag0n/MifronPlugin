@@ -1,23 +1,64 @@
 package org.server.mifron;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 
 abstract class MifronPart4 extends MifronPart3x2 {
+   private final Map<UUID, List<ItemStack>> pendingDeathRestore = new HashMap<>();
+
    @EventHandler
    public void onPlayerDeath(PlayerDeathEvent event) {
       Player player = event.getEntity();
       if (this.ffaManager.isPlaying(player)) return;
+      // Fixed utility items, the store link, and athletic control items must
+      // never drop on the ground: pull them out of the drops and re-issue
+      // them on respawn. Everything else drops exactly as before.
+      List<ItemStack> kept = new ArrayList<>();
+      event.getDrops().removeIf(stack -> {
+         if (stack != null && (this.utilityItemsFeature.isDeathProtectedItem(stack)
+            || this.storeItemFeature.isStoreItem(stack)
+            || this.athleticManager.isControlItem(stack))) {
+            kept.add(stack.clone());
+            return true;
+         }
+         return false;
+      });
+      if (!kept.isEmpty()) {
+         this.pendingDeathRestore.computeIfAbsent(player.getUniqueId(), key -> new ArrayList<>()).addAll(kept);
+      }
       int lost = this.mifron().getEmeralds(player.getUniqueId()) / 2;
       if (lost > 0) {
          this.mifron().withdrawEmeralds(player.getUniqueId(), lost);
          player.sendMessage("\u00a7c\u6b7b\u4ea1\u306b\u3088\u308a\u6240\u6301MP\u306e50%\u3092\u5931\u3044\u307e\u3057\u305f: -" + this.mifron().formatNumber(lost) + "MP");
       }
+   }
+
+   @EventHandler
+   public void onPlayerRespawnRestore(PlayerRespawnEvent event) {
+      Player player = event.getPlayer();
+      List<ItemStack> kept = this.pendingDeathRestore.remove(player.getUniqueId());
+      if (kept == null || kept.isEmpty()) return;
+      Bukkit.getScheduler().runTask(this.mifron(), () -> {
+         if (!player.isOnline()) {
+            this.pendingDeathRestore.computeIfAbsent(player.getUniqueId(), key -> new ArrayList<>()).addAll(kept);
+            return;
+         }
+         for (ItemStack leftover : player.getInventory().addItem(kept.toArray(new ItemStack[0])).values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+         }
+      });
    }
 
    protected boolean tryShopPayment(Player player, Block block) {

@@ -33,6 +33,15 @@ abstract class MifronPart10 extends MifronPart9x2 {
       if ("buy".equals(action)) {
          int quantity = bulk ? this.mifron().maxMerchantSaleQuantity(player, material) : 1;
          if (bulk && quantity <= 0) { player.sendMessage("\u00a7c\u3053\u306e\u30a2\u30a4\u30c6\u30e0\u306f\u4e00\u62ec\u53d6\u5f15\u3067\u304d\u307e\u305b\u3093\u3002"); return; }
+         // Preview the exact payout first: a capped wallet must never swallow
+         // removed items. Same-thread main execution makes check-then-act
+         // atomic here, so the later deposit cannot be capped out.
+         int previewTotal = this.mifron().previewMerchantSaleTotal(player, material, Math.max(1, quantity), price);
+         if (previewTotal < 0) { this.mifron().sendItemMessage(player, NamedTextColor.RED, "", material, "\u30921\u500b\u6301\u3063\u3066\u3044\u307e\u305b\u3093\u3002"); return; }
+         if (!this.mifron().economyManager.canCreditExact(this.mifron().getEmeralds(player.getUniqueId()), previewTotal)) {
+            player.sendMessage("\u00a7cMP\u4e0a\u9650\u306b\u9054\u3057\u3066\u3044\u308b\u305f\u3081\u58f2\u5374\u3067\u304d\u307e\u305b\u3093\u3002MP\u3092\u6d88\u8cbb\u3057\u3066\u304b\u3089\u518d\u5ea6\u304a\u8a66\u3057\u304f\u3060\u3055\u3044\u3002");
+            return;
+         }
          MerchantSale sale = this.mifron().removeItemsForMerchantSale(player, material, Math.max(1, quantity), price);
          if (sale == null) { this.mifron().sendItemMessage(player, NamedTextColor.RED, "", material, "\u30921\u500b\u6301\u3063\u3066\u3044\u307e\u305b\u3093\u3002"); return; }
          this.mifron().depositEmeralds(player.getUniqueId(), sale.totalPrice());

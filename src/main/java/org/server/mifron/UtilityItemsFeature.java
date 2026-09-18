@@ -17,8 +17,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -348,23 +351,82 @@ final class UtilityItemsFeature implements Listener {
 
    /**
     * Mifron fixed items (wallet/status/quest books/teleporter/wands/jump block)
-    * may move freely inside the player's own inventory, but must never be
-    * stored in an external container (Chest/Barrel/Hopper/etc). Only clicks
-    * that would move the item from the player inventory into the open top
-    * container are cancelled; all other inventory operations pass through.
+    * are pinned inside the player's own inventory and must never reach an
+    * external container (Chest/Barrel/Hopper/etc). Besides the classic
+    * shift-click path, this also covers placing a cursor-held fixed item into
+    * the top container, NUMBER_KEY hotbar swaps, and OFFHAND swaps, which all
+    * bypass a current-item-only check.
     */
    @EventHandler(ignoreCancelled = true)
    public void onFixedItemStoreClick(InventoryClickEvent event) {
       if (!(event.getWhoClicked() instanceof Player player)) return;
+      if (!isExternalContainerView(player, event.getView())) return;
+      ClickType click = event.getClick();
       ItemStack clicked = event.getCurrentItem();
-      if (clicked == null || !this.isFixedMifronUtilityItem(clicked)) return;
-      if (event.getClickedInventory() != player.getInventory()) return;
-      if (event.getView().getTopInventory().getHolder() instanceof org.bukkit.inventory.PlayerInventory) return;
-      // Collect-to-cursor (double click with a matching cursor stack) gathers
-      // from both inventories; leave that path to vanilla.
-      if (event.getCursor() != null && !event.getCursor().getType().isAir() && event.getCursor().isSimilar(clicked)) return;
-      event.setCancelled(true);
-      player.sendMessage(ChatColor.YELLOW + "Mifronの固定アイテムはチェストなどに収納できません。");
+      ItemStack cursor = event.getCursor();
+      boolean collectSimilar = click == ClickType.DOUBLE_CLICK
+         && cursor != null && !cursor.getType().isAir()
+         && clicked != null && cursor.isSimilar(clicked);
+      boolean hotbarIsFixed = false;
+      if (click == ClickType.NUMBER_KEY) {
+         hotbarIsFixed = this.isFixedMifronUtilityItem(player.getInventory().getItem(event.getHotbarButton()));
+      }
+      boolean offhandIsFixed = false;
+      if (click == ClickType.SWAP_OFFHAND) {
+         offhandIsFixed = this.isFixedMifronUtilityItem(player.getInventory().getItemInOffHand());
+      }
+      boolean clickedInPlayer = event.getClickedInventory() != null && event.getClickedInventory() == player.getInventory();
+      boolean clickedOutside = event.getClickedInventory() == null;
+      if (shouldCancelFixedItemStore(click, this.isFixedMifronUtilityItem(clicked), this.isFixedMifronUtilityItem(cursor),
+         hotbarIsFixed, offhandIsFixed, clickedInPlayer, clickedOutside, collectSimilar)) {
+         event.setCancelled(true);
+         player.sendMessage(ChatColor.YELLOW + "Mifronの固定アイテムはチェストなどに収納できません。");
+      }
+   }
+
+   @EventHandler(ignoreCancelled = true)
+   public void onFixedItemDrag(InventoryDragEvent event) {
+      if (!(event.getWhoClicked() instanceof Player player)) return;
+      if (!this.isFixedMifronUtilityItem(event.getOldCursor())) return;
+      if (!isExternalContainerView(player, event.getView())) return;
+      int topSize = event.getView().getTopInventory().getSize();
+      for (int rawSlot : event.getRawSlots()) {
+         if (rawSlot < topSize) {
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.YELLOW + "Mifronの固定アイテムはチェストなどに収納できません。");
+            return;
+         }
+      }
+   }
+
+   private static boolean isExternalContainerView(Player player, InventoryView view) {
+      if (player == null || view == null || view.getTopInventory() == null) return false;
+      // The player's own inventory/crafting view is never an external store.
+      // Custom Mifron GUIs use the viewing player as holder but are still
+      // external surfaces for fixed items, so only PlayerInventory is exempt.
+      return !(view.getTopInventory().getHolder() instanceof org.bukkit.inventory.PlayerInventory);
+   }
+
+   /**
+    * Pure decision for the fixed-item store guard, extracted for regression
+    * tests. {@code topIsExternal} is assumed true by callers.
+    */
+   static boolean shouldCancelFixedItemStore(ClickType click, boolean currentIsFixed, boolean cursorIsFixed,
+      boolean hotbarIsFixed, boolean offhandIsFixed, boolean clickedInPlayerInventory, boolean clickedOutside,
+      boolean collectSimilar) {
+      // Double-click collect with a matching cursor stack gathers items into
+      // the cursor; everything stays in the player's possession.
+      if (collectSimilar) return false;
+      // Clicks inside the player's own inventory: only a fixed clicked item
+      // (shift-click and friends moving it out) is blocked.
+      if (clickedInPlayerInventory) return currentIsFixed;
+      // Clicks outside the window drop the cursor stack; dropping is handled
+      // by the drop guard, but cancelling here is harmless defense in depth.
+      if (clickedOutside) return cursorIsFixed;
+      // Clicks inside the external top container.
+      if (cursorIsFixed) return true;
+      if (click == ClickType.NUMBER_KEY && hotbarIsFixed) return true;
+      return click == ClickType.SWAP_OFFHAND && offhandIsFixed;
    }
 
    @EventHandler(ignoreCancelled = true)
@@ -436,6 +498,14 @@ final class UtilityItemsFeature implements Listener {
    private boolean isFixedMifronUtilityItem(ItemStack item) {
       String id = this.getMifronItemId(item);
       return id != null && FIXED_ITEM_IDS.contains(id);
+   }
+
+   /**
+    * Fixed and initial utility items survive death: they are pulled out of the
+    * death drops and re-issued on respawn instead of dropping on the ground.
+    */
+   boolean isDeathProtectedItem(ItemStack item) {
+      return this.isFixedMifronUtilityItem(item) || this.isInitialMifronItem(item);
    }
 
    private boolean isInitialMifronItem(ItemStack item) {

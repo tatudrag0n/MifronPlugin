@@ -106,7 +106,11 @@ abstract class MifronPart13x1 extends MifronPart13 {
       else if (PROPOSAL_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleProposalUiClick(player, event.getCurrentItem()); }
       else if ("\u00a75Mifron Teleporter".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.handleTeleporterUiItem(player, event.getCurrentItem()); }
       else if ("\u00a76Mifron Merchant".equals(title)) {
-         if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+         // Every click in the merchant view is cancelled, including bottom
+         // (player inventory) clicks: a shift-click there would otherwise move
+         // the item into the merchant inventory, which has no close-time
+         // return path, so the item would vanish.
+         if (event.getClickedInventory() != event.getView().getTopInventory()) { event.setCancelled(true); return; }
          event.setCancelled(true);
          this.reconcileMifronCursor(player, event);
          if (this.isMerchantOffer(event.getCurrentItem())) this.buyMerchantOffer(player, event.getCurrentItem(), event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT);

@@ -190,6 +190,7 @@ final class FfaManager {
       this.revolverAmmo.clear();
       this.sniperAmmo.clear();
       this.sniperShotCooldownUntil.clear();
+      this.cancelTasks(this.revolverReloadTasks);
       this.cancelTasks(this.sniperReloadTasks);
       this.cancelTasks(this.windChargeRefillTasks);
       this.wizardPotionCooldownUntil.clear();
@@ -419,9 +420,14 @@ final class FfaManager {
             FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
             this.cleanupKitRuntime(player);
             session.kit = selectedKit;
+            // Teleport BEFORE clearing the inventory for the kit. The
+            // inventory-group snapshot is taken from PlayerChangedWorldEvent,
+            // which fires inside teleport(): teleporting first preserves the
+            // pre-fight inventory, while clearing first would persist the FFA
+            // kit over the survival snapshot.
+            player.teleport(arena);
             this.prepareForFight(player, selectedKit);
             this.updateScoreboard(player);
-            player.teleport(arena);
             // FFA participation is a session event, not a daily-unique event:
             // weekly missions and community goals must count separate rounds.
             // Re-selecting a kit while already in FFA must not add another

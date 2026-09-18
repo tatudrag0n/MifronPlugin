@@ -11,12 +11,28 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
 abstract class MifronPart14 extends MifronPart13x1 {
    @EventHandler
    public void onInventoryClose(InventoryCloseEvent event) {
       if (!(event.getPlayer() instanceof Player player) || !"\u00a76Mifron Merchant".equals(this.mifron().inventoryTitle(event.getView().title()))) return;
+      this.activeMerchantPages.remove(player.getUniqueId());
+      UUID merchantId = this.activeMerchantViews.remove(player.getUniqueId());
+      if (merchantId == null || this.activeMerchantViews.containsValue(merchantId)) return;
+      Entity entity = this.mifron().findEntity(merchantId);
+      if (entity instanceof AbstractVillager villager && this.mifron().isMifronMerchant(entity)) { villager.setAI(true); villager.setInvulnerable(false); }
+   }
+
+   /**
+    * A player who quits (or is kicked) with the merchant GUI open never fires
+    * InventoryCloseEvent, which would leave the merchant's AI disabled and the
+    * view maps leaking. Mirror the close-time restore here.
+    */
+   @EventHandler
+   public void onMerchantViewQuit(PlayerQuitEvent event) {
+      if (!(event.getPlayer() instanceof Player player)) return;
       this.activeMerchantPages.remove(player.getUniqueId());
       UUID merchantId = this.activeMerchantViews.remove(player.getUniqueId());
       if (merchantId == null || this.activeMerchantViews.containsValue(merchantId)) return;

@@ -82,6 +82,14 @@ final class ShopTradeService {
             player.sendMessage(ChatColor.RED + "\u8cb7\u53d6\u4fa1\u683c\u304c\u8a2d\u5b9a\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002");
             return;
          }
+         // The sale price must fit the capped balance BEFORE the held item is
+         // consumed; otherwise a capped wallet silently swallows the item.
+         // depositExact pays exactly `price` (the fit check passed), so the
+         // withdraw below is a precise rollback, not a lossy refund.
+         if (!this.plugin.economyManager.depositExact(player.getUniqueId(), price, true)) {
+            player.sendMessage(ChatColor.RED + "MP上限に達しているため売却できません。MPを消費してから再度お試しください。");
+            return;
+         }
          if ("BUY_BARREL".equals(shopType)) {
             Block below = block.getRelative(BlockFace.DOWN);
             if (below.getType() == Material.HOPPER && below.getState() instanceof Hopper hopper) {
@@ -89,17 +97,16 @@ final class ShopTradeService {
                taken.setAmount(1);
                if (hopper.getInventory().addItem(taken).isEmpty()) {
                   hand.setAmount(hand.getAmount() - 1);
-                  this.plugin.depositEmeralds(player.getUniqueId(), price);
                   this.store.touch(block);
                   player.sendMessage(ChatColor.GOLD + displayed.getType().name() + " \u3092 " + price + " MP \u3067\u58f2\u5374\u3057\u307e\u3057\u305f\u3002");
                   return;
                }
+               this.plugin.withdrawEmeralds(player.getUniqueId(), price);
                player.sendMessage(ChatColor.RED + "\u30db\u30c3\u30d1\u30fc\u304c\u6e80\u676f\u3067\u3059\u3002");
                return;
             }
          }
          hand.setAmount(hand.getAmount() - 1);
-         this.plugin.depositEmeralds(player.getUniqueId(), price);
          this.store.touch(block);
          player.sendMessage(ChatColor.GOLD + displayed.getType().name() + " \u3092 " + price + " MP \u3067\u58f2\u5374\u3057\u307e\u3057\u305f\u3002");
          return;

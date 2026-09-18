@@ -211,12 +211,16 @@ final class BedrockUiFeature {
             return;
          }
          int slot = buttonSlots.get(id);
-         ItemStack selected = inventory.getItem(slot);
-         if (selected == null) {
-            return;
-         }
-         ItemStack safeCopy = selected.clone();
-         this.plugin.getServer().getScheduler().runTask(this.plugin, () -> clickHandler.accept(slot, safeCopy));
+         // Geyser form callbacks do not run on the Bukkit primary thread, so
+         // the inventory must only be touched inside the scheduled sync task.
+         // Reading it here would race the main thread's inventory access.
+         this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
+            ItemStack selected = inventory.getItem(slot);
+            if (selected == null) {
+               return;
+            }
+            clickHandler.accept(slot, selected.clone());
+         });
       });
    }
 

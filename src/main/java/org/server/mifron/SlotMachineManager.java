@@ -338,6 +338,10 @@ final class SlotMachineManager implements Listener {
       Runnable completion = session.pendingCompletion;
       session.pendingCompletion = null;
       session.pendingResult = null;
+      // Mark the session settled BEFORE running the completion. finishSession()
+      // is re-entered from the completion (handleWin/loss path) and must not
+      // refund the wager there; refunds are only for interrupted sessions.
+      session.settled = true;
       if (completion != null) {
          completion.run();
       }
@@ -461,7 +465,7 @@ final class SlotMachineManager implements Listener {
 
          this.activeSessions.remove(session.player.getUniqueId(), session);
          this.busyMachines.remove(session.machineKey, session.player.getUniqueId());
-         if (session.pendingCompletion == null && !this.outcomeResolved(session)) {
+         if (shouldRefundOnInterrupt(session.settled, session.pendingCompletion != null, this.outcomeResolved(session))) {
             if (session.player.isOnline()) {
                this.plugin.depositEmeralds(session.player.getUniqueId(), session.difficulty.wager);
                session.player.sendMessage("§eスロットが中断されたため" + session.difficulty.wager + "MPを返金しました。");
@@ -472,6 +476,16 @@ final class SlotMachineManager implements Listener {
 
    private boolean outcomeResolved(SlotMachineManager.SpinSession session) {
       return session.pendingResult != null;
+   }
+
+   /**
+    * Decides whether an interrupted spin refunds the wager. A settled session
+    * (result already determined and paid) never refunds; an unresolved session
+    * refunds unless a completion callback is still pending.
+    */
+   static boolean shouldRefundOnInterrupt(boolean settled, boolean hasPendingCompletion, boolean outcomeResolved) {
+      if (settled) return false;
+      return !hasPendingCompletion && !outcomeResolved;
    }
 
    private boolean enableJackpotMode(SlotMachineManager.SpinSession var1) {
@@ -506,6 +520,7 @@ final class SlotMachineManager implements Listener {
       private final boolean[] stoppedColumns = new boolean[3];
       private List<SlotMachineManager.Symbol> pendingResult;
       private Runnable pendingCompletion;
+      private boolean settled;
 
       private SpinSession(Player player, Block shelf, SlotMachineManager.Difficulty difficulty, boolean jackpotMode, String machineKey) {
          this.player = player;

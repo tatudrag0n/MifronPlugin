@@ -25,6 +25,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.PotionSplashEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -157,6 +158,13 @@ final class FfaListener implements Listener {
          } else {
             if (this.containsFfaItem(event.getCurrentItem(), event.getCursor()) && event.getView().getTopInventory() != player.getInventory()) {
                event.setCancelled(true);
+            } else if (event.getClick() == ClickType.NUMBER_KEY && event.getView().getTopInventory() != player.getInventory()) {
+               // NUMBER_KEY swaps the hotbar slot into the clicked top slot;
+               // neither currentItem nor cursor carries the FFA item there.
+               org.bukkit.inventory.ItemStack hotbar = player.getInventory().getItem(event.getHotbarButton());
+               if (this.containsFfaItem(hotbar, null)) {
+                  event.setCancelled(true);
+               }
             }
          }
       }
