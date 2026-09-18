@@ -130,7 +130,16 @@ abstract class MifronPart13x1 extends MifronPart13 {
       if (cursor == null || cursor.getType().isAir()) return;
       if (this.utilityItemsFeature.getMifronItemId(cursor) == null) return;
       Map<Integer, ItemStack> leftovers = player.getInventory().addItem(cursor.clone());
-      if (leftovers.isEmpty()) player.setItemOnCursor(null);
+      if (leftovers.isEmpty()) {
+         player.setItemOnCursor(null);
+         return;
+      }
+      // addItem stores a COPY of what fits: leaving the original cursor
+      // untouched would duplicate the fitted portion. Shrink the cursor to
+      // exactly what did not fit instead.
+      int rest = leftovers.values().stream().mapToInt(ItemStack::getAmount).sum();
+      if (rest <= 0) player.setItemOnCursor(null);
+      else cursor.setAmount(Math.min(rest, cursor.getMaxStackSize()));
    }
 
    @EventHandler

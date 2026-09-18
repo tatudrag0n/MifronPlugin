@@ -221,8 +221,14 @@ final class ProtectedInteractionListener implements Listener {
    private Location holderLocation(Inventory inventory) {
       if (inventory == null) {
          return null;
+      } else if (inventory.getHolder() instanceof BlockState blockState) {
+         return blockState.getLocation();
+      } else if (inventory.getHolder() instanceof org.bukkit.block.DoubleChest doubleChest) {
+         // Double-chest holders are not BlockStates: without this, hoppers,
+         // shift-clicks and drags bypass protection on every double chest.
+         return doubleChest.getLocation();
       } else {
-         return inventory.getHolder() instanceof BlockState blockState ? blockState.getLocation() : null;
+         return null;
       }
    }
 

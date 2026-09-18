@@ -89,11 +89,21 @@ public class SpecialItemsFeature implements Listener {
         for (SpecialType type : SpecialType.values()) {
             if (item.getType() == type.baseMaterial) {
                 if (random.nextDouble() < type.chance) {
-                    ItemStack special = createSpecialItem(type);
-                    item.setType(special.getType());
-                    item.setItemMeta(special.getItemMeta());
+                    // Transform exactly one unit: converting the whole stack
+                    // would multiply a 64-stack into 64 lottery items.
+                    if (item.getAmount() > 1) {
+                        item.setAmount(item.getAmount() - 1);
+                        ItemStack single = createSpecialItem(type);
+                        for (ItemStack leftover : player.getInventory().addItem(single).values()) {
+                            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+                        }
+                    } else {
+                        ItemStack special = createSpecialItem(type);
+                        item.setType(special.getType());
+                        item.setItemMeta(special.getItemMeta());
+                    }
                     player.sendMessage(ChatColor.GOLD + "✨ 奇跡が起きた！ 手に入れたアイテムが " + type.displayName + ChatColor.GOLD + " に変化した！");
-                    player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
+                    player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1.2f);
                     break;
                 }
             }

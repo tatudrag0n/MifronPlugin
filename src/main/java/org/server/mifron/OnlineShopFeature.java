@@ -17,6 +17,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -140,6 +141,14 @@ final class OnlineShopFeature implements Listener {
          return;
       }
       player.openInventory(this.createInventory(player));
+   }
+
+   @EventHandler
+   public void onDrag(InventoryDragEvent event) {
+      if (!(event.getWhoClicked() instanceof Player)) return;
+      // Product icons are real items: without this, dragging them out of the
+      // virtual catalogue duplicates them into the player inventory for free.
+      if (TITLE.equals(event.getView().getTitle())) event.setCancelled(true);
    }
 
    @EventHandler

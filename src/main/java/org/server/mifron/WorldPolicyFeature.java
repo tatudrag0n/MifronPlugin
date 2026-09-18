@@ -133,6 +133,8 @@ final class WorldPolicyFeature implements Listener {
       String raw = event.getMessage().trim().toLowerCase(Locale.ROOT);
       if (raw.startsWith("//")) raw = raw.substring(2);
       else if (raw.startsWith("/worldedit ")) raw = raw.substring("/worldedit ".length()).trim();
+      else if (raw.startsWith("/we ")) raw = raw.substring("/we ".length()).trim();
+      else if (raw.equals("/we")) raw = "";
       else return;
       String name = raw.split("\\s+", 2)[0];
       // Enforce the real block-count ceiling on the player's WorldEdit session
