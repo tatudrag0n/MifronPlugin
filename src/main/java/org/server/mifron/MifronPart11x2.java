@@ -68,6 +68,9 @@ abstract class MifronPart11x2 extends MifronPart11x1 {
       int maxPage = Math.max(0, (titles.size() - 1) / pageSize);
       int safePage = Math.max(0, Math.min(page, maxPage));
       inventory.setItem(46, this.mifron().actionItem(Material.BARRIER, "\u00a7f\u79f0\u53f7\u306a\u3057", List.of(), "clear_title", null));
+      inventory.setItem(49, this.mifron().named(Material.PAPER, "\u00a7e\u30da\u30fc\u30b8", List.of("\u00a77" + (safePage + 1) + "/" + (maxPage + 1))));
+      if (safePage > 0) inventory.setItem(48, this.mifron().actionItem(Material.ARROW, "\u00a7f\u524d\u306e\u30da\u30fc\u30b8", List.of(), "titles_page", String.valueOf(safePage - 1)));
+      if (safePage < maxPage) inventory.setItem(50, this.mifron().actionItem(Material.ARROW, "\u00a7f\u6b21\u306e\u30da\u30fc\u30b8", List.of(), "titles_page", String.valueOf(safePage + 1)));
       int slot = 9;
       int from = safePage * pageSize;
       for (Entry<String, TitleDefinition> entry : titles.subList(from, Math.min(titles.size(), from + pageSize))) {

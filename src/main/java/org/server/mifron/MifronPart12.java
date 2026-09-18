@@ -57,6 +57,9 @@ abstract class MifronPart12 extends MifronPart11x2 {
       int maxPage = Math.max(0, (mobs.size() - 1) / pageSize);
       int safePage = Math.max(0, Math.min(page, maxPage));
       inventory.setItem(45, this.mifron().named(Material.IRON_SWORD, "\u00a7c\u8a0e\u4f10\u6e08\u307fMob", List.of("\u00a77" + mobs.stream().filter(type -> killed.contains(type.name())).count() + "/" + mobs.size())));
+      inventory.setItem(49, this.mifron().named(Material.PAPER, "\u00a7e\u30da\u30fc\u30b8", List.of("\u00a77" + (safePage + 1) + "/" + (maxPage + 1))));
+      if (safePage > 0) inventory.setItem(48, this.mifron().actionItem(Material.ARROW, "\u00a7f\u524d\u306e\u30da\u30fc\u30b8", List.of(), "kills_page", String.valueOf(safePage - 1)));
+      if (safePage < maxPage) inventory.setItem(50, this.mifron().actionItem(Material.ARROW, "\u00a7f\u6b21\u306e\u30da\u30fc\u30b8", List.of(), "kills_page", String.valueOf(safePage + 1)));
       int slot = 9;
       int from = safePage * pageSize;
       for (EntityType type : mobs.subList(from, Math.min(mobs.size(), from + pageSize))) {
