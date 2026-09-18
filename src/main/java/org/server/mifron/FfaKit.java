@@ -278,11 +278,10 @@ enum FfaKit {
             break;
          case NECROMANCER:
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "weapon", Material.WOODEN_SWORD, "§5死霊術師の木剣", 1, Map.of())});
-
-            for (String mob : List.of("zombie", "husk", "drowned", "skeleton", "stray", "bogged", "wither_skeleton")) {
-               inventory.addItem(new ItemStack[]{kitItem(plugin, this, "summon_" + mob, spawnEgg(mob), summonName(mob), 1, Map.of())});
-            }
-            inventory.setItem(8, kitItem(plugin, this, "food", Material.ROTTEN_FLESH, "§5死霊術師の腐肉", 1, Map.of()));
+            // Single egg: using it summons one random mob out of the 7 types.
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "summon_random", Material.ZOMBIE_SPAWN_EGG, "§5ランダム召喚卵", 1, Map.of())});
+            // Slot 8 is reserved for the FFA exit item: food goes sequential.
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "food", Material.ROTTEN_FLESH, "§5死霊術師の腐肉", 1, Map.of())});
             break;
          case TRAPPER:
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "weapon", Material.STONE_SWORD, "§eトラッパーの石剣", 1, Map.of())});
@@ -425,7 +424,7 @@ enum FfaKit {
          case VAMPIRE -> "鉄の剣";
          case GRAPPLER -> "素手";
          case ASSASSIN -> "致命の短剣 / 毒の短剣";
-         case NECROMANCER -> "7種の召喚卵 / 木の剣";
+         case NECROMANCER -> "ランダム召喚卵 / 木の剣";
          case TRAPPER -> "4種の罠 / 石の剣";
          case BUG_MANIA -> "虫食いの剣";
          case CRUSHER -> "クラッシャーアックス";

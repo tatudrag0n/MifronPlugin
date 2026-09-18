@@ -78,10 +78,10 @@ import org.bukkit.scoreboard.Scoreboard;
 final class FfaManager {
    private static final String CENTER_MISSING = "§cFFA中央地点が設定されていません。管理者に /mf ffa setcenter を実行してもらってください。";
    private static final String KIT_SELECTOR_TITLE = "FFAキット選択";
-   // The summon ability rolls one mob at random from the 7 kit summons plus the
-   // phantom. There is no cap on how many summons may exist at once.
+   // The single summon egg rolls one mob at random from the 7 kit summons.
+   // There is no cap on how many summons may exist at once.
    private static final List<String> NECROMANCER_SUMMON_POOL = List.of(
-      "zombie", "husk", "drowned", "skeleton", "stray", "bogged", "wither_skeleton", "phantom"
+      "zombie", "husk", "drowned", "skeleton", "stray", "bogged", "wither_skeleton"
    );
    private static final String NECROMANCER_SUMMON_KEY = "necromancer_summon";
    private final Mifron plugin;
@@ -665,21 +665,22 @@ final class FfaManager {
       ItemStack exit = this.createExitItem();
       this.tagOwner(exit, player.getUniqueId());
       PlayerInventory inventory = player.getInventory();
-      if (inventory.addItem(exit).isEmpty()) return;
-      // The inventory is full. The exit item must still be delivered or the
-      // player can never leave FFA, so fall back to the off-hand and then to a
-      // hotbar slot, dropping the displaced item on the ground (never deleting).
-      if (inventory.getItemInOffHand().getType().isAir()) {
-         inventory.setItemInOffHand(exit);
-         player.updateInventory();
-         return;
-      }
+      // The exit item always lives in the rightmost hotbar slot (8) for
+      // every kit. A displaced item is moved elsewhere, never deleted.
       ItemStack displaced = inventory.getItem(8);
       inventory.setItem(8, exit);
-      if (displaced != null && !displaced.getType().isAir()) {
-         player.getWorld().dropItemNaturally(player.getLocation(), displaced);
+      if (displaced != null && !displaced.getType().isAir() && !this.isExitItem(displaced)) {
+         // Drop only what did not fit elsewhere: dropping `displaced` itself
+         // would duplicate whatever merged into existing stacks.
+         Map<Integer, ItemStack> leftovers = inventory.addItem(displaced);
+         for (ItemStack rest : leftovers.values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), rest);
+         }
+         if (!leftovers.isEmpty()) {
+            player.sendMessage("§eインベントリが満杯のため、退場アイテムを強制配布しました。");
+         }
       }
-      player.sendMessage("§eインベントリが満杯のため、退場アイテムを強制配布しました。");
+      player.updateInventory();
    }
 
    void removeExitItem(Player player) {
@@ -773,10 +774,12 @@ final class FfaManager {
          String eggMob = kind.substring("summon_".length());
          long seconds = this.summonCooldownSeconds();
          // One shared 15s cooldown gates every summon, and the summoned mob is
-         // picked at random from the 7 kit summons plus the phantom.
+         // picked at random from the 7 kit summons.
          if (this.beginCooldown(player, NECROMANCER_SUMMON_KEY, seconds, "召喚")) {
             ItemStack egg = item.clone();
             egg.setAmount(1);
+            // Single-egg design: eggMob is "random" and the actual summon is
+            // rolled from the 7-type pool here.
             String summoned = NECROMANCER_SUMMON_POOL.get(ThreadLocalRandom.current().nextInt(NECROMANCER_SUMMON_POOL.size()));
             if (this.summonNecromancerMob(player, summoned)) {
                this.startSummonEggRefill(player, eggMob, egg, NECROMANCER_SUMMON_KEY);
@@ -1058,6 +1061,9 @@ final class FfaManager {
 
    private void restoreSummonEggToFixedSlot(Player player, String mob, ItemStack egg) {
       int slot = switch (mob) {
+         // Single-egg design: the random egg always lives in slot 1.
+         // Legacy per-mob slots are kept for eggs already in flight.
+         case "random" -> 1;
          case "zombie" -> 1;
          case "husk" -> 2;
          case "drowned" -> 3;
