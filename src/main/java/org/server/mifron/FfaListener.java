@@ -1,6 +1,8 @@
 package org.server.mifron;
 
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Entity;
@@ -49,6 +51,10 @@ import org.bukkit.projectiles.ProjectileSource;
 final class FfaListener implements Listener {
    private final Mifron plugin;
    private final FfaManager ffa;
+   // Same-tick double lethal damage (lava + hit, double projectile, ...) must
+   // not run the death pipeline twice: the second event in the tick is a
+   // ghost of an already-handled death.
+   private final Map<UUID, Long> lastLethalTick = new ConcurrentHashMap<>();
 
    FfaListener(Mifron plugin, FfaManager ffa) {
       this.plugin = plugin;
@@ -365,6 +371,7 @@ final class FfaListener implements Listener {
 
    @EventHandler
    public void onQuit(PlayerQuitEvent event) {
+      this.lastLethalTick.remove(event.getPlayer().getUniqueId());
       this.ffa.forgetPlayer(event.getPlayer().getUniqueId());
       if (this.ffa.isPlaying(event.getPlayer())) {
          this.ffa.leave(event.getPlayer(), false);
@@ -402,6 +409,14 @@ final class FfaListener implements Listener {
       }
    }
 
+   /**
+    * A second lethal event in the same tick is a ghost of the already-handled
+    * death, never a second kill.
+    */
+   static boolean isDuplicateLethal(Long lastTick, long tick) {
+      return lastTick != null && lastTick == tick;
+   }
+
    private boolean containsFfaItem(ItemStack... items) {
       for (ItemStack item : items) {
          if (this.ffa.isFfaItem(item)) {
@@ -428,6 +443,9 @@ final class FfaListener implements Listener {
          return;
       }
 
+      long tick = this.plugin.getServer().getCurrentTick();
+      Long last = this.lastLethalTick.put(player.getUniqueId(), tick);
+      if (isDuplicateLethal(last, tick)) return;
       event.setCancelled(true);
       player.setHealth(Math.max(1.0, player.getHealth()));
       player.setAbsorptionAmount(0.0);

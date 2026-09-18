@@ -210,8 +210,19 @@ final class OnlineShopFeature implements Listener {
       // made the cooldown animation disappear.
       for (Material material : materials) {
          long remaining = this.remainingSeconds(player, "item:" + material.name());
+         // Only overlay an active shop cooldown. Writing a zero would wipe a
+         // genuine vanilla cooldown (ender pearl and friends) for no reason.
+         if (!shouldOverlayCooldown(remaining)) continue;
          player.setCooldown(material, OnlineShopRules.cooldownTicks(remaining));
       }
+   }
+
+   /**
+    * The overlay exists to visualise an active shop cooldown. With no shop
+    * cooldown left, vanilla cooldowns must be left untouched.
+    */
+   static boolean shouldOverlayCooldown(long remainingSeconds) {
+      return remainingSeconds > 0;
    }
 
    private ItemStack catalogIcon(Player player, Material material) {
