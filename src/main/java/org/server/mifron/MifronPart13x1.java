@@ -93,10 +93,10 @@ abstract class MifronPart13x1 extends MifronPart13 {
    @EventHandler
    public void onInventoryClick(InventoryClickEvent event) {
       if (!(event.getWhoClicked() instanceof Player player)) return;
-      // Diagnostic aid (config debug.gui-click-log): records which Mifron GUI
-      // button was clicked with what action, to correlate player reports of
-      // "click does nothing" with server-side handling. Off by default.
-      if (this.mifron().getConfig().getBoolean("debug.gui-click-log", false)) {
+      // TEMPORARY diagnostic: always on until the GUI-click report is
+      // resolved (config-file flags do not survive the startup config
+      // rewrite, so this is hardcoded). Revert after diagnosis.
+      if (true) {
          ItemStack probe = event.getCurrentItem();
          this.mifron().getLogger().info("[gui-click] player=" + player.getName()
             + " title=" + this.mifron().inventoryTitle(event.getView().title())
