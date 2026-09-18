@@ -1,10 +1,59 @@
 package org.server.mifron;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
+import org.bukkit.event.Event;
+import org.bukkit.event.EventException;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 
 abstract class MifronPart1x1 extends MifronPart1 {
+   /**
+    * Registers every @EventHandler declared anywhere in the Mifron
+    * inheritance chain. Bukkit's registerEvents(listener) is only guaranteed
+    * to inspect the runtime class itself; Mifron declares zero handlers
+    * directly (they all live in MifronPart* superclasses), so a server build
+    * that skips hierarchy traversal would silently leave every one of them
+    * dead — exactly the "GUIs open but no click works, no errors" failure.
+    * Walking the hierarchy here makes registration version-proof.
+    */
+   private void registerMifronSelfEvents() {
+      int registered = 0;
+      for (Class<?> cursor = this.getClass(); cursor != null && cursor != Object.class; cursor = cursor.getSuperclass()) {
+         for (Method method : cursor.getDeclaredMethods()) {
+            EventHandler annotation = method.getAnnotation(EventHandler.class);
+            if (annotation == null) continue;
+            if (Modifier.isStatic(method.getModifiers()) || method.isBridge() || method.isSynthetic()) continue;
+            Class<?>[] params = method.getParameterTypes();
+            if (params.length != 1 || !Event.class.isAssignableFrom(params[0])) {
+               this.getLogger().warning("Skipping invalid event handler: " + cursor.getSimpleName() + "#" + method.getName());
+               continue;
+            }
+            Class<? extends Event> eventClass = params[0].asSubclass(Event.class);
+            EventPriority priority = annotation.priority();
+            boolean ignoreCancelled = annotation.ignoreCancelled();
+            method.setAccessible(true);
+            Bukkit.getPluginManager().registerEvent(eventClass, this, priority,
+               (listener, event) -> {
+                  if (!eventClass.isInstance(event)) return;
+                  try {
+                     method.invoke(this, event);
+                  } catch (InvocationTargetException e) {
+                     throw new EventException(e.getCause());
+                  } catch (Throwable t) {
+                     throw new EventException(t);
+                  }
+               }, this, ignoreCancelled);
+            registered++;
+         }
+      }
+      this.getLogger().info("Registered " + registered + " Mifron self event handlers across the class hierarchy.");
+   }
+
    public void onEnable() {
       this.mifronItemKey = new NamespacedKey(this, "item");
       this.merchantKey = new NamespacedKey(this, "merchant");
@@ -69,7 +118,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("load FFA", this.ffaManager::load);
       this.mifron().runStartupStep("load athletic", this.athleticManager::load);
       this.mifron().runStartupStep("start auction settlement", this.auctionFeature::start);
-      this.mifron().runStartupStep("register Mifron events", () -> Bukkit.getPluginManager().registerEvents(this, this));
+      this.mifron().runStartupStep("register Mifron events", this::registerMifronSelfEvents);
       this.mifron().runStartupStep("register chunk protection events", () -> Bukkit.getPluginManager().registerEvents(this.chunkProtectionFeature, this));
       this.mifron().runStartupStep("register protected interaction events", () -> Bukkit.getPluginManager().registerEvents(this.protectedInteractionListener, this));
       this.mifron().runStartupStep("register quest progress events", () -> Bukkit.getPluginManager().registerEvents(this.questProgressListener, this));
