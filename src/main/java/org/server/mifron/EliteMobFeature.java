@@ -100,7 +100,9 @@ public class EliteMobFeature implements Listener {
             return;
         }
         for (ItemStack drop : event.getDrops()) {
-            drop.setAmount(Math.min(drop.getAmount() * 5, 64));
+            // Cap at the material's own max stack size: armour/tools are
+            // unstackable, and a 5-stack of those corrupts pickup behaviour.
+            drop.setAmount(Math.min(drop.getAmount() * 5, drop.getMaxStackSize()));
         }
         event.setDroppedExp(event.getDroppedExp() * 5);
         Player killer = entity.getKiller();

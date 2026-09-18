@@ -266,7 +266,9 @@ final class TextDisplayFeature implements Listener {
                return;
             }
 
-            if (!(scale <= 0.0) && !(scale > 10.0)) {
+            // NaN defeats both comparisons (each is false), so reject it
+            // explicitly instead of storing a corrupting scale.
+            if (!Double.isNaN(scale) && !(scale <= 0.0) && !(scale > 10.0)) {
                TextDisplayFeature.Entry updated = entry.withScale(scale);
                this.entries.put(updated.id(), updated);
                this.apply(updated);

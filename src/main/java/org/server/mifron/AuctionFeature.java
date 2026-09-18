@@ -15,6 +15,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -99,6 +100,22 @@ final class AuctionFeature implements Listener {
    public void onJoin(PlayerJoinEvent event) {
       this.deliverPendingItems(event.getPlayer());
       this.deliverPendingMessages(event.getPlayer());
+   }
+
+   /**
+    * A broken auction frame (explosion, cactus, non-player damage) never
+    * reaches removeAuction: without this, every bidder's escrow would stay
+    * frozen under the orphaned data path forever.
+    */
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onFrameBreak(HangingBreakEvent event) {
+      if (!(event.getEntity() instanceof ItemFrame frame) || !this.isAuctionFrame(frame)) return;
+      String path = this.auctionPath(frame);
+      UUID owner = this.parseUuid(this.plugin.data().getString(path + ".owner", ""));
+      this.refundEscrow(path, null, "額縁の破損に伴いオークションを取消しました。入札MPは返金済みです。");
+      this.plugin.data().set(path, null);
+      this.plugin.saveData();
+      this.notifyPlayer(owner, "額縁が破損したためオークションを取消しました。入札MPは返金済みです。");
    }
 
    private void createAuction(Player player, ItemFrame frame) {

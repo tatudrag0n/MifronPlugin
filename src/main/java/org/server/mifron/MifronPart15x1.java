@@ -91,7 +91,11 @@ abstract class MifronPart15x1 extends MifronPart15 {
       if (today.equals(section.getString("last-login-reward"))) return;
       LocalDate last = null;
       String lastValue = section.getString("last-login-reward");
-      if (lastValue != null) last = LocalDate.parse(lastValue);
+      if (lastValue != null) {
+         // Corrupt hand-edited dates must not break the whole login flow:
+         // fall back to a fresh streak instead of throwing.
+         try { last = LocalDate.parse(lastValue); } catch (java.time.format.DateTimeParseException ignored) { last = null; }
+      }
       int streak = last != null && last.plusDays(1L).toString().equals(today) ? this.mifron().safeAdd(section.getInt("login-streak", 0), 1) : 1;
       int total = this.mifron().safeAdd(section.getInt("total-logins", 0), 1);
       section.set("last-login-reward", today);

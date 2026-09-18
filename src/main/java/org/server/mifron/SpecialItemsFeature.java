@@ -147,7 +147,9 @@ public class SpecialItemsFeature implements Listener {
             });
 
             item.setAmount(item.getAmount() - 1);
-            player.getInventory().addItem(new ItemStack(Material.ECHO_SHARD));
+            for (ItemStack leftover : player.getInventory().addItem(new ItemStack(Material.ECHO_SHARD)).values()) {
+               player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+            }
             player.sendMessage(ChatColor.DARK_AQUA + "残響の結晶の力が解放され、通常の欠片に戻った。");
         } else if (id.equals("fireball") && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK)) {
             event.setCancelled(true);

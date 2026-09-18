@@ -125,7 +125,9 @@ final class QuestProposalFeature implements Listener {
          }
          case AMOUNT -> {
             try { draft.required = Math.max(1, Integer.parseInt(text)); }
-            catch (NumberFormatException ignored) { draft.required = 1; draft.advancement = text; }
+            // Mirror the REWARD step: reject non-numeric input instead of
+            // stuffing the raw text into an unrelated field where it is lost.
+            catch (NumberFormatException ignored) { player.sendMessage(ChatColor.RED + "数字を入力してください。"); return; }
             draft.step = Step.REWARD;
             player.sendMessage(ChatColor.AQUA + "報酬MPを数字で入力してください。");
          }

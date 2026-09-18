@@ -74,7 +74,9 @@ abstract class MifronPart6x1 extends MifronPart6 {
    }
 
    protected void cleanupInactiveShops() {
-      long cutoff = System.currentTimeMillis() - Math.max(1L, this.getConfig().getLong("shops.inactivity-days", 30L)) * 86400000L;
+      // Shared overflow clamp with ShopBlockStore: an absurd
+      // inactivity-days value must not mass-delete every shop.
+      long cutoff = System.currentTimeMillis() - ShopBlockStore.inactivityCutoffMillis(this.getConfig().getLong("shops.inactivity-days", 30L));
       int removed = 0;
       ConfigurationSection shelves = this.data.getConfigurationSection("shelf-shops");
       if (shelves != null) {

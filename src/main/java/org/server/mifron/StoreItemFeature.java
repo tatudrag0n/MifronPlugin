@@ -67,7 +67,11 @@ public class StoreItemFeature implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         if (!hasStoreItem(player)) {
-            player.getInventory().addItem(createStoreItem());
+            // A full inventory must not silently swallow the link item:
+            // leftovers drop at the player's feet instead.
+            for (ItemStack leftover : player.getInventory().addItem(createStoreItem()).values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+            }
         }
     }
 

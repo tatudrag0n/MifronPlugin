@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -73,6 +74,13 @@ final class CompassFeature implements Listener {
       if (blockedUntil != null) {
          if (System.currentTimeMillis() <= blockedUntil) {
             event.setCancelled(true);
+            // Single-shot: the leaked teleport (if any) is the first one
+            // after the click. Consuming the block here keeps the anti-leak
+            // protection while a blanket 5s block would also eat legitimate
+            // teleports (FFA join, teleporter, hub) with no feedback.
+            this.teleportBlockUntil.remove(event.getPlayer().getUniqueId());
+            this.clickLocations.remove(event.getPlayer().getUniqueId());
+            event.getPlayer().sendMessage(ChatColor.YELLOW + "コンパスの誤作動を防止しました。テレポートする場合は再度お試しください。");
             this.plugin
                .getLogger()
                .warning(

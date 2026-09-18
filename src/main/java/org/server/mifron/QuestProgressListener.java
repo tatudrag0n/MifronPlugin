@@ -130,6 +130,10 @@ final class QuestProgressListener implements Listener {
    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
    public void onPickup(EntityPickupItemEvent event) {
       if (event.getEntity() instanceof Player player) {
+         // Picking up your own just-dropped items is not obtaining: without
+         // this, drop/pickup cycling farms quest progress for free.
+         UUID thrower = event.getItem().getThrower();
+         if (thrower != null && thrower.equals(player.getUniqueId())) return;
          this.quests.addProgress(player, "items_obtained", event.getItem().getItemStack().getAmount());
          if (event.getItem().getItemStack().getType().name().endsWith("_SMITHING_TEMPLATE")) {
             this.quests.addProgress(player, "smithing_templates", 1);

@@ -34,11 +34,11 @@ abstract class MifronPart6x2 extends MifronPart6x1 {
    protected void populateBarrelShop(Barrel barrel, List<MerchantOffer> pool) {
       Set<Material> used = new HashSet<>();
       Inventory inventory = barrel.getInventory();
-      inventory.clear();
       if (pool.isEmpty()) {
          this.getLogger().warning("Barrel shop pool is empty. No offers were generated.");
          return;
       }
+      inventory.clear();
       int offerSlots = Math.min(inventory.getSize(), Math.max(1, this.getConfig().getInt("barrel-shop.offer-slots", 27)));
       int bargainSlots = Math.max(0, Math.min(offerSlots, this.getConfig().getInt("barrel-shop.bargain-slots", 3)));
       for (int slot = 0; slot < offerSlots; slot++) {

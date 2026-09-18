@@ -52,7 +52,12 @@ abstract class MifronPart11 extends MifronPart10x2 {
       List<ItemStack> notifications = this.notificationItems(player);
       inventory.setItem(6, this.mifron().named(Material.PAPER, "\u00a7b\u901a\u77e5\u30dc\u30c3\u30af\u30b9", List.of()));
       if (notifications.isEmpty()) inventory.setItem(15, this.mifron().named(Material.GRAY_STAINED_GLASS_PANE, "\u00a77\u901a\u77e5\u306f\u3042\u308a\u307e\u305b\u3093", List.of()));
-      else for (int i = 0; i < Math.min(notifications.size(), 8); i++) inventory.setItem(7 + i, notifications.get(i));
+      // Friend row 1 occupies slots 9, 11, 12, 13: writing 7+i there would
+      // bury those buttons, so notification items use the free slots instead.
+      else {
+         int[] slots = {7, 8, 10, 14, 15, 16, 17};
+         for (int i = 0; i < Math.min(notifications.size(), slots.length); i++) inventory.setItem(slots[i], notifications.get(i));
+      }
    }
 
    protected List<ItemStack> notificationItems(Player player) {

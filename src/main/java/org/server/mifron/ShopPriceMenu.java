@@ -25,7 +25,6 @@ final class ShopPriceMenu {
    }
 
    void open(Player player, Block block, int slot) {
-      this.editing.put(player.getUniqueId(), new Session(block, slot));
       Inventory inventory = Bukkit.createInventory(player, 27, TITLE);
       ItemStack displayed = this.store.displayedItem(block, slot);
       int price = this.store.slotPrice(block, slot);
@@ -46,6 +45,11 @@ final class ShopPriceMenu {
       inventory.setItem(16, this.action(Material.CYAN_CONCRETE, "\u00a7a+100 MP", "plus100"));
       inventory.setItem(22, this.action(Material.BARRIER, "\u00a7c\u9589\u3058\u308b", "close"));
       player.openInventory(inventory);
+      // Register the session AFTER opening: openInventory fires
+      // InventoryCloseEvent for the previous menu synchronously, and putting
+      // first would let that close wipe the fresh session (the menu then
+      // closed itself after a single price step).
+      this.editing.put(player.getUniqueId(), new Session(block, slot));
    }
 
    void onClick(InventoryClickEvent event) {

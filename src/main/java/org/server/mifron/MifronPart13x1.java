@@ -136,10 +136,16 @@ abstract class MifronPart13x1 extends MifronPart13 {
    @EventHandler
    public void onInventoryDrag(InventoryDragEvent event) {
       if (this.isBarrelShopInventory(event.getView().getTopInventory())) { event.setCancelled(true); return; }
-      if (PROPOSAL_UI_TITLE.equals(this.mifron().inventoryTitle(event.getView().title()))) { event.setCancelled(true); return; }
-      if (!"\u00a76Mifron Merchant".equals(this.mifron().inventoryTitle(event.getView().title()))) return;
-      int topSize = event.getView().getTopInventory().getSize();
-      for (int rawSlot : event.getRawSlots()) if (rawSlot < topSize) { event.setCancelled(true); return; }
+      // Mifron GUIs have no close-time item return path: anything dragged
+      // into the top inventory would vanish on close. Cancel every drag in
+      // these views (clicks there are already fully cancelled).
+      String title = this.mifron().inventoryTitle(event.getView().title());
+      if (PROPOSAL_UI_TITLE.equals(title)
+         || "\u00a73Mifron Friends".equals(title)
+         || "\u00a72Mifron Status".equals(title)
+         || QUEST_UI_TITLE.equals(title)
+         || "\u00a75Mifron Teleporter".equals(title)
+         || "\u00a76Mifron Merchant".equals(title)) { event.setCancelled(true); }
    }
 
    @EventHandler

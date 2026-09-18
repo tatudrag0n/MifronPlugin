@@ -219,6 +219,12 @@ final class UtilityItemsFeature implements Listener {
       for (ItemStack item : player.getInventory().getContents()) {
          if (this.isMifronItem(item, id)) return true;
       }
+      // getContents() excludes the off hand and armour: without these, a
+      // parked item is "missing" and gets duplicated on re-issue.
+      if (this.isMifronItem(player.getInventory().getItemInOffHand(), id)) return true;
+      for (ItemStack item : player.getInventory().getArmorContents()) {
+         if (this.isMifronItem(item, id)) return true;
+      }
       return false;
    }
 

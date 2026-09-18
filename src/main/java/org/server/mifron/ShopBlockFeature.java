@@ -114,6 +114,14 @@ public class ShopBlockFeature implements Listener {
 
    @EventHandler(ignoreCancelled = true)
    public void onHopperMove(InventoryMoveItemEvent event) {
+      // PDC shop barrels are not covered by the legacy barrel-shop move guard,
+      // so hoppers could drain SELL_BARREL stock for free. Block every
+      // extraction from a PDC shop barrel. (BUY_BARREL collection uses direct
+      // addItem, never move events, so it is unaffected.)
+      if (event.getSource().getHolder() instanceof org.bukkit.block.Barrel srcBarrel && this.store.isShop(srcBarrel.getBlock())) {
+         event.setCancelled(true);
+         return;
+      }
       if (!(event.getDestination().getHolder() instanceof org.bukkit.block.Barrel barrel)) return;
       if (!this.store.isShop(barrel.getBlock()) || !"SELL_BARREL".equals(this.store.shopType(barrel.getBlock()))) return;
       ItemStack moving = event.getItem();

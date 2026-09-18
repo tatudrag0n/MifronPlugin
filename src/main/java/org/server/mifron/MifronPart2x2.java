@@ -72,5 +72,8 @@ abstract class MifronPart2x2 extends MifronPart2x1 {
       return item != null && item.hasItemMeta()
          && Boolean.TRUE.equals(MifronPdc.get(item.getItemMeta().getPersistentDataContainer(), this.reincarnationStarKey, PersistentDataType.BOOLEAN));
    }
-   protected void consumeOne(ItemStack item) { item.setAmount(item.getAmount() - 1); }
+   protected void consumeOne(ItemStack item) {
+      if (item == null || item.getType().isAir() || item.getAmount() <= 0) return;
+      item.setAmount(item.getAmount() - 1);
+   }
 }

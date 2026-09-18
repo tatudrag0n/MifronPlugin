@@ -117,13 +117,23 @@ final class ShopBlockStore {
       state.update(true, false);
    }
 
+   /**
+    * Milliseconds covered by {@code days} of shop inactivity. The day count
+    * is clamped first: an absurd configured value would otherwise overflow
+    * the multiplication and mark every shop inactive at once.
+    */
+   static long inactivityCutoffMillis(long days) {
+      long safeDays = Math.max(1L, Math.min(days, 365000L));
+      return safeDays * 86400000L;
+   }
+
    boolean isInactive(Block block) {
       PersistentDataContainer pdc = this.data(block);
       if (pdc == null) {
          return false;
       }
       long last = pdc.getOrDefault(this.keys.activity, PersistentDataType.LONG, 0L);
-      long days = Math.max(1L, this.plugin.getConfig().getLong("shops.inactivity-days", 30L));
-      return last > 0L && System.currentTimeMillis() - last > days * 86400000L;
+      long days = Math.max(1L, Math.min(this.plugin.getConfig().getLong("shops.inactivity-days", 30L), 365000L));
+      return last > 0L && System.currentTimeMillis() - last > inactivityCutoffMillis(days);
    }
 }
