@@ -105,7 +105,11 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
       if (special != null && special.contains("bonus-percent")) {
          return Math.max(0, special.getInt("bonus-percent"));
       }
-      Advancement advancement = Bukkit.getAdvancement(NamespacedKey.fromString(fullKey));
+      NamespacedKey namespacedKey = fullKey == null ? null : NamespacedKey.fromString(fullKey);
+      // Hand-edited or legacy garbage keys must not break bonus math (or the
+      // Status UI that calls it): treat them as worth 0 instead of throwing.
+      if (namespacedKey == null) return 0;
+      Advancement advancement = Bukkit.getAdvancement(namespacedKey);
       AdvancementDisplay display = advancement == null ? null : advancement.getDisplay();
       AdvancementDisplay.Frame frame = display == null ? AdvancementDisplay.Frame.TASK : display.frame();
       return this.mifron().advancementBonus(frame);
