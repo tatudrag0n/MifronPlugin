@@ -390,6 +390,9 @@ ffa:
     selected-kit: "sword"
     selector: {}
   kits:
+    # One-time MP price to unlock a kit (0 or missing = free). Defaults:
+    # necromancer/assassin/sniper/wizard/vampire/crusher/bug_mania = 10000.
+    unlock-prices: {}
     armor-balance-version: 3
     armor-points-bonus: 3.0
     vampire-balance-version: 1

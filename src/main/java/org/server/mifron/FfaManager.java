@@ -25,6 +25,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
@@ -361,7 +362,7 @@ final class FfaManager {
             break;
          }
 
-         inventory.setItem(slot++, this.selectorItem(kit, kit == selected));
+         inventory.setItem(slot++, this.selectorItem(kit, kit == selected, player));
       }
 
       this.fillEmptyKitSelectorSlots(inventory);
@@ -413,6 +414,9 @@ final class FfaManager {
             player.sendMessage("§cFFA中央地点が設定されていません。管理者に /mf ffa setcenter を実行してもらってください。");
          } else if (selectedKit == FfaKit.SPEAR && selectedKit.spearMaterial(this.config, this.plugin, true) == null) {
             player.sendMessage("§c槍アイテムが現在の Paper API で見つかりません。Paper API / Minecraft バージョンを確認してください。");
+         } else if (!this.unlockKit(player, selectedKit)) {
+            // Locked kit without covering balance: unlockKit already explained.
+            // Nothing below runs, so the pre-fight inventory is untouched.
          } else {
             boolean newSession = !this.sessions.containsKey(player.getUniqueId());
             if (newSession) this.combatUntil.remove(player.getUniqueId());
@@ -2721,12 +2725,40 @@ final class FfaManager {
       }
    }
 
-   private ItemStack selectorItem(FfaKit kit, boolean selected) {
+   boolean isKitUnlocked(Player player, FfaKit kit) {
+      if (kit.unlockPrice(this.config) <= 0) return true;
+      return this.plugin.getPlayerSection(player.getUniqueId()).getStringList("ffa-unlocked-kits").contains(kit.key());
+   }
+
+   /**
+    * One-time MP unlock, persisted per player. Returns false (without joining)
+    * when the balance cannot cover the price; nothing is consumed then.
+    */
+   boolean unlockKit(Player player, FfaKit kit) {
+      int price = kit.unlockPrice(this.config);
+      if (price <= 0 || this.isKitUnlocked(player, kit)) return true;
+      if (!this.plugin.withdrawEmeralds(player.getUniqueId(), price)) {
+         player.sendMessage("§cMPが足りません（" + kit.displayName(this.config) + "の解放に" + price + "MP必要）。");
+         return false;
+      }
+      ConfigurationSection section = this.plugin.getPlayerSection(player.getUniqueId());
+      List<String> unlocked = new ArrayList<>(section.getStringList("ffa-unlocked-kits"));
+      if (!unlocked.contains(kit.key())) unlocked.add(kit.key());
+      section.set("ffa-unlocked-kits", unlocked);
+      this.plugin.saveData();
+      player.sendMessage("§aキットを解放しました: " + kit.displayName(this.config) + "（" + price + "MP）");
+      return true;
+   }
+
+   private ItemStack selectorItem(FfaKit kit, boolean selected, Player viewer) {
       Material icon = kit.icon(this.config);
       ItemStack item = new ItemStack(icon == null ? Material.BARRIER : icon);
       ItemMeta meta = item.getItemMeta();
       meta.displayName(Component.text((selected ? ChatColor.GREEN + "選択中: " : "") + kit.displayName(this.config)));
       List<Component> lore = new ArrayList<>(kit.details(this.config, this.plugin));
+      if (kit.unlockPrice(this.config) > 0 && !this.isKitUnlocked(viewer, kit)) {
+         lore.add(Component.text("§c🔒 未解放: " + kit.unlockPrice(this.config) + "MP（クリックで解放して参加）"));
+      }
       meta.lore(lore);
       meta.addItemFlags(new ItemFlag[]{ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS});
       meta.getPersistentDataContainer().set(this.selectorKitKey, PersistentDataType.STRING, kit.key());

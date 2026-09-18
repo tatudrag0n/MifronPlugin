@@ -61,6 +61,21 @@ enum FfaKit {
       return this.key;
    }
 
+   /**
+    * One-time MP price to unlock this kit, 0 = free. Overridable per kit via
+    * config ffa.kits.unlock-prices.&lt;key&gt;.
+    */
+   int defaultUnlockPrice() {
+      return switch (this) {
+         case NECROMANCER, ASSASSIN, SNIPER, WIZARD, VAMPIRE, CRUSHER, BUG_MANIA -> 10000;
+         default -> 0;
+      };
+   }
+
+   int unlockPrice(FfaConfig config) {
+      return Math.max(0, config.plugin().getConfig().getInt("ffa.kits.unlock-prices." + this.key(), this.defaultUnlockPrice()));
+   }
+
    String displayName(FfaConfig config) {
       return this.configValue(config, "display-name", this.defaultDisplayName);
    }
