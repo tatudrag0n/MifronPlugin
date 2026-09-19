@@ -96,7 +96,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
       // TEMPORARY diagnostic: always on until the GUI-click report is
       // resolved (config-file flags do not survive the startup config
       // rewrite, so this is hardcoded). Revert after diagnosis.
-      if (true) {
+      if (this.mifron().getConfig().getBoolean("debug.gui-click-log", false)) {
          ItemStack probe = event.getCurrentItem();
          this.mifron().getLogger().info("[gui-click] player=" + player.getName()
             + " title=" + this.mifron().inventoryTitle(event.getView().title())
