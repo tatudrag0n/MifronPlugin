@@ -30,9 +30,12 @@ import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.inventory.InventoryPickupItemEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
@@ -161,10 +164,10 @@ final class FfaListener implements Listener {
       if (event.getWhoClicked() instanceof Player player) {
          if (this.ffa.handleKitSelectorClick(player, event)) {
             event.setCancelled(true);
-         } else {
-            if (this.containsFfaItem(event.getCurrentItem(), event.getCursor()) && event.getView().getTopInventory() != player.getInventory()) {
+         } else if (this.isExternalContainerView(player, event.getView())) {
+            if (this.containsFfaItem(event.getCurrentItem(), event.getCursor())) {
                event.setCancelled(true);
-            } else if (event.getClick() == ClickType.NUMBER_KEY && event.getView().getTopInventory() != player.getInventory()) {
+            } else if (event.getClick() == ClickType.NUMBER_KEY) {
                // NUMBER_KEY swaps the hotbar slot into the clicked top slot;
                // neither currentItem nor cursor carries the FFA item there.
                org.bukkit.inventory.ItemStack hotbar = player.getInventory().getItem(event.getHotbarButton());
@@ -178,9 +181,47 @@ final class FfaListener implements Listener {
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onInventoryDrag(InventoryDragEvent event) {
-      if (this.containsFfaItem(event.getOldCursor()) && event.getView().getTopInventory() != event.getWhoClicked().getInventory()) {
-         event.setCancelled(true);
+      if (!(event.getWhoClicked() instanceof Player player)) return;
+      if (!this.containsFfaItem(event.getOldCursor())) return;
+      if (!this.isExternalContainerView(player, event.getView())) return;
+      int topSize = event.getView().getTopInventory().getSize();
+      for (int rawSlot : event.getRawSlots()) {
+         if (rawSlot < topSize) {
+            event.setCancelled(true);
+            return;
+         }
       }
+   }
+
+   /**
+    * FFA kit items move freely inside the player's own inventory. Only an
+    * actually open container counts as external: the crafting view is always
+    * present as the top inventory, so comparing against the player inventory
+    * alone would freeze every shift-click and hotbar swap.
+    */
+   private boolean isExternalContainerView(Player player, InventoryView view) {
+      if (player == null || view == null || view.getTopInventory() == null) return false;
+      if (view.getType() == InventoryType.CRAFTING) return false;
+      return view.getTopInventory() != player.getInventory();
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onFfaItemClose(InventoryCloseEvent event) {
+      if (!(event.getPlayer() instanceof Player player) || !this.ffa.isPlaying(player)) return;
+      ItemStack cursor = player.getItemOnCursor();
+      if (!this.ffa.isFfaItem(cursor)) return;
+      // Kit items are re-issued on every join, so leftovers are discarded
+      // instead of dropped: dropping them would scatter spares across the
+      // arena for others to pick up. The exit item is the exception: losing
+      // it would trap the player, so its leftovers drop at their feet.
+      player.setItemOnCursor(null);
+      Map<Integer, ItemStack> leftovers = player.getInventory().addItem(cursor);
+      if (!leftovers.isEmpty() && this.ffa.isExitItem(cursor)) {
+         for (ItemStack rest : leftovers.values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), rest);
+         }
+      }
+      player.updateInventory();
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)

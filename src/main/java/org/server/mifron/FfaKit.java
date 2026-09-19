@@ -312,7 +312,9 @@ enum FfaKit {
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "weapon", Material.IRON_AXE, "§cクラッシャーアックス", 1, Map.of())});
       }
 
-      if (this != VAMPIRE) {
+      // Necromancer brings its own rotten flesh above: giving the configured
+      // food as well would hand out two meals.
+      if (this != VAMPIRE && this != NECROMANCER) {
          for (ItemStack food : configuredFoodItems(config, this, plugin)) {
             add.accept(food);
          }

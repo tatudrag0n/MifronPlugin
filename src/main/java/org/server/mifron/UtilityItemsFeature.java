@@ -19,6 +19,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.inventory.InventoryView;
@@ -368,11 +369,10 @@ final class UtilityItemsFeature implements Listener {
 
    /**
     * Mifron fixed items (wallet/status/quest books/teleporter/wands/jump block)
-    * are pinned inside the player's own inventory and must never reach an
-    * external container (Chest/Barrel/Hopper/etc). Besides the classic
-    * shift-click path, this also covers placing a cursor-held fixed item into
-    * the top container, NUMBER_KEY hotbar swaps, and OFFHAND swaps, which all
-    * bypass a current-item-only check.
+    * move freely inside the player's own inventory (pick up, place, swap,
+    * hotbar keys, off-hand swaps, drags, double-click collect), but must never
+    * reach an external container (Chest/Barrel/Hopper/crafting grid, ...).
+    * Only the paths crossing into the top container are cancelled.
     */
    @EventHandler(ignoreCancelled = true)
    public void onFixedItemStoreClick(InventoryClickEvent event) {
@@ -381,9 +381,6 @@ final class UtilityItemsFeature implements Listener {
       ClickType click = event.getClick();
       ItemStack clicked = event.getCurrentItem();
       ItemStack cursor = event.getCursor();
-      boolean collectSimilar = click == ClickType.DOUBLE_CLICK
-         && cursor != null && !cursor.getType().isAir()
-         && clicked != null && cursor.isSimilar(clicked);
       boolean hotbarIsFixed = false;
       if (click == ClickType.NUMBER_KEY) {
          hotbarIsFixed = this.isFixedMifronUtilityItem(player.getInventory().getItem(event.getHotbarButton()));
@@ -395,9 +392,25 @@ final class UtilityItemsFeature implements Listener {
       boolean clickedInPlayer = event.getClickedInventory() != null && event.getClickedInventory() == player.getInventory();
       boolean clickedOutside = event.getClickedInventory() == null;
       if (shouldCancelFixedItemStore(click, this.isFixedMifronUtilityItem(clicked), this.isFixedMifronUtilityItem(cursor),
-         hotbarIsFixed, offhandIsFixed, clickedInPlayer, clickedOutside, collectSimilar)) {
+         hotbarIsFixed, offhandIsFixed, clickedInPlayer, clickedOutside)) {
          event.setCancelled(true);
          player.sendMessage(ChatColor.YELLOW + "Mifronの固定アイテムはチェストなどに収納できません。");
+      }
+   }
+
+   /**
+    * A fixed item on the cursor would drop to the ground when the inventory
+    * closes. Pull it back into the inventory instead (leftovers, only when
+    * the inventory is completely full, drop at the player's feet).
+    */
+   @EventHandler(ignoreCancelled = true)
+   public void onFixedItemClose(InventoryCloseEvent event) {
+      if (!(event.getPlayer() instanceof Player player)) return;
+      ItemStack cursor = player.getItemOnCursor();
+      if (!this.isFixedMifronUtilityItem(cursor)) return;
+      player.setItemOnCursor(null);
+      for (ItemStack leftover : player.getInventory().addItem(cursor).values()) {
+         player.getWorld().dropItemNaturally(player.getLocation(), leftover);
       }
    }
 
@@ -429,18 +442,18 @@ final class UtilityItemsFeature implements Listener {
     * tests. {@code topIsExternal} is assumed true by callers.
     */
    static boolean shouldCancelFixedItemStore(ClickType click, boolean currentIsFixed, boolean cursorIsFixed,
-      boolean hotbarIsFixed, boolean offhandIsFixed, boolean clickedInPlayerInventory, boolean clickedOutside,
-      boolean collectSimilar) {
-      // Double-click collect with a matching cursor stack gathers items into
-      // the cursor; everything stays in the player's possession.
-      if (collectSimilar) return false;
-      // Clicks inside the player's own inventory: only a fixed clicked item
-      // (shift-click and friends moving it out) is blocked.
-      if (clickedInPlayerInventory) return currentIsFixed;
+      boolean hotbarIsFixed, boolean offhandIsFixed, boolean clickedInPlayerInventory, boolean clickedOutside) {
       // Clicks outside the window drop the cursor stack; dropping is handled
       // by the drop guard, but cancelling here is harmless defense in depth.
       if (clickedOutside) return cursorIsFixed;
-      // Clicks inside the external top container.
+      if (clickedInPlayerInventory) {
+         // Inside the player's own inventory everything is allowed except a
+         // shift-click on a fixed item, which would move it out to the top.
+         return (click == ClickType.SHIFT_LEFT || click == ClickType.SHIFT_RIGHT) && currentIsFixed;
+      }
+      // Clicks inside the external top container: only paths carrying a fixed
+      // item inward are blocked. Anything else (including picking a legacy
+      // fixed item back out) stays allowed.
       if (cursorIsFixed) return true;
       if (click == ClickType.NUMBER_KEY && hotbarIsFixed) return true;
       return click == ClickType.SWAP_OFFHAND && offhandIsFixed;
