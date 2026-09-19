@@ -30,11 +30,11 @@ final class WorldEditHook {
       }
 
       try {
-         Object actor = this.callStatic("com.sk89q.worldedit.bukkit.BukkitAdapter", "adapt", new Class[]{Player.class}, player);
-         Object worldEdit = this.callStatic("com.sk89q.worldedit.WorldEdit", "getInstance", new Class[0]);
-         Object sessionManager = this.call(worldEdit, "getSessionManager", new Class[0]);
-         Object session = this.call(sessionManager, "get", new Class[]{Class.forName("com.sk89q.worldedit.extension.platform.Actor")}, actor);
-         Object holder = this.call(session, "getClipboard", new Class[0]);
+          Object actor = this.callStatic("com.sk89q.worldedit.bukkit.BukkitAdapter", "adapt", new Class[]{Player.class}, player);
+          Object worldEdit = this.callStatic("com.sk89q.worldedit.WorldEdit", "getInstance", new Class[0]);
+          Object sessionManager = this.call(worldEdit, "getSessionManager", new Class[0]);
+          Object session = this.sessionFor(sessionManager, actor);
+          Object holder = this.call(session, "getClipboard", new Class[0]);
          Object clipboard = this.call(holder, "getClipboard", new Class[0]);
          Object format = this.enumConstant("com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat", "SPONGE_SCHEMATIC");
          file.getParentFile().mkdirs();
@@ -116,37 +116,40 @@ final class WorldEditHook {
     */
    void applyBlockChangeLimit(Player player, int limit) {
       if (!this.available() || player == null) return;
-      if (limit <= 0) {
-         // limit <= 0 means unrestricted: lift any previously applied limit.
-         try {
-            Object actor = this.callStatic("com.sk89q.worldedit.bukkit.BukkitAdapter", "adapt", new Class[]{Player.class}, player);
-            Object worldEdit = this.callStatic("com.sk89q.worldedit.WorldEdit", "getInstance", new Class[0]);
-            Object sessionManager = this.call(worldEdit, "getSessionManager", new Class[0]);
-            Object session = this.call(
-               sessionManager, "get", new Class[]{Class.forName("com.sk89q.worldedit.extension.platform.Actor")}, actor);
-            try {
-               this.call(session, "setBlockChangeLimit", new Class[]{int.class}, -1);
-            } catch (NoSuchMethodException missing) {
-               this.call(session, "setMaxBlocksChanged", new Class[]{int.class}, -1);
-            }
-         } catch (Throwable error) {
-            this.plugin.getLogger().warning("WorldEdit block-change limit could not be lifted: " + error.getMessage());
-         }
-         return;
-      }
       try {
          Object actor = this.callStatic("com.sk89q.worldedit.bukkit.BukkitAdapter", "adapt", new Class[]{Player.class}, player);
          Object worldEdit = this.callStatic("com.sk89q.worldedit.WorldEdit", "getInstance", new Class[0]);
          Object sessionManager = this.call(worldEdit, "getSessionManager", new Class[0]);
-         Object session = this.call(
-            sessionManager, "get", new Class[]{Class.forName("com.sk89q.worldedit.extension.platform.Actor")}, actor);
+         Object session = this.sessionFor(sessionManager, actor);
+         // limit <= 0 means unrestricted (OPs/admins): lift any limit.
+         int value = limit <= 0 ? -1 : limit;
          try {
-            this.call(session, "setBlockChangeLimit", new Class[]{int.class}, limit);
+            this.call(session, "setBlockChangeLimit", new Class[]{int.class}, value);
          } catch (NoSuchMethodException missing) {
-            this.call(session, "setMaxBlocksChanged", new Class[]{int.class}, limit);
+            this.call(session, "setMaxBlocksChanged", new Class[]{int.class}, value);
          }
       } catch (Throwable error) {
-         this.plugin.getLogger().warning("WorldEdit block-change limit could not be applied: " + error.getMessage());
+         this.plugin.getLogger().warning("WorldEdit block-change limit could not be "
+            + (limit <= 0 ? "lifted: " : "applied: ") + error.getMessage());
+      }
+   }
+
+   /**
+    * Version-proof session lookup. Newer WorldEdit declares
+    * {@code get(SessionOwner)} instead of {@code get(Actor)}, so an exact
+    * signature match fails where a compatible single-arg overload exists.
+    */
+   private Object sessionFor(Object sessionManager, Object actor) throws Exception {
+      try {
+         return this.call(sessionManager, "get", new Class[]{Class.forName("com.sk89q.worldedit.extension.platform.Actor")}, actor);
+      } catch (NoSuchMethodException first) {
+         for (Method candidate : sessionManager.getClass().getMethods()) {
+            if (!candidate.getName().equals("get") || candidate.getParameterCount() != 1) continue;
+            if (!candidate.getParameterTypes()[0].isInstance(actor)) continue;
+            candidate.setAccessible(true);
+            return candidate.invoke(sessionManager, actor);
+         }
+         throw first;
       }
    }
 
