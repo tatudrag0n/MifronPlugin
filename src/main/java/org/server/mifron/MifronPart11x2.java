@@ -26,13 +26,8 @@ abstract class MifronPart11x2 extends MifronPart11x1 {
       int pageSize = 27;
       int maxPage = Math.max(0, (advancements.size() - 1) / pageSize);
       int safePage = Math.max(0, Math.min(page, maxPage));
-      ConfigurationSection stats = this.mifron().getPlayerSection(player.getUniqueId());
-      inventory.setItem(36, this.mifron().named(Material.EXPERIENCE_BOTTLE, "\u00a7bMFL", List.of("\u00a77" + this.mifron().getMfl(player.getUniqueId()))));
-      inventory.setItem(37, this.mifron().named(Material.EMERALD, "\u00a7a\u6240\u6301MP", List.of("\u00a77" + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId())) + "MP")));
-      inventory.setItem(38, this.mifron().named(Material.IRON_PICKAXE, "\u00a76\u63a1\u6398\u30d6\u30ed\u30c3\u30af", List.of("\u00a77" + this.mifron().formatNumber(stats.getInt("total-blocks-broken", 0)) + " \u500b")));
-      inventory.setItem(39, this.mifron().named(Material.BRICKS, "\u00a76\u8a2d\u7f6e\u30d6\u30ed\u30c3\u30af", List.of("\u00a77" + this.mifron().formatNumber(stats.getInt("total-blocks-placed", 0)) + " \u500b")));
-      inventory.setItem(40, this.mifron().named(Material.IRON_SWORD, "\u00a7c\u7dcf\u30e2\u30d6\u8a0e\u4f10\u6570", List.of("\u00a77" + this.mifron().formatNumber(stats.getInt("total-mob-kills", 0)) + " \u4f53")));
-      inventory.setItem(41, this.mifron().named(Material.SKELETON_SKULL, "\u00a7c\u8a0e\u4f10\u6e08\u307fMob", List.of("\u00a77" + stats.getStringList("killed-mobs").size() + " \u7a2e\u985e")));
+      // The general stats row lives in the Friends status box; the progress
+      // tab keeps only its own completion counter so the two do not overlap.
       inventory.setItem(45, this.mifron().named(Material.WRITABLE_BOOK, "\u00a7d\u9054\u6210\u9032\u6357\u6570", List.of("\u00a77" + this.mifron().countCompletedAdvancements(player) + "/" + advancements.size())));
       inventory.setItem(49, this.mifron().named(Material.PAPER, "\u00a7e\u30da\u30fc\u30b8", List.of("\u00a77" + (safePage + 1) + "/" + (maxPage + 1))));
       if (safePage > 0) inventory.setItem(48, this.mifron().actionItem(Material.ARROW, "\u00a7f\u524d\u306e\u30da\u30fc\u30b8", List.of(), "progress_page", String.valueOf(safePage - 1)));

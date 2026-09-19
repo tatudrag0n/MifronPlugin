@@ -62,7 +62,11 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "friend_remove" -> { if (targetId != null) { this.mifron().removeFriend(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
          case "friend_chat_open" -> { if (targetId != null) { this.friendChatService.openChat(player.getUniqueId(), targetId); this.mifron().openFriendUi(player); } }
          case "friend_chat_close" -> { this.friendChatService.closeChat(player.getUniqueId()); this.mifron().openFriendUi(player); }
-         case "friend_status_detail" -> this.openDetailedStatusUi(player);
+         case "friend_status_detail" -> {
+            // The bottom stats box is display-only: jumping to the progress
+            // tab from here is surprising, and the top tabs (slots 1-4)
+            // already cover that navigation.
+         }
          case "status_tab_progress" -> this.mifron().openStatusUi(player, "progress:0");
          case "status_tab_reincarnation" -> this.mifron().openStatusUi(player, "reincarnation");
          case "status_tab_titles" -> this.mifron().openStatusUi(player, "titles:0");

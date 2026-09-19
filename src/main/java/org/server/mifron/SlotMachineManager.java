@@ -103,6 +103,10 @@ final class SlotMachineManager implements Listener {
       }
    }
 
+   boolean isSlotMachine(Block block) {
+      return block != null && this.difficultyAt(block) != null;
+   }
+
    private SlotMachineManager.Difficulty difficultyAt(Block shelf) {
       if (shelf != null && shelf.getState() instanceof Shelf) {
          String raw = this.plugin.data().getString(this.machinePath(shelf) + ".difficulty");
@@ -159,7 +163,10 @@ final class SlotMachineManager implements Listener {
          return;
       }
 
+      // Never fail silently: without the wallet the player cannot know why
+      // nothing happens.
       event.setCancelled(true);
+      event.getPlayer().sendMessage("§eウォレットを持って右クリックで回します（" + difficulty.wager + "MP）。");
    }
 
    @EventHandler

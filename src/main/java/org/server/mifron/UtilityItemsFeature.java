@@ -296,6 +296,11 @@ final class UtilityItemsFeature implements Listener {
       }
 
       if ("emerald_bundle".equals(id)) {
+         // Slot machines start on wallet right-click, but their handler runs
+         // at HIGH with ignoreCancelled=true: cancelling here first would
+         // make spins impossible, so hands off machine blocks entirely.
+         if (event.getAction().isRightClick() && event.getClickedBlock() != null
+            && this.plugin.slotMachineManager.isSlotMachine(event.getClickedBlock())) return;
          event.setCancelled(true);
          event.setUseItemInHand(Event.Result.DENY);
          this.lastUtilityUse.put(player.getUniqueId(), now);
@@ -308,12 +313,18 @@ final class UtilityItemsFeature implements Listener {
       if ("friend_book".equals(id) && clicked) {
          event.setCancelled(true);
          event.setUseItemInHand(Event.Result.DENY);
+         // Deny the interacted block too: right-clicking a container with the
+         // book would otherwise let the client predict-open the vanilla
+         // window, desyncing window ids so every later click is silently
+         // dropped server-side (ghost GUI: predicted pickup, no navigation).
+         event.setUseInteractedBlock(Event.Result.DENY);
          this.lastUtilityUse.put(player.getUniqueId(), now);
          this.plugin.openFriendUi(player);
          this.scheduleRestore(player);
       } else if ("quest_book".equals(id) && clicked) {
          event.setCancelled(true);
          event.setUseItemInHand(Event.Result.DENY);
+         event.setUseInteractedBlock(Event.Result.DENY);
          this.lastUtilityUse.put(player.getUniqueId(), now);
          this.plugin.openQuestUi(player, "categories");
          this.scheduleRestore(player);
