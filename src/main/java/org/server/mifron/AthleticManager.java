@@ -459,7 +459,10 @@ final class AthleticManager implements Listener {
       }
 
       TextDisplay display = (TextDisplay)location.getWorld().spawnEntity(location.clone().add(0.5, 1.0, 0.5), EntityType.TEXT_DISPLAY);
-      display.setBillboard(Billboard.CENTER);
+      // Panels always face the same fixed direction (south) instead of
+      // tracking players.
+      display.setBillboard(Billboard.FIXED);
+      display.setRotation(0.0F, 0.0F);
       display.setPersistent(true);
       display.getPersistentDataContainer().set(this.panelKey, PersistentDataType.STRING, name);
       this.plugin.data().set(path, display.getUniqueId().toString());
@@ -489,6 +492,9 @@ final class AthleticManager implements Listener {
    }
 
    private void updatePanel(String name, TextDisplay display) {
+      // Migrate older player-tracking panels to the fixed direction too.
+      display.setBillboard(Billboard.FIXED);
+      display.setRotation(0.0F, 0.0F);
       display.text(Component.text(this.rankingText(name)));
    }
 

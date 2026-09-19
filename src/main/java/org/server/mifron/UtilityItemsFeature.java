@@ -35,9 +35,12 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 final class UtilityItemsFeature implements Listener {
-   private static final Set<String> INITIAL_ITEM_IDS = Set.of("emerald_bundle", "friend_book", "quest_book", "teleporter", "online_shop");
+   private static final Set<String> INITIAL_ITEM_IDS = Set.of("menu");
+   // Legacy fixed items stay guarded so leftovers cannot be stored or dropped,
+   // but only "menu" is distributed now.
+   private static final Set<String> LEGACY_INITIAL_ITEM_IDS = Set.of("emerald_bundle", "friend_book", "quest_book", "teleporter", "online_shop");
    private static final Set<String> FIXED_ITEM_IDS = Set.of(
-      "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand", "jump_block"
+      "menu", "emerald_bundle", "friend_book", "quest_book", "teleporter", "shelf_shop_wand", "shop_wand", "slot_wand", "server_wand", "jump_pad_wand", "jump_block"
    );
    private static final int MAX_JUMP_PAD_POWER = 100;
    private static final long UTILITY_USE_DEBOUNCE_MILLIS = 150L;
@@ -60,33 +63,30 @@ final class UtilityItemsFeature implements Listener {
 
    void giveInitialItems(Player player) {
       this.removeMifronItems(player, "hub_compass");
-      this.updateOrGiveMifronItem(player, "online_shop", this.createMifronItem(
-         Material.IRON_DOOR, "online_shop", ChatColor.AQUA + "OnlineShop", List.of(ChatColor.GRAY + "右クリック: 商品一覧を開く（Survivalのみ）")
-      ));
-      this.updateOrGiveMifronItem(
-         player,
-         "emerald_bundle",
-         this.createMifronItem(
-            Material.BUNDLE, "emerald_bundle", ChatColor.GREEN + "ウォレット", List.of(ChatColor.GRAY + "右クリック: MP残高確認", ChatColor.GRAY + "棚ショップ・スロットに右クリック: 使用", ChatColor.GRAY + "アイテム収納不可")
-         )
+      // Migrate away from the old five separate items: they are all inside
+      // the single menu item now.
+      for (String legacyId : LEGACY_INITIAL_ITEM_IDS) this.removeMifronItems(player, legacyId);
+      this.updateOrGiveMifronItem(player, "menu", this.createMenuItem());
+   }
+
+   ItemStack createMenuItem() {
+      return this.createMifronItem(
+         Material.NETHER_STAR, "menu", ChatColor.LIGHT_PURPLE + "メニュー",
+         List.of(ChatColor.GRAY + "右クリック: メニューを開く", ChatColor.GRAY + "ショップ・ウォレット・ステータス・クエスト・テレポーター")
       );
-      this.updateOrGiveMifronItem(player, "friend_book", this.createStatusBook());
-      this.updateOrGiveMifronItem(player, "quest_book", this.createQuestBook());
-      this.updateOrGiveMifronItem(
-         player,
-         "teleporter",
-         this.createMifronItem(
-            Material.ENDER_EYE,
-            "teleporter",
-            ChatColor.LIGHT_PURPLE + "テレポーター",
-            List.of(
-               ChatColor.GRAY + "右クリック: 目の前に移動先を表示",
-               ChatColor.GRAY + "表示されたアイテムを左クリック: テレポート",
-               ChatColor.GRAY + "エンドポータルフレームに使用: フレームの登録地点へ移動",
-               ChatColor.DARK_GRAY + "投げることはできません"
-            )
-         )
-      );
+   }
+
+   void openMenuUi(Player player) {
+      org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Menu"));
+      inventory.setItem(10, this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "OnlineShop", List.of(ChatColor.GRAY + "クリック: ショップを開く（Survivalのみ）"), "menu_shop", null));
+      inventory.setItem(11, this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GRAY + "クリック: MP残高確認"), "menu_wallet", null));
+      inventory.setItem(12, this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
+      inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
+      inventory.setItem(14, this.plugin.actionItem(Material.ENDER_EYE, ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "クリック: 移動先を選択"), "menu_teleporter", null));
+      for (int slot = 0; slot < inventory.getSize(); slot++) {
+         if (inventory.getItem(slot) == null) inventory.setItem(slot, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
+      }
+      player.openInventory(inventory);
    }
 
    ItemStack createShopWand() {
@@ -311,7 +311,14 @@ final class UtilityItemsFeature implements Listener {
       }
 
       boolean clicked = event.getAction().isRightClick() || event.getAction().isLeftClick();
-      if ("friend_book".equals(id) && clicked) {
+      if ("menu".equals(id) && clicked) {
+         event.setCancelled(true);
+         event.setUseItemInHand(Event.Result.DENY);
+         event.setUseInteractedBlock(Event.Result.DENY);
+         this.lastUtilityUse.put(player.getUniqueId(), now);
+         this.openMenuUi(player);
+         this.scheduleRestore(player);
+      } else if ("friend_book".equals(id) && clicked) {
          event.setCancelled(true);
          event.setUseItemInHand(Event.Result.DENY);
          // Deny the interacted block too: right-clicking a container with the
@@ -499,14 +506,7 @@ final class UtilityItemsFeature implements Listener {
       for (int slot = 0; slot < contents.length; slot++) {
          if (this.isMifronItem(contents[slot], id)) player.getInventory().setItem(slot, null);
       }
-   }
-
-   private ItemStack createStatusBook() {
-      return this.createMifronItem(Material.NETHER_STAR, "friend_book", ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "右クリック: ステータス UI"));
-   }
-
-   private ItemStack createQuestBook() {
-      return this.createMifronItem(Material.KNOWLEDGE_BOOK, "quest_book", ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "右クリック: クエスト UI"));
+      if (this.isMifronItem(player.getInventory().getItemInOffHand(), id)) player.getInventory().setItemInOffHand(null);
    }
 
    private ItemStack createMifronItem(Material material, String id, String name, List<String> lore) {

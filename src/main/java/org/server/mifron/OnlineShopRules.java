@@ -1,5 +1,6 @@
 package org.server.mifron;
 
+import java.util.Locale;
 import org.bukkit.Material;
 
 final class OnlineShopRules {
@@ -84,5 +85,51 @@ final class OnlineShopRules {
       long cap = Math.max(0L, capSeconds);
       if (seconds <= 0L) return seconds;
       return Math.min(seconds, cap);
+   }
+
+   /** Enchanted-book price scales with level; treasure enchantments cost double. */
+   static int enchantedBookPrice(int level, boolean treasure) {
+      int base = Math.max(1, level) * 120;
+      return treasure ? base * 2 : base;
+   }
+
+   /** Potion price by container, with a bonus for strong/extended effects. */
+   static int potionPrice(String containerMaterial, boolean strongOrLong) {
+      int base = switch (containerMaterial) {
+         case "SPLASH_POTION" -> 80;
+         case "LINGERING_POTION" -> 110;
+         case "TIPPED_ARROW" -> 40;
+         default -> 60;
+      };
+      return strongOrLong ? base + 40 : base;
+   }
+
+   /** SHARP -> Sharp, STRONG_HEALING -> Strong Healing. Pure string helper. */
+   static String prettyVariantName(String raw) {
+      if (raw == null || raw.isBlank()) return "";
+      String[] parts = raw.toLowerCase(Locale.ROOT).split("_");
+      StringBuilder out = new StringBuilder();
+      for (String part : parts) {
+         if (part.isEmpty()) continue;
+         if (out.length() > 0) out.append(' ');
+         out.append(Character.toUpperCase(part.charAt(0)));
+         if (part.length() > 1) out.append(part.substring(1));
+      }
+      return out.toString();
+   }
+
+   static String romanLevel(int level) {
+      return switch (Math.max(1, Math.min(10, level))) {
+         case 1 -> "I";
+         case 2 -> "II";
+         case 3 -> "III";
+         case 4 -> "IV";
+         case 5 -> "V";
+         case 6 -> "VI";
+         case 7 -> "VII";
+         case 8 -> "VIII";
+         case 9 -> "IX";
+         default -> "X";
+      };
    }
 }

@@ -22,10 +22,25 @@ abstract class MifronPart11x1 extends MifronPart11 {
       if (tab != null && tab.startsWith("kills")) this.mifron().fillKillsTab(player, inventory, this.mifron().tabPage(tab, "kills"));
       else if (tab != null && tab.startsWith("titles")) this.mifron().fillTitlesTab(player, inventory, this.mifron().tabPage(tab, "titles"));
       else if ("reincarnation".equals(tab)) this.mifron().fillReincarnationTab(player, inventory);
+      else if (tab != null && tab.startsWith("quests")) this.fillStatusQuestTab(player, inventory, tab);
       else this.mifron().fillProgressTab(player, inventory, this.mifron().tabPage(tab == null ? "progress" : tab, "progress"));
       inventory.setItem(53, this.mifron().actionItem(Material.ARROW, "\u00a7f\u623b\u308b", List.of(), "friend_status_back", null));
       this.mifron().fillEmptyGuiSlots(inventory);
       player.openInventory(inventory);
+   }
+
+   /** Quests live inside the Status UI now: categories or the list of one type. */
+   protected void fillStatusQuestTab(Player player, Inventory inventory, String tab) {
+      this.questService.ensurePeriods(player);
+      this.siteQuestService.refreshIfStale();
+      this.questService.registerSiteQuests(this.siteQuestService.mappedDefinitions());
+      String key = tab.startsWith("quests:") ? tab.substring("quests:".length()) : "";
+      if (key.isBlank() || "categories".equalsIgnoreCase(key)) {
+         this.fillQuestCategoryTab(inventory);
+         return;
+      }
+      QuestType type = this.questTypeFromTab(tab);
+      if (!this.fillSiteQuestListTab(player, inventory, type)) this.fillQuestListTab(player, inventory, type);
    }
 
    protected void fillStatusTabs(Inventory inventory, String activeTab) {
@@ -34,6 +49,7 @@ abstract class MifronPart11x1 extends MifronPart11 {
          case "reincarnation" -> this.mifron().named(Material.NETHER_STAR, "\u00a76\u8ee2\u751f", List.of());
          case "titles" -> this.mifron().named(Material.NAME_TAG, "\u00a76\u79f0\u53f7", List.of());
          case "kills" -> this.mifron().named(Material.ZOMBIE_SPAWN_EGG, "\u00a76\u8a0e\u4f10", List.of());
+         case "quests" -> this.mifron().named(Material.KNOWLEDGE_BOOK, "\u00a76\u30af\u30a8\u30b9\u30c8", List.of());
          default -> this.mifron().named(Material.BOOK, "\u00a76\u9032\u6357", List.of());
       });
    }
@@ -43,6 +59,7 @@ abstract class MifronPart11x1 extends MifronPart11 {
       if (activeTab.startsWith("progress")) return "progress";
       if (activeTab.startsWith("titles")) return "titles";
       if (activeTab.startsWith("kills")) return "kills";
+      if (activeTab.startsWith("quests")) return "quests";
       return "reincarnation".equals(activeTab) ? "reincarnation" : "progress";
    }
 

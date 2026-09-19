@@ -47,14 +47,14 @@ abstract class MifronPart13 extends MifronPart12x2 {
    private static final Set<String> REMOVED_TELEPORT_KEYS = Set.of("hub", "market", "creative", "build");
 
    void openTeleportUi(Player player) {
-      Inventory inventory = Bukkit.createInventory(player, org.bukkit.event.inventory.InventoryType.DROPPER, Component.text("\u00a75Mifron Teleporter"));
+      Inventory inventory = Bukkit.createInventory(player, 27, Component.text("\u00a75Mifron Teleporter"));
       // Slot 0 is always main.
       inventory.setItem(0, this.mifron().actionItem(this.mifron().serverIconMaterial("servers.main"), "\u00a7amain", List.of(), "teleport", "servers.main"));
       ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
       if (servers != null) {
          int slot = 1;
          for (String key : servers.getKeys(false)) {
-            if (!this.isSafeConfigKey(key) || slot >= 9) continue;
+            if (!this.isSafeConfigKey(key) || slot >= 27) continue;
             if (key.equalsIgnoreCase("main") || REMOVED_TELEPORT_KEYS.contains(key.toLowerCase(Locale.ROOT))) continue;
             inventory.setItem(slot++, this.mifron().actionItem(this.mifron().serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "teleport", "servers." + key));
          }

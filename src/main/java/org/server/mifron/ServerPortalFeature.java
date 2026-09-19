@@ -55,12 +55,8 @@ final class ServerPortalFeature implements Listener {
    private final NamespacedKey frameLabelKey;
    private final NamespacedKey teleporterOptionKey;
    private final NamespacedKey teleporterOwnerKey;
-   private final Map<UUID, Long> portalUseCooldowns = new ConcurrentHashMap<>();
    private final Map<UUID, Location> pendingCoordinateTargets = new ConcurrentHashMap<>();
    private final Map<UUID, String> pendingFrameRenameKeys = new ConcurrentHashMap<>();
-   private final Map<UUID, Integer> teleporterSelections = new ConcurrentHashMap<>();
-   private final Map<UUID, Long> teleporterSelectionExpires = new ConcurrentHashMap<>();
-   private final Map<UUID, List<UUID>> teleporterMenuEntities = new ConcurrentHashMap<>();
 
    ServerPortalFeature(Mifron plugin) {
       this.plugin = plugin;
@@ -147,11 +143,9 @@ final class ServerPortalFeature implements Listener {
                this.plugin.openServerPortalTargetUi(player, this.blockKey(block));
                event.setCancelled(true);
             } else {
-               block.setType(Material.NETHER_PORTAL, false);
-               this.applyServerPortalFacing(block, player);
-               this.setServerPortal(block, true);
-               this.plugin.openServerPortalTargetUi(player, this.blockKey(block));
-               player.sendMessage(ChatColor.GREEN + "サーバーポータルを作成しました。移動先サーバーを選択してください。");
+               // Nether-portal server portals are retired: teleporting now
+               // goes through the teleporter chest UI instead.
+               player.sendMessage(ChatColor.YELLOW + "サーバーポータル機能は廃止されました。テレポーターから移動してください。");
                event.setCancelled(true);
             }
          } else {
@@ -233,17 +227,7 @@ final class ServerPortalFeature implements Listener {
          return;
       }
 
-      this.openDirectTeleporter(player);
-   }
-
-   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-   public void onTeleporterLeftClick(PlayerInteractEvent event) {
-      if (event.getHand() != EquipmentSlot.HAND || !event.getAction().isLeftClick() || !this.isTeleporter(event.getItem())) {
-         return;
-      }
-      if (this.teleporterMenuEntities.containsKey(event.getPlayer().getUniqueId())) {
-         event.setCancelled(true);
-      }
+      this.plugin.openTeleportUi(player);
    }
 
    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -264,58 +248,6 @@ final class ServerPortalFeature implements Listener {
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-   public void onWorldTeleporterHit(EntityDamageByEntityEvent event) {
-      if (!(event.getDamager() instanceof Player player) || !(event.getEntity() instanceof Interaction interaction)) {
-         return;
-      }
-      String owner = MifronPdc.get(interaction.getPersistentDataContainer(), this.teleporterOwnerKey, PersistentDataType.STRING);
-      String key = MifronPdc.get(interaction.getPersistentDataContainer(), this.teleporterOptionKey, PersistentDataType.STRING);
-      if (owner == null || key == null || !owner.equals(player.getUniqueId().toString())) {
-         return;
-      }
-
-      event.setCancelled(true);
-      TeleportDestination destination = this.teleporterDestinations().stream().filter(d -> d.key().equals(key)).findFirst().orElse(null);
-      if (destination == null) {
-         player.sendMessage(ChatColor.RED + "この移動先は現在利用できません。");
-         this.closeWorldTeleporter(player);
-         return;
-      }
-      this.closeWorldTeleporter(player);
-      this.teleportDirect(player, destination);
-   }
-
-   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-   public void onWorldTeleporterRightClick(PlayerInteractEntityEvent event) {
-      if (!(event.getRightClicked() instanceof Interaction interaction)) {
-         return;
-      }
-      String owner = MifronPdc.get(interaction.getPersistentDataContainer(), this.teleporterOwnerKey, PersistentDataType.STRING);
-      if (owner != null && owner.equals(event.getPlayer().getUniqueId().toString())) {
-         event.setCancelled(true);
-         event.getPlayer().sendActionBar(Component.text("左クリックでテレポート", NamedTextColor.GRAY));
-      }
-   }
-
-   private void closeWorldTeleporter(Player player) {
-      if (player == null) {
-         return;
-      }
-      List<UUID> ids = this.teleporterMenuEntities.remove(player.getUniqueId());
-      if (ids == null) {
-         return;
-      }
-      for (UUID id : ids) {
-         for (World world : Bukkit.getWorlds()) {
-            Entity entity = world.getEntity(id);
-            if (entity != null) {
-               entity.remove();
-               break;
-            }
-         }
-      }
-   }
-
    private Material teleporterIcon(TeleportDestination destination) {
       String configured = this.plugin.getConfig().getString("servers." + destination.key() + ".icon", "");
       if (configured != null && !configured.isBlank()) {
@@ -357,186 +289,6 @@ final class ServerPortalFeature implements Listener {
 
       // The inserted eye is only a short visual cue and never remains in the frame.
       this.plugin.getServer().getScheduler().runTask(this.plugin, () -> this.setFrameEye(frame, false));
-   }
-
-   private void openDirectTeleporter(Player player) {
-      List<TeleportDestination> destinations = this.teleporterDestinations();
-      if (destinations.isEmpty()) {
-         player.sendMessage(ChatColor.YELLOW + "テレポーターに利用できる移動先が設定されていません。");
-         return;
-      }
-
-      this.closeWorldTeleporter(player);
-      Location eye = player.getEyeLocation();
-      Vector forward = eye.getDirection().normalize();
-      Vector right = new Vector(-forward.getZ(), 0.0, forward.getX());
-      if (right.lengthSquared() < 0.01) {
-         right = new Vector(1.0, 0.0, 0.0);
-      } else {
-         right.normalize();
-      }
-
-      // Arrange destinations as a HORIZONTAL arc around the player's view.
-      // The old vertical parabola pushed the outer options down and made them hard to aim at.
-      // Keep the arc shallow: outer options move slightly closer to the player instead of vertically away.
-      int columns = Math.min(8, Math.max(1, destinations.size()));
-      int rows = (destinations.size() + columns - 1) / columns;
-      double spacing = columns >= 7 ? 0.90 : 1.05;
-      Location center = eye.clone().add(forward.clone().multiply(3.05)).add(0.0, -0.28, 0.0);
-      Location origin = eye.clone().add(forward.clone().multiply(1.05)).add(0.0, -0.38, 0.0);
-      List<UUID> spawned = new ArrayList<>();
-      List<TeleporterAnimatedEntity> animated = new ArrayList<>();
-
-      for (int i = 0; i < destinations.size(); i++) {
-         TeleportDestination destination = destinations.get(i);
-         int row = i / columns;
-         int col = i % columns;
-         int rowCount = Math.min(columns, destinations.size() - row * columns);
-         double horizontal = (col - (rowCount - 1) / 2.0) * spacing;
-
-         // Horizontal semicircle/fan: the center sits furthest forward and the left/right edges
-         // bend toward the player. Vertical placement stays almost flat for easy clicking.
-         double maxHalfWidth = Math.max(spacing, (rowCount - 1) * spacing / 2.0);
-         double normalized = Math.min(1.0, Math.abs(horizontal) / maxHalfWidth);
-         double depthTowardPlayer = 1.10 * normalized * normalized;
-         // Keep every option in a row at exactly the same Y level.
-         // Curvature is depth-only, so the selector bends horizontally around the player
-         // without creating an unwanted vertical parabola.
-         double vertical = (rows - 1) * 0.64 - row * 1.28;
-         Location iconLocation = center.clone()
-            .add(right.clone().multiply(horizontal))
-            .add(forward.clone().multiply(-depthTowardPlayer))
-            .add(0.0, vertical, 0.0);
-         int delay = Math.min(6, Math.min(col, rowCount - 1 - col));
-
-         Interaction hitbox = (Interaction)player.getWorld().spawnEntity(origin, EntityType.INTERACTION);
-         hitbox.setInteractionWidth(0.08F);
-         hitbox.setInteractionHeight(0.08F);
-         hitbox.setResponsive(true);
-         hitbox.setPersistent(false);
-         hitbox.getPersistentDataContainer().set(this.teleporterOptionKey, PersistentDataType.STRING, destination.key());
-         hitbox.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
-         spawned.add(hitbox.getUniqueId());
-         animated.add(new TeleporterAnimatedEntity(hitbox.getUniqueId(), origin.clone(), iconLocation.clone(), 1.18F, 1.38F, delay));
-
-         ItemDisplay icon = (ItemDisplay)player.getWorld().spawnEntity(origin.clone().add(0.0, 0.18, 0.0), EntityType.ITEM_DISPLAY);
-         icon.setItemStack(new ItemStack(this.teleporterIcon(destination)));
-         icon.setBillboard(Display.Billboard.CENTER);
-         icon.setViewRange(0.95F);
-         icon.setShadowStrength(0.6F);
-         icon.setPersistent(false);
-         icon.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
-         spawned.add(icon.getUniqueId());
-         animated.add(new TeleporterAnimatedEntity(icon.getUniqueId(), origin.clone().add(0.0, 0.18, 0.0), iconLocation.clone().add(0.0, 0.18, 0.0), 0.0F, 0.0F, delay));
-
-         TextDisplay label = (TextDisplay)player.getWorld().spawnEntity(origin.clone().add(0.0, -0.48, 0.0), EntityType.TEXT_DISPLAY);
-         label.text(Component.text(destination.name(), NamedTextColor.WHITE));
-         label.setBillboard(Display.Billboard.CENTER);
-         label.setSeeThrough(true);
-         label.setShadowed(true);
-         label.setViewRange(0.95F);
-         label.setPersistent(false);
-         label.getPersistentDataContainer().set(this.teleporterOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
-         spawned.add(label.getUniqueId());
-         animated.add(new TeleporterAnimatedEntity(label.getUniqueId(), origin.clone().add(0.0, -0.48, 0.0), iconLocation.clone().add(0.0, -0.48, 0.0), 0.0F, 0.0F, delay));
-      }
-
-      this.teleporterMenuEntities.put(player.getUniqueId(), spawned);
-      this.animateWorldTeleporter(player, animated);
-      player.sendActionBar(Component.text("移動したいアイテムを左クリック", NamedTextColor.LIGHT_PURPLE));
-      player.playSound(player.getLocation(), Sound.BLOCK_END_PORTAL_FRAME_FILL, 0.65F, 1.45F);
-      player.spawnParticle(Particle.REVERSE_PORTAL, origin, 28, 0.22, 0.30, 0.22, 0.025);
-
-      this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> this.closeWorldTeleporter(player), 20L * 12L);
-   }
-
-   private void animateWorldTeleporter(Player player, List<TeleporterAnimatedEntity> animated) {
-      // Staggered "fan-out" animation: each destination launches from the teleporter,
-      // rises on a short arc, then settles into place. This avoids the previous flat slide.
-      final int travelTicks = 10;
-      final int maxDelay = animated.stream().mapToInt(TeleporterAnimatedEntity::delayTicks).max().orElse(0);
-      final int[] tick = new int[]{0};
-      this.plugin.getServer().getScheduler().runTaskTimer(this.plugin, task -> {
-         if (!player.isOnline() || !this.teleporterMenuEntities.containsKey(player.getUniqueId())) {
-            task.cancel();
-            return;
-         }
-
-         int globalTick = tick[0]++;
-         boolean finished = true;
-         for (TeleporterAnimatedEntity moving : animated) {
-            double raw = (globalTick - moving.delayTicks()) / (double)travelTicks;
-            if (raw < 0.0) {
-               finished = false;
-               continue;
-            }
-            raw = Math.min(1.0, raw);
-            if (raw < 1.0) {
-               finished = false;
-            }
-
-            Entity entity = Bukkit.getEntity(moving.entityId());
-            if (entity == null) {
-               continue;
-            }
-
-            // Fast launch, soft landing, with a small vertical arc.
-            double eased = 1.0 - Math.pow(1.0 - raw, 3.0);
-            double arc = Math.sin(Math.PI * raw) * 0.48;
-            Location from = moving.from();
-            Location to = moving.to();
-            Location current = from.clone().add(
-               (to.getX() - from.getX()) * eased,
-               (to.getY() - from.getY()) * eased + arc,
-               (to.getZ() - from.getZ()) * eased
-            );
-            entity.teleport(current);
-            if (entity instanceof Interaction interaction) {
-               if (raw >= 1.0) {
-                  interaction.setInteractionWidth(moving.finalWidth());
-                  interaction.setInteractionHeight(moving.finalHeight());
-               } else {
-                  interaction.setInteractionWidth(0.08F);
-                  interaction.setInteractionHeight(0.08F);
-               }
-            }
-         }
-
-         if (globalTick <= maxDelay && globalTick % 2 == 0) {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.28F, 1.05F + globalTick * 0.06F);
-         }
-         if (finished || globalTick > travelTicks + maxDelay + 2) {
-            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.55F, 1.75F);
-            player.spawnParticle(Particle.PORTAL, player.getEyeLocation().add(player.getEyeLocation().getDirection().multiply(2.4)), 18, 0.8, 0.45, 0.25, 0.02);
-            task.cancel();
-         }
-      }, 0L, 1L);
-   }
-
-   private void cycleJavaTeleporter(Player player, int delta) {
-      List<TeleportDestination> destinations = this.teleporterDestinations();
-      if (destinations.isEmpty()) {
-         player.sendMessage(ChatColor.YELLOW + "テレポーターに利用できる移動先が設定されていません。");
-         return;
-      }
-
-      long now = System.currentTimeMillis();
-      boolean active = this.teleporterSelectionExpires.getOrDefault(player.getUniqueId(), 0L) > now;
-      int current = active ? this.teleporterSelections.getOrDefault(player.getUniqueId(), 0) : 0;
-      int next = Math.floorMod(current + delta, destinations.size());
-      this.teleporterSelections.put(player.getUniqueId(), next);
-      this.teleporterSelectionExpires.put(player.getUniqueId(), now + 12000L);
-      this.showJavaTeleporterSelection(player, destinations);
-   }
-
-   private void showJavaTeleporterSelection(Player player, List<TeleportDestination> destinations) {
-      int index = Math.max(0, Math.min(this.teleporterSelections.getOrDefault(player.getUniqueId(), 0), destinations.size() - 1));
-      TeleportDestination destination = destinations.get(index);
-      String subtitle = ChatColor.DARK_GRAY + "◀  " + ChatColor.AQUA + "[" + (index + 1) + "/" + destinations.size() + "] " + ChatColor.WHITE + destination.name() + ChatColor.DARK_GRAY + "  ▶";
-      player.sendTitle(ChatColor.LIGHT_PURPLE + "◆ TELEPORTER ◆", subtitle, 0, 38, 6);
-      player.sendActionBar(Component.text("◀ 左クリック   |   Shift+右クリック: 移動   |   右クリック ▶", NamedTextColor.GRAY));
-      player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.55F, 1.25F);
-      player.spawnParticle(Particle.PORTAL, player.getLocation().add(0.0, 1.0, 0.0), 8, 0.3, 0.45, 0.3, 0.02);
    }
 
    private List<TeleportDestination> teleporterDestinations() {
@@ -595,8 +347,8 @@ final class ServerPortalFeature implements Listener {
    }
 
    private void clearTeleporterSelection(Player player) {
-      this.teleporterSelections.remove(player.getUniqueId());
-      this.teleporterSelectionExpires.remove(player.getUniqueId());
+      // Legacy selection state was removed with the world-entity teleporter;
+      // kept as a no-op for the remaining call sites.
    }
 
    private boolean hasFrameTarget(Block frame) {
@@ -647,10 +399,6 @@ final class ServerPortalFeature implements Listener {
       UUID uuid = event.getPlayer().getUniqueId();
       this.pendingCoordinateTargets.remove(uuid);
       this.pendingFrameRenameKeys.remove(uuid);
-      this.teleporterSelections.remove(uuid);
-      this.teleporterSelectionExpires.remove(uuid);
-      this.portalUseCooldowns.remove(uuid);
-      this.closeWorldTeleporter(event.getPlayer());
    }
 
    private String sanitizeFrameName(String raw) {
@@ -679,62 +427,6 @@ final class ServerPortalFeature implements Listener {
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-   public void onServerPortalTeleport(PlayerTeleportEvent event) {
-      if (event.getCause() == TeleportCause.NETHER_PORTAL) {
-         if (this.nearestServerPortal(event.getFrom()) != null) {
-            event.setCancelled(true);
-            this.tryUseServerPortal(event.getPlayer(), true);
-         }
-      }
-   }
-
-   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-   public void onServerPortalMove(PlayerMoveEvent event) {
-      if (event.getTo() != null && !event.getFrom().getBlock().equals(event.getTo().getBlock())) {
-         long now = System.currentTimeMillis();
-         if (this.portalUseCooldowns.getOrDefault(event.getPlayer().getUniqueId(), 0L) > now) {
-            return;
-         }
-         if (event.getTo().getWorld() != null
-            && event.getTo().getWorld().getBlockAt(event.getTo()).getType() != Material.NETHER_PORTAL) {
-            return;
-         }
-         this.tryUseServerPortal(event.getPlayer(), true);
-      }
-   }
-
-   private boolean tryUseServerPortal(Player player, boolean notifyIfUnset) {
-      long now = System.currentTimeMillis();
-      long nextAllowed = this.portalUseCooldowns.getOrDefault(player.getUniqueId(), 0L);
-      if (nextAllowed > now) {
-         return false;
-      }
-
-      Block portal = this.nearestServerPortal(player.getLocation());
-      if (portal == null) {
-         return false;
-      }
-
-      String target = this.serverPortalTarget(portal);
-      if (target != null && !target.isBlank()) {
-         this.portalUseCooldowns.put(player.getUniqueId(), now + 2000L);
-         Block portalBlock = portal;
-         this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
-            if (player.isOnline()) {
-               this.plugin.teleportToConfigLocation(player, target);
-            }
-         });
-         return true;
-      }
-
-      this.portalUseCooldowns.put(player.getUniqueId(), now + 2000L);
-      if (notifyIfUnset) {
-         player.sendMessage(ChatColor.YELLOW + "このサーバーポータルの移動先が未設定です。");
-      }
-
-      return true;
-   }
-
    private void applyServerPortalFacing(Block block, Player player) {
       if (block.getBlockData() instanceof Orientable orientable) {
          double var8 = player.getLocation().getX() - (block.getX() + 0.5);
@@ -1053,6 +745,4 @@ final class ServerPortalFeature implements Listener {
    private record TeleportDestination(String key, String name, Location location) {
    }
 
-   private record TeleporterAnimatedEntity(UUID entityId, Location from, Location to, float finalWidth, float finalHeight, int delayTicks) {
-   }
 }

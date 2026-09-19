@@ -64,7 +64,17 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
       Map.entry("SPIDER", 10), Map.entry("STRAY", 15), Map.entry("SULFUR_CUBE", 25), Map.entry("TRADER_LLAMA", 5),
       Map.entry("VEX", 30), Map.entry("VINDICATOR", 45), Map.entry("WARDEN", 250), Map.entry("WITCH", 25),
       Map.entry("WITHER", 650), Map.entry("WITHER_SKELETON", 30), Map.entry("ZOGLIN", 40), Map.entry("ZOMBIE", 10),
-      Map.entry("ZOMBIE_VILLAGER", 10), Map.entry("ZOMBIFIED_PIGLIN", 8)
+      Map.entry("ZOMBIE_VILLAGER", 10), Map.entry("ZOMBIFIED_PIGLIN", 8),
+      // Friendly/passive mobs also pay a small reward so they count as hunt targets.
+      Map.entry("ALLAY", 6), Map.entry("ARMADILLO", 4), Map.entry("AXOLOTL", 5), Map.entry("BAT", 3),
+      Map.entry("CAMEL", 5), Map.entry("CAT", 4), Map.entry("CHICKEN", 3), Map.entry("COD", 3),
+      Map.entry("COW", 4), Map.entry("DONKEY", 4), Map.entry("FOX", 5), Map.entry("FROG", 4),
+      Map.entry("GLOW_SQUID", 4), Map.entry("HORSE", 5), Map.entry("IRON_GOLEM", 15), Map.entry("MOOSHROOM", 5),
+      Map.entry("MULE", 4), Map.entry("OCELOT", 5), Map.entry("PANDA", 5), Map.entry("PARROT", 5),
+      Map.entry("PIG", 3), Map.entry("PUFFERFISH", 4), Map.entry("RABBIT", 3), Map.entry("SALMON", 3),
+      Map.entry("SHEEP", 3), Map.entry("SNIFFER", 8), Map.entry("SNOW_GOLEM", 5), Map.entry("SQUID", 3),
+      Map.entry("STRIDER", 5), Map.entry("TADPOLE", 3), Map.entry("TROPICAL_FISH", 3), Map.entry("TURTLE", 5),
+      Map.entry("VILLAGER", 4), Map.entry("WANDERING_TRADER", 6), Map.entry("WOLF", 5)
    );
    protected NamespacedKey mifronItemKey;
    protected NamespacedKey merchantKey;

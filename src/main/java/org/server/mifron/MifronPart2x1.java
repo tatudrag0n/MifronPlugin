@@ -76,8 +76,16 @@ abstract class MifronPart2x1 extends MifronPart2 {
 
    ItemStack createOnlineShopProduct(String id) {
       if (id != null && id.startsWith("item:")) {
-         Material catalog = Material.matchMaterial(id.substring(5));
-         return catalog == null ? null : new ItemStack(catalog);
+         String body = id.substring(5);
+         int hash = body.indexOf('#');
+         if (hash < 0) {
+            Material catalog = Material.matchMaterial(body);
+            return catalog == null ? null : new ItemStack(catalog);
+         }
+         Material material = Material.matchMaterial(body.substring(0, hash));
+         if (material == null) return null;
+         ItemStack variant = this.createShopVariantProduct(material, body.substring(hash + 1));
+         return variant == null ? new ItemStack(material) : variant;
       }
       if ("shelf_shop_wand".equalsIgnoreCase(id)) return this.utilityItemsFeature.createShopWand(ShopWandType.SHELF);
       if ("barrel_shop_wand".equalsIgnoreCase(id)) return this.utilityItemsFeature.createShopWand(ShopWandType.BARREL);
@@ -89,8 +97,52 @@ abstract class MifronPart2x1 extends MifronPart2 {
       return material == null ? null : new ItemStack(material);
    }
 
-   protected ItemStack createShopBlockItem(String shopType, Material material, String displayName) {
-      ItemStack item = new ItemStack(material);
+   /**
+    * Builds variant shop products: enchanted books ({@code ENCHANT:LEVEL}) and
+    * potions ({@code POTION_TYPE_NAME}). Returns null when the variant is
+    * unknown so callers fall back to the plain material.
+    */
+   private ItemStack createShopVariantProduct(Material material, String variant) {
+      if (material == Material.ENCHANTED_BOOK) {
+         int colon = variant.lastIndexOf(':');
+         if (colon <= 0) return null;
+         org.bukkit.enchantments.Enchantment enchantment =
+            org.bukkit.Registry.ENCHANTMENT.get(org.bukkit.NamespacedKey.minecraft(variant.substring(0, colon).toLowerCase(java.util.Locale.ROOT)));
+         int level;
+         try {
+            level = Integer.parseInt(variant.substring(colon + 1));
+         } catch (NumberFormatException e) {
+            return null;
+         }
+         if (enchantment == null || level < 1 || level > enchantment.getMaxLevel()) return null;
+         ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
+         if (book.getItemMeta() instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta meta) {
+            meta.addStoredEnchant(enchantment, level, true);
+            book.setItemMeta(meta);
+            return book;
+         }
+         return null;
+      }
+      if (material == Material.POTION || material == Material.SPLASH_POTION
+         || material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW) {
+         org.bukkit.potion.PotionType type;
+         try {
+            type = org.bukkit.potion.PotionType.valueOf(variant);
+         } catch (IllegalArgumentException e) {
+            return null;
+         }
+         ItemStack potion = new ItemStack(material);
+         if (potion.getItemMeta() instanceof org.bukkit.inventory.meta.PotionMeta meta) {
+            meta.setBasePotionType(type);
+            potion.setItemMeta(meta);
+            return potion;
+         }
+         return null;
+      }
+      return null;
+   }
+
+   protected ItemStack createShopBlockItem(String shopType, Material material, String displayName) {      ItemStack item = new ItemStack(material);
       var meta = item.getItemMeta();
       if (meta != null) {
          meta.setDisplayName(displayName);

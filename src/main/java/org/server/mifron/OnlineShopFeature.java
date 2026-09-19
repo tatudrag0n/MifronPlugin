@@ -27,8 +27,13 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.Registry;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionType;
 
 final class OnlineShopFeature implements Listener {
    static final String TITLE = "\u00a7bMifron OnlineShop";
@@ -48,7 +53,19 @@ final class OnlineShopFeature implements Listener {
    // The overlay is a shop-GUI visual; it must be cleared when the GUI closes
    // so bought food/pearls/arrows stay usable.
    private final Map<UUID, Set<Material>> overlaid = new HashMap<>();
-   private final EnumMap<Category, List<Material>> catalog = new EnumMap<>(Category.class);
+   private final EnumMap<Category, List<ShopProduct>> catalog = new EnumMap<>(Category.class);
+   private final Map<String, ShopProduct> productIndex = new HashMap<>();
+
+   /**
+    * One sellable product. Plain items have an empty variant; enchanted books
+    * use {@code ENCHANT:LEVEL} (e.g. {@code SHARPNESS:5}) and potions use the
+    * potion type name (e.g. {@code STRONG_HEALING}).
+    */
+   record ShopProduct(Material material, String variant, String label, int price) {
+      String id() {
+         return "item:" + material.name() + (variant.isEmpty() ? "" : "#" + variant);
+      }
+   }
 
    enum Category {
       BLOCKS(Material.BRICKS, "\u5efa\u6750"),
@@ -74,11 +91,54 @@ final class OnlineShopFeature implements Listener {
 
    void rebuildCatalog() {
       for (Category category : Category.values()) this.catalog.put(category, new ArrayList<>());
+      this.productIndex.clear();
       for (Material material : Material.values()) {
-         if (this.isPurchasable(material)) this.catalog.get(this.categoryOf(material)).add(material);
+         if (!this.isPurchasable(material) || isVariantMaterial(material)) continue;
+         this.addProduct(new ShopProduct(material, "", material.name(), this.priceOf(material)));
       }
-      for (List<Material> list : this.catalog.values()) list.sort(Comparator.comparing(Material::name));
+      this.addEnchantedBooks();
+      this.addPotions();
+      for (List<ShopProduct> list : this.catalog.values()) list.sort(Comparator.comparing(ShopProduct::id));
       this.rebuildConfiguredCooldowns();
+   }
+
+   private void addProduct(ShopProduct product) {
+      this.catalog.get(this.categoryOf(product.material())).add(product);
+      this.productIndex.put(product.id(), product);
+   }
+
+   /** Variant materials are expanded per-effect below, not sold as blanks. */
+   static boolean isVariantMaterial(Material material) {
+      return material == Material.ENCHANTED_BOOK
+         || material == Material.POTION
+         || material == Material.SPLASH_POTION
+         || material == Material.LINGERING_POTION
+         || material == Material.TIPPED_ARROW;
+   }
+
+   private void addEnchantedBooks() {
+      for (Enchantment enchantment : Registry.ENCHANTMENT) {
+         String key = enchantment.getKey().getKey().toUpperCase(java.util.Locale.ROOT);
+         for (int level = 1; level <= enchantment.getMaxLevel(); level++) {
+            int price = OnlineShopRules.enchantedBookPrice(level, enchantment.isTreasure());
+            String label = OnlineShopRules.prettyVariantName(enchantment.getKey().getKey())
+               + " " + OnlineShopRules.romanLevel(level);
+            this.addProduct(new ShopProduct(Material.ENCHANTED_BOOK, key + ":" + level, label, price));
+         }
+      }
+   }
+
+   private void addPotions() {
+      Material[] containers = {Material.POTION, Material.SPLASH_POTION, Material.LINGERING_POTION, Material.TIPPED_ARROW};
+      for (Material container : containers) {
+         for (PotionType type : PotionType.values()) {
+            if ("UNCRAFTABLE".equals(type.name())) continue;
+            boolean strongOrLong = type.name().startsWith("STRONG_") || type.name().startsWith("LONG_");
+            int price = OnlineShopRules.potionPrice(container.name(), strongOrLong);
+            String label = OnlineShopRules.prettyVariantName(type.name());
+            this.addProduct(new ShopProduct(container, type.name(), label, price));
+         }
+      }
    }
 
    private void rebuildConfiguredCooldowns() {
@@ -144,19 +204,21 @@ final class OnlineShopFeature implements Listener {
    }
 
    private void ensureAccessItem(Player player) {
+      // The standalone shop door is retired: the menu item owns shop access
+      // now. Remove leftovers instead of handing new ones out.
       PlayerInventory inventory = player.getInventory();
-      boolean has = false;
-      for (ItemStack item : inventory.getContents()) {
-         if (!this.isAccessItem(item)) continue;
-         has = true;
-         if (item.getType() != Material.IRON_DOOR) item.setType(Material.IRON_DOOR);
+      for (int slot = 0; slot < inventory.getContents().length; slot++) {
+         if (this.isAccessItem(inventory.getContents()[slot])) inventory.setItem(slot, null);
       }
-      ItemStack offhand = inventory.getItemInOffHand();
-      if (this.isAccessItem(offhand)) {
-         has = true;
-         if (offhand.getType() != Material.IRON_DOOR) offhand.setType(Material.IRON_DOOR);
+      if (this.isAccessItem(inventory.getItemInOffHand())) inventory.setItemInOffHand(null);
+   }
+
+   void openShop(Player player) {
+      if (!this.inSurvivalWorld(player)) {
+         player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
+         return;
       }
-      if (!has) inventory.addItem(this.createAccessItem());
+      player.openInventory(this.createInventory(player));
    }
 
    ItemStack createAccessItem() {
@@ -225,24 +287,24 @@ final class OnlineShopFeature implements Listener {
     * shop screen keeps category grouping while exposing every purchasable item
     * through paging (no category tabs, no unreachable products).
     */
-   private List<Material> flatProducts() {
-      List<Material> flat = new ArrayList<>();
+   private List<ShopProduct> flatProducts() {
+      List<ShopProduct> flat = new ArrayList<>();
       for (Category category : Category.values()) flat.addAll(this.catalog.getOrDefault(category, List.of()));
       return flat;
    }
 
    private Inventory createInventory(Player player) {
-      List<Material> flat = this.flatProducts();
+      List<ShopProduct> flat = this.flatProducts();
       int maxPage = Math.max(0, (flat.size() - 1) / PAGE_SIZE);
       int page = Math.max(0, Math.min(maxPage, this.pages.getOrDefault(player.getUniqueId(), 0)));
       this.pages.put(player.getUniqueId(), page);
       Inventory inventory = Bukkit.createInventory(player, 54, TITLE);
       int start = page * PAGE_SIZE;
-      List<Material> shown = new ArrayList<>();
+      List<ShopProduct> shown = new ArrayList<>();
       for (int i = 0; i < PAGE_SIZE && start + i < flat.size(); i++) {
-         Material material = flat.get(start + i);
-         inventory.setItem(i, this.catalogIcon(player, material));
-         shown.add(material);
+         ShopProduct product = flat.get(start + i);
+         inventory.setItem(i, this.catalogIcon(player, product));
+         shown.add(product);
       }
       if (page > 0) inventory.setItem(PREV_SLOT, this.actionIcon(Material.ARROW, "\u00a7e\u524d\u306e\u30da\u30fc\u30b8", "page:prev"));
       inventory.setItem(PAGE_SLOT, this.actionIcon(Material.PAPER, "\u00a7e\u30da\u30fc\u30b8 " + (page + 1) + " / " + (maxPage + 1), null));
@@ -251,13 +313,14 @@ final class OnlineShopFeature implements Listener {
       return inventory;
    }
 
-   private void applyCooldownOverlay(Player player, List<Material> materials) {
+   private void applyCooldownOverlay(Player player, List<ShopProduct> products) {
       // The vanilla item cooldown is the single source of truth and must
       // survive closing/reopening the GUI. Earlier code zeroed it from
       // InventoryCloseEvent, which ran right after createInventory set it and
       // made the cooldown animation disappear.
-      for (Material material : materials) {
-         long remaining = this.remainingSeconds(player, "item:" + material.name());
+      for (ShopProduct product : products) {
+         Material material = product.material();
+         long remaining = this.remainingSeconds(player, product.id());
          // Only overlay an active shop cooldown. Writing a zero would wipe a
          // genuine vanilla cooldown (ender pearl and friends) for no reason.
          if (!shouldOverlayCooldown(remaining)) continue;
@@ -274,16 +337,16 @@ final class OnlineShopFeature implements Listener {
       return remainingSeconds > 0;
    }
 
-   private ItemStack catalogIcon(Player player, Material material) {
-      String id = "item:" + material.name();
-      ItemStack icon = new ItemStack(material);
+   private ItemStack catalogIcon(Player player, ShopProduct product) {
+      String id = product.id();
+      ItemStack icon = this.displayStack(product);
       ItemMeta meta = icon.getItemMeta();
       if (meta != null) {
-         int price = this.priceOf(material);
+         int price = product.price();
          long remaining = this.remainingSeconds(player, id);
-         meta.setDisplayName("\u00a7f" + material.name());
+         meta.setDisplayName("\u00a7f" + product.label());
          meta.setLore(List.of(
-            "\u00a77" + this.categoryOf(material).label,
+            "\u00a77" + this.categoryOf(product.material()).label,
             "\u00a7e\u4fa1\u683c: " + price + " MP",
             remaining > 0 ? "\u00a7c\u30af\u30fc\u30eb\u30c0\u30a6\u30f3\u6b8b\u308a " + remaining + " \u79d2" : "\u00a7a\u30af\u30ea\u30c3\u30af\u3067\u8cfc\u5165",
             "\u00a78\u8ca9\u58f2\u306e\u307f"
@@ -292,6 +355,13 @@ final class OnlineShopFeature implements Listener {
          icon.setItemMeta(meta);
       }
       return icon;
+   }
+
+   /** GUI icon that previews the exact variant (enchanted book / potion type). */
+   private ItemStack displayStack(ShopProduct product) {
+      if (product.variant().isEmpty()) return new ItemStack(product.material());
+      ItemStack stack = this.plugin.createOnlineShopProduct(product.id());
+      return stack == null ? new ItemStack(product.material()) : stack;
    }
 
    private ItemStack actionIcon(Material material, String name, String action) {
@@ -324,9 +394,10 @@ final class OnlineShopFeature implements Listener {
          player.sendMessage(ChatColor.RED + "\u8cfc\u5165\u30af\u30fc\u30eb\u30c0\u30a6\u30f3\u4e2d\u3067\u3059\u3002\u6b8b\u308a " + remaining + " \u79d2");
          return;
       }
-      Material material = Material.matchMaterial(id.substring(5));
-      if (material == null || !this.isPurchasable(material)) return;
-      int price = this.priceOf(material);
+      ShopProduct listed = this.productIndex.get(id);
+      if (listed == null) return;
+      Material material = listed.material();
+      int price = listed.price();
       ItemStack product = this.plugin.createOnlineShopProduct(id);
       if (product == null) return;
       if (!this.plugin.canReceiveOnlineShopProduct(player, product)) {
@@ -353,12 +424,12 @@ final class OnlineShopFeature implements Listener {
          player.sendMessage(ChatColor.RED + "\u30a2\u30a4\u30c6\u30e0\u3092\u6e21\u305b\u307e\u305b\u3093\u3067\u3057\u305f\u3002MP\u3092\u8fd4\u5374\u3057\u307e\u3057\u305f\u3002");
          return;
       }
-      long cooldownSeconds = this.cooldownSecondsFor(material);
+      long cooldownSeconds = this.cooldownSecondsFor(material, price);
       long until = OnlineShopRules.cooldownDeadline(System.currentTimeMillis(), cooldownSeconds);
       this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(id, until);
       this.plugin.data().set("online-shop-cooldowns." + player.getUniqueId() + "." + id, until);
       this.plugin.queueDataSave();
-      player.sendMessage(ChatColor.GREEN + "\u8cfc\u5165\u3057\u307e\u3057\u305f: " + material.name() + " (" + price + " MP)");
+      player.sendMessage(ChatColor.GREEN + "\u8cfc\u5165\u3057\u307e\u3057\u305f: " + listed.label() + " (" + price + " MP)");
       player.openInventory(this.createInventory(player));
    }
 
@@ -424,13 +495,13 @@ final class OnlineShopFeature implements Listener {
     * arrows, thrown projectiles, ...) are capped low so bought items stay
     * usable right away.
     */
-   private long cooldownSecondsFor(Material material) {
+   private long cooldownSecondsFor(Material material, int price) {
       Long explicit = this.configuredCooldowns.get(material.name());
       long seconds;
       if (explicit != null) seconds = explicit;
       else {
          String rarity = this.configuredRarities.get(material.name());
-         if (rarity == null || rarity.isBlank()) rarity = this.rarityOf(this.priceOf(material));
+         if (rarity == null || rarity.isBlank()) rarity = this.rarityOf(price);
          seconds = OnlineShopRules.cooldownSeconds(rarity);
       }
       if (OnlineShopRules.isQuickConsumable(material.name(), material.isEdible())) {

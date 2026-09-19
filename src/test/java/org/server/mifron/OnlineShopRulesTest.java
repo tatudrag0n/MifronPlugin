@@ -56,4 +56,31 @@ class OnlineShopRulesTest {
       assertEquals(8L, OnlineShopRules.applyConsumableCap(8L, 10L));
       assertEquals(0L, OnlineShopRules.applyConsumableCap(0L, 10L));
    }
+
+   @Test
+   void enchantedBookPriceScalesWithLevelAndTreasure() {
+      assertEquals(120, OnlineShopRules.enchantedBookPrice(1, false));
+      assertEquals(600, OnlineShopRules.enchantedBookPrice(5, false));
+      assertEquals(240, OnlineShopRules.enchantedBookPrice(1, true));
+      assertEquals(1200, OnlineShopRules.enchantedBookPrice(5, true));
+   }
+
+   @Test
+   void potionPriceVariesByContainerAndStrength() {
+      assertEquals(60, OnlineShopRules.potionPrice("POTION", false));
+      assertEquals(100, OnlineShopRules.potionPrice("POTION", true));
+      assertEquals(80, OnlineShopRules.potionPrice("SPLASH_POTION", false));
+      assertEquals(110, OnlineShopRules.potionPrice("LINGERING_POTION", false));
+      assertEquals(40, OnlineShopRules.potionPrice("TIPPED_ARROW", false));
+      assertEquals(80, OnlineShopRules.potionPrice("TIPPED_ARROW", true));
+   }
+
+   @Test
+   void variantNamesAreHumanReadable() {
+      assertEquals("Sharpness", OnlineShopRules.prettyVariantName("sharpness"));
+      assertEquals("Strong Healing", OnlineShopRules.prettyVariantName("STRONG_HEALING"));
+      assertEquals("V", OnlineShopRules.romanLevel(5));
+      assertEquals("I", OnlineShopRules.romanLevel(1));
+      assertEquals("X", OnlineShopRules.romanLevel(30));
+   }
 }

@@ -1,6 +1,5 @@
 package org.server.mifron;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -40,35 +39,13 @@ abstract class MifronPart11 extends MifronPart10x2 {
       return filter == null || filter.isBlank() || this.mifron().safePlayerName(player).toLowerCase(Locale.ROOT).contains(filter.toLowerCase(Locale.ROOT));
    }
 
-   protected void fillNotificationOrChatBox(Player player, Inventory inventory) {
+   protected void fillChatBoxOnly(Player player, Inventory inventory) {
       UUID chatTarget = this.friendChatService.activeTarget(player.getUniqueId());
-      if (chatTarget != null) {
-         String draft = this.friendChatService.draft(player.getUniqueId());
-         inventory.setItem(7, this.mifron().actionItem(Material.WRITABLE_BOOK, "\u00a7e\u672c\u6587\u5165\u529b", List.of("\u00a77" + (draft.isBlank() ? "\u672a\u5165\u529b" : draft)), "friend_chat_input", chatTarget.toString()));
-         inventory.setItem(8, this.mifron().actionItem(Material.LIME_CONCRETE, "\u00a7a\u9001\u4fe1", List.of(), "friend_chat_send", chatTarget.toString()));
-         inventory.setItem(15, this.mifron().actionItem(Material.BARRIER, "\u00a7c\u30c1\u30e3\u30c3\u30c8\u6b04\u3092\u9589\u3058\u308b", List.of(), "friend_chat_close", chatTarget.toString()));
-         return;
-      }
-      List<ItemStack> notifications = this.notificationItems(player);
-      inventory.setItem(6, this.mifron().named(Material.PAPER, "\u00a7b\u901a\u77e5\u30dc\u30c3\u30af\u30b9", List.of()));
-      if (notifications.isEmpty()) inventory.setItem(15, this.mifron().named(Material.GRAY_STAINED_GLASS_PANE, "\u00a77\u901a\u77e5\u306f\u3042\u308a\u307e\u305b\u3093", List.of()));
-      // Friend row 1 occupies slots 9, 11, 12, 13: writing 7+i there would
-      // bury those buttons, so notification items use the free slots instead.
-      else {
-         int[] slots = {7, 8, 10, 14, 15, 16, 17};
-         for (int i = 0; i < Math.min(notifications.size(), slots.length); i++) inventory.setItem(slots[i], notifications.get(i));
-      }
-   }
-
-   protected List<ItemStack> notificationItems(Player player) {
-      List<ItemStack> items = new ArrayList<>();
-      for (UUID requesterId : this.mifron().getUuidSet(player.getUniqueId(), "requests")) {
-         items.add(this.mifron().actionItem(Material.EMERALD, "\u00a7e" + this.mifron().safePlayerName(Bukkit.getOfflinePlayer(requesterId)) + " \u304b\u3089\u7533\u8acb", List.of(), "friend_accept", requesterId.toString()));
-      }
-      for (String message : this.mifron().getPlayerSection(player.getUniqueId()).getStringList("offline-messages")) {
-         items.add(this.mifron().named(Material.MAP, "\u00a7b\u30d5\u30ec\u30f3\u30c9\u30c1\u30e3\u30c3\u30c8", List.of("\u00a77" + message)));
-      }
-      return items;
+      if (chatTarget == null) return;
+      String draft = this.friendChatService.draft(player.getUniqueId());
+      inventory.setItem(7, this.mifron().actionItem(Material.WRITABLE_BOOK, "\u00a7e\u672c\u6587\u5165\u529b", List.of("\u00a77" + (draft.isBlank() ? "\u672a\u5165\u529b" : draft)), "friend_chat_input", chatTarget.toString()));
+      inventory.setItem(8, this.mifron().actionItem(Material.LIME_CONCRETE, "\u00a7a\u9001\u4fe1", List.of(), "friend_chat_send", chatTarget.toString()));
+      inventory.setItem(15, this.mifron().actionItem(Material.BARRIER, "\u00a7c\u30c1\u30e3\u30c3\u30c8\u6b04\u3092\u9589\u3058\u308b", List.of(), "friend_chat_close", chatTarget.toString()));
    }
 
    protected void fillStatusBox(Player player, Inventory inventory) {

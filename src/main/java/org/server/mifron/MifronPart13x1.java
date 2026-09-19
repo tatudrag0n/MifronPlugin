@@ -115,6 +115,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
       else if (QUEST_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleQuestUiClick(player, event.getCurrentItem()); }
       else if (PROPOSAL_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleProposalUiClick(player, event.getCurrentItem()); }
       else if ("\u00a75Mifron Teleporter".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.handleTeleporterUiItem(player, event.getCurrentItem()); }
+      else if ("\u00a7dMifron Menu".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
       else if ("\u00a76Mifron Merchant".equals(title)) {
          // Every click in the merchant view is cancelled, including bottom
          // (player inventory) clicks: a shift-click there would otherwise move
@@ -162,6 +163,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
       if (PROPOSAL_UI_TITLE.equals(title)
          || "\u00a73Mifron Friends".equals(title)
          || "\u00a72Mifron Status".equals(title)
+         || "\u00a7dMifron Menu".equals(title)
          || QUEST_UI_TITLE.equals(title)
          || "\u00a75Mifron Teleporter".equals(title)
          || "\u00a76Mifron Merchant".equals(title)) { event.setCancelled(true); }
