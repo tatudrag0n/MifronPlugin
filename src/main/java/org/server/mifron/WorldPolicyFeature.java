@@ -69,6 +69,17 @@ final class WorldPolicyFeature implements Listener {
       );
    }
 
+   /**
+    * OPs and mifron.admins have no WorldEdit block-change ceiling anywhere:
+    * lift it on join, on world change, and before every WE command, because
+    * WorldEdit sessions otherwise fall back to its own default (32768).
+    */
+   private void ensureUnlimitedForPrivileged(Player player) {
+      if (player != null && (player.isOp() || player.hasPermission("mifron.admin"))) {
+         this.worldEdit.applyBlockChangeLimit(player, -1);
+      }
+   }
+
    @EventHandler
    public void onJoin(PlayerJoinEvent event) {
       Player player = event.getPlayer();
@@ -77,6 +88,7 @@ final class WorldPolicyFeature implements Listener {
       } else if (!player.isOp() && !player.hasPermission("mifron.admin") && player.getGameMode() == GameMode.CREATIVE) {
          player.setGameMode(GameMode.SURVIVAL);
       }
+      this.ensureUnlimitedForPrivileged(player);
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -129,8 +141,15 @@ final class WorldPolicyFeature implements Listener {
          return;
       }
       Player player = event.getPlayer();
-      if (!this.isCreativeWorld(player.getWorld()) || player.isOp() || player.hasPermission("mifron.admin")) return;
       String raw = event.getMessage().trim().toLowerCase(Locale.ROOT);
+      boolean weCommand = raw.startsWith("//") || raw.startsWith("/worldedit ") || raw.startsWith("/we ") || raw.equals("/we");
+      // Privileged players are re-lifted on every WE command: sessions can be
+      // recreated with WorldEdit's own default cap at any time.
+      if (weCommand && (player.isOp() || player.hasPermission("mifron.admin"))) {
+         this.ensureUnlimitedForPrivileged(player);
+         return;
+      }
+      if (!this.isCreativeWorld(player.getWorld()) || player.isOp() || player.hasPermission("mifron.admin")) return;
       if (raw.startsWith("//")) raw = raw.substring(2);
       else if (raw.startsWith("/worldedit ")) raw = raw.substring("/worldedit ".length()).trim();
       else if (raw.startsWith("/we ")) raw = raw.substring("/we ".length()).trim();
@@ -187,6 +206,7 @@ final class WorldPolicyFeature implements Listener {
       } else {
          this.detachCreative(player);
       }
+      this.ensureUnlimitedForPrivileged(player);
    }
 
    private void enterCreative(Player player) {
