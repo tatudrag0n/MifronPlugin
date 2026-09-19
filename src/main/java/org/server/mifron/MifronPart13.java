@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -42,14 +43,19 @@ abstract class MifronPart13 extends MifronPart12x2 {
       return player;
    }
 
+   /** Removed teleporter destinations: never listed even if present in config. */
+   private static final Set<String> REMOVED_TELEPORT_KEYS = Set.of("hub", "market", "creative", "build");
+
    void openTeleportUi(Player player) {
       Inventory inventory = Bukkit.createInventory(player, org.bukkit.event.inventory.InventoryType.DROPPER, Component.text("\u00a75Mifron Teleporter"));
-      inventory.setItem(0, this.mifron().actionItem(Material.GRASS_BLOCK, "\u00a7a\u4e2d\u592e\u5e83\u5834", List.of(), "teleport", "hub"));
+      // Slot 0 is always main.
+      inventory.setItem(0, this.mifron().actionItem(this.mifron().serverIconMaterial("servers.main"), "\u00a7amain", List.of(), "teleport", "servers.main"));
       ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
       if (servers != null) {
          int slot = 1;
          for (String key : servers.getKeys(false)) {
             if (!this.isSafeConfigKey(key) || slot >= 9) continue;
+            if (key.equalsIgnoreCase("main") || REMOVED_TELEPORT_KEYS.contains(key.toLowerCase(Locale.ROOT))) continue;
             inventory.setItem(slot++, this.mifron().actionItem(this.mifron().serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "teleport", "servers." + key));
          }
       }
@@ -65,6 +71,7 @@ abstract class MifronPart13 extends MifronPart12x2 {
          int slot = 1;
          for (String key : servers.getKeys(false)) {
             if (!this.isSafeConfigKey(key) || slot >= 9) continue;
+            if (REMOVED_TELEPORT_KEYS.contains(key.toLowerCase(Locale.ROOT))) continue;
             inventory.setItem(slot++, this.mifron().actionItem(this.mifron().serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "server_portal_bind", portalKey + "|servers." + key));
          }
       }

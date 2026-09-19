@@ -117,6 +117,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("load text displays", this.textDisplayFeature::load);
       this.mifron().runStartupStep("load FFA", this.ffaManager::load);
       this.mifron().runStartupStep("load athletic", this.athleticManager::load);
+      this.mifron().runStartupStep("load main world ownership", this.mainWorldFeature::load);
       this.mifron().runStartupStep("start auction settlement", this.auctionFeature::start);
       this.mifron().runStartupStep("register Mifron events", this::registerMifronSelfEvents);
       this.mifron().runStartupStep("register chunk protection events", () -> Bukkit.getPluginManager().registerEvents(this.chunkProtectionFeature, this));
@@ -137,6 +138,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register shop block events", () -> Bukkit.getPluginManager().registerEvents(this.shopBlockFeature, this));
       this.mifron().runStartupStep("register quest proposal events", () -> Bukkit.getPluginManager().registerEvents(this.questProposalFeature, this));
       this.mifron().runStartupStep("register world policy events", () -> Bukkit.getPluginManager().registerEvents(this.worldPolicyFeature, this));
+      this.mifron().runStartupStep("register main world events", () -> Bukkit.getPluginManager().registerEvents(this.mainWorldFeature, this));
       this.mifron().runStartupStep("register special item events", () -> Bukkit.getPluginManager().registerEvents(this.specialItemsFeature, this));
       this.mifron().runStartupStep("register elite mob events", () -> Bukkit.getPluginManager().registerEvents(this.eliteMobFeature, this));
       this.mifron().runStartupStep("register store item events", () -> Bukkit.getPluginManager().registerEvents(this.storeItemFeature, this));

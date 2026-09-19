@@ -34,7 +34,10 @@ final class FfaKitStandManager {
          return -1;
       }
 
-      this.removeKitStands();
+      // Multi-world support: only clear stale stands near the new spot instead
+      // of wiping stands in every world, so each world can keep its own
+      // selector. Use /mf ffa removekits for a full cleanup.
+      this.removeKitStandsNear(base, 5.0);
       Location location = base.clone();
       location.setYaw(base.getYaw());
       ArmorStand stand = (ArmorStand)location.getWorld().spawn(location, ArmorStand.class);
@@ -66,6 +69,24 @@ final class FfaKitStandManager {
          }
       }
 
+      return removed;
+   }
+
+   /**
+    * Removes selector stands near a location (same world, within radius).
+    * Used by createKitStands so re-running it stays idempotent per spot
+    * while stands in other worlds are left untouched.
+    */
+   int removeKitStandsNear(Location base, double radius) {
+      if (base == null || base.getWorld() == null) return 0;
+      int removed = 0;
+      double radiusSquared = radius * radius;
+      for (Entity entity : base.getWorld().getEntities()) {
+         if (!this.isKitSelector(entity) && this.legacyKitFromEntity(entity) == null) continue;
+         if (entity.getLocation().distanceSquared(base) > radiusSquared) continue;
+         entity.remove();
+         removed++;
+      }
       return removed;
    }
 

@@ -76,7 +76,9 @@ advanced-enchanting:
 serverSecret: ""
 
 build-world:
-  enabled: true
+  # Disabled: the shared Creative world was removed. Enabling this with a
+  # world-name would recreate that world on /mf build enter.
+  enabled: false
   world-prefix: "mifron_build_"
   world-name: "Creative"
   spawn-y: 0
@@ -98,10 +100,10 @@ world-rules:
     - minigame
   spawn:
     main:
-      world: world
-      x: 0.0
-      y: 0.0
-      z: 0.0
+      world: main
+      x: 0.5
+      y: 5.0
+      z: 0.5
       yaw: 0.0
       pitch: 0.0
     minigame:
@@ -177,7 +179,7 @@ main-world:
     size: 500.0
 
 mob-spawn:
-  natural-spawn-disabled-worlds: [world, Creative, athletic, minigame]
+  natural-spawn-disabled-worlds: [athletic, minigame]
 
 ban-rollback:
   enabled: true
@@ -230,28 +232,20 @@ creative-world:
   restricted-worldedit-commands: [paste, stack, move, deform, smooth, naturalize]
 
 hub:
-  world: world
-  x: 0.0
-  y: 0.0
-  z: 0.0
+  world: main
+  x: 0.5
+  y: 5.0
+  z: 0.5
   yaw: 0.0
   pitch: 0.0
 
 servers:
   main:
     icon: compass
-    world: world
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    yaw: 0.0
-    pitch: 0.0
-  build:
-    icon: bricks
-    world: Creative
-    x: 0.0
-    y: 0.0
-    z: 0.0
+    world: main
+    x: 0.5
+    y: 5.0
+    z: 0.5
     yaw: 0.0
     pitch: 0.0
   athletic:
@@ -280,28 +274,28 @@ servers:
     pitch: 0.0
 warning-servers:
   basic:
-    world: world
+    world: main
     x: 0.0
     y: 0.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0
   caution:
-    world: world
+    world: main
     x: 0.0
     y: 0.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0
   detention:
-    world: world
+    world: main
     x: 0.0
     y: 0.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0
   imprisonment:
-    world: world
+    world: main
     x: 0.0
     y: 0.0
     z: 0.0
