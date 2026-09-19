@@ -56,4 +56,33 @@ final class OnlineShopRules {
          default -> 8L;
       };
    }
+
+   static final long QUICK_CONSUMABLE_CAP_DEFAULT_SECONDS = 10L;
+
+   /**
+    * Consumables (food, arrows, thrown projectiles, rockets, ...) must stay
+    * usable right after purchase, so their shop cooldown is capped low. The
+    * {@code edible} flag covers drinkables/eatables; the name list covers
+    * non-edible throwables/shootables identified purely by name so this stays
+    * unit-testable without the Bukkit API.
+    */
+   static boolean isQuickConsumable(String materialName, boolean edible) {
+      if (edible) return true;
+      if (materialName == null) return false;
+      return switch (materialName) {
+         case "ARROW", "SPECTRAL_ARROW", "TIPPED_ARROW",
+            "POTION", "SPLASH_POTION", "LINGERING_POTION",
+            "MILK_BUCKET", "HONEY_BOTTLE",
+            "ENDER_PEARL", "ENDER_EYE",
+            "SNOWBALL", "EGG", "EXPERIENCE_BOTTLE",
+            "FIREWORK_ROCKET", "WIND_CHARGE" -> true;
+         default -> false;
+      };
+   }
+
+   static long applyConsumableCap(long seconds, long capSeconds) {
+      long cap = Math.max(0L, capSeconds);
+      if (seconds <= 0L) return seconds;
+      return Math.min(seconds, cap);
+   }
 }

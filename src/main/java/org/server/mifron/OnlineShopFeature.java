@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -17,6 +19,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -41,6 +44,10 @@ final class OnlineShopFeature implements Listener {
    private final Map<UUID, Integer> pages = new HashMap<>();
    private final Map<String, Long> configuredCooldowns = new HashMap<>();
    private final Map<String, String> configuredRarities = new HashMap<>();
+   // Materials that currently carry a shop-imposed vanilla cooldown overlay.
+   // The overlay is a shop-GUI visual; it must be cleared when the GUI closes
+   // so bought food/pearls/arrows stay usable.
+   private final Map<UUID, Set<Material>> overlaid = new HashMap<>();
    private final EnumMap<Category, List<Material>> catalog = new EnumMap<>(Category.class);
 
    enum Category {
@@ -102,6 +109,38 @@ final class OnlineShopFeature implements Listener {
    public void onQuit(PlayerQuitEvent event) {
       this.cooldowns.remove(event.getPlayer().getUniqueId());
       this.pages.remove(event.getPlayer().getUniqueId());
+      this.overlaid.remove(event.getPlayer().getUniqueId());
+   }
+
+   @EventHandler
+   public void onClose(InventoryCloseEvent event) {
+      if (!(event.getPlayer() instanceof Player player)) return;
+      if (!TITLE.equals(event.getView().getTitle())) return;
+      // The close event also fires when purchase() reopens the GUI, right
+      // after createInventory applied a fresh overlay. Defer by one tick: if
+      // the shop is open again, keep tracking; otherwise clear the overlay so
+      // bought food/pearls/arrows stay usable outside the shop.
+      Set<Material> snapshot = new HashSet<>(this.overlaid.getOrDefault(player.getUniqueId(), Set.of()));
+      if (snapshot.isEmpty()) return;
+      UUID uuid = player.getUniqueId();
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+         Player online = Bukkit.getPlayer(uuid);
+         if (online == null || !online.isOnline()) {
+            this.overlaid.remove(uuid);
+            return;
+         }
+         if (TITLE.equals(online.getOpenInventory().getTitle())) {
+            this.overlaid.computeIfAbsent(uuid, ignored -> new HashSet<>()).addAll(snapshot);
+            return;
+         }
+         for (Material material : snapshot) {
+            if (online.getCooldown(material) > 0) online.setCooldown(material, 0);
+         }
+         this.overlaid.computeIfPresent(uuid, (ignored, set) -> {
+            set.removeAll(snapshot);
+            return set.isEmpty() ? null : set;
+         });
+      }, 1L);
    }
 
    private void ensureAccessItem(Player player) {
@@ -223,6 +262,7 @@ final class OnlineShopFeature implements Listener {
          // genuine vanilla cooldown (ender pearl and friends) for no reason.
          if (!shouldOverlayCooldown(remaining)) continue;
          player.setCooldown(material, OnlineShopRules.cooldownTicks(remaining));
+         this.overlaid.computeIfAbsent(player.getUniqueId(), ignored -> new HashSet<>()).add(material);
       }
    }
 
@@ -380,13 +420,25 @@ final class OnlineShopFeature implements Listener {
    /**
     * Explicit per-item {@code cooldown-seconds} config is authoritative. Rarity
     * (configured, else derived from price) is only a fallback so a missing
-    * explicit value still yields a sane cooldown.
+    * explicit value still yields a sane cooldown. Quick consumables (food,
+    * arrows, thrown projectiles, ...) are capped low so bought items stay
+    * usable right away.
     */
    private long cooldownSecondsFor(Material material) {
       Long explicit = this.configuredCooldowns.get(material.name());
-      if (explicit != null) return explicit;
-      String rarity = this.configuredRarities.get(material.name());
-      if (rarity == null || rarity.isBlank()) rarity = this.rarityOf(this.priceOf(material));
-      return OnlineShopRules.cooldownSeconds(rarity);
+      long seconds;
+      if (explicit != null) seconds = explicit;
+      else {
+         String rarity = this.configuredRarities.get(material.name());
+         if (rarity == null || rarity.isBlank()) rarity = this.rarityOf(this.priceOf(material));
+         seconds = OnlineShopRules.cooldownSeconds(rarity);
+      }
+      if (OnlineShopRules.isQuickConsumable(material.name(), material.isEdible())) {
+         long cap = Math.max(0L, this.plugin.getConfig().getLong(
+            "online-shop.consumable-cooldown-cap-seconds",
+            OnlineShopRules.QUICK_CONSUMABLE_CAP_DEFAULT_SECONDS));
+         seconds = OnlineShopRules.applyConsumableCap(seconds, cap);
+      }
+      return seconds;
    }
 }
