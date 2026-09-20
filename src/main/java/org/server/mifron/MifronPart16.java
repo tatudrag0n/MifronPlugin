@@ -13,6 +13,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 
 abstract class MifronPart16 extends MifronPart15x2 {
    protected void addPlayerStat(UUID uuid, String key, int amount, boolean persist) {
@@ -79,8 +80,47 @@ abstract class MifronPart16 extends MifronPart15x2 {
          "unlocked-titles", "selected-title", "total-trades", "total-blocks-broken", "total-blocks-placed")) {
          section.set(key, null);
       }
+      // Achievement state lives in three places: the advancement lists above,
+      // the per-type quest progress/claims, and the vanilla advancement map.
+      // Clear all of them so every achievement becomes re-earnable and the
+      // persisted data matches what the UI shows.
+      section.set("quests", null);
       section.set("pending-advancement-reset", true);
       this.queueDataSave();
+      // Online players get their vanilla advancements revoked immediately so
+      // the reset is visible without relogging; offline players are handled
+      // by applyPendingAdvancementReset on next join.
+      org.bukkit.entity.Player online = org.bukkit.Bukkit.getPlayer(uuid);
+      if (online != null && online.isOnline()) {
+         this.mifron().resetAdvancements(online);
+         section.set("pending-advancement-reset", null);
+         this.queueDataSave();
+      }
+      if (online != null && online.isOnline()) {
+         this.mifron().refreshPlayerName(online);
+      }
+   }
+
+   @EventHandler
+   public void onJoinRefreshTab(org.bukkit.event.player.PlayerJoinEvent event) {
+      org.bukkit.entity.Player player = event.getPlayer();
+      // Data load order vs. join is not guaranteed; defer so the latest saved
+      // MFL is what the Tab list shows, even after reloads/restarts.
+      org.bukkit.Bukkit.getScheduler().runTaskLater(this.mifron(), () -> {
+         if (!player.isOnline()) return;
+         try {
+            this.mifron().applyPendingAdvancementReset(player);
+         } catch (Throwable ignored) {
+         }
+         try {
+            this.mifron().refreshPlayerName(player);
+         } catch (Throwable ignored) {
+         }
+         try {
+            this.mifron().utilityItemsFeature.reapplyNightVision(player);
+         } catch (Throwable ignored) {
+         }
+      }, 20L);
    }
 
    protected ConfigurationSection getPlayerSection(UUID uuid) {

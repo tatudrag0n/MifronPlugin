@@ -4,7 +4,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -13,20 +18,40 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitTask;
 
 /**
- * "Semi-creative" rules for the main world. Players stay in Survival and may
- * place blocks, but may only break blocks they placed themselves. Ownership
- * (world, x, y, z, placer UUID) persists in data.yml across restarts.
+ * "Semi-creative" rules for the main world plus a block-edit approval flow.
  *
- * Placement is additionally refused inside the spawn protection radius and on
- * X,Z columns already claimed by another player.
+ * <ul>
+ *   <li>Players stay in Survival, can fly, take nothing from the creative
+ *   inventory (armor stands excepted), never consume items, and cannot use
+ *   entity-spawning items.</li>
+ *   <li>Placed blocks start as <em>pending</em> (temporary, red mist particles
+ *   on the edges, uneditable), survive restarts via data.yml, and become
+ *   formally saved (<em>approved</em>, fixed) through
+ *   {@code /mf main approve}.</li>
+ * </ul>
+ *
+ * <p>All handlers are main-world scoped; survival/FFA worlds are untouched.
  */
 final class MainWorldFeature implements Listener {
    private final Mifron plugin;
    private final Map<BlockKey, String> owners = new HashMap<>();
    private final Map<String, ColumnState> columns = new HashMap<>();
+   private final Map<BlockKey, PendingRecord> pending = new HashMap<>();
+   private BukkitTask particleTask;
 
    MainWorldFeature(Mifron plugin) {
       this.plugin = plugin;
@@ -53,6 +78,29 @@ final class MainWorldFeature implements Listener {
          } catch (NumberFormatException ignored) {
          }
       }
+      this.pending.clear();
+      for (String raw : this.plugin.data().getStringList("main-pending-blocks")) {
+         String[] parts = raw.split(";", -1);
+         if (parts.length != 7) continue;
+         try {
+            BlockKey key = new BlockKey(parts[0], Integer.parseInt(parts[1]), Integer.parseInt(parts[2]), Integer.parseInt(parts[3]));
+            String owner = parts[4];
+            Material material = Material.matchMaterial(parts[5]);
+            long placedAt = Long.parseLong(parts[6]);
+            if (owner.isBlank() || material == null) continue;
+            this.pending.put(key, new PendingRecord(owner, material, placedAt));
+         } catch (NumberFormatException ignored) {
+         }
+      }
+   }
+
+   /** Starts (or restarts) the red-mist particle task for pending blocks. */
+   void start() {
+      if (this.particleTask != null) {
+         this.particleTask.cancel();
+         this.particleTask = null;
+      }
+      this.particleTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickPendingParticles, 20L, 20L);
    }
 
    boolean enabled() {
@@ -68,15 +116,137 @@ final class MainWorldFeature implements Listener {
       return Math.max(0, this.plugin.getConfig().getInt("main-world.spawn-protect-radius", 30));
    }
 
-   private boolean isMainWorld(World world) {
+   boolean isMainWorld(World world) {
       return this.enabled() && world != null && this.worldName().equalsIgnoreCase(world.getName());
    }
+
+   // ------------------------------------------------------------------
+   // Semi-creative: flight, creative inventory, consumption, spawn items.
+   // ------------------------------------------------------------------
+
+   /** Entity-spawning items banned in main (armor stands are allowed). */
+   static boolean isEntitySpawnItem(Material material) {
+      if (material == null) return false;
+      if (material == Material.ARMOR_STAND) return false;
+      String name = material.name();
+      return name.endsWith("_SPAWN_EGG")
+         || material == Material.SNOWBALL
+         || material == Material.EGG
+         || material == Material.END_CRYSTAL
+         || material == Material.FIRE_CHARGE;
+   }
+
+   private void applyFlight(Player player) {
+      if (player == null) return;
+      if (this.isMainWorld(player.getWorld())) {
+         GameMode mode = player.getGameMode();
+         if (mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) {
+            player.setAllowFlight(true);
+         }
+         return;
+      }
+      // Leaving main: restore vanilla flight rules so other worlds (FFA etc.)
+      // are unaffected. Creative/spectator keep their flight.
+      GameMode mode = player.getGameMode();
+      if ((mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) && !player.isOp()) {
+         player.setFlying(false);
+         player.setAllowFlight(false);
+      }
+   }
+
+   @EventHandler
+   public void onJoinFlight(PlayerJoinEvent event) {
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.applyFlight(event.getPlayer()), 10L);
+   }
+
+   @EventHandler
+   public void onWorldChangeFlight(PlayerChangedWorldEvent event) {
+      this.applyFlight(event.getPlayer());
+   }
+
+   @EventHandler
+   public void onRespawnFlight(PlayerRespawnEvent event) {
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.applyFlight(event.getPlayer()), 10L);
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onCreativeInventory(InventoryCreativeEvent event) {
+      if (!(event.getWhoClicked() instanceof Player player)) return;
+      if (!this.isMainWorld(player.getWorld())) return;
+      ItemStack cursor = event.getCursor();
+      ItemStack current = event.getCurrentItem();
+      boolean allowed = (cursor != null && cursor.getType() == Material.ARMOR_STAND)
+         || (current != null && current.getType() == Material.ARMOR_STAND);
+      if (!allowed) {
+         event.setCancelled(true);
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onConsumeNoUse(PlayerItemConsumeEvent event) {
+      if (!this.isMainWorld(event.getPlayer().getWorld())) return;
+      // Eating/drinking in main never consumes: refund one item next tick.
+      ItemStack consumed = event.getItem().clone();
+      consumed.setAmount(1);
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+         Player player = event.getPlayer();
+         if (!player.isOnline()) return;
+         player.getInventory().addItem(consumed);
+      }, 1L);
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onBannedInteract(PlayerInteractEvent event) {
+      Player player = event.getPlayer();
+      if (!this.isMainWorld(player.getWorld())) return;
+      ItemStack item = event.getItem();
+      if (item == null && event.getHand() == EquipmentSlot.OFF_HAND) {
+         item = player.getInventory().getItemInOffHand();
+      } else if (item == null) {
+         item = player.getInventory().getItemInMainHand();
+      }
+      if (item != null && isEntitySpawnItem(item.getType())) {
+         event.setCancelled(true);
+         player.sendMessage("§cmainワールドではそのアイテムは使用できません。");
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onBannedProjectile(ProjectileLaunchEvent event) {
+      if (!(event.getEntity().getShooter() instanceof Player player)) return;
+      if (!this.isMainWorld(player.getWorld())) return;
+      switch (event.getEntityType()) {
+         case SNOWBALL, EGG, END_CRYSTAL, FIREBALL -> {
+            event.setCancelled(true);
+            player.sendMessage("§cmainワールドではそのアイテムは使用できません。");
+         }
+         default -> {}
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onBannedCreatureSpawn(CreatureSpawnEvent event) {
+      if (!this.isMainWorld(event.getLocation().getWorld())) return;
+      if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.SPAWNER_EGG
+         || event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.EGG) {
+         if (event.getEntityType() == org.bukkit.entity.EntityType.ARMOR_STAND) return;
+         event.setCancelled(true);
+      }
+   }
+
+   // ------------------------------------------------------------------
+   // Approval flow: place -> pending (red mist) -> approve -> fixed.
+   // ------------------------------------------------------------------
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
    public void onBlockPlace(BlockPlaceEvent event) {
       Block block = event.getBlockPlaced();
       if (block == null || !this.isMainWorld(block.getWorld())) return;
       Player player = event.getPlayer();
+      if (isEntitySpawnItem(event.getItemInHand().getType())) {
+         event.setCancelled(true);
+         return;
+      }
       // Spawn protection: horizontal X,Z distance only.
       Location spawn = block.getWorld().getSpawnLocation();
       if (insideSpawnRadius(block.getX(), block.getZ(), spawn.getBlockX(), spawn.getBlockZ(), this.spawnProtectRadius())) {
@@ -93,11 +263,20 @@ final class MainWorldFeature implements Listener {
          player.sendMessage("§c他のプレイヤーの設置列（X,Z）と重なるため設置できません。");
          return;
       }
-      this.owners.put(new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ()), uuid);
+      BlockKey key = new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+      Material placedType = block.getType();
+      this.pending.put(key, new PendingRecord(uuid, placedType, System.currentTimeMillis()));
       ColumnState owned = this.columns.computeIfAbsent(columnKey, ignored -> new ColumnState());
       owned.owner = uuid;
       owned.count++;
-      this.persist();
+      this.persistPending();
+      player.sendMessage("§e設置を承認待ちとして保存しました。承認されるまで編集できません。");
+      // Semi-creative: placing never consumes the item; refund one next tick.
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+         if (!player.isOnline()) return;
+         player.getInventory().addItem(new ItemStack(placedType, 1));
+         player.updateInventory();
+      }, 1L);
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -105,7 +284,14 @@ final class MainWorldFeature implements Listener {
       Block block = event.getBlock();
       if (!this.isMainWorld(block.getWorld())) return;
       Player player = event.getPlayer();
-      String owner = this.owners.get(new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+      if (player.hasPermission("mifron.admin")) return;
+      BlockKey key = new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+      if (this.pending.containsKey(key)) {
+         event.setCancelled(true);
+         player.sendMessage("§c承認待ちのブロックは編集できません。");
+         return;
+      }
+      String owner = this.owners.get(key);
       if (owner == null) {
          event.setCancelled(true);
          player.sendMessage("§c自然ブロックは破壊できません。自分が設置したブロックのみ破壊できます。");
@@ -116,32 +302,82 @@ final class MainWorldFeature implements Listener {
          player.sendMessage("§c他のプレイヤーが設置したブロックは破壊できません。");
          return;
       }
-      this.owners.remove(new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
-      String columnKey = columnKey(block.getWorld().getName(), block.getX(), block.getZ());
-      ColumnState column = this.columns.get(columnKey);
-      if (column != null) {
-         column.count--;
-         if (column.count <= 0) this.columns.remove(columnKey);
-      }
-      this.persist();
+      // Approved blocks are formally saved and permanently fixed.
+      event.setCancelled(true);
+      player.sendMessage("§c承認済みのブロックは編集できません。");
    }
 
    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
    public void onEntityExplode(EntityExplodeEvent event) {
       if (event.blockList().isEmpty()) return;
-      boolean changed = false;
       var iterator = event.blockList().iterator();
       while (iterator.hasNext()) {
          Block block = iterator.next();
          if (!this.isMainWorld(block.getWorld())) continue;
          BlockKey key = new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
-         if (!this.owners.containsKey(key)) continue;
-         // Owned blocks never explode away (and the record is kept so the
-         // column claim survives); natural blocks follow vanilla rules.
+         // Pending and approved blocks never explode away.
+         if (!this.owners.containsKey(key) && !this.pending.containsKey(key)) continue;
          iterator.remove();
-         changed = true;
       }
-      if (changed) this.persist();
+   }
+
+   /** Approves pending blocks. Returns the approved count. */
+   int approvePending(String ownerUuidOrNull) {
+      List<BlockKey> targets = new ArrayList<>();
+      for (Map.Entry<BlockKey, PendingRecord> entry : this.pending.entrySet()) {
+         if (ownerUuidOrNull == null || entry.getValue().owner().equals(ownerUuidOrNull)) {
+            targets.add(entry.getKey());
+         }
+      }
+      for (BlockKey key : targets) {
+         PendingRecord record = this.pending.remove(key);
+         this.owners.put(key, record.owner());
+      }
+      if (!targets.isEmpty()) {
+         this.persist();
+         this.persistPending();
+      }
+      return targets.size();
+   }
+
+   int pendingCount() {
+      return this.pending.size();
+   }
+
+   int pendingCount(String ownerUuid) {
+      int count = 0;
+      for (PendingRecord record : this.pending.values()) {
+         if (record.owner().equals(ownerUuid)) count++;
+      }
+      return count;
+   }
+
+   private void tickPendingParticles() {
+      if (this.pending.isEmpty()) return;
+      Particle.DustOptions red = new Particle.DustOptions(Color.RED, 1.0f);
+      int shown = 0;
+      for (BlockKey key : this.pending.keySet()) {
+         if (shown++ >= 200) break;
+         World world = Bukkit.getWorld(key.world);
+         if (world == null) continue;
+         // Red mist along the block edges, visible to nearby viewers only.
+         double x = key.x + 0.5;
+         double y = key.y + 0.5;
+         double z = key.z + 0.5;
+         for (Player viewer : world.getPlayers()) {
+            Location view = viewer.getLocation();
+            double dx = view.getX() - x;
+            double dy = view.getY() - y;
+            double dz = view.getZ() - z;
+            if (dx * dx + dy * dy + dz * dz > 48.0 * 48.0) continue;
+            for (double edge : new double[] {-0.5, 0.5}) {
+               viewer.spawnParticle(Particle.DUST, x + edge, y + edge, z + edge, 2, 0.05, 0.05, 0.05, 0.0, red);
+               viewer.spawnParticle(Particle.DUST, x - edge, y + edge, z - edge, 2, 0.05, 0.05, 0.05, 0.0, red);
+               viewer.spawnParticle(Particle.DUST, x + edge, y - edge, z - edge, 2, 0.05, 0.05, 0.05, 0.0, red);
+               viewer.spawnParticle(Particle.DUST, x - edge, y - edge, z + edge, 2, 0.05, 0.05, 0.05, 0.0, red);
+            }
+         }
+      }
    }
 
    private void persist() {
@@ -151,6 +387,18 @@ final class MainWorldFeature implements Listener {
          rows.add(key.world + ";" + key.x + ";" + key.y + ";" + key.z + ";" + entry.getValue());
       }
       this.plugin.data().set("main-block-ownership", rows);
+      this.plugin.queueDataSave();
+   }
+
+   private void persistPending() {
+      List<String> rows = new ArrayList<>(this.pending.size());
+      for (Map.Entry<BlockKey, PendingRecord> entry : this.pending.entrySet()) {
+         BlockKey key = entry.getKey();
+         PendingRecord record = entry.getValue();
+         rows.add(key.world + ";" + key.x + ";" + key.y + ";" + key.z + ";" + record.owner()
+            + ";" + record.material().name() + ";" + record.placedAt());
+      }
+      this.plugin.data().set("main-pending-blocks", rows);
       this.plugin.queueDataSave();
    }
 
@@ -171,6 +419,8 @@ final class MainWorldFeature implements Listener {
          return MainWorldFeature.columnKey(this.world, this.x, this.z);
       }
    }
+
+   record PendingRecord(String owner, Material material, long placedAt) {}
 
    static final class ColumnState {
       String owner = "";

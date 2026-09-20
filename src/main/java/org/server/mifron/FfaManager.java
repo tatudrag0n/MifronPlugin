@@ -2007,7 +2007,7 @@ final class FfaManager {
       FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
          if (session == null || session.kit != expectedKit) {
             event.setCancelled(true);
-         } else if (reloadTasks.containsKey(player.getUniqueId())) {
+         } else if (reloadTasks.containsKey(player.getUniqueId()) && expectedKit == FfaKit.SNIPER) {
             event.setCancelled(true);
             player.sendActionBar(Component.text("リロード中", NamedTextColor.RED));
          } else if (expectedKit == FfaKit.SNIPER && System.currentTimeMillis() < this.sniperShotCooldownUntil.getOrDefault(player.getUniqueId(), 0L)) {
@@ -2025,6 +2025,11 @@ final class FfaManager {
                   this.startCrossbowReload(player, expectedKit, ammoMap, reloadTasks, capacity, label);
                }
             } else {
+               // Revolver: firing interrupts an in-progress reload.
+               if (expectedKit == FfaKit.CROSSBOW) {
+                  BukkitTask interrupted = reloadTasks.remove(player.getUniqueId());
+                  if (interrupted != null) interrupted.cancel();
+               }
                event.setCancelled(false);
                ammoMap.put(player.getUniqueId(), --ammo);
                if (event.getProjectile() instanceof Entity projectile) {
@@ -2040,6 +2045,10 @@ final class FfaManager {
                      player.sendActionBar(Component.text(label + " " + remaining + "/" + capacity, NamedTextColor.LIGHT_PURPLE));
                      if (remaining > 0) {
                         this.rechargeAmmoCrossbow(player, expectedKit);
+                        // Revolver trickle-reloads one bullet at a time until full.
+                        if (expectedKit == FfaKit.CROSSBOW) {
+                           this.startCrossbowReload(player, expectedKit, ammoMap, reloadTasks, capacity, label);
+                        }
                      } else if (expectedKit == FfaKit.SNIPER) {
                         player.sendActionBar(Component.text("右クリックでリロード", NamedTextColor.YELLOW));
                      }
@@ -2515,10 +2524,24 @@ final class FfaManager {
       }
    }
 
-   private void startCrossbowReload(Player player, FfaKit kit, Map<UUID, Integer> ammoMap, Map<UUID, BukkitTask> reloadTasks, int capacity, String label) {
+    /**
+     * Per-bullet tick count for the revolver: one sixth of the configured
+     * full-reload time per bullet (spec). Pure helper for tests.
+     */
+    static long revolverPerBulletTicks(long configuredReloadTicks) {
+       return Math.max(1L, Math.max(1L, configuredReloadTicks) / 6L);
+    }
+
+    private void startCrossbowReload(Player player, FfaKit kit, Map<UUID, Integer> ammoMap, Map<UUID, BukkitTask> reloadTasks, int capacity, String label) {
       UUID uuid = player.getUniqueId();
-      if (!reloadTasks.containsKey(uuid)) {
-         this.updateAmmoCrossbowItem(player, kit, label, 0, capacity);
+      if (reloadTasks.containsKey(uuid)) return;
+      if (kit == FfaKit.CROSSBOW) {
+         this.startRevolverBulletReload(player, kit, ammoMap, reloadTasks, capacity, label);
+         return;
+      }
+      {
+         int ammoNow = Math.max(0, ammoMap.getOrDefault(uuid, capacity));
+         this.updateAmmoCrossbowItem(player, kit, label, ammoNow, capacity);
          player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, kit == FfaKit.SNIPER ? 0.45F : 0.7F, kit == FfaKit.SNIPER ? 0.55F : 0.65F);
          long reloadTicks = Math.max(1L, this.plugin.getConfig().getLong(this.config.kitPath(kit, "reload-ticks"), kit == FfaKit.SNIPER ? 60L : 75L));
          BukkitTask task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {
@@ -2548,7 +2571,46 @@ final class FfaManager {
       }
    }
 
-   private void playReloadProgressSound(Player player, FfaKit kit, Map<UUID, BukkitTask> reloadTasks, long totalTicks, long elapsedTicks) {
+    /**
+     * Revolver reload, one bullet at a time. Each bullet takes 1/6 of the
+     * configured reload time. Firing cancels the pending task (interrupt) via
+     * {@link #handleAmmoCrossbow}; the next shot restarts the chain.
+     */
+    private void startRevolverBulletReload(Player player, FfaKit kit, Map<UUID, Integer> ammoMap, Map<UUID, BukkitTask> reloadTasks, int capacity, String label) {
+      UUID uuid = player.getUniqueId();
+      if (reloadTasks.containsKey(uuid)) return;
+      int ammo = Math.max(0, ammoMap.getOrDefault(uuid, capacity));
+      if (ammo >= capacity) return;
+      long configured = Math.max(1L, this.plugin.getConfig().getLong(this.config.kitPath(kit, "reload-ticks"), 75L));
+      long perBullet = revolverPerBulletTicks(configured);
+      if (ammo <= 0) {
+         this.updateAmmoCrossbowItem(player, kit, label, 0, capacity);
+         player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, 0.7F, 0.65F);
+         player.sendActionBar(Component.text(label + " リロード中...", NamedTextColor.RED));
+      }
+      BukkitTask task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {
+         reloadTasks.remove(uuid);
+         if (!player.isOnline() || !this.isPlaying(player)) return;
+         FfaManager.FfaSession session = this.sessions.get(uuid);
+         if (session == null || session.kit != kit) return;
+         int current = Math.max(0, ammoMap.getOrDefault(uuid, 0));
+         if (current >= capacity) return;
+         ammoMap.put(uuid, current + 1);
+         this.rechargeAmmoCrossbow(player, kit);
+         this.updateAmmoCrossbowItem(player, kit, label, current + 1, capacity);
+         player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_MIDDLE, 0.55F, 0.75F);
+         if (current + 1 >= capacity) {
+            player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_END, 0.8F, 1.2F);
+            player.sendActionBar(Component.text(label + " リロード完了 " + capacity + "/" + capacity, NamedTextColor.GREEN));
+         } else {
+            player.sendActionBar(Component.text(label + " リロード中 " + (current + 1) + "/" + capacity, NamedTextColor.YELLOW));
+            this.startRevolverBulletReload(player, kit, ammoMap, reloadTasks, capacity, label);
+         }
+      }, perBullet);
+      reloadTasks.put(uuid, task);
+    }
+
+    private void playReloadProgressSound(Player player, FfaKit kit, Map<UUID, BukkitTask> reloadTasks, long totalTicks, long elapsedTicks) {
       UUID uuid = player.getUniqueId();
       if (elapsedTicks >= totalTicks) {
          return;

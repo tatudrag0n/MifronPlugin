@@ -12,6 +12,10 @@ import org.bukkit.Material;
 
 abstract class MifronPart8 extends MifronPart7x2 {
    protected boolean merchantTypeAllows(String merchantType, Material material, boolean selling) {
+      // Special items trade only through the rare merchant; normal merchants
+      // never list them, keeping the two product tables fully separated.
+      if ("rare".equals(merchantType)) return RareMerchantItems.isSpecial(material);
+      if (RareMerchantItems.isSpecial(material)) return false;
       if ("purple".equals(merchantType)) return true;
       String name = material.name();
       if ("red".equals(merchantType)) {
@@ -116,7 +120,7 @@ abstract class MifronPart8 extends MifronPart7x2 {
          String[] parts = raw.split(":");
          if (parts.length < 3) continue;
          Material material = Material.matchMaterial(parts[0]);
-         if (material == null || !this.mifron().isMerchantPoolItem(material)) continue;
+         if (material == null || (!this.mifron().isMerchantPoolItem(material) && !RareMerchantItems.isSpecial(material))) continue;
          int normalizedPrice = this.mifron().parsePositiveInt(parts[2], "buy".equals(key) ? this.mifron().materialBuyPrice(material) : this.mifron().materialPrice(material));
          if (normalizedPrice > 0) offers.add(new MerchantOffer(material, 1, this.mifron().merchantRarity(material), normalizedPrice));
       }

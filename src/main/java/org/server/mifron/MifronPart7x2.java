@@ -44,6 +44,14 @@ abstract class MifronPart7x2 extends MifronPart7x1 {
       }
       villager.customName(Component.text(this.merchantTypeColor(merchantType) + this.merchantTypeName(merchantType) + "\u5546\u4eba"));
       villager.setRecipes(Collections.emptyList());
+      // The rare merchant deals exclusively in special items: 1 sell slot +
+      // 1 buy slot with fixed very-high prices (RareMerchantItems).
+      if ("rare".equals(merchantType)) {
+         this.mifron().saveMerchantOffers(villager.getUniqueId(),
+            this.randomMerchantOffers(1, true, merchantType),
+            this.randomMerchantOffers(1, false, merchantType));
+         return;
+      }
       List<MerchantOffer> sellOffers = this.randomMerchantOffers(8, true, merchantType);
       List<MerchantOffer> buyOffers = this.randomMerchantOffers(18, false, merchantType);
       this.mifron().saveMerchantOffers(villager.getUniqueId(), sellOffers, buyOffers);
@@ -51,8 +59,9 @@ abstract class MifronPart7x2 extends MifronPart7x1 {
 
    protected String randomMerchantType() {
       int roll = this.random.nextInt(100);
-      if (roll < 33) return "red";
-      if (roll < 83) return "blue";
+      if (roll < 3) return "rare";
+      if (roll < 35) return "red";
+      if (roll < 84) return "blue";
       return roll < 98 ? "yellow" : "purple";
    }
 
@@ -61,6 +70,7 @@ abstract class MifronPart7x2 extends MifronPart7x1 {
          case "red" -> "\u8d64";
          case "yellow" -> "\u9ec4";
          case "purple" -> "\u7d2b";
+         case "rare" -> "\u79d8\u5b9d";
          default -> "\u9752";
       };
    }
@@ -70,11 +80,28 @@ abstract class MifronPart7x2 extends MifronPart7x1 {
          case "red" -> "\u00a7c";
          case "yellow" -> "\u00a7e";
          case "purple" -> "\u00a7d";
+         case "rare" -> "\u00a76";
          default -> "\u00a7b";
       };
    }
 
    protected List<MerchantOffer> randomMerchantOffers(int count, boolean selling, String merchantType) {
+      // Rare merchant: fixed very-high special-item offers, no jitter, no
+      // mixing with the normal product table.
+      if ("rare".equals(merchantType)) {
+         List<Material> specials = new ArrayList<>();
+         for (Material material : Material.values()) {
+            if (material.isItem() && !material.isAir() && RareMerchantItems.isSpecial(material)) specials.add(material);
+         }
+         Collections.shuffle(specials, this.random);
+         List<MerchantOffer> rare = new ArrayList<>();
+         for (Material material : specials) {
+            if (rare.size() >= Math.max(1, count)) break;
+            int[] prices = RareMerchantItems.priceFor(material);
+            rare.add(new MerchantOffer(material, 1, "epic", selling ? prices[0] : prices[1]));
+         }
+         return rare;
+      }
       List<MerchantOffer> pool = this.mifron().merchantOffers(selling).stream()
          .filter(offerx -> this.mifron().merchantTypeAllows(merchantType, offerx.material(), selling)).toList();
       if (pool.isEmpty()) {

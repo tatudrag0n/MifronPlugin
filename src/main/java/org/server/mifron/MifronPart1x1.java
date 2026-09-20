@@ -118,6 +118,8 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("load FFA", this.ffaManager::load);
       this.mifron().runStartupStep("load athletic", this.athleticManager::load);
       this.mifron().runStartupStep("load main world ownership", this.mainWorldFeature::load);
+      this.mifron().runStartupStep("load shop stock", this.shopStockService::load);
+      this.mifron().runStartupStep("load test server config", this.testServerFeature::load);
       this.mifron().runStartupStep("start auction settlement", this.auctionFeature::start);
       this.mifron().runStartupStep("register Mifron events", this::registerMifronSelfEvents);
       this.mifron().runStartupStep("register chunk protection events", () -> Bukkit.getPluginManager().registerEvents(this.chunkProtectionFeature, this));
@@ -139,6 +141,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register quest proposal events", () -> Bukkit.getPluginManager().registerEvents(this.questProposalFeature, this));
       this.mifron().runStartupStep("register world policy events", () -> Bukkit.getPluginManager().registerEvents(this.worldPolicyFeature, this));
       this.mifron().runStartupStep("register main world events", () -> Bukkit.getPluginManager().registerEvents(this.mainWorldFeature, this));
+      this.mifron().runStartupStep("register test server events", () -> Bukkit.getPluginManager().registerEvents(this.testServerFeature, this));
       this.mifron().runStartupStep("register special item events", () -> Bukkit.getPluginManager().registerEvents(this.specialItemsFeature, this));
       this.mifron().runStartupStep("register elite mob events", () -> Bukkit.getPluginManager().registerEvents(this.eliteMobFeature, this));
       this.mifron().runStartupStep("register store item events", () -> Bukkit.getPluginManager().registerEvents(this.storeItemFeature, this));
@@ -168,12 +171,30 @@ abstract class MifronPart1x1 extends MifronPart1 {
       Bukkit.getScheduler().runTaskTimer(this, this.mifron()::tickMerchants, 1200L, 1200L);
       Bukkit.getScheduler().runTaskTimer(this, this.mifron()::tickShelfShopActionBars, 10L, 10L);
       Bukkit.getScheduler().runTaskTimer(this, this.mifron()::cleanupInactiveShops, 20L, 20L * 60L * 60L * 24L);
+      // Keep Tab MFL fresh from the latest saved data (join/stat/reload safe).
+      Bukkit.getScheduler().runTaskTimer(this, () -> {
+         for (org.bukkit.entity.Player online : Bukkit.getOnlinePlayers()) {
+            try {
+               this.mifron().refreshPlayerName(online);
+            } catch (Throwable ignored) {
+            }
+         }
+      }, 6000L, 6000L);
+      // Daily shop-stock monthly-restock check (idempotent per calendar month).
+      Bukkit.getScheduler().runTaskTimer(this, () -> {
+         try {
+            this.shopStockService.ensureMonthlyRestock();
+         } catch (Throwable ignored) {
+         }
+      }, 20L * 60L * 60L * 24L, 20L * 60L * 60L * 6L);
       if (this.getConfig().getBoolean("regen.monthly-enabled", true)) {
          long days = Math.max(1L, Math.min(365L, this.getConfig().getLong("regen.interval-days", 30L)));
          long period = days * 20L * 60L * 60L * 24L;
          Bukkit.getScheduler().runTaskTimer(this, this.chunkProtectionFeature::runMonthlyMaintenance, period, period);
          this.mifron().data().set("regen.next-run-at", System.currentTimeMillis() + period * 50L);
       }
+      this.mifron().runStartupStep("start test server schedule", this.testServerFeature::start);
+      this.mifron().runStartupStep("start main world approval particles", this.mainWorldFeature::start);
       this.mifron().runStartupStep("schedule chunk protection scan", this.chunkProtectionFeature::scheduleScan);
       this.mifron().runStartupStep("start jump pad task", this.mifron()::startJumpPadTask);
       InventoryGroupFeature.install(this);

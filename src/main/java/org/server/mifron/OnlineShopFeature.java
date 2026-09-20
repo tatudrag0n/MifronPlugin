@@ -106,6 +106,11 @@ final class OnlineShopFeature implements Listener {
       this.addPotions();
       for (List<ShopProduct> list : this.catalog.values()) list.sort(Comparator.comparingInt(ShopProduct::price).thenComparing(ShopProduct::id));
       this.rebuildConfiguredCooldowns();
+      // Register every product in stock so monthly restock covers the table.
+      try {
+         for (String id : this.productIndex.keySet()) this.plugin.shopStockService.stockOf(id);
+      } catch (Throwable ignored) {
+      }
    }
 
    private void addProduct(ShopProduct product) {
@@ -292,7 +297,15 @@ final class OnlineShopFeature implements Listener {
          this.plugin.utilityItemsFeature.openMenuUi(player);
          return;
       }
-      this.purchase(player, action);
+      // Left click buys; right click sells one; shift+right-click sells all.
+      org.bukkit.event.inventory.ClickType click = event.getClick();
+      if (click == org.bukkit.event.inventory.ClickType.SHIFT_RIGHT) {
+         this.sell(player, action, true);
+      } else if (click.isRightClick()) {
+         this.sell(player, action, false);
+      } else {
+         this.purchase(player, action);
+      }
    }
 
    private void changePage(Player player, String action) {
@@ -338,6 +351,20 @@ final class OnlineShopFeature implements Listener {
       return item;
    }
 
+   /**
+    * Variant goods (enchanted books, potions, ...) share one vanilla
+    * {@link Material} cooldown, so a vanilla overlay would cool down every
+    * sibling product when only one was bought. Those stay lore-only; plain
+    * single-material goods keep the vanilla animation.
+    */
+   static boolean sharesVanillaCooldown(Material material) {
+      return material == Material.ENCHANTED_BOOK
+         || material == Material.POTION
+         || material == Material.SPLASH_POTION
+         || material == Material.LINGERING_POTION
+         || material == Material.TIPPED_ARROW;
+   }
+
    private void applyCooldownOverlay(Player player, List<ShopProduct> products) {
       // The vanilla item cooldown is the single source of truth and must
       // survive closing/reopening the GUI. Earlier code zeroed it from
@@ -345,6 +372,7 @@ final class OnlineShopFeature implements Listener {
       // made the cooldown animation disappear.
       for (ShopProduct product : products) {
          Material material = product.material();
+         if (sharesVanillaCooldown(material)) continue;
          long remaining = this.remainingSeconds(player, product.id());
          // Only overlay an active shop cooldown. Writing a zero would wipe a
          // genuine vanilla cooldown (ender pearl and friends) for no reason.
@@ -362,20 +390,53 @@ final class OnlineShopFeature implements Listener {
       return remainingSeconds > 0;
    }
 
+   /** Displayed and charged prices share one basis (stock-adjusted). */
+   int effectivePrice(ShopProduct product) {
+      int effective = this.plugin.shopStockService.salePriceNow(product.id(), product.price());
+      // Deep slate emerald ore stays the most valuable shop good even when
+      // other goods spike on low stock: clamp everything else below its
+      // current effective price (same basis for display and settlement).
+      if (product.material() != Material.DEEPSLATE_EMERALD_ORE) {
+         ShopProduct deep = this.productIndex.get("item:" + Material.DEEPSLATE_EMERALD_ORE.name());
+         if (deep != null) {
+            effective = Math.min(effective,
+               this.plugin.shopStockService.salePriceNow(deep.id(), deep.price()));
+         }
+      }
+      return Math.max(1, effective);
+   }
+
+   int effectiveBuyPrice(ShopProduct product) {
+      return this.plugin.shopStockService.buyPriceNow(product.id(), this.buyBaseOf(product));
+   }
+
+   /** Table buy price for plain goods; half of sale for variant goods. */
+   private int buyBaseOf(ShopProduct product) {
+      if (product.variant().isEmpty()) {
+         return Math.max(0, this.plugin.pricingService.buyPrice(product.material()));
+      }
+      return Math.max(0, product.price() / 2);
+   }
+
    private ItemStack catalogIcon(Player player, ShopProduct product) {
       String id = product.id();
       ItemStack icon = this.displayStack(product);
       ItemMeta meta = icon.getItemMeta();
       if (meta != null) {
-         int price = product.price();
+         int price = this.effectivePrice(product);
+         int buy = this.effectiveBuyPrice(product);
+         int stock = this.plugin.shopStockService.stockOf(id);
          long remaining = this.remainingSeconds(player, id);
-         meta.setDisplayName("\u00a7f" + product.label());
-         meta.setLore(List.of(
+         List<String> lore = new ArrayList<>(List.of(
             "\u00a77" + this.categoryOf(product.material()).label,
-            "\u00a7e\u4fa1\u683c: " + price + " MP",
-            remaining > 0 ? "\u00a7c\u30af\u30fc\u30eb\u30c0\u30a6\u30f3\u6b8b\u308a " + remaining + " \u79d2" : "\u00a7a\u30af\u30ea\u30c3\u30af\u3067\u8cfc\u5165",
-            "\u00a78\u8ca9\u58f2\u306e\u307f"
+            "\u00a7e\u4fa1\u683c: " + price + " MP" + (stock <= 0 ? " \u00a7c(SOLD OUT)" : ""),
+            "\u00a7b\u8cb7\u53d6: " + buy + " MP",
+            "\u00a77\u5728\u5eab: " + stock
          ));
+         lore.add(remaining > 0 ? "\u00a7c\u30af\u30fc\u30eb\u30c0\u30a6\u30f3\u6b8b\u308a " + remaining + " \u79d2" : "\u00a7a\u5de6\u30af\u30ea\u30c3\u30af\u3067\u8cfc\u5165");
+         lore.add("\u00a76\u53f3\u30af\u30ea\u30c3\u30af\u30671\u500b\u58f2\u5374 / Shift+\u53f3\u4e00\u62ec\u58f2\u5374");
+         meta.setLore(lore);
+         meta.setDisplayName("\u00a7f" + product.label());
          meta.getPersistentDataContainer().set(this.productKey, PersistentDataType.STRING, id);
          icon.setItemMeta(meta);
       }
@@ -422,7 +483,12 @@ final class OnlineShopFeature implements Listener {
       ShopProduct listed = this.productIndex.get(id);
       if (listed == null) return;
       Material material = listed.material();
-      int price = listed.price();
+      // Displayed price and charged price share the stock-adjusted basis.
+      int price = this.effectivePrice(listed);
+      if (this.plugin.shopStockService.stockOf(id) <= 0) {
+         player.sendMessage(ChatColor.RED + "売り切れです。入荷をお待ちください。");
+         return;
+      }
       ItemStack product = this.plugin.createOnlineShopProduct(id);
       if (product == null) return;
       if (!this.plugin.canReceiveOnlineShopProduct(player, product)) {
@@ -449,13 +515,85 @@ final class OnlineShopFeature implements Listener {
          player.sendMessage(ChatColor.RED + "\u30a2\u30a4\u30c6\u30e0\u3092\u6e21\u305b\u307e\u305b\u3093\u3067\u3057\u305f\u3002MP\u3092\u8fd4\u5374\u3057\u307e\u3057\u305f\u3002");
          return;
       }
-      long cooldownSeconds = this.cooldownSecondsFor(material, price);
+      // Cooldown tiers follow the stable base price, not the stock swing.
+      long cooldownSeconds = this.cooldownSecondsFor(material, listed.price());
       long until = OnlineShopRules.cooldownDeadline(System.currentTimeMillis(), cooldownSeconds);
       this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(id, until);
       this.plugin.data().set("online-shop-cooldowns." + player.getUniqueId() + "." + id, until);
+      this.plugin.shopStockService.onPurchase(id);
       this.plugin.queueDataSave();
       player.sendMessage(ChatColor.GREEN + "\u8cfc\u5165\u3057\u307e\u3057\u305f: " + listed.label() + " (" + price + " MP)");
       player.openInventory(this.createInventory(player));
+   }
+
+   /**
+    * Buy-back: right click sells one unit, shift+right-click sells everything
+    * matching. No cooldown on sales. Each unit is priced live (stock moves per
+    * unit), so bulk sales never freeze the first unit's price.
+    */
+   private void sell(Player player, String id, boolean bulk) {
+      if (!this.plugin.getConfig().getBoolean("online-shop.enabled", true) || !id.startsWith("item:")) return;
+      if (!this.inSurvivalWorld(player)) {
+         player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
+         return;
+      }
+      ShopProduct listed = this.productIndex.get(id);
+      if (listed == null) return;
+      int capacity = bulk ? Integer.MAX_VALUE : 1;
+      int sold = 0;
+      long gained = 0L;
+      // Single-threaded server tick: inventory mutation + stock + payout stay
+      // consistent by construction; amounts are validated non-negative.
+      outer:
+      for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+         ItemStack stack = player.getInventory().getItem(slot);
+         if (!this.matchesProduct(player, stack, listed)) continue;
+         while (stack.getAmount() > 0 && sold < capacity) {
+            int unitPrice = this.effectiveBuyPrice(listed);
+            if (unitPrice <= 0) {
+               if (sold == 0) player.sendMessage(ChatColor.RED + "この商品は買取対象外です。");
+               break outer;
+            }
+            stack.setAmount(stack.getAmount() - 1);
+            sold++;
+            gained = Math.min(2_000_000_000L, gained + unitPrice);
+            this.plugin.shopStockService.onSale(id, 1);
+         }
+         if (stack.getAmount() <= 0) player.getInventory().setItem(slot, null);
+         if (sold >= capacity) break;
+      }
+      if (sold <= 0) {
+         player.sendMessage(ChatColor.RED + "売却できるアイテムを持っていません。");
+         return;
+      }
+      player.updateInventory();
+      this.plugin.depositEmeralds(player.getUniqueId(), (int) Math.min(2_000_000_000L, gained));
+      this.plugin.queueDataSave();
+      player.sendMessage(ChatColor.GREEN + "売却しました: " + listed.label() + " x" + sold + " (" + gained + " MP)");
+      player.openInventory(this.createInventory(player));
+   }
+
+   /** True when the stack is a sellable unit of the product. */
+   private boolean matchesProduct(Player player, ItemStack stack, ShopProduct product) {
+      if (stack == null || stack.getType() != product.material() || stack.getAmount() <= 0) return false;
+      // Mifron fixed/utility items must never be sellable for MP.
+      try {
+         if (this.plugin.utilityItemsFeature.getMifronItemId(stack) != null) return false;
+      } catch (Throwable ignored) {
+      }
+      if (product.variant().isEmpty()) return true;
+      // Variant goods match only the exact variant (enchant+level / potion).
+      ItemStack canonical = this.plugin.createOnlineShopProduct(product.id());
+      if (canonical == null) return false;
+      if (product.material() == Material.ENCHANTED_BOOK) {
+         if (!(stack.getItemMeta() instanceof EnchantmentStorageMeta have)
+            || !(canonical.getItemMeta() instanceof EnchantmentStorageMeta want)) return false;
+         return have.getStoredEnchants().equals(want.getStoredEnchants());
+      }
+      if (stack.getItemMeta() instanceof PotionMeta have && canonical.getItemMeta() instanceof PotionMeta want) {
+         return have.getBasePotionType() == want.getBasePotionType();
+      }
+      return false;
    }
 
    private boolean inSurvivalWorld(Player player) {
@@ -472,12 +610,17 @@ final class OnlineShopFeature implements Listener {
 
    private boolean isPurchasable(Material material) {
       if (material == null || !material.isItem() || material.isAir()) return false;
+      // Rare-merchant exclusives never enter the normal shop table.
+      if (RareMerchantItems.isSpecial(material)) return false;
       String name = material.name();
+      if (name.startsWith("LEGACY_") || name.startsWith("INFESTED_")) return false;
       return !name.contains("COMMAND") && material != Material.BARRIER && material != Material.STRUCTURE_VOID
          && material != Material.STRUCTURE_BLOCK && material != Material.JIGSAW && material != Material.LIGHT
          && material != Material.DEBUG_STICK && material != Material.KNOWLEDGE_BOOK && material != Material.SPAWNER
+         && material != Material.TRIAL_SPAWNER
          && material != Material.BEDROCK && material != Material.VAULT && material != Material.DRAGON_EGG
-         && material != Material.TEST_BLOCK && material != Material.TEST_INSTANCE_BLOCK;
+         && material != Material.TEST_BLOCK && material != Material.TEST_INSTANCE_BLOCK
+         && material != Material.REINFORCED_DEEPSLATE && material != Material.PETRIFIED_OAK_SLAB;
    }
 
    private Category categoryOf(Material material) {

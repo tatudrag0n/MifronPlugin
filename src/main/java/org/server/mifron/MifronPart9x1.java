@@ -41,11 +41,46 @@ abstract class MifronPart9x1 extends MifronPart9 {
       ConfigurationSection border = this.getConfig().getConfigurationSection("main-world.border");
       if (world == null) {
          String name = this.getConfig().getString("main-world.name", "world");
-         world = Bukkit.createWorld(new org.bukkit.WorldCreator(name).environment(Environment.NORMAL).generator(new OceanWorldGenerator()));
+         // New main worlds generate as a fully flat bedrock plane at Y=-64
+         // with no structures (MainFlatGenerator). Existing worlds are never
+         // modified here.
+         world = Bukkit.createWorld(new org.bukkit.WorldCreator(name).environment(Environment.NORMAL).generator(new MainFlatGenerator()));
       }
       if (world == null || border == null) return;
       world.getWorldBorder().setCenter(border.getDouble("center-x", 0.0D), border.getDouble("center-z", 0.0D));
       world.getWorldBorder().setSize(Math.max(1.0D, border.getDouble("size", 500.0D)));
+   }
+
+   /**
+    * {@code /mf main approve [all|<player>] [<player>]}: approves pending
+    * main-world blocks (formal save, then fixed). Admin only.
+    */
+   protected boolean handleMainCommand(org.bukkit.command.CommandSender sender, String[] args) {
+      if (!sender.hasPermission("mifron.admin")) {
+         sender.sendMessage("§c権限がありません。");
+         return true;
+      }
+      if (args.length >= 2 && "approve".equalsIgnoreCase(args[1])) {
+         String target = null;
+         String targetName = null;
+         if (args.length >= 3 && !"all".equalsIgnoreCase(args[2])) {
+            targetName = args[2];
+            org.bukkit.OfflinePlayer offline = Bukkit.getOfflinePlayer(targetName);
+            if (offline == null || offline.getUniqueId() == null) {
+               sender.sendMessage("§cプレイヤーが見つかりません: " + targetName);
+               return true;
+            }
+            target = offline.getUniqueId().toString();
+         }
+         int approved = this.mainWorldFeature.approvePending(target);
+         if (targetName != null) sender.sendMessage("§a" + targetName + " の承認待ちブロック " + approved + " 件を承認しました。");
+         else sender.sendMessage("§a承認待ちブロック " + approved + " 件を承認しました。");
+         return true;
+      }
+      int pending = this.mainWorldFeature.pendingCount();
+      sender.sendMessage("§amainワールド承認待ち: " + pending + " 件");
+      sender.sendMessage("§7/mf main approve [all|<player>]");
+      return true;
    }
 
    protected boolean isCentralPlazaLocation(Location location) {
@@ -95,11 +130,24 @@ abstract class MifronPart9x1 extends MifronPart9 {
    }
 
    protected void renderMerchantUi(Player player, AbstractVillager villager) {
+      String merchantType = villager.getPersistentDataContainer().get(this.merchantTypeKey, PersistentDataType.STRING);
       List<MerchantOffer> sellOffers = this.readMerchantOffers(villager.getUniqueId(), "sell");
       List<MerchantOffer> buyOffers = this.readMerchantOffers(villager.getUniqueId(), "buy");
       if (sellOffers.isEmpty() || buyOffers.isEmpty()) {
          this.rerollMerchant(villager);
+         sellOffers = this.readMerchantOffers(villager.getUniqueId(), "sell");
          buyOffers = this.readMerchantOffers(villager.getUniqueId(), "buy");
+      }
+      // Rare merchant: exactly 1 sell slot + 1 buy slot, special items only.
+      if ("rare".equals(merchantType)) {
+         this.activeMerchantPages.put(player.getUniqueId(), 1);
+         Inventory rare = Bukkit.createInventory(player, 27, Component.text(MERCHANT_UI_TITLE));
+         rare.setItem(10, this.mifron().named(Material.GOLD_INGOT, "\u00a76\u8ca9\u58f2\u67a0", List.of("\u00a77\u4e0b\u306e\u5546\u54c1\u3092\u8cfc\u5165")));
+         if (!sellOffers.isEmpty()) rare.setItem(11, this.mifron().createMerchantOfferIcon(villager, sellOffers.get(0), "sell"));
+         rare.setItem(14, this.mifron().named(Material.RED_STAINED_GLASS_PANE, "\u00a7c\u8cb7\u53d6\u67a0", List.of("\u00a77\u4e0b\u306e\u5546\u54c1\u3092\u58f2\u5374")));
+         if (!buyOffers.isEmpty()) rare.setItem(15, this.mifron().createMerchantOfferIcon(villager, buyOffers.get(0), "buy"));
+         player.openInventory(rare);
+         return;
       }
       this.activeMerchantPages.put(player.getUniqueId(), 1);
       Inventory inventory = Bukkit.createInventory(player, 27, Component.text(MERCHANT_UI_TITLE));

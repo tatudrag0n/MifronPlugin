@@ -76,17 +76,91 @@ final class UtilityItemsFeature implements Listener {
       );
    }
 
+   /** MP cost to permanently unlock night vision (charged once). */
+   static final int NIGHT_VISION_UNLOCK_COST = 10000;
+
    void openMenuUi(Player player) {
       org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Menu"));
       inventory.setItem(10, this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "OnlineShop", List.of(ChatColor.GRAY + "クリック: ショップを開く（Survivalのみ）"), "menu_shop", null));
       inventory.setItem(11, this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GRAY + "クリック: MP残高確認"), "menu_wallet", null));
       inventory.setItem(12, this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
-      inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト一覧"), "menu_quests", null));
+      inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
       inventory.setItem(14, this.plugin.actionItem(Material.ENDER_EYE, ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "クリック: 移動先を選択"), "menu_teleporter", null));
+      inventory.setItem(15, this.nightVisionMenuIcon(player));
       for (int slot = 0; slot < inventory.getSize(); slot++) {
          if (inventory.getItem(slot) == null) inventory.setItem(slot, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
       }
       player.openInventory(inventory);
+   }
+
+   // ------------------------------------------------------------------
+   // Night vision: 10,000 MP one-time unlock, then free ON/OFF toggle.
+   // Unlock + enabled flags persist in data.yml across relogs/restarts.
+   // ------------------------------------------------------------------
+
+   boolean isNightVisionUnlocked(Player player) {
+      return this.plugin.getPlayerSection(player.getUniqueId()).getBoolean("night-vision-unlocked", false);
+   }
+
+   boolean isNightVisionEnabled(Player player) {
+      return this.plugin.getPlayerSection(player.getUniqueId()).getBoolean("night-vision-enabled", false);
+   }
+
+   private ItemStack nightVisionMenuIcon(Player player) {
+      boolean unlocked = this.isNightVisionUnlocked(player);
+      boolean enabled = unlocked && this.isNightVisionEnabled(player);
+      Material icon = enabled ? Material.ENDER_EYE : Material.SPYGLASS;
+      String name = enabled ? ChatColor.GREEN + "暗視: ON" : unlocked ? ChatColor.YELLOW + "暗視: OFF" : ChatColor.GRAY + "暗視: 未解放";
+      List<String> lore = unlocked
+         ? List.of(ChatColor.GRAY + "クリック: ON/OFF切替", enabled ? ChatColor.GREEN + "現在ON" : ChatColor.YELLOW + "現在OFF")
+         : List.of(ChatColor.GRAY + "クリック: " + NIGHT_VISION_UNLOCK_COST + " MPで解放", ChatColor.GRAY + "解放後はON/OFF切替可能");
+      return this.plugin.actionItem(icon, name, lore, "menu_nightvision", null);
+   }
+
+   void toggleNightVision(Player player) {
+      var section = this.plugin.getPlayerSection(player.getUniqueId());
+      if (!section.getBoolean("night-vision-unlocked", false)) {
+         if (!this.plugin.withdrawEmeralds(player.getUniqueId(), NIGHT_VISION_UNLOCK_COST)) {
+            player.sendMessage(ChatColor.RED + "MPが足りません。暗視の解放には " + NIGHT_VISION_UNLOCK_COST + " MP必要です。");
+            return;
+         }
+         // Mark unlocked first so a concurrent second click cannot charge twice.
+         section.set("night-vision-unlocked", true);
+         section.set("night-vision-enabled", true);
+         this.plugin.queueDataSave();
+         this.applyNightVisionEffect(player);
+         player.sendMessage(ChatColor.GREEN + "暗視を解放しONにしました。");
+         this.openMenuUi(player);
+         return;
+      }
+      boolean enabled = section.getBoolean("night-vision-enabled", false);
+      section.set("night-vision-enabled", !enabled);
+      this.plugin.queueDataSave();
+      if (!enabled) {
+         this.applyNightVisionEffect(player);
+         player.sendMessage(ChatColor.GREEN + "暗視をONにしました。");
+      } else {
+         // Only our own night-vision effect is removed; other effects kept.
+         player.removePotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION);
+         player.sendMessage(ChatColor.YELLOW + "暗視をOFFにしました。");
+      }
+      this.openMenuUi(player);
+   }
+
+   void applyNightVisionEffect(Player player) {
+      player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+         org.bukkit.potion.PotionEffectType.NIGHT_VISION,
+         org.bukkit.potion.PotionEffect.INFINITE_DURATION, 0, false, false, true));
+   }
+
+   /** Re-applies an unlocked+enabled night vision after (re)login. */
+   public void reapplyNightVision(Player player) {
+      if (player == null || !player.isOnline()) return;
+      if (this.isNightVisionUnlocked(player) && this.isNightVisionEnabled(player)) {
+         if (!player.hasPotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION)) {
+            this.applyNightVisionEffect(player);
+         }
+      }
    }
 
    ItemStack createShopWand() {

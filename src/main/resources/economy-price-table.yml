@@ -5839,8 +5839,8 @@ price-table:
   DIAMOND_SWORD:
     Item_ID: "diamond_sword"
     Display_Name: "Diamond Sword"
-    Price_MP: 1040
-    Sell_MP: 810
+    Price_MP: 5200
+    Sell_MP: 4056
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "高"
     Merchant_Buy_Pool: true
@@ -11569,8 +11569,8 @@ price-table:
   DIAMOND_AXE:
     Item_ID: "diamond_axe"
     Display_Name: "Diamond Axe"
-    Price_MP: 1560
-    Sell_MP: 1215
+    Price_MP: 7800
+    Sell_MP: 6084
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "高"
     Merchant_Buy_Pool: true
@@ -11584,8 +11584,8 @@ price-table:
   DIAMOND_HOE:
     Item_ID: "diamond_hoe"
     Display_Name: "Diamond Hoe"
-    Price_MP: 1045
-    Sell_MP: 815
+    Price_MP: 2700
+    Sell_MP: 2106
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "高"
     Merchant_Buy_Pool: true
@@ -11599,8 +11599,8 @@ price-table:
   DIAMOND_PICKAXE:
     Item_ID: "diamond_pickaxe"
     Display_Name: "Diamond Pickaxe"
-    Price_MP: 1560
-    Sell_MP: 1215
+    Price_MP: 7800
+    Sell_MP: 6084
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "高"
     Merchant_Buy_Pool: true
@@ -11614,8 +11614,8 @@ price-table:
   DIAMOND_SHOVEL:
     Item_ID: "diamond_shovel"
     Display_Name: "Diamond Shovel"
-    Price_MP: 525
-    Sell_MP: 410
+    Price_MP: 2700
+    Sell_MP: 2106
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "高"
     Merchant_Buy_Pool: true
@@ -13069,8 +13069,8 @@ price-table:
   DEEPSLATE_EMERALD_ORE:
     Item_ID: "deepslate_emerald_ore"
     Display_Name: "Deepslate Emerald Ore"
-    Price_MP: 340
-    Sell_MP: 265
+    Price_MP: 68000
+    Sell_MP: 53040
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "中"
     Merchant_Buy_Pool: true
@@ -13519,8 +13519,8 @@ price-table:
   DIAMOND_BOOTS:
     Item_ID: "diamond_boots"
     Display_Name: "Diamond Boots"
-    Price_MP: 2070
-    Sell_MP: 1615
+    Price_MP: 10100
+    Sell_MP: 7878
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "高"
     Merchant_Buy_Pool: true
@@ -13534,8 +13534,8 @@ price-table:
   DIAMOND_CHESTPLATE:
     Item_ID: "diamond_chestplate"
     Display_Name: "Diamond Chestplate"
-    Price_MP: 4140
-    Sell_MP: 3230
+    Price_MP: 20100
+    Sell_MP: 15678
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "高"
     Merchant_Buy_Pool: true
@@ -13549,8 +13549,8 @@ price-table:
   DIAMOND_HELMET:
     Item_ID: "diamond_helmet"
     Display_Name: "Diamond Helmet"
-    Price_MP: 2590
-    Sell_MP: 2020
+    Price_MP: 12600
+    Sell_MP: 9828
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "高"
     Merchant_Buy_Pool: true
@@ -13564,8 +13564,8 @@ price-table:
   DIAMOND_LEGGINGS:
     Item_ID: "diamond_leggings"
     Display_Name: "Diamond Leggings"
-    Price_MP: 3625
-    Sell_MP: 2830
+    Price_MP: 17600
+    Sell_MP: 13728
     Resource_Class: "採掘/枯渇寄り"
     Economy_Impact: "高"
     Merchant_Buy_Pool: true
