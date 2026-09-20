@@ -78,7 +78,7 @@ for i, line in enumerate(lines):
         if line.startswith(" ") or line.startswith("\t"):
             if line.strip().startswith("port:"):
                 indent = line[: len(line) - len(line.lstrip())]
-                lines[i] = indent + "port: 8124"
+                lines[i] = indent + "port: 8125"
                 break
         elif line.strip() == "":
             continue
