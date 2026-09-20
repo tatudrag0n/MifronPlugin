@@ -81,7 +81,7 @@ final class UtilityItemsFeature implements Listener {
       inventory.setItem(10, this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "OnlineShop", List.of(ChatColor.GRAY + "クリック: ショップを開く（Survivalのみ）"), "menu_shop", null));
       inventory.setItem(11, this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GRAY + "クリック: MP残高確認"), "menu_wallet", null));
       inventory.setItem(12, this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
-      inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
+      inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト一覧"), "menu_quests", null));
       inventory.setItem(14, this.plugin.actionItem(Material.ENDER_EYE, ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "クリック: 移動先を選択"), "menu_teleporter", null));
       for (int slot = 0; slot < inventory.getSize(); slot++) {
          if (inventory.getItem(slot) == null) inventory.setItem(slot, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));

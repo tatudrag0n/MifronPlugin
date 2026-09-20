@@ -59,6 +59,7 @@ abstract class MifronPart13 extends MifronPart12x2 {
             inventory.setItem(slot++, this.mifron().actionItem(this.mifron().serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "teleport", "servers." + key));
          }
       }
+      inventory.setItem(26, this.mifron().actionItem(Material.OAK_DOOR, "\u00a7f\u30e1\u30cb\u30e5\u30fc\u306b\u623b\u308b", List.of(), "menu_back", null));
       this.mifron().fillEmptyGuiSlots(inventory);
       player.openInventory(inventory);
    }

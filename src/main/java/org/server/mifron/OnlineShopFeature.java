@@ -37,9 +37,12 @@ import org.bukkit.potion.PotionType;
 
 final class OnlineShopFeature implements Listener {
    static final String TITLE = "\u00a7bMifron OnlineShop";
-   // Five product rows (45 slots); the bottom row holds prev/next navigation.
-   private static final int PAGE_SIZE = 45;
+   // Top row (slots 0-10) holds the category tabs, three product rows follow
+   // (slots 18-44, 27 slots per page); the bottom row holds navigation.
+   private static final int PAGE_SIZE = 27;
+   private static final int PRODUCT_START = 18;
    private static final int PREV_SLOT = 45;
+   private static final int MENU_SLOT = 48;
    private static final int PAGE_SLOT = 49;
    private static final int NEXT_SLOT = 53;
    private final Mifron plugin;
@@ -47,6 +50,7 @@ final class OnlineShopFeature implements Listener {
    private final NamespacedKey productKey;
    private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
    private final Map<UUID, Integer> pages = new HashMap<>();
+   private final Map<UUID, Category> selected = new HashMap<>();
    private final Map<String, Long> configuredCooldowns = new HashMap<>();
    private final Map<String, String> configuredRarities = new HashMap<>();
    // Materials that currently carry a shop-imposed vanilla cooldown overlay.
@@ -76,6 +80,8 @@ final class OnlineShopFeature implements Listener {
       REDSTONE(Material.REDSTONE, "\u56de\u8def"),
       NATURE(Material.OAK_SAPLING, "\u81ea\u7136"),
       DECOR(Material.PAINTING, "\u88c5\u98fe"),
+      ENCHANT(Material.ENCHANTED_BOOK, "\u30a8\u30f3\u30c1\u30e3"),
+      POTION(Material.POTION, "\u30dd\u30fc\u30b7\u30e7\u30f3"),
       MISC(Material.BUNDLE, "\u305d\u306e\u4ed6");
       final Material icon;
       final String label;
@@ -98,7 +104,7 @@ final class OnlineShopFeature implements Listener {
       }
       this.addEnchantedBooks();
       this.addPotions();
-      for (List<ShopProduct> list : this.catalog.values()) list.sort(Comparator.comparing(ShopProduct::id));
+      for (List<ShopProduct> list : this.catalog.values()) list.sort(Comparator.comparingInt(ShopProduct::price).thenComparing(ShopProduct::id));
       this.rebuildConfiguredCooldowns();
    }
 
@@ -169,6 +175,7 @@ final class OnlineShopFeature implements Listener {
    public void onQuit(PlayerQuitEvent event) {
       this.cooldowns.remove(event.getPlayer().getUniqueId());
       this.pages.remove(event.getPlayer().getUniqueId());
+      this.selected.remove(event.getPlayer().getUniqueId());
       this.overlaid.remove(event.getPlayer().getUniqueId());
    }
 
@@ -271,6 +278,20 @@ final class OnlineShopFeature implements Listener {
          this.changePage(player, action);
          return;
       }
+      if (action.startsWith("cat:")) {
+         try {
+            this.selected.put(player.getUniqueId(), Category.valueOf(action.substring(4)));
+         } catch (IllegalArgumentException e) {
+            return;
+         }
+         this.pages.put(player.getUniqueId(), 0);
+         player.openInventory(this.createInventory(player));
+         return;
+      }
+      if (action.equals("menu_back")) {
+         this.plugin.utilityItemsFeature.openMenuUi(player);
+         return;
+      }
       this.purchase(player, action);
    }
 
@@ -282,35 +303,39 @@ final class OnlineShopFeature implements Listener {
       player.openInventory(this.createInventory(player));
    }
 
-   /**
-    * Flattens the catalog in {@link Category} declaration order so the single
-    * shop screen keeps category grouping while exposing every purchasable item
-    * through paging (no category tabs, no unreachable products).
-    */
-   private List<ShopProduct> flatProducts() {
-      List<ShopProduct> flat = new ArrayList<>();
-      for (Category category : Category.values()) flat.addAll(this.catalog.getOrDefault(category, List.of()));
-      return flat;
-   }
-
    private Inventory createInventory(Player player) {
-      List<ShopProduct> flat = this.flatProducts();
-      int maxPage = Math.max(0, (flat.size() - 1) / PAGE_SIZE);
+      Category category = this.selected.getOrDefault(player.getUniqueId(), Category.BLOCKS);
+      List<ShopProduct> list = new ArrayList<>(this.catalog.getOrDefault(category, List.of()));
+      int maxPage = Math.max(0, (list.size() - 1) / PAGE_SIZE);
       int page = Math.max(0, Math.min(maxPage, this.pages.getOrDefault(player.getUniqueId(), 0)));
       this.pages.put(player.getUniqueId(), page);
       Inventory inventory = Bukkit.createInventory(player, 54, TITLE);
+      for (Category tab : Category.values()) {
+         inventory.setItem(tab.ordinal(), this.tabIcon(tab, tab == category));
+      }
       int start = page * PAGE_SIZE;
       List<ShopProduct> shown = new ArrayList<>();
-      for (int i = 0; i < PAGE_SIZE && start + i < flat.size(); i++) {
-         ShopProduct product = flat.get(start + i);
-         inventory.setItem(i, this.catalogIcon(player, product));
+      for (int i = 0; i < PAGE_SIZE && start + i < list.size(); i++) {
+         ShopProduct product = list.get(start + i);
+         inventory.setItem(PRODUCT_START + i, this.catalogIcon(player, product));
          shown.add(product);
       }
       if (page > 0) inventory.setItem(PREV_SLOT, this.actionIcon(Material.ARROW, "\u00a7e\u524d\u306e\u30da\u30fc\u30b8", "page:prev"));
+      inventory.setItem(MENU_SLOT, this.actionIcon(Material.OAK_DOOR, "\u00a7f\u30e1\u30cb\u30e5\u30fc\u306b\u623b\u308b", "menu_back"));
       inventory.setItem(PAGE_SLOT, this.actionIcon(Material.PAPER, "\u00a7e\u30da\u30fc\u30b8 " + (page + 1) + " / " + (maxPage + 1), null));
       if (page < maxPage) inventory.setItem(NEXT_SLOT, this.actionIcon(Material.ARROW, "\u00a7e\u6b21\u306e\u30da\u30fc\u30b8", "page:next"));
       this.applyCooldownOverlay(player, shown);
       return inventory;
+   }
+
+   private ItemStack tabIcon(Category tab, boolean active) {
+      ItemStack item = this.actionIcon(tab.icon, (active ? "\u00a76\u25c6 " : "\u00a7f") + tab.label, "cat:" + tab.name());
+      ItemMeta meta = item.getItemMeta();
+      if (meta != null) {
+         meta.setLore(List.of(active ? "\u00a7e\u9078\u629e\u4e2d" : "\u00a77\u30af\u30ea\u30c3\u30af\u3067\u8868\u793a"));
+         item.setItemMeta(meta);
+      }
+      return item;
    }
 
    private void applyCooldownOverlay(Player player, List<ShopProduct> products) {
@@ -451,17 +476,23 @@ final class OnlineShopFeature implements Listener {
       return !name.contains("COMMAND") && material != Material.BARRIER && material != Material.STRUCTURE_VOID
          && material != Material.STRUCTURE_BLOCK && material != Material.JIGSAW && material != Material.LIGHT
          && material != Material.DEBUG_STICK && material != Material.KNOWLEDGE_BOOK && material != Material.SPAWNER
-         && material != Material.BEDROCK;
+         && material != Material.BEDROCK && material != Material.VAULT && material != Material.DRAGON_EGG
+         && material != Material.TEST_BLOCK && material != Material.TEST_INSTANCE_BLOCK;
    }
 
    private Category categoryOf(Material material) {
+      if (material == Material.ENCHANTED_BOOK) return Category.ENCHANT;
+      if (material == Material.POTION || material == Material.SPLASH_POTION
+         || material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW
+         || material == Material.OMINOUS_BOTTLE) return Category.POTION;
+      if (material == Material.HEAVY_CORE) return Category.ORES;
       String name = material.name();
       if (contains(name, "ORE", "INGOT", "RAW_", "NUGGET", "ANCIENT_DEBRIS")
          || (contains(name, "DIAMOND", "EMERALD", "COAL", "LAPIS", "QUARTZ", "NETHERITE", "AMETHYST", "COPPER")
             && !contains(name, "SWORD", "AXE", "PICKAXE", "SHOVEL", "HOE", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "HORSE", "DOOR", "BARS", "BLOCK"))) {
          if (!contains(name, "SWORD", "AXE", "PICKAXE", "SHOVEL", "HOE", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS")) return Category.ORES;
       }
-      if (contains(name, "SWORD", "BOW", "ARROW", "TRIDENT", "MACE", "SHIELD", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "CROSSBOW", "TOTEM", "SPECTRAL")) return Category.COMBAT;
+      if (contains(name, "SWORD", "BOW", "ARROW", "TRIDENT", "MACE", "BREEZE_ROD", "WIND_CHARGE", "SHIELD", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "CROSSBOW", "TOTEM", "SPECTRAL")) return Category.COMBAT;
       if (contains(name, "PICKAXE", "AXE", "SHOVEL", "HOE", "SHEARS", "FLINT_AND_STEEL", "FISHING_ROD", "BRUSH", "SPYGLASS", "COMPASS", "CLOCK", "LEAD", "NAME_TAG")) return Category.TOOLS;
       if (material.isEdible() || contains(name, "STEW", "SOUP", "BREAD", "CAKE", "COOKIE", "PUMPKIN_PIE", "HONEY_BOTTLE", "COOKED", "KELP")) return Category.FOOD;
       if (contains(name, "REDSTONE", "PISTON", "REPEATER", "COMPARATOR", "HOPPER", "DISPENSER", "DROPPER", "OBSERVER", "RAIL", "MINECART", "LEVER", "BUTTON", "PRESSURE", "TRIPWIRE", "SCULK_SENSOR", "CALIBRATED", "CRAFTER", "DAYLIGHT", "NOTE_BLOCK", "TARGET")) return Category.REDSTONE;

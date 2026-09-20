@@ -83,6 +83,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
    protected void handleTeleporterUiItem(Player player, ItemStack clicked) {
       String action = this.mifron().getUiAction(clicked);
       String target = this.getUiTargetString(clicked);
+      if ("menu_back".equals(action)) { this.playUiClickSound(player); this.utilityItemsFeature.openMenuUi(player); return; }
       if ("teleport".equals(action) && target != null) { this.playUiClickSound(player); this.mifron().teleportToConfigLocation(player, target); player.closeInventory(); }
       else if ("server_portal_bind".equals(action) && target != null) {
          String[] parts = target.split("\\|", 2);

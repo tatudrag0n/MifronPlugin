@@ -46,7 +46,7 @@ abstract class MifronPart17 extends MifronPart16 {
          case "chunk" -> { if (this.mifron().hasPermission(sender, "mifron.command.chunk")) this.mifron().handleChunkCommand((Player) sender); }
          case "protect" -> this.chunkProtectionFeature.handleProtectCommand(sender, args);
          case "chunkprotect" -> this.chunkProtectionFeature.handleChunkProtectCommand(sender, args);
-         case "menu" -> { if (sender instanceof Player menuPlayer) this.mifron().openFriendUi(menuPlayer); }
+         case "menu" -> { if (sender instanceof Player menuPlayer) this.utilityItemsFeature.openMenuUi(menuPlayer); }
          case "debugopen" -> {
             if (this.denyUnlessAdmin(sender)) return true;
             if (!(sender instanceof Player debugPlayer)) return true;

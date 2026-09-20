@@ -76,6 +76,18 @@ class OnlineShopRulesTest {
    }
 
    @Test
+   void trialLootHasSaneMinimumPrices() {
+      assertEquals(25000, OnlineShopRules.minimumPrice(org.bukkit.Material.MACE));
+      assertEquals(25000, OnlineShopRules.minimumPrice(org.bukkit.Material.HEAVY_CORE));
+      assertEquals(3000, OnlineShopRules.minimumPrice(org.bukkit.Material.OMINOUS_TRIAL_KEY));
+      assertEquals(1000, OnlineShopRules.minimumPrice(org.bukkit.Material.TRIAL_KEY));
+      assertEquals(800, OnlineShopRules.minimumPrice(org.bukkit.Material.OMINOUS_BOTTLE));
+      assertEquals(400, OnlineShopRules.minimumPrice(org.bukkit.Material.BREEZE_ROD));
+      assertEquals(2000, OnlineShopRules.minimumPrice(org.bukkit.Material.CREAKING_HEART));
+      assertEquals(10000, OnlineShopRules.minimumPrice(org.bukkit.Material.FLOW_ARMOR_TRIM_SMITHING_TEMPLATE));
+   }
+
+   @Test
    void variantNamesAreHumanReadable() {
       assertEquals("Sharpness", OnlineShopRules.prettyVariantName("sharpness"));
       assertEquals("Strong Healing", OnlineShopRules.prettyVariantName("STRONG_HEALING"));

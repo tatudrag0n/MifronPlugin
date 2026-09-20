@@ -15,6 +15,12 @@ final class OnlineShopRules {
    static int minimumPrice(Material material) {
       String name = material.name();
       if (name.contains("MACE") || name.contains("HEAVY_CORE")) return 25000;
+      if (name.contains("OMINOUS_TRIAL_KEY")) return 3000;
+      if (name.contains("TRIAL_KEY")) return 1000;
+      if (name.contains("OMINOUS_BOTTLE")) return 800;
+      if (name.contains("BREEZE_ROD")) return 400;
+      if (name.contains("CREAKING_HEART")) return 2000;
+      if (name.contains("FLOW_ARMOR_TRIM") || name.contains("BOLT_ARMOR_TRIM")) return 10000;
       if (name.contains("ELYTRA") || name.equals("NETHER_STAR") || name.contains("BEACON") || name.contains("DRAGON_EGG")) return 20000;
       if (name.contains("NETHERITE")) return 8000;
       if (name.contains("TOTEM") || name.contains("SHULKER") || name.contains("TRIDENT")) return 4000;

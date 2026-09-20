@@ -56,7 +56,7 @@ abstract class MifronPart14 extends MifronPart13x1 {
       this.playUiClickSound(player);
       UUID targetId = this.mifron().getUiTarget(clicked);
       switch (action) {
-         case "status_tab_quests" -> this.mifron().openStatusUi(player, "quests");
+         case "menu_back" -> this.utilityItemsFeature.openMenuUi(player);
          case "friend_request" -> { if (targetId != null) { this.mifron().sendFriendRequest(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
          case "friend_accept" -> { if (targetId != null) { this.mifron().acceptFriendRequest(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
          case "friend_remove" -> { if (targetId != null) { this.mifron().removeFriend(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
@@ -64,7 +64,7 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "friend_chat_close" -> { this.friendChatService.closeChat(player.getUniqueId()); this.mifron().openFriendUi(player); }
          case "friend_status_detail" -> {
             // The bottom stats box is display-only: jumping to the progress
-            // tab from here is surprising, and the top tabs (slots 1-4)
+            // tab from here is surprising, and the top tabs (slots 0-3)
             // already cover that navigation.
          }
          case "status_tab_progress" -> this.mifron().openStatusUi(player, "progress:0");
@@ -80,22 +80,12 @@ abstract class MifronPart14 extends MifronPart13x1 {
       if (action == null) return;
       this.playUiClickSound(player);
       switch (action) {
+         case "menu_back" -> this.utilityItemsFeature.openMenuUi(player);
          case "friend_status_back" -> this.mifron().openFriendUi(player);
          case "status_tab_progress" -> this.mifron().openStatusUi(player, "progress:0");
          case "status_tab_reincarnation" -> this.mifron().openStatusUi(player, "reincarnation");
          case "status_tab_titles" -> this.mifron().openStatusUi(player, "titles:0");
          case "status_tab_kills" -> this.mifron().openStatusUi(player, "kills:0");
-         case "status_tab_quests" -> this.mifron().openStatusUi(player, "quests");
-         case "quest_home" -> this.mifron().openStatusUi(player, "quests");
-         case "quest_category" -> this.mifron().openStatusUi(player, "quests:" + this.getUiTargetString(clicked));
-         case "locked_quest" -> {}
-         case "quest_claim" -> {
-            String questId = this.getUiTargetString(clicked);
-            if (questId != null && this.questService.claim(player, questId)) {
-               QuestDefinition definition = this.questService.definition(questId);
-               this.mifron().openStatusUi(player, definition == null ? "quests" : "quests:" + definition.type().key());
-            }
-         }
          case "progress_page" -> this.mifron().openStatusUi(player, "progress:" + this.mifron().parsePositiveInt(this.getUiTargetString(clicked), 0));
          case "titles_page" -> this.mifron().openStatusUi(player, "titles:" + this.mifron().parsePositiveInt(this.getUiTargetString(clicked), 0));
          case "kills_page" -> this.mifron().openStatusUi(player, "kills:" + this.mifron().parsePositiveInt(this.getUiTargetString(clicked), 0));
@@ -124,6 +114,7 @@ abstract class MifronPart14 extends MifronPart13x1 {
       if (action == null) return;
       this.playUiClickSound(player);
       switch (action) {
+         case "menu_back" -> this.utilityItemsFeature.openMenuUi(player);
          case "quest_close" -> player.closeInventory();
          case "quest_home" -> this.mifron().openQuestUi(player, "categories");
          case "quest_category" -> this.mifron().openQuestUi(player, this.getUiTargetString(clicked));
@@ -148,7 +139,7 @@ abstract class MifronPart14 extends MifronPart13x1 {
          }
          case "menu_wallet" -> player.sendMessage("\u00a7a\u6240\u6301MP: " + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId())));
          case "menu_status" -> this.mifron().openFriendUi(player);
-         case "menu_quests" -> this.mifron().openStatusUi(player, "quests");
+         case "menu_quests" -> this.mifron().openQuestUi(player, "categories");
          case "menu_teleporter" -> this.mifron().openTeleportUi(player);
          default -> {}
       }
