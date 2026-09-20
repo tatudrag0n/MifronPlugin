@@ -38,8 +38,8 @@ import org.bukkit.potion.PotionType;
 final class OnlineShopFeature implements Listener {
    static final String TITLE = "\u00a7bMifron OnlineShop";
    // Left column (slots 0/9/18/27/36) holds the 5 genre tabs, products fill
-   // columns 1-5 of rows 0-4 (25 slots per page); the bottom row navigates.
-   private static final int PAGE_SIZE = 25;
+   // columns 1-8 of rows 0-4 (40 slots per page); the bottom row navigates.
+   private static final int PAGE_SIZE = 40;
    private static final int[] TAB_SLOTS = {0, 9, 18, 27, 36};
    private static final int PREV_SLOT = 45;
    private static final int MENU_SLOT = 48;
@@ -311,9 +311,9 @@ final class OnlineShopFeature implements Listener {
       player.openInventory(this.createInventory(player));
    }
 
-   /** Product slot for page index i: rows 0-4, columns 1-5. */
+   /** Product slot for page index i: rows 0-4, columns 1-8. */
    static int productSlot(int index) {
-      return (index / 5) * 9 + 1 + (index % 5);
+      return (index / 8) * 9 + 1 + (index % 8);
    }
 
    private Inventory createInventory(Player player) {
