@@ -30,7 +30,7 @@ for jar in "$PROD_DIR"/plugins/*.jar; do
   [ -e "$jar" ] || continue
   base="$(basename "$jar")"
   case "$base" in
-    DiscordSRV-*|tebex-*) echo "SKIP (disabled on test): $base"; continue;;
+    DiscordSRV-*|tebex-*|MifronAuth.jar) echo "SKIP (disabled on test): $base"; continue;;
   esac
   cp -f "$jar" "$TEST_DIR/plugins/$base"
   echo "SYNC plugins/$base"

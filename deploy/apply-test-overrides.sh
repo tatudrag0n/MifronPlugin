@@ -54,11 +54,37 @@ for vc in "$TEST_DIR"/plugins/Votifier/config.yml "$TEST_DIR"/plugins/nuvotifier
   sed -i -E "s/^(\s*port:\s*)[0-9]+/\1$VOTE_PORT/" "$vc"
 done
 
-for jar in "$TEST_DIR"/plugins/DiscordSRV-*.jar "$TEST_DIR"/plugins/tebex-*.jar; do
+for jar in "$TEST_DIR"/plugins/DiscordSRV-*.jar "$TEST_DIR"/plugins/tebex-*.jar "$TEST_DIR"/plugins/MifronAuth.jar; do
   [ -e "$jar" ] || continue
   mv -f "$jar" "$jar.disabled-test"
   echo "Disabled on test: $(basename "$jar")"
 done
+
+# Minoru bridge API must not fight production for 127.0.0.1:8123.
+mifron_cfg="$TEST_DIR/plugins/mifron/config.yml"
+if [ -f "$mifron_cfg" ]; then
+  python3 - "$mifron_cfg" <<'PY'
+import sys
+path = sys.argv[1]
+lines = open(path, encoding="utf-8").read().split("\n")
+in_bridge = False
+for i, line in enumerate(lines):
+    if line.startswith("minoru-bridge:"):
+        in_bridge = True
+        continue
+    if in_bridge:
+        if line.startswith(" ") or line.startswith("\t"):
+            if line.strip().startswith("port:"):
+                indent = line[: len(line) - len(line.lstrip())]
+                lines[i] = indent + "port: 8124"
+                break
+        elif line.strip() == "":
+            continue
+        else:
+            break
+open(path, "w", encoding="utf-8").write("\n".join(lines))
+PY
+fi
 
 mifron_cfg="$TEST_DIR/plugins/mifron/config.yml"
 if [ -f "$mifron_cfg" ]; then
