@@ -106,6 +106,21 @@ class OnlineShopRulesTest {
    }
 
    @Test
+   void mainNoEditZoneCoversSpawnRadius() {
+      assertTrue(MainWorldFeature.insideSpawnRadius(0, 0, 0, 0, 32));
+      assertTrue(MainWorldFeature.insideSpawnRadius(22, 22, 0, 0, 32));
+      assertFalse(MainWorldFeature.insideSpawnRadius(23, 23, 0, 0, 32));
+      assertFalse(MainWorldFeature.insideSpawnRadius(0, 33, 0, 0, 32));
+   }
+
+   @Test
+   void pendingReleasesWhenBlockGoneOrReplaced() {
+      assertTrue(MainWorldFeature.isPendingReleased(org.bukkit.Material.AIR, org.bukkit.Material.STONE));
+      assertTrue(MainWorldFeature.isPendingReleased(org.bukkit.Material.DIRT, org.bukkit.Material.STONE));
+      assertFalse(MainWorldFeature.isPendingReleased(org.bukkit.Material.STONE, org.bukkit.Material.STONE));
+   }
+
+   @Test
    void mainWorldBansEntitySpawnItemsButAllowsArmorStand() {
       assertTrue(MainWorldFeature.isEntitySpawnItem(org.bukkit.Material.ZOMBIE_SPAWN_EGG));
       assertTrue(MainWorldFeature.isEntitySpawnItem(org.bukkit.Material.SNOWBALL));

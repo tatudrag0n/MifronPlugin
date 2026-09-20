@@ -112,8 +112,13 @@ final class MainWorldFeature implements Listener {
       return name == null || name.isBlank() ? "main" : name;
    }
 
-   int spawnProtectRadius() {
-      return Math.max(0, this.plugin.getConfig().getInt("main-world.spawn-protect-radius", 30));
+   int noEditRadius() {
+      return Math.max(0, this.plugin.getConfig().getInt("main-world.spawn-protect-radius", 32));
+   }
+
+   /** Fixed no-edit zone centered at 0,0 (horizontal X,Z only). */
+   boolean insideNoEditZone(int x, int z) {
+      return insideSpawnRadius(x, z, 0, 0, this.noEditRadius());
    }
 
    boolean isMainWorld(World world) {
@@ -247,11 +252,10 @@ final class MainWorldFeature implements Listener {
          event.setCancelled(true);
          return;
       }
-      // Spawn protection: horizontal X,Z distance only.
-      Location spawn = block.getWorld().getSpawnLocation();
-      if (insideSpawnRadius(block.getX(), block.getZ(), spawn.getBlockX(), spawn.getBlockZ(), this.spawnProtectRadius())) {
+      // No-edit zone around 0,0: neither placing nor breaking allowed.
+      if (this.insideNoEditZone(block.getX(), block.getZ())) {
          event.setCancelled(true);
-         player.sendMessage("§cスポーン地点から" + this.spawnProtectRadius() + "ブロック以内には設置できません。");
+         player.sendMessage("§c0,0から" + this.noEditRadius() + "ブロック以内には設置できません。");
          return;
       }
       // X,Z column conflict: another player's column is off limits.
@@ -280,12 +284,35 @@ final class MainWorldFeature implements Listener {
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onBlockDamage(org.bukkit.event.block.BlockDamageEvent event) {
+      // Semi-creative: digging in main breaks instantly like creative mode.
+      // Approval guards still apply at break time, so this never bypasses them.
+      if (!(event.getPlayer() instanceof Player player)) return;
+      if (!this.isMainWorld(player.getWorld())) return;
+      GameMode mode = player.getGameMode();
+      if (mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) {
+         event.setInstaBreak(true);
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
    public void onBlockBreak(BlockBreakEvent event) {
       Block block = event.getBlock();
       if (!this.isMainWorld(block.getWorld())) return;
       Player player = event.getPlayer();
-      if (player.hasPermission("mifron.admin")) return;
       BlockKey key = new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+      if (this.insideNoEditZone(block.getX(), block.getZ())) {
+         event.setCancelled(true);
+         player.sendMessage("§c0,0から" + this.noEditRadius() + "ブロック以内は編集できません。");
+         return;
+      }
+      if (player.hasPermission("mifron.admin")) {
+         // Admin moderation breaks drop any approval record so no stale
+         // red mist or phantom ownership survives the removed block.
+         if (this.pending.remove(key) != null) this.persistPending();
+         if (this.owners.remove(key) != null) this.persist();
+         return;
+      }
       if (this.pending.containsKey(key)) {
          event.setCancelled(true);
          player.sendMessage("§c承認待ちのブロックは編集できません。");
@@ -352,14 +379,36 @@ final class MainWorldFeature implements Listener {
       return count;
    }
 
+   /**
+    * A pending record is released once its block is gone or replaced: air
+    * (broken/decayed/popped by other means) or a different material ends the
+    * approval wait and its red mist.
+    */
+   static boolean isPendingReleased(Material current, Material placed) {
+      // NOTE: no Material#isAir() here — registry-backed calls crash unit tests.
+      return current == null || current == Material.AIR
+         || current == Material.CAVE_AIR || current == Material.VOID_AIR
+         || current != placed;
+   }
+
    private void tickPendingParticles() {
       if (this.pending.isEmpty()) return;
       Particle.DustOptions red = new Particle.DustOptions(Color.RED, 1.0f);
+      List<BlockKey> stale = new ArrayList<>();
       int shown = 0;
-      for (BlockKey key : this.pending.keySet()) {
+      for (Map.Entry<BlockKey, PendingRecord> entry : this.pending.entrySet()) {
          if (shown++ >= 200) break;
+         BlockKey key = entry.getKey();
          World world = Bukkit.getWorld(key.world);
          if (world == null) continue;
+         // Release records whose block vanished without a break event.
+         if (world.isChunkLoaded(key.x >> 4, key.z >> 4)) {
+            Material current = world.getBlockAt(key.x, key.y, key.z).getType();
+            if (isPendingReleased(current, entry.getValue().material())) {
+               stale.add(key);
+               continue;
+            }
+         }
          // Red mist along the block edges, visible to nearby viewers only.
          double x = key.x + 0.5;
          double y = key.y + 0.5;
@@ -377,6 +426,10 @@ final class MainWorldFeature implements Listener {
                viewer.spawnParticle(Particle.DUST, x - edge, y - edge, z + edge, 2, 0.05, 0.05, 0.05, 0.0, red);
             }
          }
+      }
+      if (!stale.isEmpty()) {
+         for (BlockKey key : stale) this.pending.remove(key);
+         this.persistPending();
       }
    }
 
