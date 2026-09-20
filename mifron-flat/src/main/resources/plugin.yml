@@ -1,0 +1,6 @@
+name: MifronFlat
+version: 1.0.0
+main: org.server.mifronflat.MifronFlat
+api-version: '1.21'
+load: STARTUP
+description: Flat bedrock generator for the main world.
