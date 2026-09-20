@@ -1,10 +1,14 @@
 # Test server operation
 
+> Policy: the test server runs **locally** (developer machine), not on this
+> host. The `~/test-server` instance was removed from the host to protect
+> production memory. The scripts below are retained for local use.
+
 ## Instances
 
-| | Production | Test |
+| | Production (host) | Test (local) |
 |---|---|---|
-| Directory | `~/main-server` | `~/test-server` |
+| Directory | `~/main-server` | `<local>/test-server` |
 | Java port | 25565 | 25566 |
 | Bedrock (UDP) | 19132 | 19133 |
 | Votifier | 8192 | 8193 |
