@@ -124,6 +124,20 @@ class OnlineShopRulesTest {
    }
 
    @Test
+   void productFamiliesGroupSiblings() {
+      // Stairs sit with their base block, gear with its tier.
+      assertEquals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.STONE, "", "Stone", 10)),
+         OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.STONE_STAIRS, "", "Stone Stairs", 12)));
+      assertEquals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.DIAMOND_SWORD, "", "S", 1)),
+         OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.DIAMOND_HELMET, "", "H", 1)));
+      // Dyed wool shares one family; books group per enchant.
+      assertEquals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.RED_WOOL, "", "R", 1)),
+         OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.BLUE_WOOL, "", "B", 1)));
+      assertEquals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.ENCHANTED_BOOK, "SHARPNESS:5", "S", 1)),
+         OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.ENCHANTED_BOOK, "SHARPNESS:3", "S", 1)));
+   }
+
+   @Test
    void specialItemsStayOutOfNormalShop() {
       assertTrue(RareMerchantItems.isSpecial(org.bukkit.Material.SPAWNER));
       assertTrue(RareMerchantItems.isSpecial(org.bukkit.Material.TOTEM_OF_UNDYING));

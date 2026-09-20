@@ -99,7 +99,12 @@ final class OnlineShopFeature implements Listener {
       }
       this.addEnchantedBooks();
       this.addPotions();
-      for (List<ShopProduct> list : this.catalog.values()) list.sort(Comparator.comparingInt(ShopProduct::price).thenComparing(ShopProduct::id));
+      // Group sibling kinds together (stairs/slabs with base block, gear by
+      // tier, dyed blocks by family, books by enchant), then price, then id.
+      for (List<ShopProduct> list : this.catalog.values()) {
+         list.sort(Comparator.comparing(OnlineShopFeature::familyOf)
+            .thenComparingInt(ShopProduct::price).thenComparing(ShopProduct::id));
+      }
       this.rebuildConfiguredCooldowns();
       // Register every product in stock so monthly restock covers the table.
       try {
@@ -644,6 +649,50 @@ final class OnlineShopFeature implements Listener {
    private static boolean contains(String name, String... parts) {
       for (String part : parts) if (name.contains(part)) return true;
       return false;
+   }
+
+   private static final String[] VARIANT_SUFFIXES = {
+      "_STAIRS", "_SLAB", "_WALL", "_FENCE", "_FENCE_GATE", "_DOOR", "_TRAPDOOR",
+      "_BUTTON", "_PRESSURE_PLATE", "_SIGN", "_HANGING_SIGN", "_BOAT", "_CHEST_BOAT",
+      "_HELMET", "_CHESTPLATE", "_LEGGINGS", "_BOOTS", "_SWORD", "_PICKAXE",
+      "_AXE", "_SHOVEL", "_HOE", "_HORSE_ARMOR",
+   };
+
+   private static final String[] DYED_FAMILIES = {
+      "_WOOL", "_CARPET", "_CONCRETE", "_CONCRETE_POWDER", "_TERRACOTTA",
+      "_GLAZED_TERRACOTTA", "_GLASS", "_GLASS_PANE", "_SHULKER_BOX", "_CANDLE",
+      "_BED", "_BANNER",
+   };
+
+   /**
+    * Sort family: variant goods group by enchant/potion kind, dyed blocks by
+    * color family, gear by tier, stairs/slabs/walls with their base block.
+    */
+   static String familyOf(ShopProduct product) {
+      if (!product.variant().isEmpty()) {
+         String kind = product.variant().split(":")[0];
+         if (product.material().name().contains("POTION") || product.material() == Material.TIPPED_ARROW) {
+            kind = kind.replaceFirst("^(STRONG_|LONG_)", "");
+         }
+         return product.material().name() + "#" + kind;
+      }
+      String base = product.material().name();
+      for (String suffix : VARIANT_SUFFIXES) {
+         if (base.endsWith(suffix)) {
+            base = base.substring(0, base.length() - suffix.length());
+            break;
+         }
+      }
+      for (String family : DYED_FAMILIES) {
+         if (base.endsWith(family) || base.equals(family.substring(1))) return "FAMILY" + family;
+      }
+      // Wood species stay together regardless of planks/log/leaves form.
+      String[] wood = {"OAK", "SPRUCE", "BIRCH", "JUNGLE", "ACACIA", "DARK_OAK",
+         "MANGROVE", "CHERRY", "BAMBOO", "CRIMSON", "WARPED", "PALE_OAK"};
+      for (String species : wood) {
+         if (base.startsWith(species + "_") || base.equals(species)) return "WOOD";
+      }
+      return base;
    }
 
    private int priceOf(Material material) {
