@@ -16,10 +16,14 @@ import org.bukkit.persistence.PersistentDataType;
 abstract class MifronPart18x1 extends MifronPart18 {
    protected void handleMerchantCommand(Player player, String[] args) {
       if (!player.hasPermission("mifron.admin")) { player.sendMessage("\u00a7c\u6a29\u9650\u304c\u3042\u308a\u307e\u305b\u3093\u3002"); return; }
-      if (args.length < 2) { player.sendMessage("\u00a7c/mifron merchant spawn|reroll|clear"); return; }
+      if (args.length < 2) { player.sendMessage("\u00a7c/mifron merchant spawn|spawnrare|reroll|clear"); return; }
       switch (args[1].toLowerCase(Locale.ROOT)) {
          case "spawn" -> {
             if (this.spawnMerchant(player.getLocation())) player.sendMessage("\u00a7aMifron\u5546\u4eba\u3092\u30b9\u30dd\u30fc\u30f3\u3057\u307e\u3057\u305f\u3002");
+            else player.sendMessage("\u00a7c\u4e2d\u592e\u5e83\u5834\u306b\u306fMifron\u5546\u4eba\u3092\u30b9\u30dd\u30fc\u30f3\u3067\u304d\u307e\u305b\u3093\u3002");
+         }
+         case "spawnrare" -> {
+            if (this.spawnMerchantOfType(player.getLocation(), "rare")) player.sendMessage("\u00a76\u79d8\u5b9d\u5546\u4eba\u3092\u30b9\u30dd\u30fc\u30f3\u3057\u307e\u3057\u305f\u3002");
             else player.sendMessage("\u00a7c\u4e2d\u592e\u5e83\u5834\u306b\u306fMifron\u5546\u4eba\u3092\u30b9\u30dd\u30fc\u30f3\u3067\u304d\u307e\u305b\u3093\u3002");
          }
          case "reroll" -> {
@@ -45,7 +49,7 @@ abstract class MifronPart18x1 extends MifronPart18 {
             }
             player.sendMessage("\u00a7aMifron\u5546\u4eba\u3092\u524a\u9664\u3057\u307e\u3057\u305f: " + cleared + "\u4f53");
          }
-         default -> player.sendMessage("\u00a7c/mifron merchant spawn|reroll|clear");
+         default -> player.sendMessage("\u00a7c/mifron merchant spawn|spawnrare|reroll|clear");
       }
    }
 

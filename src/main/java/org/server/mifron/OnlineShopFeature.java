@@ -37,10 +37,10 @@ import org.bukkit.potion.PotionType;
 
 final class OnlineShopFeature implements Listener {
    static final String TITLE = "\u00a7bMifron OnlineShop";
-   // Top row (slots 0-10) holds the category tabs, three product rows follow
-   // (slots 18-44, 27 slots per page); the bottom row holds navigation.
-   private static final int PAGE_SIZE = 27;
-   private static final int PRODUCT_START = 18;
+   // Left column (slots 0/9/18/27/36) holds the 5 genre tabs, products fill
+   // columns 1-5 of rows 0-4 (25 slots per page); the bottom row navigates.
+   private static final int PAGE_SIZE = 25;
+   private static final int[] TAB_SLOTS = {0, 9, 18, 27, 36};
    private static final int PREV_SLOT = 45;
    private static final int MENU_SLOT = 48;
    private static final int PAGE_SLOT = 49;
@@ -71,18 +71,13 @@ final class OnlineShopFeature implements Listener {
       }
    }
 
+   /** Five shop genres, tabbed in the left GUI column. */
    enum Category {
-      BLOCKS(Material.BRICKS, "\u5efa\u6750"),
-      ORES(Material.DIAMOND, "\u9271\u77f3"),
-      COMBAT(Material.IRON_SWORD, "\u6226\u95d8"),
-      TOOLS(Material.IRON_PICKAXE, "\u9053\u5177"),
-      FOOD(Material.BREAD, "\u98df\u6599"),
-      REDSTONE(Material.REDSTONE, "\u56de\u8def"),
-      NATURE(Material.OAK_SAPLING, "\u81ea\u7136"),
-      DECOR(Material.PAINTING, "\u88c5\u98fe"),
-      ENCHANT(Material.ENCHANTED_BOOK, "\u30a8\u30f3\u30c1\u30e3"),
-      POTION(Material.POTION, "\u30dd\u30fc\u30b7\u30e7\u30f3"),
-      MISC(Material.BUNDLE, "\u305d\u306e\u4ed6");
+      BUILD(Material.BRICKS, "\u5efa\u7bc9"),
+      MATERIAL(Material.DIAMOND, "\u7d20\u6750"),
+      EQUIP(Material.IRON_SWORD, "\u88c5\u5099"),
+      FOOD(Material.BREAD, "\u98df\u6599\u30fb\u30dd\u30fc\u30b7\u30e7\u30f3"),
+      SPECIAL(Material.ENCHANTED_BOOK, "\u7279\u6b8a");
       final Material icon;
       final String label;
       Category(Material icon, String label) { this.icon = icon; this.label = label; }
@@ -316,21 +311,27 @@ final class OnlineShopFeature implements Listener {
       player.openInventory(this.createInventory(player));
    }
 
+   /** Product slot for page index i: rows 0-4, columns 1-5. */
+   static int productSlot(int index) {
+      return (index / 5) * 9 + 1 + (index % 5);
+   }
+
    private Inventory createInventory(Player player) {
-      Category category = this.selected.getOrDefault(player.getUniqueId(), Category.BLOCKS);
+      Category category = this.selected.getOrDefault(player.getUniqueId(), Category.BUILD);
       List<ShopProduct> list = new ArrayList<>(this.catalog.getOrDefault(category, List.of()));
       int maxPage = Math.max(0, (list.size() - 1) / PAGE_SIZE);
       int page = Math.max(0, Math.min(maxPage, this.pages.getOrDefault(player.getUniqueId(), 0)));
       this.pages.put(player.getUniqueId(), page);
       Inventory inventory = Bukkit.createInventory(player, 54, TITLE);
-      for (Category tab : Category.values()) {
-         inventory.setItem(tab.ordinal(), this.tabIcon(tab, tab == category));
+      Category[] tabs = Category.values();
+      for (int i = 0; i < tabs.length && i < TAB_SLOTS.length; i++) {
+         inventory.setItem(TAB_SLOTS[i], this.tabIcon(tabs[i], tabs[i] == category));
       }
       int start = page * PAGE_SIZE;
       List<ShopProduct> shown = new ArrayList<>();
       for (int i = 0; i < PAGE_SIZE && start + i < list.size(); i++) {
          ShopProduct product = list.get(start + i);
-         inventory.setItem(PRODUCT_START + i, this.catalogIcon(player, product));
+         inventory.setItem(productSlot(i), this.catalogIcon(player, product));
          shown.add(product);
       }
       if (page > 0) inventory.setItem(PREV_SLOT, this.actionIcon(Material.ARROW, "\u00a7e\u524d\u306e\u30da\u30fc\u30b8", "page:prev"));
@@ -407,15 +408,19 @@ final class OnlineShopFeature implements Listener {
    }
 
    int effectiveBuyPrice(ShopProduct product) {
-      return this.plugin.shopStockService.buyPriceNow(product.id(), this.buyBaseOf(product));
+      // Floor 1 MP: low stock swings must never zero-out a buyback.
+      return Math.max(1, this.plugin.shopStockService.buyPriceNow(product.id(), this.buyBaseOf(product)));
    }
 
-   /** Table buy price for plain goods; half of sale for variant goods. */
+   /**
+    * Buy-back base: table buy price when set, otherwise half of sale.
+    * Every catalog product is sellable; the floor is 1 MP so no product is
+    * ever "buyback excluded" by pricing.
+    */
    private int buyBaseOf(ShopProduct product) {
-      if (product.variant().isEmpty()) {
-         return Math.max(0, this.plugin.pricingService.buyPrice(product.material()));
-      }
-      return Math.max(0, product.price() / 2);
+      int table = this.plugin.pricingService.buyPrice(product.material());
+      if (table > 0) return table;
+      return Math.max(1, product.price() / 2);
    }
 
    private ItemStack catalogIcon(Player player, ShopProduct product) {
@@ -544,16 +549,11 @@ final class OnlineShopFeature implements Listener {
       long gained = 0L;
       // Single-threaded server tick: inventory mutation + stock + payout stay
       // consistent by construction; amounts are validated non-negative.
-      outer:
       for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
          ItemStack stack = player.getInventory().getItem(slot);
          if (!this.matchesProduct(player, stack, listed)) continue;
          while (stack.getAmount() > 0 && sold < capacity) {
-            int unitPrice = this.effectiveBuyPrice(listed);
-            if (unitPrice <= 0) {
-               if (sold == 0) player.sendMessage(ChatColor.RED + "この商品は買取対象外です。");
-               break outer;
-            }
+            int unitPrice = Math.max(1, this.effectiveBuyPrice(listed));
             stack.setAmount(stack.getAmount() - 1);
             sold++;
             gained = Math.min(2_000_000_000L, gained + unitPrice);
@@ -624,25 +624,21 @@ final class OnlineShopFeature implements Listener {
    }
 
    private Category categoryOf(Material material) {
-      if (material == Material.ENCHANTED_BOOK) return Category.ENCHANT;
+      String name = material.name();
+      // Equipment first: gear names overlap ore keywords (diamond/emerald).
+      if (contains(name, "SWORD", "BOW", "ARROW", "TRIDENT", "MACE", "BREEZE_ROD", "WIND_CHARGE", "SHIELD", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "CROSSBOW", "TOTEM", "SPECTRAL", "TURTLE")) return Category.EQUIP;
+      if (contains(name, "PICKAXE", "AXE", "SHOVEL", "HOE", "SHEARS", "FLINT_AND_STEEL", "FISHING_ROD", "BRUSH", "SPYGLASS", "COMPASS", "CLOCK", "LEAD", "NAME_TAG", "MACE", "HEAVY_CORE")) return Category.EQUIP;
+      if (material == Material.ENCHANTED_BOOK) return Category.SPECIAL;
       if (material == Material.POTION || material == Material.SPLASH_POTION
          || material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW
-         || material == Material.OMINOUS_BOTTLE) return Category.POTION;
-      if (material == Material.HEAVY_CORE) return Category.ORES;
-      String name = material.name();
-      if (contains(name, "ORE", "INGOT", "RAW_", "NUGGET", "ANCIENT_DEBRIS")
-         || (contains(name, "DIAMOND", "EMERALD", "COAL", "LAPIS", "QUARTZ", "NETHERITE", "AMETHYST", "COPPER")
-            && !contains(name, "SWORD", "AXE", "PICKAXE", "SHOVEL", "HOE", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "HORSE", "DOOR", "BARS", "BLOCK"))) {
-         if (!contains(name, "SWORD", "AXE", "PICKAXE", "SHOVEL", "HOE", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS")) return Category.ORES;
-      }
-      if (contains(name, "SWORD", "BOW", "ARROW", "TRIDENT", "MACE", "BREEZE_ROD", "WIND_CHARGE", "SHIELD", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "CROSSBOW", "TOTEM", "SPECTRAL")) return Category.COMBAT;
-      if (contains(name, "PICKAXE", "AXE", "SHOVEL", "HOE", "SHEARS", "FLINT_AND_STEEL", "FISHING_ROD", "BRUSH", "SPYGLASS", "COMPASS", "CLOCK", "LEAD", "NAME_TAG")) return Category.TOOLS;
-      if (material.isEdible() || contains(name, "STEW", "SOUP", "BREAD", "CAKE", "COOKIE", "PUMPKIN_PIE", "HONEY_BOTTLE", "COOKED", "KELP")) return Category.FOOD;
-      if (contains(name, "REDSTONE", "PISTON", "REPEATER", "COMPARATOR", "HOPPER", "DISPENSER", "DROPPER", "OBSERVER", "RAIL", "MINECART", "LEVER", "BUTTON", "PRESSURE", "TRIPWIRE", "SCULK_SENSOR", "CALIBRATED", "CRAFTER", "DAYLIGHT", "NOTE_BLOCK", "TARGET")) return Category.REDSTONE;
-      if (contains(name, "SAPLING", "SEED", "WHEAT", "CARROT", "POTATO", "BEET", "COCOA", "SUGAR_CANE", "BAMBOO", "CACTUS", "CHORUS", "FUNGUS", "MUSHROOM", "TULIP", "ORCHID", "LILAC", "PEONY", "ROSE", "LEAVES", "VINE", "MOSS", "AZALEA", "MANGROVE", "PINK_PETALS")) return Category.NATURE;
-      if (contains(name, "BANNER", "SIGN", "PAINTING", "ITEM_FRAME", "CANDLE", "LANTERN", "CAMPFIRE", "CARPET", "GLASS_PANE", "HEAD", "SKULL", "DECORATED", "ARMOR_STAND", "FLOWER_POT")) return Category.DECOR;
-      if (material.isBlock()) return Category.BLOCKS;
-      return Category.MISC;
+         || material == Material.OMINOUS_BOTTLE) return Category.FOOD;
+      if (material.isEdible() || contains(name, "STEW", "SOUP", "BREAD", "CAKE", "COOKIE", "PUMPKIN_PIE", "HONEY_BOTTLE", "COOKED", "KELP", "MILK", "POTION")) return Category.FOOD;
+      if (contains(name, "ORE", "INGOT", "RAW_", "NUGGET", "ANCIENT_DEBRIS", "DIAMOND", "EMERALD", "COAL", "LAPIS", "QUARTZ", "NETHERITE", "AMETHYST", "COPPER", "IRON", "GOLD", "REDSTONE")) return Category.MATERIAL;
+      if (contains(name, "REDSTONE", "PISTON", "REPEATER", "COMPARATOR", "HOPPER", "DISPENSER", "DROPPER", "OBSERVER", "RAIL", "MINECART", "LEVER", "BUTTON", "PRESSURE", "TRIPWIRE", "SCULK_SENSOR", "CALIBRATED", "CRAFTER", "DAYLIGHT", "NOTE_BLOCK", "TARGET")) return Category.MATERIAL;
+      if (contains(name, "SAPLING", "SEED", "WHEAT", "CARROT", "POTATO", "BEET", "COCOA", "SUGAR", "BAMBOO", "CACTUS", "CHORUS", "FUNGUS", "MUSHROOM", "TULIP", "ORCHID", "LILAC", "PEONY", "ROSE", "LEAVES", "VINE", "MOSS", "AZALEA", "MANGROVE", "PINK_PETALS", "KELP", "LOG", "PLANKS", "WOOL")) return Category.MATERIAL;
+      if (contains(name, "BANNER", "SIGN", "PAINTING", "ITEM_FRAME", "CANDLE", "LANTERN", "CAMPFIRE", "CARPET", "GLASS", "DECORATED", "ARMOR_STAND", "FLOWER_POT", "SHULKER_BOX", "BED", "DOOR", "FENCE", "STAIRS", "SLAB", "WALL", "BRICK", "TILE", "TERRACOTTA", "CONCRETE", "GLAZED")) return Category.BUILD;
+      if (material.isBlock()) return Category.BUILD;
+      return Category.SPECIAL;
    }
 
    private static boolean contains(String name, String... parts) {

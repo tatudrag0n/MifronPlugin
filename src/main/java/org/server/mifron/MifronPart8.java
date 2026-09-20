@@ -104,6 +104,30 @@ abstract class MifronPart8 extends MifronPart7x2 {
       return offers;
    }
 
+   /**
+    * Migration: drops special (rare-merchant exclusive) offers from a normal
+    * merchant's saved lists. Emptied lists refill via reroll on next open.
+    */
+   protected void purgeSpecialMerchantOffers(UUID merchantId, String merchantType) {
+      if ("rare".equals(merchantType)) return;
+      boolean changed = false;
+      for (String key : List.of("sell", "buy")) {
+         List<String> rows = this.data.getStringList("merchants." + merchantId + "." + key);
+         List<String> kept = new ArrayList<>();
+         for (String raw : rows) {
+            String[] parts = raw.split(":");
+            Material material = parts.length > 0 ? Material.matchMaterial(parts[0]) : null;
+            if (material != null && !RareMerchantItems.isSpecial(material)) kept.add(raw);
+            else changed = true;
+         }
+         if (kept.size() != rows.size()) {
+            this.data.set("merchants." + merchantId + "." + key, kept);
+            changed = true;
+         }
+      }
+      if (changed) this.queueDataSave();
+   }
+
    protected void saveMerchantOffers(UUID merchantId, List<MerchantOffer> sellOffers, List<MerchantOffer> buyOffers) {
       this.data.set("merchants." + merchantId + ".sell", this.serializeMerchantOffers(sellOffers));
       this.data.set("merchants." + merchantId + ".buy", this.serializeMerchantOffers(buyOffers));

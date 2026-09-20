@@ -104,7 +104,14 @@ abstract class MifronPart7x1 extends MifronPart7 {
          for (Entity entity : world.getEntities()) {
             if (entity instanceof AbstractVillager villager && this.mifron().isMifronMerchant(entity)) {
                if (!"survival".equalsIgnoreCase(world.getName())) entity.remove();
-               else { villager.setAI(true); villager.setInvulnerable(false); }
+               else {
+                  villager.setAI(true);
+                  villager.setInvulnerable(false);
+                  // Existing merchants keep pre-separation offers; strip the
+                  // special items from normal merchants so the change is real.
+                  String type = villager.getPersistentDataContainer().get(this.merchantTypeKey, org.bukkit.persistence.PersistentDataType.STRING);
+                  this.mifron().purgeSpecialMerchantOffers(villager.getUniqueId(), type);
+               }
             }
          }
       }

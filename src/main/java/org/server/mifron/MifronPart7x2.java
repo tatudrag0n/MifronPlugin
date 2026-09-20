@@ -16,10 +16,15 @@ import org.bukkit.persistence.PersistentDataType;
 
 abstract class MifronPart7x2 extends MifronPart7x1 {
    protected boolean spawnMerchant(Location location) {
+      return this.spawnMerchantOfType(location, this.randomMerchantType());
+   }
+
+   /** Spawns a merchant of a forced type (e.g. "rare" via command). */
+   protected boolean spawnMerchantOfType(Location location, String merchantType) {
       if (location == null || location.getWorld() == null) return false;
       if (!"survival".equalsIgnoreCase(location.getWorld().getName()) || this.mifron().isCentralPlazaLocation(location)) return false;
+      if (merchantType == null || merchantType.isBlank()) merchantType = this.randomMerchantType();
       WanderingTrader trader = (WanderingTrader) location.getWorld().spawnEntity(location, EntityType.WANDERING_TRADER);
-      String merchantType = this.randomMerchantType();
       trader.customName(Component.text(this.merchantTypeColor(merchantType) + this.merchantTypeName(merchantType) + "\u5546\u4eba"));
       trader.setCustomNameVisible(true);
       trader.setDespawnDelay(Integer.MAX_VALUE);

@@ -115,6 +115,15 @@ class OnlineShopRulesTest {
    }
 
    @Test
+   void shopHasFiveLeftColumnGenres() {
+      assertEquals(5, OnlineShopFeature.Category.values().length);
+      assertEquals(1, OnlineShopFeature.productSlot(0));
+      assertEquals(5, OnlineShopFeature.productSlot(4));
+      assertEquals(10, OnlineShopFeature.productSlot(5));
+      assertEquals(41, OnlineShopFeature.productSlot(24));
+   }
+
+   @Test
    void specialItemsStayOutOfNormalShop() {
       assertTrue(RareMerchantItems.isSpecial(org.bukkit.Material.SPAWNER));
       assertTrue(RareMerchantItems.isSpecial(org.bukkit.Material.TOTEM_OF_UNDYING));
