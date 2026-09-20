@@ -18,6 +18,11 @@
 Data directories are fully separate. The test server starts as a snapshot of
 production and diverges afterwards; production is never written from test.
 
+> Memory: the host has 7GB RAM. The test server runs with a 2G heap
+> (`start.sh`); running 4G+4G concurrently triggers the Linux OOM killer and
+> takes production down with it. For heavy load tests, stop production first
+> or add RAM.
+
 ## Scripts (`deploy/`)
 
 - `setup-test-server.sh` — first-time build: full copy prod→test, then

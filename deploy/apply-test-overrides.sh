@@ -34,7 +34,9 @@ cat > "$TEST_DIR/start.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
-exec java -Xmx4G -Xms4G -jar paper.jar nogui
+# 2G heap: the host has 7GB total, so a 4G test heap alongside production
+# triggers the OOM killer. Never raise this without adding RAM.
+exec java -Xmx2G -Xms2G -jar paper.jar nogui
 EOF
 chmod +x "$TEST_DIR/start.sh"
 
