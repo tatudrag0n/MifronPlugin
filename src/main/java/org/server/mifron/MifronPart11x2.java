@@ -70,7 +70,12 @@ abstract class MifronPart11x2 extends MifronPart11x1 {
       int from = safePage * pageSize;
       for (Entry<String, TitleDefinition> entry : titles.subList(from, Math.min(titles.size(), from + pageSize))) {
          boolean unlocked = this.hasTitle(completed, entry.getValue());
-         inventory.setItem(slot++, this.mifron().actionItem(entry.getValue().icon(), (unlocked ? "\u00a7a" : "\u00a78") + (unlocked ? entry.getKey() : "???"), List.of(), unlocked ? "select_title" : "locked_title", entry.getKey()));
+         boolean wearing = unlocked && entry.getKey().equals(selected);
+         String hint = TITLE_HINTS.getOrDefault(entry.getKey(), "\u00a77\u7279\u6b8a\u306a\u6761\u4ef6\u3067\u7372\u5f97");
+         List<String> lore = unlocked
+            ? List.of(wearing ? "\u00a76\u88c5\u7740\u4e2d" : "\u00a77\u30af\u30ea\u30c3\u30af\u3067\u88c5\u7740", "\u00a77" + hint)
+            : List.of("\u00a77" + hint);
+         inventory.setItem(slot++, this.mifron().actionItem(entry.getValue().icon(), (unlocked ? "\u00a7a" : "\u00a78") + (unlocked ? entry.getKey() : "???"), lore, unlocked ? "select_title" : "locked_title", entry.getKey()));
       }
    }
 

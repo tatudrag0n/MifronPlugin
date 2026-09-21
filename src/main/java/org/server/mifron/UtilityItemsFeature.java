@@ -81,8 +81,9 @@ final class UtilityItemsFeature implements Listener {
 
    void openMenuUi(Player player) {
       org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Menu"));
-      inventory.setItem(10, this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "OnlineShop", List.of(ChatColor.GRAY + "クリック: ショップを開く（Survivalのみ）"), "menu_shop", null));
-      inventory.setItem(11, this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GRAY + "クリック: MP残高確認"), "menu_wallet", null));
+      inventory.setItem(10, this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "SHOP", List.of(ChatColor.GRAY + "クリック: ショップを開く（Survivalのみ）"), "menu_shop", null));
+      int walletMp = this.plugin.getEmeralds(player.getUniqueId());
+      inventory.setItem(11, this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GOLD + "所持MP: " + this.plugin.formatNumber(walletMp) + " MP", ChatColor.GRAY + "クリック: MP残高確認"), "menu_wallet", null));
       inventory.setItem(12, this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
       inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
       inventory.setItem(14, this.plugin.actionItem(Material.ENDER_EYE, ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "クリック: 移動先を選択"), "menu_teleporter", null));

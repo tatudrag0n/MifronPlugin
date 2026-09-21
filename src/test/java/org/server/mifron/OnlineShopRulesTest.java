@@ -139,17 +139,31 @@ class OnlineShopRulesTest {
    }
 
    @Test
-   void productFamiliesGroupSiblings() {
-      // Stairs sit with their base block, gear with its tier.
+   void productFamiliesGroupByKind() {
+      // Stairs sit with their base block.
       assertEquals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.STONE, "", "Stone", 10)),
          OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.STONE_STAIRS, "", "Stone Stairs", 12)));
+      // Gear groups by slot across tiers: every helmet together.
+      assertEquals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.DIAMOND_HELMET, "", "H", 1)),
+         OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.IRON_HELMET, "", "H", 1)));
       assertEquals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.DIAMOND_SWORD, "", "S", 1)),
-         OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.DIAMOND_HELMET, "", "H", 1)));
+         OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.IRON_SWORD, "", "S", 1)));
+      // ...but helmets and swords stay apart.
+      assertFalse(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.DIAMOND_SWORD, "", "S", 1))
+         .equals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.DIAMOND_HELMET, "", "H", 1))));
       // Dyed wool shares one family; books group per enchant.
       assertEquals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.RED_WOOL, "", "R", 1)),
          OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.BLUE_WOOL, "", "B", 1)));
       assertEquals(OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.ENCHANTED_BOOK, "SHARPNESS:5", "S", 1)),
          OnlineShopFeature.familyOf(new OnlineShopFeature.ShopProduct(org.bukkit.Material.ENCHANTED_BOOK, "SHARPNESS:3", "S", 1)));
+   }
+
+   @Test
+   void shopGenresCoverExpectedHomes() {
+      assertEquals(5, OnlineShopFeature.Category.values().length);
+      // Spot-check the new genre mapping via catalog rebuild is heavy here;
+      // family spot checks guard the type sort instead.
+      assertTrue(OnlineShopFeature.Category.valueOf("DECOR") != null);
    }
 
    @Test

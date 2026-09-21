@@ -36,7 +36,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionType;
 
 final class OnlineShopFeature implements Listener {
-   static final String TITLE = "\u00a7bMifron OnlineShop";
+   static final String TITLE = "\u00a7bMifron SHOP";
    // Left column (slots 0/9/18/27/36) holds the 5 genre tabs, products fill
    // columns 1-8 of rows 0-4 (40 slots per page); the bottom row navigates.
    private static final int PAGE_SIZE = 40;
@@ -71,13 +71,18 @@ final class OnlineShopFeature implements Listener {
       }
    }
 
-   /** Five shop genres, tabbed in the left GUI column. */
+   /**
+    * Five shop genres, tabbed in the left GUI column.
+    * DECOR: building/decorative blocks. MATERIAL: crafting ingredients.
+    * TOOLS: gear, utensils, functional and redstone blocks. FOOD: food and
+    * potions. MISC: anything not covered above.
+    */
    enum Category {
-      BUILD(Material.BRICKS, "\u5efa\u7bc9"),
-      MATERIAL(Material.DIAMOND, "\u7d20\u6750"),
-      EQUIP(Material.IRON_SWORD, "\u88c5\u5099"),
-      FOOD(Material.BREAD, "\u98df\u6599\u30fb\u30dd\u30fc\u30b7\u30e7\u30f3"),
-      SPECIAL(Material.ENCHANTED_BOOK, "\u7279\u6b8a");
+      DECOR(Material.PAINTING, "\u88c5\u98fe"),
+      MATERIAL(Material.IRON_INGOT, "\u6750\u6599"),
+      TOOLS(Material.IRON_PICKAXE, "\u9053\u5177\u985e"),
+      FOOD(Material.BREAD, "\u98df\u6599"),
+      MISC(Material.BUNDLE, "\u305d\u306e\u4ed6");
       final Material icon;
       final String label;
       Category(Material icon, String label) { this.icon = icon; this.label = label; }
@@ -309,10 +314,24 @@ final class OnlineShopFeature implements Listener {
    }
 
    private void changePage(Player player, String action) {
-      int page = this.pages.getOrDefault(player.getUniqueId(), 0);
-      if (action.equals("page:next")) page++;
-      else page = Math.max(0, page - 1);
-      this.pages.put(player.getUniqueId(), page);
+      UUID uuid = player.getUniqueId();
+      Category category = this.selected.getOrDefault(uuid, Category.DECOR);
+      int page = this.pages.getOrDefault(uuid, 0);
+      if (action.equals("page:next")) {
+         int maxPage = Math.max(0, (this.catalog.getOrDefault(category, List.of()).size() - 1) / PAGE_SIZE);
+         if (page >= maxPage) {
+            // Last page wraps to the first page of the next genre.
+            Category[] all = Category.values();
+            this.selected.put(uuid, all[(category.ordinal() + 1) % all.length]);
+            this.pages.put(uuid, 0);
+            player.openInventory(this.createInventory(player));
+            return;
+         }
+         page++;
+      } else {
+         page = Math.max(0, page - 1);
+      }
+      this.pages.put(uuid, page);
       player.openInventory(this.createInventory(player));
    }
 
@@ -322,7 +341,7 @@ final class OnlineShopFeature implements Listener {
    }
 
    private Inventory createInventory(Player player) {
-      Category category = this.selected.getOrDefault(player.getUniqueId(), Category.BUILD);
+      Category category = this.selected.getOrDefault(player.getUniqueId(), Category.DECOR);
       List<ShopProduct> list = new ArrayList<>(this.catalog.getOrDefault(category, List.of()));
       int maxPage = Math.max(0, (list.size() - 1) / PAGE_SIZE);
       int page = Math.max(0, Math.min(maxPage, this.pages.getOrDefault(player.getUniqueId(), 0)));
@@ -342,7 +361,8 @@ final class OnlineShopFeature implements Listener {
       if (page > 0) inventory.setItem(PREV_SLOT, this.actionIcon(Material.ARROW, "\u00a7e\u524d\u306e\u30da\u30fc\u30b8", "page:prev"));
       inventory.setItem(MENU_SLOT, this.actionIcon(Material.OAK_DOOR, "\u00a7f\u30e1\u30cb\u30e5\u30fc\u306b\u623b\u308b", "menu_back"));
       inventory.setItem(PAGE_SLOT, this.actionIcon(Material.PAPER, "\u00a7e\u30da\u30fc\u30b8 " + (page + 1) + " / " + (maxPage + 1), null));
-      if (page < maxPage) inventory.setItem(NEXT_SLOT, this.actionIcon(Material.ARROW, "\u00a7e\u6b21\u306e\u30da\u30fc\u30b8", "page:next"));
+      // Next always shows: on the last page it wraps to the next genre.
+      inventory.setItem(NEXT_SLOT, this.actionIcon(Material.ARROW, page < maxPage ? "\u00a7e\u6b21\u306e\u30da\u30fc\u30b8" : "\u00a7e\u6b21\u306e\u30ab\u30c6\u30b4\u30ea\u3078", "page:next"));
       this.applyCooldownOverlay(player, shown);
       return inventory;
    }
@@ -630,20 +650,30 @@ final class OnlineShopFeature implements Listener {
 
    private Category categoryOf(Material material) {
       String name = material.name();
-      // Equipment first: gear names overlap ore keywords (diamond/emerald).
-      if (contains(name, "SWORD", "BOW", "ARROW", "TRIDENT", "MACE", "BREEZE_ROD", "WIND_CHARGE", "SHIELD", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "CROSSBOW", "TOTEM", "SPECTRAL", "TURTLE")) return Category.EQUIP;
-      if (contains(name, "PICKAXE", "AXE", "SHOVEL", "HOE", "SHEARS", "FLINT_AND_STEEL", "FISHING_ROD", "BRUSH", "SPYGLASS", "COMPASS", "CLOCK", "LEAD", "NAME_TAG", "MACE", "HEAVY_CORE")) return Category.EQUIP;
-      if (material == Material.ENCHANTED_BOOK) return Category.SPECIAL;
+      // Enchanted books are crafting ingredients.
+      if (material == Material.ENCHANTED_BOOK) return Category.MATERIAL;
+      // Buckets, saddles and boats are utensils even though some are edible.
+      if (name.endsWith("_BUCKET") || name.equals("SADDLE") || name.endsWith("_BOAT")) return Category.TOOLS;
+      // Potions are food.
       if (material == Material.POTION || material == Material.SPLASH_POTION
          || material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW
          || material == Material.OMINOUS_BOTTLE) return Category.FOOD;
-      if (material.isEdible() || contains(name, "STEW", "SOUP", "BREAD", "CAKE", "COOKIE", "PUMPKIN_PIE", "HONEY_BOTTLE", "COOKED", "KELP", "MILK", "POTION")) return Category.FOOD;
-      if (contains(name, "ORE", "INGOT", "RAW_", "NUGGET", "ANCIENT_DEBRIS", "DIAMOND", "EMERALD", "COAL", "LAPIS", "QUARTZ", "NETHERITE", "AMETHYST", "COPPER", "IRON", "GOLD", "REDSTONE")) return Category.MATERIAL;
-      if (contains(name, "REDSTONE", "PISTON", "REPEATER", "COMPARATOR", "HOPPER", "DISPENSER", "DROPPER", "OBSERVER", "RAIL", "MINECART", "LEVER", "BUTTON", "PRESSURE", "TRIPWIRE", "SCULK_SENSOR", "CALIBRATED", "CRAFTER", "DAYLIGHT", "NOTE_BLOCK", "TARGET")) return Category.MATERIAL;
-      if (contains(name, "SAPLING", "SEED", "WHEAT", "CARROT", "POTATO", "BEET", "COCOA", "SUGAR", "BAMBOO", "CACTUS", "CHORUS", "FUNGUS", "MUSHROOM", "TULIP", "ORCHID", "LILAC", "PEONY", "ROSE", "LEAVES", "VINE", "MOSS", "AZALEA", "MANGROVE", "PINK_PETALS", "KELP", "LOG", "PLANKS", "WOOL")) return Category.MATERIAL;
-      if (contains(name, "BANNER", "SIGN", "PAINTING", "ITEM_FRAME", "CANDLE", "LANTERN", "CAMPFIRE", "CARPET", "GLASS", "DECORATED", "ARMOR_STAND", "FLOWER_POT", "SHULKER_BOX", "BED", "DOOR", "FENCE", "STAIRS", "SLAB", "WALL", "BRICK", "TILE", "TERRACOTTA", "CONCRETE", "GLAZED")) return Category.BUILD;
-      if (material.isBlock()) return Category.BUILD;
-      return Category.SPECIAL;
+      // Edibles before material keywords (golden apples/carrots are food).
+      if (material.isEdible() || contains(name, "STEW", "SOUP", "BREAD", "CAKE", "COOKIE", "PUMPKIN_PIE", "HONEY_BOTTLE", "COOKED", "KELP", "POTION")) return Category.FOOD;
+      // Gear first: gear names overlap ore keywords (diamond/emerald).
+      if (contains(name, "SWORD", "BOW", "ARROW", "TRIDENT", "MACE", "BREEZE_ROD", "WIND_CHARGE", "SHIELD", "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "CROSSBOW", "TOTEM", "SPECTRAL", "TURTLE", "ELYTRA")) return Category.TOOLS;
+      if (contains(name, "PICKAXE", "AXE", "SHOVEL", "HOE", "SHEARS", "FLINT_AND_STEEL", "FLINT", "FISHING_ROD", "BRUSH", "SPYGLASS", "COMPASS", "CLOCK", "LEAD", "NAME_TAG", "HEAVY_CORE", "SADDLE")) return Category.TOOLS;
+      // Functional blocks (workstations, storage, furnaces).
+      if (contains(name, "CRAFTING_TABLE", "CHEST", "FURNACE", "BLAST_FURNACE", "SMOKER", "ANVIL", "ENCHANTING_TABLE", "BREWING_STAND", "CAULDRON", "LOOM", "CARTOGRAPHY_TABLE", "FLETCHING_TABLE", "SMITHING_TABLE", "GRINDSTONE", "STONECUTTER", "COMPOSTER", "BARREL", "JUKEBOX", "LECTERN", "SHULKER_BOX")) return Category.TOOLS;
+      // Redstone family.
+      if (contains(name, "REDSTONE", "PISTON", "REPEATER", "COMPARATOR", "HOPPER", "DISPENSER", "DROPPER", "OBSERVER", "RAIL", "MINECART", "LEVER", "BUTTON", "PRESSURE", "TRIPWIRE", "SCULK_SENSOR", "CALIBRATED", "CRAFTER", "DAYLIGHT", "NOTE_BLOCK", "TARGET")) return Category.TOOLS;
+      // Materials: ores and every other non-block crafting ingredient
+      // (mob drops, dyes, templates, sherds, patterns, potion ingredients).
+      if (contains(name, "ORE", "INGOT", "RAW_", "NUGGET", "ANCIENT_DEBRIS", "DIAMOND", "EMERALD", "COAL", "LAPIS", "QUARTZ", "NETHERITE", "AMETHYST", "COPPER", "IRON", "GOLD", "TEMPLATE", "SHERD", "PATTERN", "DYE", "NETHER_WART", "SUGAR", "STICK", "STRING", "FEATHER", "LEATHER", "PAPER", "BONE", "GUNPOWDER", "PEARL", "TEAR", "BLAZE", "MAGMA", "SLIME", "HONEYCOMB", "PHANTOM", "SCUTE", "PRISMARINE_CRYSTAL", "NAUTILUS", "HEART_OF_THE_SEA", "ECHO_SHARD", "DISC_FRAGMENT")) return Category.MATERIAL;
+      if (!material.isBlock()) return Category.MATERIAL;
+      // Remaining blocks are decorative/building blocks.
+      if (material.isBlock()) return Category.DECOR;
+      return Category.MISC;
    }
 
    private static boolean contains(String name, String... parts) {
@@ -664,9 +694,22 @@ final class OnlineShopFeature implements Listener {
       "_BED", "_BANNER",
    };
 
+   /** Equipment kinds group by slot across tiers (all helmets together). */
+   static final String[] GEAR_TYPE_SUFFIXES = {
+      "_HELMET", "_CHESTPLATE", "_LEGGINGS", "_BOOTS", "_SWORD", "_PICKAXE",
+      "_AXE", "_SHOVEL", "_HOE", "_HORSE_ARMOR", "_BUCKET", "_BOAT", "_CHEST_BOAT",
+   };
+
+   static final String[] GEAR_SINGLETONS = {
+      "BOW", "CROSSBOW", "TRIDENT", "MACE", "SHIELD", "SHEARS", "SADDLE",
+      "FLINT_AND_STEEL", "FLINT", "FISHING_ROD", "BRUSH", "SPYGLASS", "COMPASS",
+      "CLOCK", "LEAD", "NAME_TAG", "TOTEM_OF_UNDYING", "ELYTRA", "TRIDENT",
+   };
+
    /**
-    * Sort family: variant goods group by enchant/potion kind, dyed blocks by
-    * color family, gear by tier, stairs/slabs/walls with their base block.
+    * Sort family by kind, not name: every helmet together, every chestplate
+    * together, books per enchant, potions per type, dyed blocks per family,
+    * stairs/slabs/walls with their base block.
     */
    static String familyOf(ShopProduct product) {
       if (!product.variant().isEmpty()) {
@@ -676,7 +719,14 @@ final class OnlineShopFeature implements Listener {
          }
          return product.material().name() + "#" + kind;
       }
-      String base = product.material().name();
+      String name = product.material().name();
+      for (String suffix : GEAR_TYPE_SUFFIXES) {
+         if (name.endsWith(suffix)) return "GEAR#" + suffix.substring(1);
+      }
+      for (String single : GEAR_SINGLETONS) {
+         if (name.equals(single)) return "GEAR#" + single;
+      }
+      String base = name;
       for (String suffix : VARIANT_SUFFIXES) {
          if (base.endsWith(suffix)) {
             base = base.substring(0, base.length() - suffix.length());
