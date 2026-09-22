@@ -279,7 +279,13 @@ final class OnlineShopFeature implements Listener {
          player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
          return;
       }
-      if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
+      int topSize = event.getView().getTopInventory().getSize();
+      if (event.getRawSlot() >= topSize) {
+         // Own inventory clicked while SHOP is open: jump to that item's page.
+         this.jumpToProduct(player, event.getCurrentItem());
+         return;
+      }
+      if (event.getRawSlot() < 0) return;
       ItemStack clicked = event.getCurrentItem();
       if (clicked == null || !clicked.hasItemMeta()) return;
       String action = clicked.getItemMeta().getPersistentDataContainer().get(this.productKey, PersistentDataType.STRING);
@@ -313,6 +319,40 @@ final class OnlineShopFeature implements Listener {
       }
    }
 
+   /** Page index of a product id inside its category list (-1 if absent). */
+   static int pageOf(List<ShopProduct> list, String productId) {
+      for (int i = 0; i < list.size(); i++) {
+         if (list.get(i).id().equals(productId)) return i / PAGE_SIZE;
+      }
+      return -1;
+   }
+
+   /**
+    * Jumps the open SHOP to the page holding the clicked inventory item.
+    * Searches every genre so the jump works from any tab.
+    */
+   /** Category list in live display order (kind, current price, id). */
+   private List<ShopProduct> sortedList(Category category) {
+      List<ShopProduct> list = new ArrayList<>(this.catalog.getOrDefault(category, List.of()));
+      list.sort(Comparator.comparing(OnlineShopFeature::familyOf)
+         .thenComparingInt(this::effectivePrice).thenComparing(ShopProduct::id));
+      return list;
+   }
+
+   private void jumpToProduct(Player player, ItemStack stack) {
+      if (stack == null || stack.getType().isAir()) return;
+      for (Category category : Category.values()) {
+         List<ShopProduct> list = this.sortedList(category);
+         for (ShopProduct product : list) {
+            if (!this.matchesProduct(player, stack, product)) continue;
+            this.selected.put(player.getUniqueId(), category);
+            this.pages.put(player.getUniqueId(), Math.max(0, pageOf(list, product.id())));
+            player.openInventory(this.createInventory(player));
+            return;
+         }
+      }
+   }
+
    private void changePage(Player player, String action) {
       UUID uuid = player.getUniqueId();
       Category category = this.selected.getOrDefault(uuid, Category.DECOR);
@@ -342,7 +382,9 @@ final class OnlineShopFeature implements Listener {
 
    private Inventory createInventory(Player player) {
       Category category = this.selected.getOrDefault(player.getUniqueId(), Category.DECOR);
-      List<ShopProduct> list = new ArrayList<>(this.catalog.getOrDefault(category, List.of()));
+      // Live order: kind groups stay together while prices follow the current
+      // stock, so the displayed order always matches displayed prices.
+      List<ShopProduct> list = this.sortedList(category);
       int maxPage = Math.max(0, (list.size() - 1) / PAGE_SIZE);
       int page = Math.max(0, Math.min(maxPage, this.pages.getOrDefault(player.getUniqueId(), 0)));
       this.pages.put(player.getUniqueId(), page);

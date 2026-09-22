@@ -159,6 +159,19 @@ class OnlineShopRulesTest {
    }
 
    @Test
+   void productPageLookupFindsIndex() {
+      var a = new OnlineShopFeature.ShopProduct(org.bukkit.Material.STONE, "", "Stone", 10);
+      var b = new OnlineShopFeature.ShopProduct(org.bukkit.Material.DIRT, "", "Dirt", 5);
+      // PAGE_SIZE is 40: first 40 items on page 0, the 41st on page 1.
+      java.util.List<OnlineShopFeature.ShopProduct> list = new java.util.ArrayList<>();
+      for (int i = 0; i < 40; i++) list.add(b);
+      list.add(a);
+      assertEquals(0, OnlineShopFeature.pageOf(list, b.id()));
+      assertEquals(1, OnlineShopFeature.pageOf(list, a.id()));
+      assertEquals(-1, OnlineShopFeature.pageOf(list, "item:NOTHING"));
+   }
+
+   @Test
    void shopGenresCoverExpectedHomes() {
       assertEquals(5, OnlineShopFeature.Category.values().length);
       // Spot-check the new genre mapping via catalog rebuild is heavy here;
