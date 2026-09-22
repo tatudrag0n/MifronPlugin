@@ -331,11 +331,11 @@ final class OnlineShopFeature implements Listener {
     * Jumps the open SHOP to the page holding the clicked inventory item.
     * Searches every genre so the jump works from any tab.
     */
-   /** Category list in live display order (kind, current price, id). */
+   /** Category list in fixed display order (kind, base price, id). */
    private List<ShopProduct> sortedList(Category category) {
       List<ShopProduct> list = new ArrayList<>(this.catalog.getOrDefault(category, List.of()));
       list.sort(Comparator.comparing(OnlineShopFeature::familyOf)
-         .thenComparingInt(this::effectivePrice).thenComparing(ShopProduct::id));
+         .thenComparingInt(ShopProduct::price).thenComparing(ShopProduct::id));
       return list;
    }
 
