@@ -37,19 +37,18 @@ production and diverges afterwards; production is never written from test.
   (worlds/player data untouched). `--full` also refreshes worlds (wipes test
   progress).
 
-## Workflow: GitHub -> test -> audit -> approve -> prod
+## Workflow: GitHub -> staging -> local audit -> approve -> prod
 
 1. Push changes to `origin/main` (GitHub is the source of truth; the prod
    `mifron-config-sync.timer` resets `~/MifronPlugin` to `origin/main`).
-2. Build the jar and copy it to `~/test-server/plugins/`.
-3. Restart the test server, exercise the change with the audit checklist
-   (spec §15: whitelist, restart warning, semi-creative, flat bedrock,
-   approval particles, revolver, status reset, MFL tab, night vision, shop
-   cooldowns/prices/buy/sell/stock/restock, rare merchant, restart integrity).
-4. On approval, copy the same jar to `~/main-server/plugins/` and restart
-   production (0 players, `save-all` first).
-5. Never copy `test-server` data back to production. Never run two servers
-   on the same directory (session.lock).
+2. Stage the build: `bash deploy/stage-jar.sh` (builds, runs tests, copies
+   the jar to `~/mifron-staging/` with `BUILD_INFO.txt`). Production is
+   never touched by staging.
+3. Verify the staged jar locally.
+4. On approval ONLY: copy `~/mifron-staging/mifronplugin-26.1.2.jar` to
+   `~/main-server/plugins/` and restart production (warn players,
+   `save-all` first).
+5. Never deploy without explicit approval.
 
 ## Notes
 
