@@ -107,10 +107,15 @@ abstract class MifronPart7x1 extends MifronPart7 {
                else {
                   villager.setAI(true);
                   villager.setInvulnerable(false);
-                  // Existing merchants keep pre-separation offers; strip the
-                  // special items from normal merchants so the change is real.
+                  // All merchants are rare merchants: convert legacy types and
+                  // rebuild their offers as special-only 1+1.
                   String type = villager.getPersistentDataContainer().get(this.merchantTypeKey, org.bukkit.persistence.PersistentDataType.STRING);
-                  this.mifron().purgeSpecialMerchantOffers(villager.getUniqueId(), type);
+                  if (!"rare".equals(type)) {
+                     villager.getPersistentDataContainer().set(this.merchantTypeKey, org.bukkit.persistence.PersistentDataType.STRING, "rare");
+                     this.mifron().rerollMerchant(villager);
+                  } else {
+                     this.mifron().purgeSpecialMerchantOffers(villager.getUniqueId(), type);
+                  }
                }
             }
          }

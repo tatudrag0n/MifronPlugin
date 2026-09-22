@@ -63,11 +63,9 @@ abstract class MifronPart7x2 extends MifronPart7x1 {
    }
 
    protected String randomMerchantType() {
-      int roll = this.random.nextInt(100);
-      if (roll < 3) return "rare";
-      if (roll < 35) return "red";
-      if (roll < 84) return "blue";
-      return roll < 98 ? "yellow" : "purple";
+      // All merchants are rare (secret-treasure) merchants by design.
+      // Legacy color types below are kept only for reading old data.
+      return "rare";
    }
 
    protected String merchantTypeName(String type) {
