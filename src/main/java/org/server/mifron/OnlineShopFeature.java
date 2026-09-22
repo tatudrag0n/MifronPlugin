@@ -13,6 +13,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -598,6 +599,7 @@ final class OnlineShopFeature implements Listener {
       this.plugin.addPlayerStat(player.getUniqueId(), "total-trades", 1);
       this.plugin.queueDataSave();
       player.sendMessage(ChatColor.GREEN + "\u8cfc\u5165\u3057\u307e\u3057\u305f: " + listed.label() + " (" + price + " MP)");
+      player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8F, 1.0F);
       player.openInventory(this.createInventory(player));
    }
 
@@ -645,6 +647,7 @@ final class OnlineShopFeature implements Listener {
       this.plugin.recordFarmingSubmission(player, listed.material());
       this.plugin.queueDataSave();
       player.sendMessage(ChatColor.GREEN + "売却しました: " + listed.label() + " x" + sold + " (" + gained + " MP)");
+      player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5F, 0.7F);
       player.openInventory(this.createInventory(player));
    }
 
