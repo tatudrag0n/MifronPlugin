@@ -286,6 +286,12 @@ final class WorldPolicyFeature implements Listener {
       String name = world.getName().toLowerCase(Locale.ROOT);
       if (name.equals("survival") || name.startsWith("survival_")) return false;
       if (name.equals("creative") || name.equals("build")) return false;
+      // The main world is governed by MainWorldFeature's own rules
+      // (semi-creative + 0,0 no-edit zone); the legacy hub spawn protection
+      // would otherwise block all interaction near spawn, including armor
+      // stands for FFA kit selection.
+      String mainWorld = this.plugin.getConfig().getString("main-world.name", "main");
+      if (mainWorld != null && name.equals(mainWorld.toLowerCase(Locale.ROOT))) return false;
       return true;
    }
 

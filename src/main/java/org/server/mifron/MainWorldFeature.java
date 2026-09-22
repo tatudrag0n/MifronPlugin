@@ -129,6 +129,37 @@ final class MainWorldFeature implements Listener {
    // Semi-creative: flight, creative inventory, consumption, spawn items.
    // ------------------------------------------------------------------
 
+   /**
+    * Blocks that must never be taken from the creative inventory in main
+    * (griefing, unbreakable or technical blocks).
+    */
+   static boolean isCreativeDeniedBlock(Material material) {
+      if (material == null) return true;
+      String name = material.name();
+      if (name.startsWith("INFESTED_")) return true;
+      return name.contains("COMMAND") || name.startsWith("LEGACY_")
+         || switch (name) {
+            case "TNT", "SPAWNER", "TRIAL_SPAWNER", "VAULT", "BEDROCK", "BARRIER",
+               "LIGHT", "STRUCTURE_BLOCK", "STRUCTURE_VOID", "JIGSAW",
+               "END_PORTAL_FRAME", "DRAGON_EGG", "REINFORCED_DEEPSLATE",
+               "TEST_BLOCK", "TEST_INSTANCE_BLOCK", "MOVING_PISTON",
+               "DEBUG_STICK", "KNOWLEDGE_BOOK" -> true;
+            default -> false;
+         };
+   }
+
+   /**
+    * Items obtainable from the creative inventory in main: armor stands plus
+    * ordinary blocks (minus the denylist above). Spawn eggs, buckets,
+    * projectiles and other entity/item goods stay unavailable.
+    */
+   static boolean isCreativeTakeAllowed(Material material, java.util.Set<String> extraAllowed) {
+      if (material == null || material.isAir()) return false;
+      if (material == Material.ARMOR_STAND) return true;
+      if (extraAllowed != null && extraAllowed.contains(material.name())) return true;
+      return material.isBlock() && !isCreativeDeniedBlock(material);
+   }
+
    /** Entity-spawning items banned in main (armor stands are allowed). */
    static boolean isEntitySpawnItem(Material material) {
       if (material == null) return false;
@@ -174,14 +205,28 @@ final class MainWorldFeature implements Listener {
       Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.applyFlight(event.getPlayer()), 10L);
    }
 
+   java.util.Set<String> creativeExtraAllowed() {
+      java.util.Set<String> extra = new java.util.HashSet<>();
+      for (String raw : this.plugin.getConfig().getStringList("main-world.creative-allow-extra")) {
+         if (raw != null && !raw.isBlank()) extra.add(raw.trim().toUpperCase(java.util.Locale.ROOT));
+      }
+      return extra;
+   }
+
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
    public void onCreativeInventory(InventoryCreativeEvent event) {
       if (!(event.getWhoClicked() instanceof Player player)) return;
       if (!this.isMainWorld(player.getWorld())) return;
-      ItemStack cursor = event.getCursor();
-      ItemStack current = event.getCurrentItem();
-      boolean allowed = (cursor != null && cursor.getType() == Material.ARMOR_STAND)
-         || (current != null && current.getType() == Material.ARMOR_STAND);
+      // Pickup, place and hotbar-swap shapes: the wanted item is always in
+      // either the cursor or the clicked slot (getCurrentItem).
+      java.util.Set<String> extra = this.creativeExtraAllowed();
+      boolean allowed = false;
+      for (ItemStack item : new ItemStack[]{event.getCursor(), event.getCurrentItem()}) {
+         if (item != null && isCreativeTakeAllowed(item.getType(), extra)) {
+            allowed = true;
+            break;
+         }
+      }
       if (!allowed) {
          event.setCancelled(true);
       }

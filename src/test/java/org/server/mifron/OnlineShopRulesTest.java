@@ -121,6 +121,21 @@ class OnlineShopRulesTest {
    }
 
    @Test
+   void mainCreativeDeniedBlocksCoverHazards() {
+      // NOTE: isCreativeTakeAllowed itself needs live Bukkit registries
+      // (isBlock/isAir), so only the pure denylist is unit-tested here.
+      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.TNT));
+      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.SPAWNER));
+      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.BEDROCK));
+      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.COMMAND_BLOCK));
+      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.BARRIER));
+      assertFalse(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.STONE));
+      assertFalse(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.OAK_PLANKS));
+      assertFalse(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.ARMOR_STAND));
+      assertFalse(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.TORCH));
+   }
+
+   @Test
    void mainWorldBansEntitySpawnItemsButAllowsArmorStand() {
       assertTrue(MainWorldFeature.isEntitySpawnItem(org.bukkit.Material.ZOMBIE_SPAWN_EGG));
       assertTrue(MainWorldFeature.isEntitySpawnItem(org.bukkit.Material.SNOWBALL));
