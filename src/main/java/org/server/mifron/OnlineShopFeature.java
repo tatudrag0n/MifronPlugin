@@ -593,6 +593,9 @@ final class OnlineShopFeature implements Listener {
       this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(id, until);
       this.plugin.data().set("online-shop-cooldowns." + player.getUniqueId() + "." + id, until);
       this.plugin.shopStockService.onPurchase(id);
+      // Quest sync: merchant/barrel/shelf trades already count; OnlineShop
+      // purchases must count exactly once per delivered item, like theirs.
+      this.plugin.addPlayerStat(player.getUniqueId(), "total-trades", 1);
       this.plugin.queueDataSave();
       player.sendMessage(ChatColor.GREEN + "\u8cfc\u5165\u3057\u307e\u3057\u305f: " + listed.label() + " (" + price + " MP)");
       player.openInventory(this.createInventory(player));
@@ -635,6 +638,11 @@ final class OnlineShopFeature implements Listener {
       }
       player.updateInventory();
       this.plugin.depositEmeralds(player.getUniqueId(), (int) Math.min(2_000_000_000L, gained));
+      // Quest sync mirrors merchant sales: trades count per unit sold plus
+      // the farming-submission hook for crop materials (deposit already feeds
+      // mp_gained through the economy layer for both paths).
+      this.plugin.addPlayerStat(player.getUniqueId(), "total-trades", sold);
+      this.plugin.recordFarmingSubmission(player, listed.material());
       this.plugin.queueDataSave();
       player.sendMessage(ChatColor.GREEN + "売却しました: " + listed.label() + " x" + sold + " (" + gained + " MP)");
       player.openInventory(this.createInventory(player));

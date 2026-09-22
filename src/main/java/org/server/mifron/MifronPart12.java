@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import org.bukkit.Material;
@@ -92,11 +93,56 @@ abstract class MifronPart12 extends MifronPart11x2 {
       };
    }
 
+   /** Official Japanese mob names for the hunted-mob catalogue. */
+   private static final Map<String, String> MOB_JAPANESE_NAMES = Map.ofEntries(
+      Map.entry("ALLAY", "アレイ"), Map.entry("ARMADILLO", "アルマジロ"),
+      Map.entry("AXOLOTL", "ウーパールーパー"), Map.entry("BAT", "コウモリ"),
+      Map.entry("BEE", "ミツバチ"), Map.entry("BLAZE", "ブレイズ"),
+      Map.entry("BOGGED", "ボグド"), Map.entry("BREEZE", "ブリーズ"),
+      Map.entry("CAMEL", "ラクダ"), Map.entry("CAMEL_HUSK", "カメルハスク"),
+      Map.entry("CAT", "ネコ"), Map.entry("CAVE_SPIDER", "洞窟グモ"),
+      Map.entry("CHICKEN", "ニワトリ"), Map.entry("COD", "タラ"),
+      Map.entry("COPPER_GOLEM", "銅ゴーレム"), Map.entry("COW", "ウシ"),
+      Map.entry("CREAKING", "クリーキング"), Map.entry("CREEPER", "クリーパー"),
+      Map.entry("DOLPHIN", "イルカ"), Map.entry("DONKEY", "ロバ"),
+      Map.entry("DROWNED", "ドラウンド"), Map.entry("ELDER_GUARDIAN", "エルダーガーディアン"),
+      Map.entry("ENDERMAN", "エンダーマン"), Map.entry("ENDERMITE", "エンダーマイト"),
+      Map.entry("ENDER_DRAGON", "エンダードラゴン"), Map.entry("EVOKER", "エヴォーカー"),
+      Map.entry("FOX", "キツネ"), Map.entry("FROG", "カエル"),
+      Map.entry("GHAST", "ガスト"), Map.entry("GLOW_SQUID", "ヒカリイカ"),
+      Map.entry("GOAT", "ヤギ"), Map.entry("GUARDIAN", "ガーディアン"),
+      Map.entry("HAPPY_GHAST", "ハッピーガスト"), Map.entry("HOGLIN", "ホグリン"),
+      Map.entry("HORSE", "ウマ"), Map.entry("HUSK", "ハスク"),
+      Map.entry("IRON_GOLEM", "アイアンゴーレム"), Map.entry("LLAMA", "ラマ"),
+      Map.entry("MAGMA_CUBE", "マグマキューブ"), Map.entry("MOOSHROOM", "ムーシュルーム"),
+      Map.entry("MULE", "ラバ"), Map.entry("NAUTILUS", "ノーチラス"),
+      Map.entry("OCELOT", "オセロット"), Map.entry("PANDA", "パンダ"),
+      Map.entry("PARCHED", "パーチド"), Map.entry("PARROT", "オウム"),
+      Map.entry("PHANTOM", "ファントム"), Map.entry("PIG", "ブタ"),
+      Map.entry("PIGLIN", "ピグリン"), Map.entry("PIGLIN_BRUTE", "ピグリンブルート"),
+      Map.entry("PILLAGER", "ピリジャー"), Map.entry("POLAR_BEAR", "シロクマ"),
+      Map.entry("PUFFERFISH", "フグ"), Map.entry("RABBIT", "ウサギ"),
+      Map.entry("RAVAGER", "ラヴェジャー"), Map.entry("SALMON", "サケ"),
+      Map.entry("SHEEP", "ヒツジ"), Map.entry("SHULKER", "シュルカー"),
+      Map.entry("SILVERFISH", "シルバーフィッシュ"), Map.entry("SKELETON", "スケルトン"),
+      Map.entry("SKELETON_HORSE", "スケルトンホース"), Map.entry("SLIME", "スライム"),
+      Map.entry("SNIFFER", "スニッファー"), Map.entry("SNOW_GOLEM", "スノーゴーレム"),
+      Map.entry("SPIDER", "クモ"), Map.entry("SQUID", "イカ"),
+      Map.entry("STRAY", "ストレイ"), Map.entry("STRIDER", "ストライダー"),
+      Map.entry("TADPOLE", "オタマジャクシ"), Map.entry("TRADER_LLAMA", "行商ラマ"),
+      Map.entry("TROPICAL_FISH", "熱帯魚"), Map.entry("TURTLE", "カメ"),
+      Map.entry("VEX", "ヴェックス"), Map.entry("VILLAGER", "村人"),
+      Map.entry("VINDICATOR", "ヴィンディケーター"), Map.entry("WANDERING_TRADER", "行商人"),
+      Map.entry("WARDEN", "ウォーデン"), Map.entry("WITCH", "ウィッチ"),
+      Map.entry("WITHER", "ウィザー"), Map.entry("WITHER_SKELETON", "ウィザースケルトン"),
+      Map.entry("WOLF", "オオカミ"), Map.entry("ZOGLIN", "ゾグリン"),
+      Map.entry("ZOMBIE", "ゾンビ"), Map.entry("ZOMBIE_HORSE", "ゾンビホース"),
+      Map.entry("ZOMBIE_NAUTILUS", "ゾンビノーチラス"), Map.entry("ZOMBIE_VILLAGER", "村人ゾンビ"),
+      Map.entry("ZOMBIFIED_PIGLIN", "ゾンビピグリン")
+   );
+
    protected String mobDisplayName(EntityType type) {
-      return switch (type) {
-         case ZOMBIE -> "\u30be\u30f3\u30d3"; case SKELETON -> "\u30b9\u30b1\u30eb\u30c8\u30f3"; case CREEPER -> "\u30af\u30ea\u30fc\u30d1\u30fc";
-         case ENDERMAN -> "\u30a8\u30f3\u30c0\u30fc\u30de\u30f3"; case WITHER -> "\u30a6\u30a3\u30b6\u30fc"; case ENDER_DRAGON -> "\u30a8\u30f3\u30c0\u30fc\u30c9\u30e9\u30b4\u30f3";
-         case WARDEN -> "\u30a6\u30a9\u30fc\u30c7\u30f3"; default -> type.name().toLowerCase(Locale.ROOT).replace('_', ' ');
-      };
+      String japanese = MOB_JAPANESE_NAMES.get(type.name());
+      return japanese != null ? japanese : type.name().toLowerCase(Locale.ROOT).replace('_', ' ');
    }
 }
