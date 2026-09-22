@@ -11,6 +11,11 @@ JAR_NAME="${JAR_NAME:-mifronplugin-26.1.2.jar}"
 mvn -B clean package
 mkdir -p "$STAGE_DIR"
 cp -f "target/$JAR_NAME" "$STAGE_DIR/$JAR_NAME"
+if [ -n "$(git status --short)" ]; then
+  echo "ERROR: working tree dirty — commit first so the staged jar matches a commit."
+  git status --short
+  exit 1
+fi
 COMMIT="$(git rev-parse --short HEAD)"
 DATE="$(date -u +%Y%m%dT%H%M%SZ)"
 {
