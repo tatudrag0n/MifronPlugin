@@ -56,8 +56,68 @@ abstract class MifronPart9x1 extends MifronPart9 {
     * main-world blocks (formal save, then fixed). Admin only.
     */
    protected boolean handleMainCommand(org.bukkit.command.CommandSender sender, String[] args) {
+      String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "";
+      // Player submissions: schematic file + coordinates for admin placement.
+      if ("submit".equals(sub)) {
+         if (!(sender instanceof Player player)) {
+            sender.sendMessage("§cプレイヤーのみ実行できます。");
+            return true;
+         }
+         if (args.length < 6) {
+            sender.sendMessage("§c使い方: /mf main submit <schematic> <x> <y> <z>");
+            sender.sendMessage("§7schematicは plugins/WorldEdit/schematics 内のファイル名");
+            return true;
+         }
+         double x, y, z;
+         try {
+            x = Double.parseDouble(args[3]);
+            y = Double.parseDouble(args[4]);
+            z = Double.parseDouble(args[5]);
+         } catch (NumberFormatException bad) {
+            sender.sendMessage("§c座標は数値で指定してください。");
+            return true;
+         }
+         int id = this.mainWorldFeature.submitBuild(player.getUniqueId(), args[2], x, y, z);
+         if (id == -1) sender.sendMessage("§cファイル名が不正です。");
+         else if (id == -2) sender.sendMessage("§cそのschematicが見つかりません。先にファイルを配置してください。");
+         else if (id == -3) sender.sendMessage("§cY座標は-64〜320の範囲で指定してください。");
+         else sender.sendMessage("§a建築申請 #" + id + " を受け付けました。承認後に管理者が設置します。");
+         return true;
+      }
+      if ("submissions".equals(sub)) {
+         boolean admin = sender.hasPermission("mifron.admin");
+         String viewer = sender instanceof Player player ? player.getUniqueId().toString() : null;
+         java.util.List<String> lines = this.mainWorldFeature.submissionLines(!admin, admin ? null : viewer);
+         if (lines.isEmpty()) sender.sendMessage("§7申請はありません。");
+         else for (String line : lines) sender.sendMessage("§e" + line);
+         return true;
+      }
       if (!sender.hasPermission("mifron.admin")) {
          sender.sendMessage("§c権限がありません。");
+         return true;
+      }
+      if ("approve-sub".equals(sub)) {
+         if (args.length < 3) {
+            sender.sendMessage("§c使い方: /mf main approve-sub <id>");
+            return true;
+         }
+         try {
+            sender.sendMessage("§a" + this.mainWorldFeature.approveSubmission(Integer.parseInt(args[2])));
+         } catch (NumberFormatException bad) {
+            sender.sendMessage("§cIDは数値で指定してください。");
+         }
+         return true;
+      }
+      if ("reject-sub".equals(sub)) {
+         if (args.length < 3) {
+            sender.sendMessage("§c使い方: /mf main reject-sub <id>");
+            return true;
+         }
+         try {
+            sender.sendMessage("§a" + this.mainWorldFeature.rejectSubmission(Integer.parseInt(args[2])));
+         } catch (NumberFormatException bad) {
+            sender.sendMessage("§cIDは数値で指定してください。");
+         }
          return true;
       }
       if (args.length >= 2 && "approve".equalsIgnoreCase(args[1])) {
@@ -80,6 +140,7 @@ abstract class MifronPart9x1 extends MifronPart9 {
       int pending = this.mainWorldFeature.pendingCount();
       sender.sendMessage("§amainワールド承認待ち: " + pending + " 件");
       sender.sendMessage("§7/mf main approve [all|<player>]");
+      sender.sendMessage("§7/mf main submit <schematic> <x> <y> <z> / submissions / approve-sub <id> / reject-sub <id>");
       return true;
    }
 

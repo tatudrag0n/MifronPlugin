@@ -141,7 +141,8 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "menu_status" -> this.mifron().openFriendUi(player);
          case "menu_quests" -> this.mifron().openQuestUi(player, "categories");
          case "menu_teleporter" -> this.mifron().openTeleportUi(player);
-         case "menu_nightvision" -> this.utilityItemsFeature.toggleNightVision(player);
+         case "menu_gear" -> this.utilityItemsFeature.openGearUi(player);
+         case "gear_toggle" -> this.utilityItemsFeature.toggleGear(player, this.getUiTargetString(clicked));
          default -> {}
       }
    }

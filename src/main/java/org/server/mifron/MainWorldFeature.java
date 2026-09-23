@@ -129,37 +129,6 @@ final class MainWorldFeature implements Listener {
    // Semi-creative: flight, creative inventory, consumption, spawn items.
    // ------------------------------------------------------------------
 
-   /**
-    * Blocks that must never be taken from the creative inventory in main
-    * (griefing, unbreakable or technical blocks).
-    */
-   static boolean isCreativeDeniedBlock(Material material) {
-      if (material == null) return true;
-      String name = material.name();
-      if (name.startsWith("INFESTED_")) return true;
-      return name.contains("COMMAND") || name.startsWith("LEGACY_")
-         || switch (name) {
-            case "TNT", "SPAWNER", "TRIAL_SPAWNER", "VAULT", "BEDROCK", "BARRIER",
-               "LIGHT", "STRUCTURE_BLOCK", "STRUCTURE_VOID", "JIGSAW",
-               "END_PORTAL_FRAME", "DRAGON_EGG", "REINFORCED_DEEPSLATE",
-               "TEST_BLOCK", "TEST_INSTANCE_BLOCK", "MOVING_PISTON",
-               "DEBUG_STICK", "KNOWLEDGE_BOOK" -> true;
-            default -> false;
-         };
-   }
-
-   /**
-    * Items obtainable from the creative inventory in main: armor stands plus
-    * ordinary blocks (minus the denylist above). Spawn eggs, buckets,
-    * projectiles and other entity/item goods stay unavailable.
-    */
-   static boolean isCreativeTakeAllowed(Material material, java.util.Set<String> extraAllowed) {
-      if (material == null || material.isAir()) return false;
-      if (material == Material.ARMOR_STAND) return true;
-      if (extraAllowed != null && extraAllowed.contains(material.name())) return true;
-      return material.isBlock() && !isCreativeDeniedBlock(material);
-   }
-
    /** Entity-spawning items banned in main (armor stands are allowed). */
    static boolean isEntitySpawnItem(Material material) {
       if (material == null) return false;
@@ -172,77 +141,41 @@ final class MainWorldFeature implements Listener {
          || material == Material.FIRE_CHARGE;
    }
 
-   private void applyFlight(Player player) {
+   /**
+    * Semi-creative is abolished: no flight in main. Admins keep theirs for
+    * moderation; creative/spectator modes are untouched everywhere.
+    */
+   private void denyFlight(Player player) {
       if (player == null) return;
-      if (this.isMainWorld(player.getWorld())) {
-         GameMode mode = player.getGameMode();
-         if (mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) {
-            player.setAllowFlight(true);
-         }
-         return;
-      }
-      // Leaving main: restore vanilla flight rules so other worlds (FFA etc.)
-      // are unaffected. Creative/spectator keep their flight.
       GameMode mode = player.getGameMode();
-      if ((mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) && !player.isOp()) {
+      if ((mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) && !player.isOp()
+         && !player.hasPermission("mifron.admin")) {
          player.setFlying(false);
          player.setAllowFlight(false);
       }
    }
 
    @EventHandler
-   public void onJoinFlight(PlayerJoinEvent event) {
-      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.applyFlight(event.getPlayer()), 10L);
+   public void onJoinNoFlight(PlayerJoinEvent event) {
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.denyFlight(event.getPlayer()), 10L);
    }
 
    @EventHandler
-   public void onWorldChangeFlight(PlayerChangedWorldEvent event) {
-      this.applyFlight(event.getPlayer());
+   public void onWorldChangeNoFlight(PlayerChangedWorldEvent event) {
+      this.denyFlight(event.getPlayer());
    }
 
    @EventHandler
-   public void onRespawnFlight(PlayerRespawnEvent event) {
-      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.applyFlight(event.getPlayer()), 10L);
-   }
-
-   java.util.Set<String> creativeExtraAllowed() {
-      java.util.Set<String> extra = new java.util.HashSet<>();
-      for (String raw : this.plugin.getConfig().getStringList("main-world.creative-allow-extra")) {
-         if (raw != null && !raw.isBlank()) extra.add(raw.trim().toUpperCase(java.util.Locale.ROOT));
-      }
-      return extra;
+   public void onRespawnNoFlight(PlayerRespawnEvent event) {
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.denyFlight(event.getPlayer()), 10L);
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-   public void onCreativeInventory(InventoryCreativeEvent event) {
-      if (!(event.getWhoClicked() instanceof Player player)) return;
-      if (!this.isMainWorld(player.getWorld())) return;
-      // Pickup, place and hotbar-swap shapes: the wanted item is always in
-      // either the cursor or the clicked slot (getCurrentItem).
-      java.util.Set<String> extra = this.creativeExtraAllowed();
-      boolean allowed = false;
-      for (ItemStack item : new ItemStack[]{event.getCursor(), event.getCurrentItem()}) {
-         if (item != null && isCreativeTakeAllowed(item.getType(), extra)) {
-            allowed = true;
-            break;
-         }
-      }
-      if (!allowed) {
-         event.setCancelled(true);
-      }
-   }
-
-   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-   public void onConsumeNoUse(PlayerItemConsumeEvent event) {
-      if (!this.isMainWorld(event.getPlayer().getWorld())) return;
-      // Eating/drinking in main never consumes: refund one item next tick.
-      ItemStack consumed = event.getItem().clone();
-      consumed.setAmount(1);
-      Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-         Player player = event.getPlayer();
-         if (!player.isOnline()) return;
-         player.getInventory().addItem(consumed);
-      }, 1L);
+   public void onNoFallDamage(org.bukkit.event.entity.EntityDamageEvent event) {
+      if (!(event.getEntity() instanceof Player)) return;
+      if (event.getCause() != org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL) return;
+      if (!this.isMainWorld(event.getEntity().getWorld())) return;
+      event.setCancelled(true);
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -289,54 +222,18 @@ final class MainWorldFeature implements Listener {
    // ------------------------------------------------------------------
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-   public void onBlockPlace(BlockPlaceEvent event) {
+    public void onBlockPlace(BlockPlaceEvent event) {
       Block block = event.getBlockPlaced();
       if (block == null || !this.isMainWorld(block.getWorld())) return;
       Player player = event.getPlayer();
-      if (isEntitySpawnItem(event.getItemInHand().getType())) {
-         event.setCancelled(true);
-         return;
-      }
-      // No-edit zone around 0,0: neither placing nor breaking allowed.
+      if (player.hasPermission("mifron.admin")) return;
+      // Direct building is closed: submit a schematic plus coordinates and
+      // an admin places it after approval (/mf main submit).
+      event.setCancelled(true);
       if (this.insideNoEditZone(block.getX(), block.getZ())) {
-         event.setCancelled(true);
-         player.sendMessage("§c0,0から" + this.noEditRadius() + "ブロック以内には設置できません。");
-         return;
-      }
-      // X,Z column conflict: another player's column is off limits.
-      String columnKey = columnKey(block.getWorld().getName(), block.getX(), block.getZ());
-      ColumnState column = this.columns.get(columnKey);
-      String uuid = player.getUniqueId().toString();
-      if (column != null && !column.owner.equals(uuid)) {
-         event.setCancelled(true);
-         player.sendMessage("§c他のプレイヤーの設置列（X,Z）と重なるため設置できません。");
-         return;
-      }
-      BlockKey key = new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
-      Material placedType = block.getType();
-      this.pending.put(key, new PendingRecord(uuid, placedType, System.currentTimeMillis()));
-      ColumnState owned = this.columns.computeIfAbsent(columnKey, ignored -> new ColumnState());
-      owned.owner = uuid;
-      owned.count++;
-      this.persistPending();
-      player.sendMessage("§e設置を承認待ちとして保存しました。承認されるまで編集できません。");
-      // Semi-creative: placing never consumes the item; refund one next tick.
-      Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-         if (!player.isOnline()) return;
-         player.getInventory().addItem(new ItemStack(placedType, 1));
-         player.updateInventory();
-      }, 1L);
-   }
-
-   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-   public void onBlockDamage(org.bukkit.event.block.BlockDamageEvent event) {
-      // Semi-creative: digging in main breaks instantly like creative mode.
-      // Approval guards still apply at break time, so this never bypasses them.
-      if (!(event.getPlayer() instanceof Player player)) return;
-      if (!this.isMainWorld(player.getWorld())) return;
-      GameMode mode = player.getGameMode();
-      if (mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) {
-         event.setInstaBreak(true);
+         player.sendMessage("§c0,0から" + this.noEditRadius() + "ブロック以内は編集できません。");
+      } else {
+         player.sendMessage("§cmainでは直接設置できません。/mf main submit <schematic> <x> <y> <z> で申請してください。");
       }
    }
 
@@ -346,11 +243,6 @@ final class MainWorldFeature implements Listener {
       if (!this.isMainWorld(block.getWorld())) return;
       Player player = event.getPlayer();
       BlockKey key = new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
-      if (this.insideNoEditZone(block.getX(), block.getZ())) {
-         event.setCancelled(true);
-         player.sendMessage("§c0,0から" + this.noEditRadius() + "ブロック以内は編集できません。");
-         return;
-      }
       if (player.hasPermission("mifron.admin")) {
          // Admin moderation breaks drop any approval record so no stale
          // red mist or phantom ownership survives the removed block.
@@ -358,25 +250,14 @@ final class MainWorldFeature implements Listener {
          if (this.owners.remove(key) != null) this.persist();
          return;
       }
-      if (this.pending.containsKey(key)) {
-         event.setCancelled(true);
-         player.sendMessage("§c承認待ちのブロックは編集できません。");
-         return;
-      }
-      String owner = this.owners.get(key);
-      if (owner == null) {
-         event.setCancelled(true);
-         player.sendMessage("§c自然ブロックは破壊できません。自分が設置したブロックのみ破壊できます。");
-         return;
-      }
-      if (!owner.equals(player.getUniqueId().toString())) {
-         event.setCancelled(true);
-         player.sendMessage("§c他のプレイヤーが設置したブロックは破壊できません。");
-         return;
-      }
-      // Approved blocks are formally saved and permanently fixed.
       event.setCancelled(true);
-      player.sendMessage("§c承認済みのブロックは編集できません。");
+      if (this.insideNoEditZone(block.getX(), block.getZ())) {
+         player.sendMessage("§c0,0から" + this.noEditRadius() + "ブロック以内は編集できません。");
+      } else if (this.pending.containsKey(key)) {
+         player.sendMessage("§c承認待ちのブロックは編集できません。");
+      } else {
+         player.sendMessage("§cmainでは破壊できません。");
+      }
    }
 
    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
@@ -390,6 +271,146 @@ final class MainWorldFeature implements Listener {
          // Pending and approved blocks never explode away.
          if (!this.owners.containsKey(key) && !this.pending.containsKey(key)) continue;
          iterator.remove();
+      }
+   }
+
+   // ------------------------------------------------------------------
+   // Schematic submissions: players file schematics + coordinates, admins
+   // approve (auto-paste) or reject. Data persists in data.yml.
+   // ------------------------------------------------------------------
+
+   private int nextSubmissionId() {
+      int next = Math.max(1, this.plugin.data().getInt("main-submission-next-id", 1));
+      this.plugin.data().set("main-submission-next-id", next + 1);
+      this.plugin.queueDataSave();
+      return next;
+   }
+
+   /** Validates and records a submission. Returns id (>0) or a negative error code. */
+   int submitBuild(java.util.UUID player, String fileName, double x, double y, double z) {
+      if (fileName == null || fileName.isBlank() || fileName.contains("/") || fileName.contains("\\") || fileName.contains("..")) return -1;
+      java.io.File dir = new java.io.File("plugins/WorldEdit/schematics");
+      java.io.File file = new java.io.File(dir, fileName);
+      if (!file.isFile()) return -2;
+      if (y < -64.0 || y > 320.0) return -3;
+      int id = this.nextSubmissionId();
+      String base = "main-submissions." + id + ".";
+      this.plugin.data().set(base + "player", player.toString());
+      this.plugin.data().set(base + "file", fileName);
+      this.plugin.data().set(base + "x", x);
+      this.plugin.data().set(base + "y", y);
+      this.plugin.data().set(base + "z", z);
+      this.plugin.data().set(base + "status", "pending");
+      this.plugin.data().set(base + "created-at", System.currentTimeMillis());
+      this.plugin.queueDataSave();
+      return id;
+   }
+
+   java.util.List<String> submissionLines(boolean adminOnly, String viewerUuid) {
+      java.util.List<String> lines = new java.util.ArrayList<>();
+      var section = this.plugin.data().getConfigurationSection("main-submissions");
+      if (section == null) return lines;
+      for (String id : section.getKeys(false)) {
+         String base = "main-submissions." + id + ".";
+         String owner = this.plugin.data().getString(base + "player", "");
+         if (!adminOnly && !owner.equals(viewerUuid)) continue;
+         lines.add("#" + id + " " + this.plugin.data().getString(base + "file", "?")
+            + " (" + this.plugin.data().getDouble(base + "x") + ", " + this.plugin.data().getDouble(base + "y")
+            + ", " + this.plugin.data().getDouble(base + "z") + ") [" + this.plugin.data().getString(base + "status", "?") + "]");
+      }
+      return lines;
+   }
+
+   /** Approves a submission: pastes via WorldEdit (reflection, no dep) and marks approved. */
+   String approveSubmission(int id) {
+      String base = "main-submissions." + id + ".";
+      if (!this.plugin.data().contains(base + "file")) return "申請 #" + id + " が見つかりません。";
+      if (!"pending".equals(this.plugin.data().getString(base + "status", ""))) {
+         return "申請 #" + id + " は承認待ちではありません。";
+      }
+      String fileName = this.plugin.data().getString(base + "file", "");
+      double x = this.plugin.data().getDouble(base + "x");
+      double y = this.plugin.data().getDouble(base + "y");
+      double z = this.plugin.data().getDouble(base + "z");
+      World world = Bukkit.getWorld(this.worldName());
+      if (world == null) return "mainワールドが見つかりません。";
+      String pasted = this.pasteSchematic(world, new java.io.File("plugins/WorldEdit/schematics", fileName), x, y, z);
+      if (pasted == null) {
+         return "自動設置に失敗しました。手動で //schem load " + fileName + " → //paste -o " + (int) x + "," + (int) y + "," + (int) z + " を実行してください。";
+      }
+      this.plugin.data().set(base + "status", "approved");
+      this.plugin.queueDataSave();
+      return "申請 #" + id + " を承認し設置しました（" + pasted + "ブロック）。";
+   }
+
+   String rejectSubmission(int id) {
+      String base = "main-submissions." + id + ".";
+      if (!this.plugin.data().contains(base + "file")) return "申請 #" + id + " が見つかりません。";
+      this.plugin.data().set(base + "status", "rejected");
+      this.plugin.queueDataSave();
+      return "申請 #" + id + " を却下しました。";
+   }
+
+   /**
+    * Pastes a schematic with WorldEdit through reflection only (no compile
+    * dependency). Returns the affected-block description, or null when WorldEdit
+    * is missing/incompatible — the caller then falls back to manual //paste.
+    */
+   private String pasteSchematic(World world, java.io.File file, double x, double y, double z) {
+      try {
+         Class<?> worldEditClass = Class.forName("com.sk89q.worldedit.WorldEdit");
+         Object worldEdit = worldEditClass.getMethod("getInstance").invoke(null);
+         Class<?> formatsClass;
+         try {
+            formatsClass = Class.forName("com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats");
+         } catch (ClassNotFoundException first) {
+            formatsClass = Class.forName("com.sk89q.worldedit.extension.factory.ClipboardFormats");
+         }
+         Object format = formatsClass.getMethod("findByFile", java.io.File.class).invoke(null, file);
+         if (format == null) return null;
+         Class<?> formatClass = Class.forName("com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat");
+         Object reader = formatClass.getMethod("getReader", java.io.InputStream.class)
+            .invoke(format, new java.io.FileInputStream(file));
+         Object clipboard;
+         try {
+            clipboard = reader.getClass().getMethod("read").invoke(reader);
+         } finally {
+            try { reader.getClass().getMethod("close").invoke(reader); } catch (Throwable ignored) {
+            }
+         }
+         Class<?> bukkitAdapter = Class.forName("com.sk89q.worldedit.bukkit.BukkitAdapter");
+         Object bWorld = bukkitAdapter.getMethod("adapt", World.class).invoke(null, world);
+         Object editSessionBuilder = worldEditClass.getMethod("newEditSessionBuilder").invoke(worldEdit);
+         Object builder = editSessionBuilder.getClass().getMethod("world", Class.forName("com.sk89q.worldedit.world.World")).invoke(editSessionBuilder, bWorld);
+         Object session = builder.getClass().getMethod("build").invoke(builder);
+         try {
+            Class<?> holderClass = Class.forName("com.sk89q.worldedit.session.ClipboardHolder");
+            Object holder = holderClass.getConstructor(Class.forName("com.sk89q.worldedit.extent.clipboard.Clipboard")).newInstance(clipboard);
+            Object pasteBuilder = holderClass.getMethod("createPaste", Class.forName("com.sk89q.worldedit.EditSession")).invoke(holder, session);
+            Class<?> vectorClass = Class.forName("com.sk89q.worldedit.math.BlockVector3");
+            Object to = vectorClass.getMethod("at", double.class, double.class, double.class).invoke(null, x, y, z);
+            Object operation = pasteBuilder.getClass().getMethod("to", vectorClass).invoke(pasteBuilder, to);
+            Object built = operation.getClass().getMethod("build").invoke(operation);
+            Class.forName("com.sk89q.worldedit.function.operation.Operations").getMethod("complete", Class.forName("com.sk89q.worldedit.function.operation.Operation")).invoke(null, built);
+            Object affected = built.getClass().getMethod("getAffected").invoke(built);
+            try {
+               session.getClass().getMethod("close").invoke(session);
+            } catch (Throwable ignored) {
+            }
+            return String.valueOf(affected);
+         } catch (Throwable operationFailed) {
+            try {
+               session.getClass().getMethod("cancel").invoke(session);
+            } catch (Throwable ignored) {
+            }
+            try {
+               session.getClass().getMethod("close").invoke(session);
+            } catch (Throwable ignored) {
+            }
+            return null;
+         }
+      } catch (Throwable unavailable) {
+         return null;
       }
    }
 

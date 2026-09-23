@@ -54,8 +54,21 @@ abstract class MifronPart15 extends MifronPart14x2 {
    public void onAdvancement(PlayerAdvancementDoneEvent event) {
       Advancement advancement = event.getAdvancement();
       if (!this.mifron().shouldTrackAdvancement(advancement)) return;
-      String fullKey = advancement.getKey().toString();
       Player player = event.getPlayer();
+      // Advancements earned in the main world do not count: no recording,
+      // no reward, no titles. The vanilla criteria are revoked so the
+      // advancement stays re-earnable elsewhere.
+      if (this.mainWorldFeature.isMainWorld(player.getWorld())) {
+         try {
+            var progress = player.getAdvancementProgress(advancement);
+            for (String criterion : advancement.getCriteria()) {
+               if (progress.getDateAwarded(criterion) != null) progress.revokeCriteria(criterion);
+            }
+         } catch (Throwable ignored) {
+         }
+         return;
+      }
+      String fullKey = advancement.getKey().toString();
       ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       Set<String> completed = new HashSet<>(section.getStringList("completed-advancements"));
       completed.add(fullKey);

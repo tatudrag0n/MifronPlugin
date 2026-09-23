@@ -5,7 +5,7 @@ quests:
     name: "今日の採掘"
     reset: "毎日リセット"
     condition: "石系/鉱石系ブロックを合計300個採掘"
-    base-reward-mp: 300
+    base-reward-mp: 150
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -18,7 +18,7 @@ quests:
     name: "今日の建築"
     reset: "毎日リセット"
     condition: "任意の建材ブロックを200個設置"
-    base-reward-mp: 250
+    base-reward-mp: 125
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -31,7 +31,7 @@ quests:
     name: "小規模討伐"
     reset: "毎日リセット"
     condition: "敵対Mobを30体、直接討伐"
-    base-reward-mp: 350
+    base-reward-mp: 175
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -44,7 +44,7 @@ quests:
     name: "農作業日和"
     reset: "毎日リセット"
     condition: "生活ポイントを150獲得（対象作物・自然物の採集1、釣り成功17、繁殖8）"
-    base-reward-mp: 250
+    base-reward-mp: 125
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -57,7 +57,7 @@ quests:
     name: "商売の一歩"
     reset: "毎日リセット"
     condition: "ショップまたは商人で3回取引"
-    base-reward-mp: 300
+    base-reward-mp: 150
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -70,7 +70,7 @@ quests:
     name: "軽い探索"
     reset: "毎日リセット"
     condition: "初めて入るチャンクを20チャンク訪問"
-    base-reward-mp: 300
+    base-reward-mp: 150
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -83,7 +83,7 @@ quests:
     name: "今日のアスレ"
     reset: "毎日リセット"
     condition: "任意難易度のアスレを2回クリア"
-    base-reward-mp: 350
+    base-reward-mp: 175
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -96,7 +96,7 @@ quests:
     name: "ミニゲーム参加"
     reset: "毎日リセット"
     condition: "ミニゲームの参加または勝利処理を合計3回"
-    base-reward-mp: 350
+    base-reward-mp: 175
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -109,7 +109,7 @@ quests:
     name: "釣りと収集"
     reset: "毎日リセット"
     condition: "釣り成功または対象作物・自然物の採集を合計20回"
-    base-reward-mp: 250
+    base-reward-mp: 125
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -122,7 +122,7 @@ quests:
     name: "デイリー完全達成"
     reset: "毎日リセット"
     condition: "その日に表示されたデイリー5件を全達成"
-    base-reward-mp: 500
+    base-reward-mp: 250
     display: "条件達成時に表示/受取可"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
@@ -135,7 +135,7 @@ quests:
     name: "週間採掘計画"
     reset: "毎週リセット"
     condition: "石系/鉱石系ブロックを合計3,000個採掘"
-    base-reward-mp: 1800
+    base-reward-mp: 900
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "週1回"
@@ -148,7 +148,7 @@ quests:
     name: "週間建築計画"
     reset: "毎週リセット"
     condition: "建材ブロックを2,000個設置"
-    base-reward-mp: 1600
+    base-reward-mp: 800
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "週1回"
@@ -161,7 +161,7 @@ quests:
     name: "討伐遠征"
     reset: "毎週リセット"
     condition: "敵対Mobを300体、直接討伐"
-    base-reward-mp: 2200
+    base-reward-mp: 1100
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "週1回"
@@ -174,7 +174,7 @@ quests:
     name: "交易週間"
     reset: "毎週リセット"
     condition: "ショップ/商人で20回取引"
-    base-reward-mp: 1600
+    base-reward-mp: 800
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "週1回"
@@ -187,7 +187,7 @@ quests:
     name: "アスレ週間"
     reset: "毎週リセット"
     condition: "アスレを合計10回クリア（難易度による加算差なし）"
-    base-reward-mp: 2000
+    base-reward-mp: 1000
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "週1回"
@@ -200,7 +200,7 @@ quests:
     name: "ミニゲーム週間"
     reset: "毎週リセット"
     condition: "ミニゲームの参加または勝利処理を合計15回"
-    base-reward-mp: 2000
+    base-reward-mp: 1000
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "週1回"
@@ -213,7 +213,7 @@ quests:
     name: "探索遠征"
     reset: "毎週リセット"
     condition: "初めて入るチャンクを150チャンク訪問"
-    base-reward-mp: 1800
+    base-reward-mp: 900
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "週1回"
@@ -221,25 +221,12 @@ quests:
     progress-key: exploration_chunks
     required: 150
     intent: "ワールド探索促進"
-  W08:
-    type: "ウィークリー"
-    name: "進捗挑戦"
-    reset: "毎週リセット"
-    condition: "任意の進捗を3個達成"
-    base-reward-mp: 2500
-    display: "10候補から5件抽選"
-    reincarnation-bonus: true
-    repeat-limit: "週1回"
-    icon: BOOK
-    progress-key: advancements
-    required: 3
-    intent: "進捗コンテンツへの誘導"
   W09:
     type: "ウィークリー"
     name: "共同納品"
     reset: "毎週リセット"
     condition: "ミニゲーム解放へ合計1,000MPを納品"
-    base-reward-mp: 1800
+    base-reward-mp: 900
     display: "10候補から5件抽選"
     reincarnation-bonus: true
     repeat-limit: "週1回"
@@ -252,7 +239,7 @@ quests:
     name: "ウィークリー完全達成"
     reset: "毎週リセット"
     condition: "その週に表示されたウィークリー5件を全達成"
-    base-reward-mp: 3500
+    base-reward-mp: 1750
     display: "条件達成時に表示/受取可"
     reincarnation-bonus: true
     repeat-limit: "週1回"
@@ -265,7 +252,7 @@ quests:
     name: "月間採掘王"
     reset: "毎月リセット"
     condition: "石系/鉱石系ブロックを30,000個採掘"
-    base-reward-mp: 9000
+    base-reward-mp: 4500
     display: "10件固定表示"
     reincarnation-bonus: true
     repeat-limit: "月1回"
@@ -278,7 +265,7 @@ quests:
     name: "月間建築家"
     reset: "毎月リセット"
     condition: "建材ブロックを20,000個設置"
-    base-reward-mp: 9000
+    base-reward-mp: 4500
     display: "10件固定表示"
     reincarnation-bonus: true
     repeat-limit: "月1回"
@@ -291,7 +278,7 @@ quests:
     name: "月間討伐者"
     reset: "毎月リセット"
     condition: "敵対Mobを2,000体、直接討伐"
-    base-reward-mp: 9000
+    base-reward-mp: 4500
     display: "10件固定表示"
     reincarnation-bonus: true
     repeat-limit: "月1回"
@@ -304,7 +291,7 @@ quests:
     name: "月間商人"
     reset: "毎月リセット"
     condition: "ショップまたは商人で合計100回取引"
-    base-reward-mp: 8000
+    base-reward-mp: 4000
     display: "10件固定表示"
     reincarnation-bonus: true
     repeat-limit: "月1回"
@@ -317,7 +304,7 @@ quests:
     name: "月間冒険者"
     reset: "毎月リセット"
     condition: "初めて入るチャンクを1,000チャンク訪問"
-    base-reward-mp: 8000
+    base-reward-mp: 4000
     display: "10件固定表示"
     reincarnation-bonus: true
     repeat-limit: "月1回"
@@ -330,7 +317,7 @@ quests:
     name: "月間挑戦者"
     reset: "毎月リセット"
     condition: "アスレクリア・ミニゲーム参加・勝利処理を合計60回"
-    base-reward-mp: 8500
+    base-reward-mp: 4250
     display: "10件固定表示"
     reincarnation-bonus: true
     repeat-limit: "月1回"
@@ -338,25 +325,12 @@ quests:
     progress-key: challenge_activity
     required: 60
     intent: "サブコンテンツの寿命を延ばす"
-  M07:
-    type: "マンスリー"
-    name: "進捗探究者"
-    reset: "毎月リセット"
-    condition: "任意の進捗を10個達成"
-    base-reward-mp: 10000
-    display: "10件固定表示"
-    reincarnation-bonus: true
-    repeat-limit: "月1回"
-    icon: BOOK
-    progress-key: advancements
-    required: 10
-    intent: "進捗回収を強く後押し"
   M08:
     type: "マンスリー"
     name: "生活基盤整備"
     reset: "毎月リセット"
     condition: "生活ポイントを5,000獲得（対象作物・自然物の採集1、釣り成功17、繁殖8）"
-    base-reward-mp: 7000
+    base-reward-mp: 3500
     display: "10件固定表示"
     reincarnation-bonus: true
     repeat-limit: "月1回"
@@ -369,7 +343,7 @@ quests:
     name: "共同開拓"
     reset: "毎月リセット"
     condition: "ミニゲーム解放へ1MP以上を納品"
-    base-reward-mp: 8000
+    base-reward-mp: 4000
     display: "10件固定表示"
     reincarnation-bonus: true
     repeat-limit: "月1回"
@@ -382,7 +356,7 @@ quests:
     name: "マンスリー完全達成"
     reset: "毎月リセット"
     condition: "月間クエスト9件を全達成"
-    base-reward-mp: 12000
+    base-reward-mp: 6000
     display: "条件達成時に表示/受取可"
     reincarnation-bonus: true
     repeat-limit: "月1回"
@@ -390,25 +364,12 @@ quests:
     progress-key: monthly_complete
     required: 9
     intent: "月間完走報酬"
-  S02:
-    type: "スペシャル"
-    name: "村の救世主"
-    reset: "進捗/条件達成で発生"
-    condition: "ゾンビ村人を治療し、進捗を達成"
-    base-reward-mp: 7000
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: GOLDEN_APPLE
-    progress-key: cured_villager_trades
-    required: 1
-    intent: "村人コンテンツの入口"
   S03:
     type: "スペシャル"
     name: "初ドラゴン討伐"
     reset: "条件達成で発生"
     condition: "討伐前30秒以内に最大体力の20%以上を与えるか、とどめを刺してエンダードラゴン討伐に参加"
-    base-reward-mp: 20000
+    base-reward-mp: 10000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -421,7 +382,7 @@ quests:
     name: "初ウィザー討伐"
     reset: "条件達成で発生"
     condition: "討伐前30秒以内に最大体力の20%以上を与えるか、とどめを刺してウィザー討伐に参加"
-    base-reward-mp: 18000
+    base-reward-mp: 9000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -429,25 +390,12 @@ quests:
     progress-key: wither_participation
     required: 1
     intent: "高難度戦闘の報酬"
-  S05:
-    type: "スペシャル"
-    name: "古代都市調査"
-    reset: "条件達成で発生"
-    condition: "スカルクの振動を回避する進捗を達成"
-    base-reward-mp: 12000
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: SCULK_SENSOR
-    progress-key: ancient_city
-    required: 1
-    intent: "探索の大型報酬"
   S06:
     type: "スペシャル"
     name: "海底神殿制圧"
     reset: "条件達成で発生"
     condition: "各討伐前30秒以内に最大体力の20%以上を与えるか、とどめを刺してエルダーガーディアンを3体討伐"
-    base-reward-mp: 10000
+    base-reward-mp: 5000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -455,38 +403,12 @@ quests:
     progress-key: elder_guardian_kills
     required: 3
     intent: "海洋攻略"
-  S07:
-    type: "スペシャル"
-    name: "砦の略奪者"
-    reset: "条件達成で発生"
-    condition: "ピグリン要塞を発見する進捗を達成"
-    base-reward-mp: 10000
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: GOLD_BLOCK
-    progress-key: bastion_deliveries
-    required: 1
-    intent: "ネザー探索"
-  S08:
-    type: "スペシャル"
-    name: "エンドシティ到達"
-    reset: "進捗達成で発生"
-    condition: "エンドシティ発見またはエリトラ関連の進捗を達成"
-    base-reward-mp: 15000
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: ELYTRA
-    progress-key: elytra_obtained
-    required: 1
-    intent: "終盤探索の節目"
   S09:
     type: "スペシャル"
     name: "バベルの挑戦者"
     reset: "エリア解放後に発生"
     condition: "babel_towerワールドへ到達"
-    base-reward-mp: 12000
+    base-reward-mp: 6000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -499,7 +421,7 @@ quests:
     name: "深淵到達"
     reset: "エリア解放後に発生"
     condition: "ginnungagapワールドへ到達"
-    base-reward-mp: 12000
+    base-reward-mp: 6000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -512,7 +434,7 @@ quests:
     name: "地下帝国の客人"
     reset: "エリア解放後に発生"
     condition: "agarthaワールドへ到達"
-    base-reward-mp: 15000
+    base-reward-mp: 7500
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -525,7 +447,7 @@ quests:
     name: "エリシオン巡礼"
     reset: "エリア解放後に発生"
     condition: "elysionワールドへ到達"
-    base-reward-mp: 12000
+    base-reward-mp: 6000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -533,51 +455,12 @@ quests:
     progress-key: elysion_visits
     required: 1
     intent: "観光導線"
-  S13:
-    type: "スペシャル"
-    name: "全進捗への一歩"
-    reset: "進捗数で発生"
-    condition: "累計進捗25個達成"
-    base-reward-mp: 8000
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: BOOK
-    progress-key: advancements_total
-    required: 25
-    intent: "中盤進捗の節目"
-  S14:
-    type: "スペシャル"
-    name: "進捗蒐集家"
-    reset: "進捗数で発生"
-    condition: "累計進捗50個達成"
-    base-reward-mp: 15000
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: ENCHANTED_BOOK
-    progress-key: advancements_total
-    required: 50
-    intent: "進捗継続"
-  S15:
-    type: "スペシャル"
-    name: "全能への道"
-    reset: "進捗数で発生"
-    condition: "累計進捗75個達成"
-    base-reward-mp: 25000
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: NETHER_STAR
-    progress-key: advancements_total
-    required: 75
-    intent: "終盤進捗"
   S16:
     type: "スペシャル"
     name: "初めての転生"
     reset: "転生で発生"
     condition: "初回転生を実行"
-    base-reward-mp: 30000
+    base-reward-mp: 15000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -590,7 +473,7 @@ quests:
     name: "二度目の覚醒"
     reset: "転生で発生"
     condition: "2回目の転生を実行"
-    base-reward-mp: 40000
+    base-reward-mp: 20000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -603,7 +486,7 @@ quests:
     name: "商人の常連"
     reset: "取引数で発生"
     condition: "累計取引500回達成"
-    base-reward-mp: 12000
+    base-reward-mp: 6000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -616,7 +499,7 @@ quests:
     name: "オークション参加者"
     reset: "オークションで発生"
     condition: "オークション額縁を1回作成"
-    base-reward-mp: 7000
+    base-reward-mp: 3500
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -629,7 +512,7 @@ quests:
     name: "国家の礎"
     reset: "国家で発生"
     condition: "nationまたはnationsワールドへ到達"
-    base-reward-mp: 10000
+    base-reward-mp: 5000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -642,7 +525,7 @@ quests:
     name: "建築コンテスト参加"
     reset: "イベントで発生"
     condition: "Buildワールドからschematicを1件提出"
-    base-reward-mp: 15000
+    base-reward-mp: 7500
     display: "イベント時のみ"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -655,7 +538,7 @@ quests:
     name: "ミニゲーム王者"
     reset: "イベント/条件で発生"
     condition: "ミニゲームで1回勝利"
-    base-reward-mp: 20000
+    base-reward-mp: 10000
     display: "イベント時のみ"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -668,7 +551,7 @@ quests:
     name: "アスレ覇者"
     reset: "条件達成で発生"
     condition: "hardcore設定のアスレチックを1回完走"
-    base-reward-mp: 25000
+    base-reward-mp: 12500
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -681,7 +564,7 @@ quests:
     name: "釣り名人"
     reset: "条件達成で発生"
     condition: "釣りで弓・エンチャント本・釣竿・名札・オウムガイ・鞍のいずれかを獲得"
-    base-reward-mp: 8000
+    base-reward-mp: 4000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -694,7 +577,7 @@ quests:
     name: "農業王"
     reset: "条件達成で発生"
     condition: "棚ショップまたは商人へ農作物を1回売却"
-    base-reward-mp: 10000
+    base-reward-mp: 5000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -707,7 +590,7 @@ quests:
     name: "鍛冶の探究者"
     reset: "条件達成で発生"
     condition: "鍛冶型を1個拾得"
-    base-reward-mp: 15000
+    base-reward-mp: 7500
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -720,7 +603,7 @@ quests:
     name: "全モブ観察"
     reset: "討伐/遭遇で発生"
     condition: "報酬対象Mobを1種類以上、直接攻撃で討伐"
-    base-reward-mp: 20000
+    base-reward-mp: 10000
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -733,7 +616,7 @@ quests:
     name: "共同解放の功労者"
     reset: "サーバー解放で発生"
     condition: "ミニゲーム解放へ1MP以上を納品"
-    base-reward-mp: 25000
+    base-reward-mp: 12500
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -746,7 +629,7 @@ quests:
     name: "クリエイターの第一歩"
     reset: "審査通過で発生"
     condition: "提出したschematicが1件承認される"
-    base-reward-mp: 15000
+    base-reward-mp: 7500
     display: "条件発生"
     reincarnation-bonus: true
     repeat-limit: "1回限り"
@@ -754,16 +637,3 @@ quests:
     progress-key: creator_approved
     required: 1
     intent: "CREWMATE的導線"
-  S30:
-    type: "スペシャル"
-    name: "Mifronの伝説"
-    reset: "総合条件で発生"
-    condition: "転生2回・進捗75個・Mob討伐2,000体・ブロック設置20,000個・取引500回をすべて達成"
-    base-reward-mp: 50000
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: DRAGON_EGG
-    progress-key: legend_score
-    required: 1
-    intent: "長期運営の最高級目標"

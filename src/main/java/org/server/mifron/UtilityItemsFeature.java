@@ -76,9 +76,6 @@ final class UtilityItemsFeature implements Listener {
       );
    }
 
-   /** MP cost to permanently unlock night vision (charged once). */
-   static final int NIGHT_VISION_UNLOCK_COST = 10000;
-
    void openMenuUi(Player player) {
       org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Menu"));
       inventory.setItem(10, this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "SHOP", List.of(ChatColor.GRAY + "クリック: ショップを開く（Survivalのみ）"), "menu_shop", null));
@@ -87,7 +84,7 @@ final class UtilityItemsFeature implements Listener {
       inventory.setItem(12, this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
       inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
       inventory.setItem(14, this.plugin.actionItem(Material.ENDER_EYE, ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "クリック: 移動先を選択"), "menu_teleporter", null));
-      inventory.setItem(15, this.nightVisionMenuIcon(player));
+      inventory.setItem(15, this.gearMenuIcon(player));
       for (int slot = 0; slot < inventory.getSize(); slot++) {
          if (inventory.getItem(slot) == null) inventory.setItem(slot, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
       }
@@ -95,71 +92,152 @@ final class UtilityItemsFeature implements Listener {
    }
 
    // ------------------------------------------------------------------
-   // Night vision: 10,000 MP one-time unlock, then free ON/OFF toggle.
-   // Unlock + enabled flags persist in data.yml across relogs/restarts.
+   // Gears: unlock once with MP, then equip up to MAX_EQUIPPED_GEARS.
+   // Currently only night vision exists; new gears plug into GEARS plus
+   // the apply/remove dispatch below. State persists in data.yml.
    // ------------------------------------------------------------------
 
-   boolean isNightVisionUnlocked(Player player) {
-      return this.plugin.getPlayerSection(player.getUniqueId()).getBoolean("night-vision-unlocked", false);
+   static final int MAX_EQUIPPED_GEARS = 3;
+
+   record GearDefinition(String id, Material icon, String name, int unlockCost, String description) {}
+
+   static final java.util.Map<String, GearDefinition> GEARS = java.util.Map.of(
+      "night_vision", new GearDefinition("night_vision", Material.SPYGLASS, "暗視", 10000, "暗い場所でも明るく見える")
+   );
+
+   /** Pure equip rule for tests: unlocked gear toggles unless 3 are already on. */
+   static boolean canEquip(java.util.List<String> equipped, String id) {
+      if (equipped.contains(id)) return true;
+      return equipped.size() < MAX_EQUIPPED_GEARS;
    }
 
-   boolean isNightVisionEnabled(Player player) {
-      return this.plugin.getPlayerSection(player.getUniqueId()).getBoolean("night-vision-enabled", false);
+   java.util.List<String> unlockedGears(Player player) {
+      this.migrateNightVision(player);
+      return new java.util.ArrayList<>(this.plugin.getPlayerSection(player.getUniqueId()).getStringList("gears-unlocked"));
    }
 
-   private ItemStack nightVisionMenuIcon(Player player) {
-      boolean unlocked = this.isNightVisionUnlocked(player);
-      boolean enabled = unlocked && this.isNightVisionEnabled(player);
-      Material icon = enabled ? Material.ENDER_EYE : Material.SPYGLASS;
-      String name = enabled ? ChatColor.GREEN + "暗視: ON" : unlocked ? ChatColor.YELLOW + "暗視: OFF" : ChatColor.GRAY + "暗視: 未解放";
-      List<String> lore = unlocked
-         ? List.of(ChatColor.GRAY + "クリック: ON/OFF切替", enabled ? ChatColor.GREEN + "現在ON" : ChatColor.YELLOW + "現在OFF")
-         : List.of(ChatColor.GRAY + "クリック: " + NIGHT_VISION_UNLOCK_COST + " MPで解放", ChatColor.GRAY + "解放後はON/OFF切替可能");
-      return this.plugin.actionItem(icon, name, lore, "menu_nightvision", null);
+   java.util.List<String> equippedGears(Player player) {
+      this.migrateNightVision(player);
+      return new java.util.ArrayList<>(this.plugin.getPlayerSection(player.getUniqueId()).getStringList("gears-equipped"));
    }
 
-   void toggleNightVision(Player player) {
+   /** One-time migration from the old night-vision flags to the gear system. */
+   private void migrateNightVision(Player player) {
       var section = this.plugin.getPlayerSection(player.getUniqueId());
-      if (!section.getBoolean("night-vision-unlocked", false)) {
-         if (!this.plugin.withdrawEmeralds(player.getUniqueId(), NIGHT_VISION_UNLOCK_COST)) {
-            player.sendMessage(ChatColor.RED + "MPが足りません。暗視の解放には " + NIGHT_VISION_UNLOCK_COST + " MP必要です。");
+      boolean hadOld = section.contains("night-vision-unlocked") || section.contains("night-vision-enabled");
+      if (!hadOld) return;
+      java.util.Set<String> unlocked = new java.util.LinkedHashSet<>(section.getStringList("gears-unlocked"));
+      java.util.List<String> equipped = new java.util.ArrayList<>(section.getStringList("gears-equipped"));
+      if (section.getBoolean("night-vision-unlocked", false)) unlocked.add("night_vision");
+      if (section.getBoolean("night-vision-enabled", false) && unlocked.contains("night_vision")
+         && !equipped.contains("night_vision") && equipped.size() < MAX_EQUIPPED_GEARS) {
+         equipped.add("night_vision");
+      }
+      section.set("gears-unlocked", new java.util.ArrayList<>(unlocked));
+      section.set("gears-equipped", equipped);
+      section.set("night-vision-unlocked", null);
+      section.set("night-vision-enabled", null);
+      this.plugin.queueDataSave();
+   }
+
+   private ItemStack gearMenuIcon(Player player) {
+      int equipped = this.equippedGears(player).size();
+      return this.plugin.actionItem(Material.IRON_CHESTPLATE, ChatColor.AQUA + "ギア",
+         List.of(ChatColor.GRAY + "装備中: " + equipped + "/" + MAX_EQUIPPED_GEARS, ChatColor.GRAY + "クリック: ギア装備画面を開く"), "menu_gear", null);
+   }
+
+   void openGearUi(Player player) {
+      org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Gears"));
+      int slot = 10;
+      for (GearDefinition gear : GEARS.values()) {
+         boolean unlocked = this.unlockedGears(player).contains(gear.id());
+         boolean equipped = unlocked && this.equippedGears(player).contains(gear.id());
+         java.util.List<String> lore = new java.util.ArrayList<>();
+         lore.add(ChatColor.GRAY + gear.description());
+         if (!unlocked) {
+            lore.add(ChatColor.GRAY + "クリック: " + gear.unlockCost() + " MPで解放");
+         } else if (equipped) {
+            lore.add(ChatColor.GREEN + "装備中（クリックで外す）");
+         } else {
+            lore.add(ChatColor.YELLOW + "クリック: 装備する");
+         }
+         inventory.setItem(slot++, this.plugin.actionItem(gear.icon(),
+            (equipped ? ChatColor.GREEN : unlocked ? ChatColor.YELLOW : ChatColor.GRAY) + gear.name(),
+            lore, "gear_toggle", gear.id()));
+      }
+      for (int i = 0; i < inventory.getSize(); i++) {
+         if (inventory.getItem(i) == null) inventory.setItem(i, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
+      }
+      player.openInventory(inventory);
+   }
+
+   void toggleGear(Player player, String gearId) {
+      GearDefinition gear = GEARS.get(gearId);
+      if (gear == null) return;
+      var section = this.plugin.getPlayerSection(player.getUniqueId());
+      java.util.Set<String> unlocked = new java.util.LinkedHashSet<>(section.getStringList("gears-unlocked"));
+      java.util.List<String> equipped = new java.util.ArrayList<>(section.getStringList("gears-equipped"));
+      if (!unlocked.contains(gearId)) {
+         if (!this.plugin.withdrawEmeralds(player.getUniqueId(), gear.unlockCost())) {
+            player.sendMessage(ChatColor.RED + "MPが足りません。" + gear.name() + "の解放には " + gear.unlockCost() + " MP必要です。");
             return;
          }
          // Mark unlocked first so a concurrent second click cannot charge twice.
-         section.set("night-vision-unlocked", true);
-         section.set("night-vision-enabled", true);
+         unlocked.add(gearId);
+         section.set("gears-unlocked", new java.util.ArrayList<>(unlocked));
+         if (equipped.size() < MAX_EQUIPPED_GEARS && !equipped.contains(gearId)) {
+            equipped.add(gearId);
+            section.set("gears-equipped", equipped);
+            this.applyGearEffect(player, gearId);
+            player.sendMessage(ChatColor.GREEN + gear.name() + "を解放し装備しました。");
+         } else {
+            player.sendMessage(ChatColor.GREEN + gear.name() + "を解放しました。ギア画面から装備できます。");
+         }
          this.plugin.queueDataSave();
-         this.applyNightVisionEffect(player);
-         player.sendMessage(ChatColor.GREEN + "暗視を解放しONにしました。");
-         this.openMenuUi(player);
+         this.openGearUi(player);
          return;
       }
-      boolean enabled = section.getBoolean("night-vision-enabled", false);
-      section.set("night-vision-enabled", !enabled);
-      this.plugin.queueDataSave();
-      if (!enabled) {
-         this.applyNightVisionEffect(player);
-         player.sendMessage(ChatColor.GREEN + "暗視をONにしました。");
+      if (equipped.contains(gearId)) {
+         equipped.remove(gearId);
+         section.set("gears-equipped", equipped);
+         this.removeGearEffect(player, gearId);
+         player.sendMessage(ChatColor.YELLOW + gear.name() + "を外しました。");
       } else {
+         if (!canEquip(equipped, gearId)) {
+            player.sendMessage(ChatColor.RED + "ギアは" + MAX_EQUIPPED_GEARS + "つまでしか装備できません。");
+            return;
+         }
+         equipped.add(gearId);
+         section.set("gears-equipped", equipped);
+         this.applyGearEffect(player, gearId);
+         player.sendMessage(ChatColor.GREEN + gear.name() + "を装備しました。");
+      }
+      this.plugin.queueDataSave();
+      this.openGearUi(player);
+   }
+
+   void applyGearEffect(Player player, String gearId) {
+      if ("night_vision".equals(gearId)) {
+         player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+            org.bukkit.potion.PotionEffectType.NIGHT_VISION,
+            org.bukkit.potion.PotionEffect.INFINITE_DURATION, 0, false, false, true));
+      }
+   }
+
+   void removeGearEffect(Player player, String gearId) {
+      if ("night_vision".equals(gearId)) {
          // Only our own night-vision effect is removed; other effects kept.
          player.removePotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION);
-         player.sendMessage(ChatColor.YELLOW + "暗視をOFFにしました。");
       }
-      this.openMenuUi(player);
    }
 
-   void applyNightVisionEffect(Player player) {
-      player.addPotionEffect(new org.bukkit.potion.PotionEffect(
-         org.bukkit.potion.PotionEffectType.NIGHT_VISION,
-         org.bukkit.potion.PotionEffect.INFINITE_DURATION, 0, false, false, true));
-   }
-
-   /** Re-applies an unlocked+enabled night vision after (re)login. */
-   public void reapplyNightVision(Player player) {
+   /** Re-applies equipped gears after (re)login. */
+   public void reapplyGears(Player player) {
       if (player == null || !player.isOnline()) return;
-      if (this.isNightVisionUnlocked(player) && this.isNightVisionEnabled(player)) {
-         if (!player.hasPotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION)) {
-            this.applyNightVisionEffect(player);
+      for (String gearId : this.equippedGears(player)) {
+         if ("night_vision".equals(gearId)
+            && !player.hasPotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION)) {
+            this.applyGearEffect(player, gearId);
          }
       }
    }

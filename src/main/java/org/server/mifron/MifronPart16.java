@@ -117,7 +117,7 @@ abstract class MifronPart16 extends MifronPart15x2 {
          } catch (Throwable ignored) {
          }
          try {
-            this.mifron().utilityItemsFeature.reapplyNightVision(player);
+            this.mifron().utilityItemsFeature.reapplyGears(player);
          } catch (Throwable ignored) {
          }
       }, 20L);

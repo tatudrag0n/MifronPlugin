@@ -121,18 +121,14 @@ class OnlineShopRulesTest {
    }
 
    @Test
-   void mainCreativeDeniedBlocksCoverHazards() {
-      // NOTE: isCreativeTakeAllowed itself needs live Bukkit registries
-      // (isBlock/isAir), so only the pure denylist is unit-tested here.
-      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.TNT));
-      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.SPAWNER));
-      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.BEDROCK));
-      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.COMMAND_BLOCK));
-      assertTrue(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.BARRIER));
-      assertFalse(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.STONE));
-      assertFalse(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.OAK_PLANKS));
-      assertFalse(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.ARMOR_STAND));
-      assertFalse(MainWorldFeature.isCreativeDeniedBlock(org.bukkit.Material.TORCH));
+   void gearEquipLimitHoldsThree() {
+      assertEquals(3, UtilityItemsFeature.MAX_EQUIPPED_GEARS);
+      assertTrue(UtilityItemsFeature.canEquip(java.util.List.of(), "night_vision"));
+      assertTrue(UtilityItemsFeature.canEquip(java.util.List.of("a", "b"), "c"));
+      assertTrue(UtilityItemsFeature.canEquip(java.util.List.of("a", "b", "night_vision"), "night_vision"));
+      assertFalse(UtilityItemsFeature.canEquip(java.util.List.of("a", "b", "c"), "night_vision"));
+      assertTrue(UtilityItemsFeature.GEARS.containsKey("night_vision"));
+      assertEquals(10000, UtilityItemsFeature.GEARS.get("night_vision").unlockCost());
    }
 
    @Test
