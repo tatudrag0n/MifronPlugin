@@ -113,12 +113,14 @@ final class MainWorldFeature implements Listener {
    }
 
    int noEditRadius() {
-      return Math.max(0, this.plugin.getConfig().getInt("main-world.spawn-protect-radius", 32));
+      return Math.max(0, this.plugin.getConfig().getInt("main-world.spawn-protect-radius", 30));
    }
 
-   /** Fixed no-edit zone centered at 0,0 (horizontal X,Z only). */
-   boolean insideNoEditZone(int x, int z) {
-      return insideSpawnRadius(x, z, 0, 0, this.noEditRadius());
+   /** No-edit circle around the world spawn (horizontal X,Z only). */
+   boolean insideNoEditZone(World world, int x, int z) {
+      if (world == null) return false;
+      Location spawn = world.getSpawnLocation();
+      return insideSpawnRadius(x, z, spawn.getBlockX(), spawn.getBlockZ(), this.noEditRadius());
    }
 
    boolean isMainWorld(World world) {
@@ -128,6 +130,46 @@ final class MainWorldFeature implements Listener {
    // ------------------------------------------------------------------
    // Semi-creative: flight, creative inventory, consumption, spawn items.
    // ------------------------------------------------------------------
+
+   /**
+    * Blocks that must never be taken from the creative inventory in main
+    * (griefing, unbreakable or technical blocks).
+    */
+   static boolean isCreativeDeniedBlock(Material material) {
+      if (material == null) return true;
+      String name = material.name();
+      if (name.startsWith("INFESTED_")) return true;
+      return name.contains("COMMAND") || name.startsWith("LEGACY_")
+         || switch (name) {
+            case "TNT", "SPAWNER", "TRIAL_SPAWNER", "VAULT", "BEDROCK", "BARRIER",
+               "LIGHT", "STRUCTURE_BLOCK", "STRUCTURE_VOID", "JIGSAW",
+               "END_PORTAL_FRAME", "DRAGON_EGG", "REINFORCED_DEEPSLATE",
+               "TEST_BLOCK", "TEST_INSTANCE_BLOCK", "MOVING_PISTON",
+               "DEBUG_STICK", "KNOWLEDGE_BOOK" -> true;
+            default -> false;
+         };
+   }
+
+   /**
+    * Items obtainable from the creative inventory in main: armor stands plus
+    * ordinary blocks (minus the denylist above). Spawn eggs, buckets,
+    * projectiles and other entity/item goods stay unavailable.
+    */
+   static boolean isCreativeTakeAllowed(Material material, java.util.Set<String> extraAllowed) {
+      if (material == null) return false;
+      try {
+         if (material.isAir()) return false;
+      } catch (Throwable registryMissing) {
+         if (material.name().endsWith("_AIR")) return false;
+      }
+      if (material == Material.ARMOR_STAND) return true;
+      if (extraAllowed != null && extraAllowed.contains(material.name())) return true;
+      try {
+         return material.isBlock() && !isCreativeDeniedBlock(material);
+      } catch (Throwable registryMissing) {
+         return false;
+      }
+   }
 
    /** Entity-spawning items banned in main (armor stands are allowed). */
    static boolean isEntitySpawnItem(Material material) {
@@ -142,11 +184,18 @@ final class MainWorldFeature implements Listener {
    }
 
    /**
-    * Semi-creative is abolished: no flight in main. Admins keep theirs for
-    * moderation; creative/spectator modes are untouched everywhere.
+    * Semi-creative flight: survival/adventure players can fly in main.
+    * Leaving main restores vanilla rules so other worlds are unaffected.
     */
-   private void denyFlight(Player player) {
+   private void applyFlight(Player player) {
       if (player == null) return;
+      if (this.isMainWorld(player.getWorld())) {
+         GameMode mode = player.getGameMode();
+         if (mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) {
+            player.setAllowFlight(true);
+         }
+         return;
+      }
       GameMode mode = player.getGameMode();
       if ((mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) && !player.isOp()
          && !player.hasPermission("mifron.admin")) {
@@ -156,18 +205,58 @@ final class MainWorldFeature implements Listener {
    }
 
    @EventHandler
-   public void onJoinNoFlight(PlayerJoinEvent event) {
-      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.denyFlight(event.getPlayer()), 10L);
+   public void onJoinFlight(PlayerJoinEvent event) {
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.applyFlight(event.getPlayer()), 10L);
    }
 
    @EventHandler
-   public void onWorldChangeNoFlight(PlayerChangedWorldEvent event) {
-      this.denyFlight(event.getPlayer());
+   public void onWorldChangeFlight(PlayerChangedWorldEvent event) {
+      this.applyFlight(event.getPlayer());
    }
 
    @EventHandler
-   public void onRespawnNoFlight(PlayerRespawnEvent event) {
-      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.denyFlight(event.getPlayer()), 10L);
+   public void onRespawnFlight(PlayerRespawnEvent event) {
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.applyFlight(event.getPlayer()), 10L);
+   }
+
+   java.util.Set<String> creativeExtraAllowed() {
+      java.util.Set<String> extra = new java.util.HashSet<>();
+      for (String raw : this.plugin.getConfig().getStringList("main-world.creative-allow-extra")) {
+         if (raw != null && !raw.isBlank()) extra.add(raw.trim().toUpperCase(java.util.Locale.ROOT));
+      }
+      return extra;
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onCreativeInventory(InventoryCreativeEvent event) {
+      if (!(event.getWhoClicked() instanceof Player player)) return;
+      if (!this.isMainWorld(player.getWorld())) return;
+      // Pickup, place and hotbar-swap shapes: the wanted item is always in
+      // either the cursor or the clicked slot (getCurrentItem).
+      java.util.Set<String> extra = this.creativeExtraAllowed();
+      boolean allowed = false;
+      for (ItemStack item : new ItemStack[]{event.getCursor(), event.getCurrentItem()}) {
+         if (item != null && isCreativeTakeAllowed(item.getType(), extra)) {
+            allowed = true;
+            break;
+         }
+      }
+      if (!allowed) {
+         event.setCancelled(true);
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onConsumeNoUse(PlayerItemConsumeEvent event) {
+      if (!this.isMainWorld(event.getPlayer().getWorld())) return;
+      // Using items in main never consumes them: refund one next tick.
+      ItemStack consumed = event.getItem().clone();
+      consumed.setAmount(1);
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+         Player player = event.getPlayer();
+         if (!player.isOnline()) return;
+         player.getInventory().addItem(consumed);
+      }, 1L);
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -226,14 +315,53 @@ final class MainWorldFeature implements Listener {
       Block block = event.getBlockPlaced();
       if (block == null || !this.isMainWorld(block.getWorld())) return;
       Player player = event.getPlayer();
+      // Bedrock can never be placed.
+      if (block.getType() == Material.BEDROCK) {
+         event.setCancelled(true);
+         player.sendMessage("§c岩盤は設置できません。");
+         return;
+      }
+      // No-edit circle around spawn.
+      if (this.insideNoEditZone(block.getWorld(), block.getX(), block.getZ())) {
+         event.setCancelled(true);
+         player.sendMessage("§cスポーンから" + this.noEditRadius() + "ブロック以内には設置できません。");
+         return;
+      }
       if (player.hasPermission("mifron.admin")) return;
-      // Direct building is closed: submit a schematic plus coordinates and
-      // an admin places it after approval (/mf main submit).
-      event.setCancelled(true);
-      if (this.insideNoEditZone(block.getX(), block.getZ())) {
-         player.sendMessage("§c0,0から" + this.noEditRadius() + "ブロック以内は編集できません。");
-      } else {
-         player.sendMessage("§cmainでは直接設置できません。/mf main submit <schematic> <x> <y> <z> で申請してください。");
+      // X,Z column conflict: another player's column is off limits.
+      String columnKey = columnKey(block.getWorld().getName(), block.getX(), block.getZ());
+      ColumnState column = this.columns.get(columnKey);
+      String uuid = player.getUniqueId().toString();
+      if (column != null && !column.owner.equals(uuid)) {
+         event.setCancelled(true);
+         player.sendMessage("§c他のプレイヤーの設置列（X,Z）と重なるため設置できません。");
+         return;
+      }
+      BlockKey key = new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+      Material placedType = block.getType();
+      this.pending.put(key, new PendingRecord(uuid, placedType, System.currentTimeMillis()));
+      ColumnState owned = this.columns.computeIfAbsent(columnKey, ignored -> new ColumnState());
+      owned.owner = uuid;
+      owned.count++;
+      this.persistPending();
+      player.sendMessage("§e設置を承認待ちとして保存しました。承認されるまで編集できません。");
+      // Semi-creative: placing never consumes the item; refund one next tick.
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+         if (!player.isOnline()) return;
+         player.getInventory().addItem(new ItemStack(placedType, 1));
+         player.updateInventory();
+      }, 1L);
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onBlockDamage(org.bukkit.event.block.BlockDamageEvent event) {
+      // Semi-creative: digging in main breaks instantly like creative mode.
+      // Approval guards still apply at break time, so this never bypasses them.
+      if (!(event.getPlayer() instanceof Player player)) return;
+      if (!this.isMainWorld(player.getWorld())) return;
+      GameMode mode = player.getGameMode();
+      if (mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE) {
+         event.setInstaBreak(true);
       }
    }
 
@@ -243,6 +371,16 @@ final class MainWorldFeature implements Listener {
       if (!this.isMainWorld(block.getWorld())) return;
       Player player = event.getPlayer();
       BlockKey key = new BlockKey(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+      // Bedrock can never be broken, by anyone.
+      if (block.getType() == Material.BEDROCK) {
+         event.setCancelled(true);
+         return;
+      }
+      if (this.insideNoEditZone(block.getWorld(), block.getX(), block.getZ())) {
+         event.setCancelled(true);
+         player.sendMessage("§cスポーンから" + this.noEditRadius() + "ブロック以内は編集できません。");
+         return;
+      }
       if (player.hasPermission("mifron.admin")) {
          // Admin moderation breaks drop any approval record so no stale
          // red mist or phantom ownership survives the removed block.
@@ -250,14 +388,25 @@ final class MainWorldFeature implements Listener {
          if (this.owners.remove(key) != null) this.persist();
          return;
       }
-      event.setCancelled(true);
-      if (this.insideNoEditZone(block.getX(), block.getZ())) {
-         player.sendMessage("§c0,0から" + this.noEditRadius() + "ブロック以内は編集できません。");
-      } else if (this.pending.containsKey(key)) {
+      if (this.pending.containsKey(key)) {
+         event.setCancelled(true);
          player.sendMessage("§c承認待ちのブロックは編集できません。");
-      } else {
-         player.sendMessage("§cmainでは破壊できません。");
+         return;
       }
+      String owner = this.owners.get(key);
+      if (owner == null) {
+         event.setCancelled(true);
+         player.sendMessage("§c自然ブロックは破壊できません。自分が設置したブロックのみ破壊できます。");
+         return;
+      }
+      if (!owner.equals(player.getUniqueId().toString())) {
+         event.setCancelled(true);
+         player.sendMessage("§c他のプレイヤーが設置したブロックは破壊できません。");
+         return;
+      }
+      // Approved blocks are formally saved and permanently fixed.
+      event.setCancelled(true);
+      player.sendMessage("§c承認済みのブロックは編集できません。");
    }
 
    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
