@@ -48,17 +48,12 @@ abstract class MifronPart13 extends MifronPart12x2 {
 
    void openTeleportUi(Player player) {
       Inventory inventory = Bukkit.createInventory(player, 27, Component.text("\u00a75Mifron Teleporter"));
-      // Slot 0 is always main.
-      inventory.setItem(0, this.mifron().actionItem(this.mifron().serverIconMaterial("servers.main"), "\u00a7amain", List.of(), "teleport", "servers.main"));
-      ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
-      if (servers != null) {
-         int slot = 1;
-         for (String key : servers.getKeys(false)) {
-            if (!this.isSafeConfigKey(key) || slot >= 27) continue;
-            if (key.equalsIgnoreCase("main") || REMOVED_TELEPORT_KEYS.contains(key.toLowerCase(Locale.ROOT))) continue;
-            inventory.setItem(slot++, this.mifron().actionItem(this.mifron().serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "teleport", "servers." + key));
-         }
-      }
+      // Two-world policy: survival (SMP) or minigame. Detail choices live in
+      // the menu minigame entrance; legacy per-server entries are not listed.
+      inventory.setItem(11, this.mifron().actionItem(this.mifron().serverIconMaterial("servers.survival"), "\u00a7a\u30b5\u30d0\u30a4\u30d0\u30eb",
+         List.of("\u00a77みんなで遊ぶSMP"), "teleport", "servers.survival"));
+      inventory.setItem(15, this.mifron().actionItem(this.mifron().serverIconMaterial("servers.minigame"), "\u00a7c\u30df\u30cb\u30b2\u30fc\u30e0",
+         List.of("\u00a77FFA・アスレ・スロットはメニューのミニゲームから"), "teleport", "servers.minigame"));
       inventory.setItem(26, this.mifron().actionItem(Material.OAK_DOOR, "\u00a7f\u30e1\u30cb\u30e5\u30fc\u306b\u623b\u308b", List.of(), "menu_back", null));
       this.mifron().fillEmptyGuiSlots(inventory);
       player.openInventory(inventory);
