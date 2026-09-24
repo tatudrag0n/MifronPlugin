@@ -117,6 +117,7 @@ public class EliteMobFeature implements Listener {
         }
         entity.getPersistentDataContainer().set(rewardedKey, PersistentDataType.BYTE, (byte) 1);
         String typeName = entity.getType().name();
+        plugin.addEliteKilledMob(killer.getUniqueId(), typeName);
         int base = plugin.getConfig().getInt("elite-mobs.base-mp." + typeName, 10);
         int reward = Math.max(5, base) * 5;
         plugin.depositEmeralds(killer.getUniqueId(), reward);

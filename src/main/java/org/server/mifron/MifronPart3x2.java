@@ -53,6 +53,9 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       if (baseReward <= 0) return;
       int reward = this.mifron().applyIncomeBonus(killer.getUniqueId(), this.adjustedMobKillReward(killer.getUniqueId(), entity.getType(), baseReward));
       this.mifron().addPlayerStat(killer.getUniqueId(), "total-mob-kills", 1);
+      var section = this.mifron().getPlayerSection(killer.getUniqueId());
+      section.set("mob-kill-counts." + entity.getType().name(),
+         section.getInt("mob-kill-counts." + entity.getType().name(), 0) + 1);
       boolean firstKill = this.addKilledMob(killer.getUniqueId(), entity.getType());
       this.mifron().depositEmeralds(killer.getUniqueId(), reward);
       killer.sendMessage("\u00a7a\u8a0e\u4f10\u5831\u916c: +" + this.mifron().formatNumber(reward) + "MP");
@@ -119,6 +122,26 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       Set<String> killed = new HashSet<>(this.mifron().getPlayerSection(uuid).getStringList("killed-mobs"));
       if (!killed.add(type.name())) return false;
       this.mifron().getPlayerSection(uuid).set("killed-mobs", new ArrayList<>(killed));
+      this.queueDataSave();
+      return true;
+   }
+
+   /** Records a rare-item discovery for the collection UI. */
+   protected void recordRareCollection(Player player, String rareId) {
+      if (player == null || rareId == null || rareId.isBlank()) return;
+      var section = this.mifron().getPlayerSection(player.getUniqueId());
+      java.util.Set<String> found = new java.util.HashSet<>(section.getStringList("rare-collection"));
+      if (!found.add(rareId)) return;
+      section.set("rare-collection", new java.util.ArrayList<>(found));
+      this.queueDataSave();
+   }
+
+   /** Records an elite kill per mob type for the kill-catalogue UI. */
+   protected boolean addEliteKilledMob(UUID uuid, String typeName) {
+      if (typeName == null || typeName.isBlank()) return false;
+      Set<String> killed = new HashSet<>(this.mifron().getPlayerSection(uuid).getStringList("elite-killed-mobs"));
+      if (!killed.add(typeName)) return false;
+      this.mifron().getPlayerSection(uuid).set("elite-killed-mobs", new ArrayList<>(killed));
       this.queueDataSave();
       return true;
    }

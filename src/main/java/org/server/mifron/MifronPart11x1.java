@@ -22,7 +22,10 @@ abstract class MifronPart11x1 extends MifronPart11 {
       if (tab != null && tab.startsWith("kills")) this.mifron().fillKillsTab(player, inventory, this.mifron().tabPage(tab, "kills"));
       else if (tab != null && tab.startsWith("titles")) this.mifron().fillTitlesTab(player, inventory, this.mifron().tabPage(tab, "titles"));
       else if ("reincarnation".equals(tab)) this.mifron().fillReincarnationTab(player, inventory);
+      else if ("collection".equals(tab)) this.mifron().fillCollectionTab(player, inventory);
+      else if ("gears".equals(tab)) this.mifron().fillGearsTab(player, inventory);
       else this.mifron().fillProgressTab(player, inventory, this.mifron().tabPage(tab == null ? "progress" : tab, "progress"));
+      this.mifron().fillStatusMore(inventory, tab == null ? "progress" : tab);
       inventory.setItem(52, this.mifron().actionItem(Material.OAK_DOOR, "\u00a7f\u30e1\u30cb\u30e5\u30fc\u306b\u623b\u308b", List.of(), "menu_back", null));
       inventory.setItem(53, this.mifron().actionItem(Material.ARROW, "\u00a7f\u623b\u308b", List.of(), "friend_status_back", null));
       this.mifron().fillEmptyGuiSlots(inventory);
@@ -35,6 +38,8 @@ abstract class MifronPart11x1 extends MifronPart11 {
          case "reincarnation" -> this.mifron().named(Material.NETHER_STAR, "\u00a76\u8ee2\u751f", List.of());
          case "titles" -> this.mifron().named(Material.NAME_TAG, "\u00a76\u79f0\u53f7", List.of());
          case "kills" -> this.mifron().named(Material.ZOMBIE_SPAWN_EGG, "\u00a76\u8a0e\u4f10", List.of());
+         case "collection" -> this.mifron().named(Material.ENDER_CHEST, "\u00a76\u56f3\u9451", List.of());
+         case "gears" -> this.mifron().named(Material.IRON_CHESTPLATE, "\u00a76\u30ae\u30a2", List.of());
          default -> this.mifron().named(Material.BOOK, "\u00a76\u9032\u6357", List.of());
       });
    }
@@ -44,6 +49,8 @@ abstract class MifronPart11x1 extends MifronPart11 {
       if (activeTab.startsWith("progress")) return "progress";
       if (activeTab.startsWith("titles")) return "titles";
       if (activeTab.startsWith("kills")) return "kills";
+      if ("collection".equals(activeTab)) return "collection";
+      if ("gears".equals(activeTab)) return "gears";
       return "reincarnation".equals(activeTab) ? "reincarnation" : "progress";
    }
 

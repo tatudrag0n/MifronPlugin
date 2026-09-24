@@ -322,6 +322,11 @@ final class AthleticManager implements Listener {
       this.teleportToAthleticSpawn(player);
    }
 
+   /** Minigame-entrance teleport shared by the menu chooser. */
+   public void sendToSpawn(Player player) {
+      this.teleportToAthleticSpawn(player);
+   }
+
    private void teleportToAthleticSpawn(Player player) {
       Location target = this.plugin.readLocation("servers.athletic");
       if (target == null) {

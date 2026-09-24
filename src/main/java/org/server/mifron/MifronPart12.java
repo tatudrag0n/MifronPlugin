@@ -52,7 +52,9 @@ abstract class MifronPart12 extends MifronPart11x2 {
    }
 
    protected void fillKillsTab(Player player, Inventory inventory, int page) {
-      Set<String> killed = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("killed-mobs"));
+      var section = this.mifron().getPlayerSection(player.getUniqueId());
+      Set<String> killed = new HashSet<>(section.getStringList("killed-mobs"));
+      Set<String> eliteKilled = new HashSet<>(section.getStringList("elite-killed-mobs"));
       List<EntityType> mobs = this.killableMobTypes();
       int pageSize = 27;
       int maxPage = Math.max(0, (mobs.size() - 1) / pageSize);
@@ -66,7 +68,10 @@ abstract class MifronPart12 extends MifronPart11x2 {
       for (EntityType type : mobs.subList(from, Math.min(mobs.size(), from + pageSize))) {
          Material egg = Material.matchMaterial(type.name() + "_SPAWN_EGG");
          boolean done = killed.contains(type.name());
-         inventory.setItem(slot++, this.mifron().statusItem(done && egg != null ? egg : Material.GRAY_STAINED_GLASS_PANE, (done ? "\u00a7a" : "\u00a78") + this.mobDisplayName(type), List.of(done ? "\u00a7a\u8a0e\u4f10\u6e08" : "\u00a77\u672a\u8a0e\u4f10"), done));
+         boolean elite = eliteKilled.contains(type.name());
+         int count = section.getInt("mob-kill-counts." + type.name(), 0);
+         inventory.setItem(slot++, this.mifron().statusItem(done && egg != null ? egg : Material.GRAY_STAINED_GLASS_PANE, (done ? "\u00a7a" : "\u00a78") + this.mobDisplayName(type),
+            List.of("\u00a77\u8a0e\u4f10\u6570: " + count, elite ? "\u00a76\u30a8\u30ea\u30fc\u30c8: \u8a0e\u4f10\u6e08" : "\u00a78\u30a8\u30ea\u30fc\u30c8: \u672a\u8a0e\u4f10"), done));
       }
    }
 
@@ -140,6 +145,49 @@ abstract class MifronPart12 extends MifronPart11x2 {
       Map.entry("ZOMBIE_NAUTILUS", "ゾンビノーチラス"), Map.entry("ZOMBIE_VILLAGER", "村人ゾンビ"),
       Map.entry("ZOMBIFIED_PIGLIN", "ゾンビピグリン")
    );
+
+   /** "追加" link at each status tab end: future content lives on the official site. */
+   protected void fillStatusMore(Inventory inventory, String tab) {
+      String base = tab == null ? "progress" : tab.split(":")[0];
+      inventory.setItem(44, this.mifron().actionItem(Material.WRITABLE_BOOK, "\u00a7e\u8ffd\u52a0",
+         List.of("\u00a77\u4eca\u5f8c\u306e\u30b3\u30f3\u30c6\u30f3\u30c4\u306f公式サイトで確認"), "status_more", base));
+   }
+
+   protected String officialSiteUrl() {
+      return this.mifron().getConfig().getString("official-site-url", "https://mifron.mct-official.com/");
+   }
+
+   /** Rare-item collection tab: discovered vs undiscovered SpecialType finds. */
+   protected void fillCollectionTab(Player player, Inventory inventory) {
+      Set<String> found = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("rare-collection"));
+      SpecialItemsFeature.SpecialType[] types = SpecialItemsFeature.SpecialType.values();
+      inventory.setItem(45, this.mifron().named(Material.ENDER_CHEST, "\u00a7d\u30ec\u30a2\u56f3\u9451",
+         List.of("\u00a77" + found.size() + "/" + types.length)));
+      int slot = 10;
+      for (SpecialItemsFeature.SpecialType type : types) {
+         boolean has = found.contains(type.id);
+         inventory.setItem(slot++, this.mifron().statusItem(has ? type.baseMaterial : Material.GRAY_STAINED_GLASS_PANE,
+            (has ? "\u00a7a" : "\u00a78") + (has ? type.displayName : "???"),
+            List.of(has ? "\u00a77" + type.description : "\u00a77\u672a\u767a\u898b"), has));
+      }
+   }
+
+   /** Gears tab: equipped state with a shortcut into the gear UI. */
+   protected void fillGearsTab(Player player, Inventory inventory) {
+      java.util.List<String> equipped = this.mifron().utilityItemsFeature.equippedGears(player);
+      java.util.List<String> unlocked = this.mifron().utilityItemsFeature.unlockedGears(player);
+      inventory.setItem(45, this.mifron().named(Material.IRON_CHESTPLATE, "\u00a7b\u30ae\u30a2",
+         List.of("\u00a77\u88c5\u5099\u4e2d: " + equipped.size() + "/" + UtilityItemsFeature.MAX_EQUIPPED_GEARS)));
+      inventory.setItem(49, this.mifron().actionItem(Material.CHEST, "\u00a7a\u30ae\u30a2\u88c5\u5099\u753b\u9762\u3092\u958b\u304f", List.of(), "menu_gear", null));
+      int slot = 10;
+      for (UtilityItemsFeature.GearDefinition gear : UtilityItemsFeature.GEARS.values()) {
+         boolean has = unlocked.contains(gear.id());
+         boolean on = has && equipped.contains(gear.id());
+         inventory.setItem(slot++, this.mifron().statusItem(has ? gear.icon() : Material.GRAY_STAINED_GLASS_PANE,
+            (on ? "\u00a7a" : has ? "\u00a7e" : "\u00a78") + gear.name(),
+            List.of(on ? "\u00a7a\u88c5\u5099\u4e2d" : has ? "\u00a77\u672a\u88c5\u5099" : "\u00a77\u672a\u89e3\u653e: " + gear.unlockCost() + " MP"), has));
+      }
+   }
 
    protected String mobDisplayName(EntityType type) {
       String japanese = MOB_JAPANESE_NAMES.get(type.name());

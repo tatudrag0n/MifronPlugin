@@ -104,6 +104,7 @@ public class SpecialItemsFeature implements Listener {
                     }
                     player.sendMessage(ChatColor.GOLD + "✨ 奇跡が起きた！ 手に入れたアイテムが " + type.displayName + ChatColor.GOLD + " に変化した！");
                     player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1.2f);
+                    plugin.recordRareCollection(player, type.id);
                     break;
                 }
             }

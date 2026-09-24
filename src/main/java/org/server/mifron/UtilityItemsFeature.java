@@ -85,6 +85,8 @@ final class UtilityItemsFeature implements Listener {
       inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
       inventory.setItem(14, this.plugin.actionItem(Material.ENDER_EYE, ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "クリック: 移動先を選択"), "menu_teleporter", null));
       inventory.setItem(15, this.gearMenuIcon(player));
+      inventory.setItem(16, this.plugin.actionItem(Material.DIAMOND_SWORD, ChatColor.RED + "ミニゲーム",
+         List.of(ChatColor.GRAY + "FFA・アスレ・スロットの入口"), "menu_minigame", null));
       for (int slot = 0; slot < inventory.getSize(); slot++) {
          if (inventory.getItem(slot) == null) inventory.setItem(slot, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
       }
@@ -144,6 +146,21 @@ final class UtilityItemsFeature implements Listener {
       int equipped = this.equippedGears(player).size();
       return this.plugin.actionItem(Material.IRON_CHESTPLATE, ChatColor.AQUA + "ギア",
          List.of(ChatColor.GRAY + "装備中: " + equipped + "/" + MAX_EQUIPPED_GEARS, ChatColor.GRAY + "クリック: ギア装備画面を開く"), "menu_gear", null);
+   }
+
+   /** Unified minigame entrance: FFA / athletic / slots from one chooser. */
+   void openMinigameUi(Player player) {
+      org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Minigame"));
+      inventory.setItem(11, this.plugin.actionItem(Material.DIAMOND_SWORD, ChatColor.RED + "FFA",
+         List.of(ChatColor.GRAY + "クリック: FFAアリーナへ移動", ChatColor.GRAY + "現地の防具立てをクリックで参加"), "minigame_go", "ffa"));
+      inventory.setItem(13, this.plugin.actionItem(Material.LEATHER_BOOTS, ChatColor.GREEN + "アスレチック",
+         List.of(ChatColor.GRAY + "クリック: アスレ開始地点へ移動"), "minigame_go", "athletic"));
+      inventory.setItem(15, this.plugin.actionItem(Material.GOLD_INGOT, ChatColor.GOLD + "スロット",
+         List.of(ChatColor.GRAY + "棚＋スロットワンドで設置", ChatColor.GRAY + "ウォレットを持って右クリックで開始"), "minigame_go", "slots"));
+      for (int i = 0; i < inventory.getSize(); i++) {
+         if (inventory.getItem(i) == null) inventory.setItem(i, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
+      }
+      player.openInventory(inventory);
    }
 
    void openGearUi(Player player) {

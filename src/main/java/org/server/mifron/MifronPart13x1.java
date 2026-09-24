@@ -118,6 +118,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
       else if ("\u00a75Mifron Teleporter".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.handleTeleporterUiItem(player, event.getCurrentItem()); }
       else if ("\u00a7dMifron Menu".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
       else if ("\u00a7dMifron Gears".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
+      else if ("\u00a7dMifron Minigame".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
       else if ("\u00a76Mifron Merchant".equals(title)) {
          // Every click in the merchant view is cancelled, including bottom
          // (player inventory) clicks: a shift-click there would otherwise move

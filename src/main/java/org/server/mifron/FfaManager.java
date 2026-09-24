@@ -220,6 +220,11 @@ final class FfaManager {
       tasks.clear();
    }
 
+   /** Minigame-entrance teleport target shared by the menu chooser. */
+   public org.bukkit.Location arenaCenter() {
+      return this.config.center();
+   }
+
    FfaKitStandManager stands() {
       return this.stands;
    }

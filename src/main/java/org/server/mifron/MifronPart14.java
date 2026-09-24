@@ -71,6 +71,8 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "status_tab_reincarnation" -> this.mifron().openStatusUi(player, "reincarnation");
          case "status_tab_titles" -> this.mifron().openStatusUi(player, "titles:0");
          case "status_tab_kills" -> this.mifron().openStatusUi(player, "kills:0");
+         case "status_tab_collection" -> this.mifron().openStatusUi(player, "collection");
+         case "status_tab_gears" -> this.mifron().openStatusUi(player, "gears");
          default -> {}
       }
    }
@@ -86,6 +88,14 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "status_tab_reincarnation" -> this.mifron().openStatusUi(player, "reincarnation");
          case "status_tab_titles" -> this.mifron().openStatusUi(player, "titles:0");
          case "status_tab_kills" -> this.mifron().openStatusUi(player, "kills:0");
+         case "status_tab_collection" -> this.mifron().openStatusUi(player, "collection");
+         case "status_tab_gears" -> this.mifron().openStatusUi(player, "gears");
+         case "menu_gear" -> this.utilityItemsFeature.openGearUi(player);
+         case "status_more" -> {
+            String tab = this.getUiTargetString(clicked);
+            player.sendMessage("\u00a7e今後の「" + (tab == null ? "" : tab) + "」コンテンツは公式サイトで確認: " + this.mifron().officialSiteUrl());
+            player.closeInventory();
+         }
          case "progress_page" -> this.mifron().openStatusUi(player, "progress:" + this.mifron().parsePositiveInt(this.getUiTargetString(clicked), 0));
          case "titles_page" -> this.mifron().openStatusUi(player, "titles:" + this.mifron().parsePositiveInt(this.getUiTargetString(clicked), 0));
          case "kills_page" -> this.mifron().openStatusUi(player, "kills:" + this.mifron().parsePositiveInt(this.getUiTargetString(clicked), 0));
@@ -143,6 +153,20 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "menu_teleporter" -> this.mifron().openTeleportUi(player);
          case "menu_gear" -> this.utilityItemsFeature.openGearUi(player);
          case "gear_toggle" -> this.utilityItemsFeature.toggleGear(player, this.getUiTargetString(clicked));
+         case "menu_minigame" -> this.utilityItemsFeature.openMinigameUi(player);
+         case "minigame_go" -> {
+            String dest = this.getUiTargetString(clicked);
+            if ("ffa".equals(dest)) {
+               org.bukkit.Location arena = this.ffaManager.arenaCenter();
+               if (arena == null || arena.getWorld() == null) player.sendMessage("§cFFAアリーナが設定されていません。");
+               else player.teleport(arena);
+            } else if ("athletic".equals(dest)) {
+               this.athleticManager.sendToSpawn(player);
+            } else {
+               player.sendMessage("§eスロットは棚＋スロットワンドで遊べます。ウォレットを持って右クリックで開始。");
+            }
+            player.closeInventory();
+         }
          default -> {}
       }
    }
