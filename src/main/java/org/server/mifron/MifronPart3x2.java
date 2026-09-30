@@ -43,9 +43,12 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       }
    }
 
-   @EventHandler
+   @EventHandler(ignoreCancelled = true)
    public void onMobDeath(EntityDeathEvent event) {
       LivingEntity entity = event.getEntity();
+      // Tutorial economy isolation: tutorial kills pay nothing ambiently.
+      // Stage rewards (one-time) are the only MP source there.
+      if (this.mifron().tutorialFeature.isTutorialWorld(entity.getWorld())) return;
       Player killer = entity.getKiller();
       if (killer == null || entity instanceof Player || this.mifron().isMifronMerchant(entity)) return;
       if (this.isFfaSummonedMob(entity) || !this.isDirectPlayerKill(entity, killer)) return;
@@ -134,6 +137,7 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       if (!found.add(rareId)) return;
       section.set("rare-collection", new java.util.ArrayList<>(found));
       this.queueDataSave();
+      if (found.size() >= 10) this.mifron().checkStatTitles(player);
    }
 
    /** Records an elite kill per mob type for the kill-catalogue UI. */
@@ -141,6 +145,8 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       if (typeName == null || typeName.isBlank()) return false;
       Set<String> killed = new HashSet<>(this.mifron().getPlayerSection(uuid).getStringList("elite-killed-mobs"));
       if (!killed.add(typeName)) return false;
+      org.bukkit.entity.Player online = org.bukkit.Bukkit.getPlayer(uuid);
+      if (online != null && killed.size() >= 10) this.mifron().checkStatTitles(online);
       this.mifron().getPlayerSection(uuid).set("elite-killed-mobs", new ArrayList<>(killed));
       this.queueDataSave();
       return true;

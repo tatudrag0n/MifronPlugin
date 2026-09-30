@@ -121,7 +121,7 @@ abstract class MifronPart6x1 extends MifronPart6 {
    }
    boolean isAuctionFrame(Entity entity) { return this.auctionFeature.isAuctionFrame(entity); }
    boolean isAuctionInteractionItem(ItemStack item) { return this.auctionFeature.isAuctionInteractionItem(item); }
-   void recordQuestProgress(Player player, String progressKey, int amount) { this.questService.addProgress(player, progressKey, amount); }
+   public void recordQuestProgress(Player player, String progressKey, int amount) { this.questService.addProgress(player, progressKey, amount); }
    void recordSpecialQuestProgress(UUID uuid, String progressKey, int amount) { this.questService.addSpecialProgress(uuid, progressKey, amount); }
    void completeSpecialQuestProgress(UUID uuid, String progressKey) { this.questService.completeSpecialProgress(uuid, progressKey); }
    protected void recordFarmingSubmission(Player player, Material material) {

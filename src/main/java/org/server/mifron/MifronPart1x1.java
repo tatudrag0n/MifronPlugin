@@ -109,14 +109,14 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("cache shelf shop catalog", this.mifron()::rebuildShelfShopCatalog);
       this.mifron().loadData();
       this.mifron().runStartupStep("ensure Survival dimensions", this.survivalDimensionFeature::ensureWorlds);
+      this.mifron().runStartupStep("ensure tutorial world", this.tutorialFeature::ensureWorld);
       this.mifron().runStartupStep("load build worlds", this.buildWorldManager::load);
       this.mifron().runStartupStep("start Minoru bridge API", this.minoruBridgeFeature::start);
       this.mifron().runStartupStep("sync shelf shop displays", this.mifron()::syncShelfShopDisplays);
       this.mifron().runStartupStep("load structures", this.structureManager::load);
       this.mifron().runStartupStep("load proposals", this.proposalManager::load);
       this.mifron().runStartupStep("load text displays", this.textDisplayFeature::load);
-      this.mifron().runStartupStep("load FFA", this.ffaManager::load);
-      this.mifron().runStartupStep("load athletic", this.athleticManager::load);
+      this.mifron().runStartupStep("load minigame", this.minigameBridge::loadAll);
       this.mifron().runStartupStep("load main world ownership", this.mainWorldFeature::load);
       this.mifron().runStartupStep("load shop stock", this.shopStockService::load);
       this.mifron().runStartupStep("load test server config", this.testServerFeature::load);
@@ -128,12 +128,11 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register auction events", () -> Bukkit.getPluginManager().registerEvents(this.auctionFeature, this));
       this.mifron().runStartupStep("register structure events", () -> Bukkit.getPluginManager().registerEvents(this.structureManager, this));
       this.mifron().runStartupStep("register build world events", () -> Bukkit.getPluginManager().registerEvents(this.buildWorldManager, this));
-      this.mifron().runStartupStep("register FFA events", () -> Bukkit.getPluginManager().registerEvents(this.ffaListener, this));
+      this.mifron().runStartupStep("register minigame events", this.minigameBridge::registerListeners);
       this.mifron().runStartupStep("register text display events", () -> Bukkit.getPluginManager().registerEvents(this.textDisplayFeature, this));
       this.mifron().runStartupStep("register server portal events", () -> Bukkit.getPluginManager().registerEvents(this.serverPortalFeature, this));
       this.mifron().runStartupStep("register Survival dimension portal events", () -> Bukkit.getPluginManager().registerEvents(this.survivalDimensionFeature, this));
-      this.mifron().runStartupStep("register slot machine events", () -> Bukkit.getPluginManager().registerEvents(this.slotMachineManager, this));
-      this.mifron().runStartupStep("register athletic events", () -> Bukkit.getPluginManager().registerEvents(this.athleticManager, this));
+
       this.mifron().runStartupStep("register compass events", () -> Bukkit.getPluginManager().registerEvents(this.compassFeature, this));
       this.mifron().runStartupStep("register utility item events", () -> Bukkit.getPluginManager().registerEvents(this.utilityItemsFeature, this));
       this.mifron().runStartupStep("register advanced anvil events", () -> Bukkit.getPluginManager().registerEvents(this.advancedAnvilFeature, this));
@@ -142,6 +141,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register world policy events", () -> Bukkit.getPluginManager().registerEvents(this.worldPolicyFeature, this));
       this.mifron().runStartupStep("register main world events", () -> Bukkit.getPluginManager().registerEvents(this.mainWorldFeature, this));
       this.mifron().runStartupStep("register test server events", () -> Bukkit.getPluginManager().registerEvents(this.testServerFeature, this));
+      this.mifron().runStartupStep("register tutorial events", () -> Bukkit.getPluginManager().registerEvents(this.tutorialFeature, this));
       this.mifron().runStartupStep("register special item events", () -> Bukkit.getPluginManager().registerEvents(this.specialItemsFeature, this));
       this.mifron().runStartupStep("register elite mob events", () -> Bukkit.getPluginManager().registerEvents(this.eliteMobFeature, this));
       this.mifron().runStartupStep("register store item events", () -> Bukkit.getPluginManager().registerEvents(this.storeItemFeature, this));

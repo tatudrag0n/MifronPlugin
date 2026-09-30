@@ -1,4 +1,4 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

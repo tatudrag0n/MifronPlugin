@@ -19,7 +19,7 @@ abstract class MifronPart2 extends MifronPart1x3 {
       if (applied > 0) this.getLogger().info("Applied " + applied + " economy price table entries.");
    }
 
-   void queueDataSave() {
+   public void queueDataSave() {
       if (this.pendingDataSaveTask != null && !this.pendingDataSaveTask.isCancelled()) return;
       this.pendingDataSaveTask = Bukkit.getScheduler().runTaskLater(this, () -> {
          this.pendingDataSaveTask = null;
@@ -31,11 +31,11 @@ abstract class MifronPart2 extends MifronPart1x3 {
       if (player != null) this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey);
    }
 
-   void trackAnalyticsWithMetadata(Player player, String eventName, String dedupeKey, String metadataKey, String metadataValue) {
+   public void trackAnalyticsWithMetadata(Player player, String eventName, String dedupeKey, String metadataKey, String metadataValue) {
       if (player != null) this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey, metadataKey, metadataValue);
    }
 
-   void trackFfaDamageAnalytics(Player player, String kit, double damage, String dedupeKey) {
+   public void trackFfaDamageAnalytics(Player player, String kit, double damage, String dedupeKey) {
       if (player != null) this.minoruBridgeFeature.sendFfaDamageAnalyticsEvent(player, player.getUniqueId() + ":active", dedupeKey, kit, damage);
    }
 

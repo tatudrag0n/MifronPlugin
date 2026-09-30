@@ -27,7 +27,7 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
       this.economyManager.deposit(uuid, amount, persist);
    }
 
-   boolean withdrawEmeralds(UUID uuid, int amount) {
+   public boolean withdrawEmeralds(UUID uuid, int amount) {
       return this.mifron().withdrawEmeralds(uuid, amount, true);
    }
 
@@ -43,7 +43,7 @@ abstract class MifronPart15x2 extends MifronPart15x1 {
       return EconomyManager.safeMultiply(left, right);
    }
 
-   int applyIncomeBonus(UUID uuid, int base) {
+   public int applyIncomeBonus(UUID uuid, int base) {
       return this.economyManager.applyIncomeBonus(uuid, base);
    }
 

@@ -9,13 +9,13 @@ import org.bukkit.persistence.PersistentDataType;
  * and the pre-rename Minerva namespace. The public plugin name changed, but
  * player inventories and loaded entities must remain compatible.
  */
-final class MifronPdc {
+public final class MifronPdc {
    private static final String LEGACY_NAMESPACE = "minerva";
 
    private MifronPdc() {
    }
 
-   static <P, C> C get(PersistentDataContainer container, NamespacedKey currentKey, PersistentDataType<P, C> type) {
+   public static <P, C> C get(PersistentDataContainer container, NamespacedKey currentKey, PersistentDataType<P, C> type) {
       if (container == null || currentKey == null) {
          return null;
       }
@@ -29,7 +29,7 @@ final class MifronPdc {
       return container.get(legacyKey, type);
    }
 
-   static <P, C> boolean has(PersistentDataContainer container, NamespacedKey currentKey, PersistentDataType<P, C> type) {
+   public static <P, C> boolean has(PersistentDataContainer container, NamespacedKey currentKey, PersistentDataType<P, C> type) {
       if (container == null || currentKey == null) {
          return false;
       }

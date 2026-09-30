@@ -147,7 +147,7 @@ abstract class MifronPart9x1 extends MifronPart9 {
    protected boolean isCentralPlazaLocation(Location location) {
       return location != null && this.protectionService.isSpawnProtected(location);
    }
-   boolean isStructureProtectedLocation(Location location) { return this.protectionService.isProtected(location); }
+   public boolean isStructureProtectedLocation(Location location) { return this.protectionService.isProtected(location); }
    boolean canBuild(Player player, Location location) { return this.protectionService.canBuild(player, location); }
    protected boolean isMifronMerchant(Entity entity) {
       return Boolean.TRUE.equals(entity.getPersistentDataContainer().get(this.merchantKey, PersistentDataType.BOOLEAN));

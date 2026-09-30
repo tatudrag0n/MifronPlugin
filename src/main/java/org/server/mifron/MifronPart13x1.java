@@ -46,7 +46,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
       return suggestions;
    }
 
-   protected ItemStack named(Material material, String name, List<String> lore) {
+   public ItemStack named(Material material, String name, List<String> lore) {
       ItemStack item = new ItemStack(material);
       ItemMeta meta = item.getItemMeta();
       meta.displayName(Component.text(name));
@@ -56,7 +56,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
       return item;
    }
 
-   protected ItemStack actionItem(Material material, String name, List<String> lore, String action, String target) {
+   public ItemStack actionItem(Material material, String name, List<String> lore, String action, String target) {
       ItemStack item = this.mifron().named(material, name, lore);
       ItemMeta meta = item.getItemMeta();
       PersistentDataContainer container = meta.getPersistentDataContainer();
@@ -106,11 +106,28 @@ abstract class MifronPart13x1 extends MifronPart13 {
       }
       if (this.isBarrelShopInventory(event.getView().getTopInventory())) {
          event.setCancelled(true);
-         if (event.getClickedInventory() == event.getView().getTopInventory()) this.buyBarrelOffer(player, event.getCurrentItem(), event.getSlot(), event.getView().getTopInventory());
+         // Plain LEFT only: shift/double/number-key clicks must never purchase.
+         if (event.getClickedInventory() == event.getView().getTopInventory()
+            && event.getClick() == org.bukkit.event.inventory.ClickType.LEFT) this.buyBarrelOffer(player, event.getCurrentItem(), event.getSlot(), event.getView().getTopInventory());
          return;
       }
       if (event.getClickedInventory() == null) return;
       String title = this.mifron().inventoryTitle(event.getView().title());
+      // Bottom-inventory clicks in a Mifron GUI must never trigger top actions:
+      // action items (menu/gear openers, chargers) can sit in the player
+      // inventory and would otherwise misfire while the GUI is open.
+      if (event.getClickedInventory() != null && event.getClickedInventory() != event.getView().getTopInventory()
+         && ("\u00a73Mifron Friends".equals(title)
+            || "\u00a72Mifron Status".equals(title)
+            || QUEST_UI_TITLE.equals(title)
+            || PROPOSAL_UI_TITLE.equals(title)
+            || "\u00a75Mifron Teleporter".equals(title)
+            || "\u00a7dMifron Menu".equals(title)
+            || "\u00a7dMifron Gears".equals(title)
+            || "\u00a7dMifron Minigame".equals(title))) {
+         event.setCancelled(true);
+         return;
+      }
       if ("\u00a73Mifron Friends".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleFriendUiClick(player, event.getCurrentItem()); }
       else if ("\u00a72Mifron Status".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleStatusUiClick(player, event.getCurrentItem()); }
       else if (QUEST_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleQuestUiClick(player, event.getCurrentItem()); }
@@ -167,6 +184,8 @@ abstract class MifronPart13x1 extends MifronPart13 {
          || "\u00a73Mifron Friends".equals(title)
          || "\u00a72Mifron Status".equals(title)
          || "\u00a7dMifron Menu".equals(title)
+         || "\u00a7dMifron Gears".equals(title)
+         || "\u00a7dMifron Minigame".equals(title)
          || QUEST_UI_TITLE.equals(title)
          || "\u00a75Mifron Teleporter".equals(title)
          || "\u00a76Mifron Merchant".equals(title)) { event.setCancelled(true); }

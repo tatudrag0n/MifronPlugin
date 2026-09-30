@@ -70,6 +70,11 @@ final class AdvancedAnvilFeature implements Listener {
 
    @EventHandler(priority = EventPriority.HIGHEST)
    public void onPrepareAnvil(PrepareAnvilEvent event) {
+      if (event.getViewers() != null) {
+         for (org.bukkit.entity.HumanEntity viewer : event.getViewers()) {
+            if (viewer instanceof org.bukkit.entity.Player player) this.plugin.tutorialFeature.onAnvilUse(player);
+         }
+      }
       AnvilInventory inventory = event.getInventory();
       this.pendingResults.remove(inventory);
 
@@ -217,6 +222,7 @@ final class AdvancedAnvilFeature implements Listener {
          player.sendMessage(Component.text("MPの支払いに失敗しました。もう一度お試しください。", NamedTextColor.RED));
          return;
       }
+      this.plugin.tutorialFeature.onAnvilUse(player);
 
       Bukkit.getScheduler().runTask(this.plugin, () -> {
          if (!player.isOnline()) {

@@ -1,4 +1,7 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
+
+import org.server.mifron.Mifron;
+import org.server.mifron.MifronPdc;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -25,7 +28,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-enum FfaKit {
+public enum FfaKit {
    AXE("axe", "§6戦士", Material.IRON_AXE, List.of("warrior")),
    BOW("bow", "§a狩人", Material.BOW, List.of("hunter", "archer")),
    SPEAR("spear", "§e騎士", Material.IRON_SPEAR, List.of()),
@@ -57,7 +60,7 @@ enum FfaKit {
       this.aliases = aliases;
    }
 
-   String key() {
+   public String key() {
       return this.key;
    }
 
@@ -65,7 +68,7 @@ enum FfaKit {
     * One-time MP price to unlock this kit, 0 = free. Overridable per kit via
     * config ffa.kits.unlock-prices.&lt;key&gt;.
     */
-   int defaultUnlockPrice() {
+   public int defaultUnlockPrice() {
       return switch (this) {
          case NECROMANCER, ASSASSIN, SNIPER, WIZARD, VAMPIRE, CRUSHER, BUG_MANIA -> 10000;
          default -> 0;

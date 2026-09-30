@@ -1,4 +1,7 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
+
+import org.server.mifron.Mifron;
+import org.server.mifron.MifronPdc;
 
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -9,7 +12,7 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.persistence.PersistentDataType;
 
-final class FfaKitStandManager {
+public final class FfaKitStandManager {
    private static final String TAG = "mifron_ffa_kit_stand";
    private static final String SELECTOR_TAG = "mifron_ffa_kit_selector";
    private final Mifron plugin;

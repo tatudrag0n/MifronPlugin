@@ -40,12 +40,12 @@ enum ShopWandType {
       return this == SLOT_EASY || this == SLOT_NORMAL || this == SLOT_HARD || this == SLOT_EXPERT;
    }
 
-   SlotMachineManager.Difficulty getSlotDifficulty() {
+   String getSlotDifficultyName() {
       switch (this) {
-         case SLOT_EASY: return SlotMachineManager.Difficulty.EASY;
-         case SLOT_NORMAL: return SlotMachineManager.Difficulty.NORMAL;
-         case SLOT_HARD: return SlotMachineManager.Difficulty.HARD;
-         case SLOT_EXPERT: return SlotMachineManager.Difficulty.EXPERT;
+         case SLOT_EASY: return "EASY";
+         case SLOT_NORMAL: return "NORMAL";
+         case SLOT_HARD: return "HARD";
+         case SLOT_EXPERT: return "EXPERT";
          default: return null;
       }
    }

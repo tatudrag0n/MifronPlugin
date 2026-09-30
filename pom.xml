@@ -56,6 +56,30 @@
         </resources>
     </build>
 
+    <profiles>
+        <profile>
+            <id>core-only</id>
+            <!-- Proves Mifron core builds without the optional Minigame module:
+                 mvn -Pcore-only -DskipTests compile -->
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.13.0</version>
+                        <configuration>
+                            <source>${java.version}</source>
+                            <target>${java.version}</target>
+                            <excludes>
+                                <exclude>org/server/mifron/minigame/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <repositories>
         <repository>
             <id>papermc-repo</id>
@@ -71,7 +95,7 @@
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>26.1.2.build.12-alpha</version>
+            <version>26.1.2.build.72-stable</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -87,9 +111,15 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>5.11.4</version>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockbukkit.mockbukkit</groupId>
+            <artifactId>mockbukkit-v26.1.2</artifactId>
+            <version>4.115.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

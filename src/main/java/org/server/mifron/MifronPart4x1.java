@@ -1,8 +1,12 @@
 package org.server.mifron;
 
+import java.util.Locale;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
@@ -57,22 +61,121 @@ abstract class MifronPart4x1 extends MifronPart4 {
       event.setCancelled(true);
       if (block == null || !this.mifron().isShelf(block.getType())) { player.sendMessage("\u00a7c\u68da\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u304f\u3060\u3055\u3044\u3002"); return; }
       if (!event.getAction().isRightClick()) return;
-      SlotMachineManager.Difficulty difficulty = type.getSlotDifficulty();
-      if (difficulty == null || this.slotMachineManager == null) { player.sendMessage("\u00a7c\u7121\u52b9\u306a\u30b9\u30ed\u30c3\u30c8\u30ef\u30f3\u30c9\u3067\u3059\u3002"); return; }
+      String difficulty = type.getSlotDifficultyName();
+      if (difficulty == null) { player.sendMessage("\u00a7c\u7121\u52b9\u306a\u30b9\u30ed\u30c3\u30c8\u30ef\u30f3\u30c9\u3067\u3059\u3002"); return; }
       this.mifron().setShelfShop(block, false);
       this.data.set(this.mifron().shelfShopPath(block), null);
       this.data.set(this.mifron().shelfShopOfferPath(block), null);
       this.mifron().clearShopOwner(block);
       this.queueDataSave();
-      if (!this.slotMachineManager.registerMachine(block, difficulty)) {
-         String path = "slot-machines." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
-         this.data.set(path + ".difficulty", difficulty.name());
-         this.data.set(path + ".created-at", System.currentTimeMillis());
-         this.queueDataSave();
-         player.sendMessage("\u00a7e\u5916\u898b\u306e\u5909\u66f4\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u304c\u3001\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u3068\u3057\u3066\u767b\u9332\u3057\u307e\u3057\u305f\u3002");
+      if (!this.minigameBridge.registerMachineOrRecord(block, difficulty)) {
+         player.sendMessage("\u00a7c\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u767b\u9332\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002");
          return;
       }
       player.sendMessage("\u00a7b\u68da\u3092\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u5316\u3057\u307e\u3057\u305f\uff01");
+   }
+
+   protected boolean handleSlotCreateCommand(CommandSender sender, String[] args) {
+      if (args.length < 5) {
+         sender.sendMessage("\u00a7e/mf slotcreate <easy|normal|hard|expert> <x> <y> <z> [world]");
+         return true;
+      }
+      String difficulty = args[1].toUpperCase(java.util.Locale.ROOT);
+      if (this.minigameBridge.describeSlotDifficulty(difficulty) == null) {
+         sender.sendMessage("\u00a7c\u96e3\u6613\u5ea6\u306feasy/normal/hard/expert\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002");
+         return true;
+      }
+      int x;
+      int y;
+      int z;
+      try {
+         x = Integer.parseInt(args[2]);
+         y = Integer.parseInt(args[3]);
+         z = Integer.parseInt(args[4]);
+      } catch (NumberFormatException e) {
+         sender.sendMessage("\u00a7c\u5ea7\u6a19\u306f\u6574\u6570\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002");
+         return true;
+      }
+      World world;
+      if (args.length >= 6) {
+         world = Bukkit.getWorld(args[5]);
+         if (world == null) {
+            sender.sendMessage("\u00a7c\u30ef\u30fc\u30eb\u30c9\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + args[5]);
+            return true;
+         }
+      } else if (sender instanceof Player player) {
+         world = player.getWorld();
+      } else {
+         sender.sendMessage("\u00a7e/mf slotcreate <easy|normal|hard|expert> <x> <y> <z> [world]");
+         return true;
+      }
+      if (y < world.getMinHeight() || y > world.getMaxHeight()) {
+         sender.sendMessage("\u00a7cY\u5ea7\u6a19\u304c\u7bc4\u56f2\u5916\u3067\u3059\u3002");
+         return true;
+      }
+      if (!world.getChunkAt(x >> 4, z >> 4).load(true)) {
+         sender.sendMessage("\u00a7c\u30c1\u30e3\u30f3\u30af\u3092\u30ed\u30fc\u30c9\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f\u3002");
+         return true;
+      }
+      Block block = world.getBlockAt(x, y, z);
+      if (!this.mifron().isShelf(block.getType()) && block.getType() != Material.CHISELED_BOOKSHELF) {
+         sender.sendMessage("\u00a7c\u6307\u5b9a\u4f4d\u7f6e\u306b\u68da\u30d6\u30ed\u30c3\u30af\u304c\u3042\u308a\u307e\u305b\u3093: " + block.getType().name());
+         return true;
+      }
+      this.mifron().setShelfShop(block, false);
+      this.data.set(this.mifron().shelfShopPath(block), null);
+      this.data.set(this.mifron().shelfShopOfferPath(block), null);
+      this.mifron().clearShopOwner(block);
+      this.queueDataSave();
+      if (!this.minigameBridge.registerMachine(block, difficulty)) {
+         sender.sendMessage("\u00a7c\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u767b\u9332\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002");
+         return true;
+      }
+      sender.sendMessage("\u00a7b\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u767b\u9332: " + world.getName() + " " + x + "," + y + "," + z + " (" + difficulty + ")");
+      return true;
+   }
+
+   protected boolean handleSlotRemoveCommand(CommandSender sender, String[] args) {
+      if (args.length < 4) {
+         sender.sendMessage("\u00a7e/mf slotremove <x> <y> <z> [world]");
+         return true;
+      }
+      int x;
+      int y;
+      int z;
+      try {
+         x = Integer.parseInt(args[1]);
+         y = Integer.parseInt(args[2]);
+         z = Integer.parseInt(args[3]);
+      } catch (NumberFormatException e) {
+         sender.sendMessage("\u00a7c\u5ea7\u6a19\u306f\u6574\u6570\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002");
+         return true;
+      }
+      World world;
+      if (args.length >= 5) {
+         world = Bukkit.getWorld(args[4]);
+         if (world == null) {
+            sender.sendMessage("\u00a7c\u30ef\u30fc\u30eb\u30c9\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + args[4]);
+            return true;
+         }
+      } else if (sender instanceof Player player) {
+         world = player.getWorld();
+      } else {
+         sender.sendMessage("\u00a7e/mf slotremove <x> <y> <z> [world]");
+         return true;
+      }
+      if (!world.getChunkAt(x >> 4, z >> 4).load(true)) {
+         sender.sendMessage("\u00a7c\u30c1\u30e3\u30f3\u30af\u3092\u30ed\u30fc\u30c9\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f\u3002");
+         return true;
+      }
+      Block block = world.getBlockAt(x, y, z);
+      if (!this.minigameBridge.isSlotMachine(block)) {
+         sender.sendMessage("\u00a7c\u6307\u5b9a\u4f4d\u7f6e\u306b\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
+         return true;
+      }
+      this.minigameBridge.unregisterMachine(block);
+      sender.sendMessage("\u00a7b\u30b9\u30ed\u30c3\u30c8\u30de\u30b7\u30f3\u767b\u9332\u3092\u89e3\u9664: " + world.getName() + " " + x + "," + y + "," + z);
+      return true;
    }
 
    protected boolean isValidShopWandTarget(Block block, ShopWandType type) {

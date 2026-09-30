@@ -25,7 +25,7 @@ abstract class MifronPart5x3 extends MifronPart5x2 {
          for (String coordinates : new ArrayList<>(worldShops.getKeys(false))) {
             Block block = world == null ? null : this.mifron().blockFromCoordinates(world, coordinates);
             boolean slotMachine = !this.data.getString("slot-machines." + worldId + "." + coordinates + ".difficulty", "").isBlank();
-            if (!slotMachine && block != null && this.slotMachineManager != null) slotMachine = this.slotMachineManager.isMachine(block);
+            if (!slotMachine && block != null) slotMachine = this.minigameBridge.isMachine(block);
             if (slotMachine) continue;
             removablePaths.add(worldId + "." + coordinates);
             if (block != null) {
@@ -64,6 +64,37 @@ abstract class MifronPart5x3 extends MifronPart5x2 {
          sender.sendMessage("\u00a7a\u9806\u756a\u914d\u7f6e\u306e\u68da\u756a\u53f7\u3092\u632f\u308a\u76f4\u3057\u307e\u3057\u305f\u3002");
          return;
       }
+      if (args.length >= 5 && "create".equalsIgnoreCase(args[1])) {
+         if (!sender.hasPermission("mifron.shop.admin") && !sender.hasPermission("mifron.admin")) {
+            sender.sendMessage("§c権限がありません。");
+            return;
+         }
+         try {
+            int x = Integer.parseInt(args[2]);
+            int y = Integer.parseInt(args[3]);
+            int z = Integer.parseInt(args[4]);
+            org.bukkit.World world = args.length >= 6 ? org.bukkit.Bukkit.getWorld(args[5])
+               : (sender instanceof org.bukkit.entity.Player player ? player.getWorld() : null);
+            if (world == null) {
+               sender.sendMessage("§cワールドが見つかりません。");
+               return;
+            }
+            if (!world.getChunkAt(x >> 4, z >> 4).load(true)) {
+               sender.sendMessage("§cチャンクをロードできませんでした。");
+               return;
+            }
+            org.bukkit.block.Block block = world.getBlockAt(x, y, z);
+            if (!this.mifron().isShelf(block.getType())) {
+               sender.sendMessage("§c指定位置に棚ブロックがありません: " + block.getType().name());
+               return;
+            }
+            this.mifron().configureSequentialShelfShop(block);
+            sender.sendMessage("§a棚ショップを登録: " + world.getName() + " " + x + "," + y + "," + z);
+         } catch (NumberFormatException e) {
+            sender.sendMessage("§c座標は整数で指定してください。");
+         }
+         return;
+      }
       if (args.length >= 2 && ("reset".equalsIgnoreCase(args[1]) || "resetstock".equalsIgnoreCase(args[1]))) {
          this.data.set("shelf-shop-stock", null);
          this.data.set("shelf-shop-unlocked", null);
@@ -72,7 +103,7 @@ abstract class MifronPart5x3 extends MifronPart5x2 {
          sender.sendMessage("\u00a7a\u68da\u30b7\u30e7\u30c3\u30d7\u306e\u5171\u6709\u5728\u5eab\u30920\u306b\u30ea\u30bb\u30c3\u30c8\u3057\u307e\u3057\u305f\u3002");
          return;
       }
-      sender.sendMessage("\u00a7e/mf shelfshop clearall|reorder|resetstock");
+      sender.sendMessage("\u00a7e/mf shelfshop create <x> <y> <z> [world]|clearall|reorder|resetstock");
    }
 
    protected Material materialForShelfSlot(List<Material> materials, int selectedSlot) {

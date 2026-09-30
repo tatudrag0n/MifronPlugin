@@ -105,6 +105,7 @@ abstract class MifronPart15x1 extends MifronPart15 {
       if (total % 10 == 0) reward = this.mifron().safeAdd(reward, this.mifron().safeMultiply(100, total / 10));
       this.mifron().depositEmeralds(player.getUniqueId(), reward);
       player.sendMessage("\u00a7a\u30ed\u30b0\u30a4\u30f3\u5831\u916c: +" + this.mifron().formatNumber(reward) + "MP");
+      this.checkStatTitles(player);
       this.queueDataSave();
    }
 
@@ -140,11 +141,11 @@ abstract class MifronPart15x1 extends MifronPart15 {
       if (location != null) Bukkit.getScheduler().runTaskLater(this, () -> player.teleport(location), 5L);
    }
 
-   int getEmeralds(UUID uuid) {
+   public int getEmeralds(UUID uuid) {
       return this.economyManager.balance(uuid);
    }
 
-   void depositEmeralds(UUID uuid, int amount) {
+   public void depositEmeralds(UUID uuid, int amount) {
       this.mifron().depositEmeralds(uuid, amount, true);
       Player online = Bukkit.getPlayer(uuid);
       if (online != null && amount > 0) this.recordQuestProgress(online, "mp_gained", amount);

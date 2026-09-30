@@ -11,8 +11,16 @@ import org.bukkit.generator.WorldInfo;
 
 abstract class MifronPart17x1 extends MifronPart17 {
    protected boolean handleTutorialCommand(CommandSender sender) {
+      return this.handleTutorialCommand(sender, new String[0]);
+   }
+
+   protected boolean handleTutorialCommand(CommandSender sender, String[] args) {
       if (sender instanceof Player player) {
-         this.mifron().startTutorial(player, true);
+         if (args.length >= 1 && "skip".equalsIgnoreCase(args[args.length - 1])) {
+            this.mifron().tutorialFeature.skip(player);
+            return true;
+         }
+         this.mifron().tutorialFeature.resume(player);
          return true;
       }
       sender.sendMessage("Player only.");
@@ -107,7 +115,7 @@ abstract class MifronPart17x1 extends MifronPart17 {
       this.mifron().syncShelfShopDisplays();
       this.structureManager.load();
       this.proposalManager.load();
-      this.ffaManager.load();
+      this.minigameBridge.reloadAll();
       sender.sendMessage("\u00a7aMifron\u8a2d\u5b9a\u3001\u4fa1\u683c\u8868\u3001\u30af\u30a8\u30b9\u30c8\u5b9a\u7fa9\u3092\u518d\u8aad\u8fbc\u3057\u307e\u3057\u305f\u3002");
    }
 

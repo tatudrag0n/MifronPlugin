@@ -1,4 +1,7 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
+
+import org.server.mifron.Mifron;
+import org.server.mifron.MifronPdc;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,7 +79,7 @@ import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
-final class FfaManager {
+public final class FfaManager {
    private static final String CENTER_MISSING = "§cFFA中央地点が設定されていません。管理者に /mf ffa setcenter を実行してもらってください。";
    private static final String KIT_SELECTOR_TITLE = "FFAキット選択";
    // The single summon egg rolls one mob at random from the 7 kit summons.
@@ -137,7 +140,7 @@ final class FfaManager {
    private BukkitTask combatTask;
    private Map<UUID, Long> lastCrossbowShotTick;
 
-   FfaManager(Mifron plugin) {
+   public FfaManager(Mifron plugin) {
       this.plugin = plugin;
       this.config = new FfaConfig(plugin);
       this.stats = new FfaStatsManager(plugin);
@@ -1001,7 +1004,7 @@ final class FfaManager {
       return true;
    }
 
-   static boolean canSpawnSummon(int owned, int global, int maxOwned, int maxGlobal) {
+   public static boolean canSpawnSummon(int owned, int global, int maxOwned, int maxGlobal) {
       return owned < Math.max(1, maxOwned) && global < Math.max(1, maxGlobal);
    }
 
@@ -2219,6 +2222,10 @@ final class FfaManager {
       return this.config.center();
    }
 
+   boolean disableFallDamage() {
+      return this.config.disableFallDamage();
+   }
+
    Location respawnLocation() {
       Location center = this.config.center();
       if (center == null) {
@@ -2533,7 +2540,7 @@ final class FfaManager {
      * Per-bullet tick count for the revolver: one sixth of the configured
      * full-reload time per bullet (spec). Pure helper for tests.
      */
-    static long revolverPerBulletTicks(long configuredReloadTicks) {
+    public static long revolverPerBulletTicks(long configuredReloadTicks) {
        return Math.max(1L, Math.max(1L, configuredReloadTicks) / 6L);
     }
 
@@ -3007,7 +3014,7 @@ final class FfaManager {
       return "players." + killer + ".ffa.kill-reward-state";
    }
 
-   static FfaManager.KillRewardState nextKillRewardState(FfaManager.KillRewardState state, UUID victim, long now, long resetMillis) {
+   public static FfaManager.KillRewardState nextKillRewardState(FfaManager.KillRewardState state, UUID victim, long now, long resetMillis) {
       int repeats = 0;
       if (state != null && victim != null && victim.equals(state.target())) {
          long age = now - state.lastKillAt();
@@ -3303,7 +3310,7 @@ final class FfaManager {
       }
    }
 
-   static record KillRewardState(UUID target, int repeats, long lastKillAt) {
+   public static record KillRewardState(UUID target, int repeats, long lastKillAt) {
    }
 
    static record ReciprocalKillState(UUID first, UUID second, int firstKills, int secondKills, long lastKillAt) {

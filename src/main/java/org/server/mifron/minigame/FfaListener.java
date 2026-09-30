@@ -1,4 +1,7 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
+
+import org.server.mifron.Mifron;
+import org.server.mifron.MifronPdc;
 
 import java.util.Map;
 import java.util.UUID;
@@ -51,7 +54,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.projectiles.ProjectileSource;
 
-final class FfaListener implements Listener {
+public final class FfaListener implements Listener {
    private final Mifron plugin;
    private final FfaManager ffa;
    // Same-tick double lethal damage (lava + hit, double projectile, ...) must
@@ -59,7 +62,7 @@ final class FfaListener implements Listener {
    // ghost of an already-handled death.
    private final Map<UUID, Long> lastLethalTick = new ConcurrentHashMap<>();
 
-   FfaListener(Mifron plugin, FfaManager ffa) {
+   public FfaListener(Mifron plugin, FfaManager ffa) {
       this.plugin = plugin;
       this.ffa = ffa;
    }
@@ -93,8 +96,9 @@ final class FfaListener implements Listener {
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onFallDamage(EntityDamageEvent event) {
       if (event.getEntity() instanceof Player player
-         && this.ffa.isPlaying(player)
-         && event.getCause() == EntityDamageEvent.DamageCause.FALL) {
+         && event.getCause() == EntityDamageEvent.DamageCause.FALL
+         && (this.ffa.isPlaying(player)
+            || (this.ffa.disableFallDamage() && this.ffa.isFfaWorld(player.getWorld())))) {
          event.setCancelled(true);
          player.setFallDistance(0.0F);
       }
@@ -454,7 +458,7 @@ final class FfaListener implements Listener {
     * A second lethal event in the same tick is a ghost of the already-handled
     * death, never a second kill.
     */
-   static boolean isDuplicateLethal(Long lastTick, long tick) {
+   public static boolean isDuplicateLethal(Long lastTick, long tick) {
       return lastTick != null && lastTick == tick;
    }
 
@@ -498,7 +502,7 @@ final class FfaListener implements Listener {
       });
    }
 
-   @EventHandler(priority = EventPriority.HIGHEST)
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
    public void onDeath(PlayerDeathEvent var1) {
       Player var2 = var1.getEntity();
       if (this.ffa.isPlaying(var2)) {

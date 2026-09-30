@@ -119,7 +119,7 @@ abstract class MifronPart6 extends MifronPart5x3 {
 
    boolean isShelfShop(Block block) {
       if (block == null) return false;
-      if (this.slotMachineManager != null && this.slotMachineManager.isMachine(block)) return false;
+      if (this.minigameBridge.isMachine(block)) return false;
       String path = this.shelfShopPath(block);
       return this.data.getBoolean(path, false) || this.data.getBoolean(path + ".enabled", false);
    }

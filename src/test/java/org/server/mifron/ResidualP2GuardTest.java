@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.server.mifron.minigame.FfaListener;
 
 /**
  * Regression tests for residual P2 guards: same-tick FFA double-lethal

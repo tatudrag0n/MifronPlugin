@@ -90,6 +90,7 @@ abstract class MifronPart10 extends MifronPart9x2 {
       player.setExp(0.0F);
       this.mifron().saveData();
       this.recordQuestProgress(player, "reincarnations", next);
+      this.mifron().checkStatTitles(player);
       this.playReincarnationSound(player);
       player.sendMessage("\u00a7d\u8ee2\u751f\u3057\u307e\u3057\u305f: " + next + "\u56de\u76ee");
    }

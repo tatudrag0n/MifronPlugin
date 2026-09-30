@@ -1,4 +1,7 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
+
+import org.server.mifron.Mifron;
+import org.server.mifron.MifronPdc;
 
 import java.io.File;
 import java.io.IOException;
@@ -8,7 +11,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-final class FfaStatsManager {
+public final class FfaStatsManager {
    private final Mifron plugin;
    private final File file;
    private YamlConfiguration config;
@@ -56,6 +59,9 @@ final class FfaStatsManager {
          section.set("current-streak", streak);
          section.set("max-streak", Math.max(section.getInt("max-streak", 0), streak));
          this.save();
+         if (section.getInt("kills", 0) >= 50 && player.getPlayer() != null) {
+            this.plugin.unlockTitle(player.getPlayer(), "闘士");
+         }
       }
    }
 

@@ -30,7 +30,7 @@ abstract class MifronPart13 extends MifronPart12x2 {
       return score;
    }
 
-   String formatNumber(int value) { return String.format(Locale.US, "%,d", value); }
+   public String formatNumber(int value) { return String.format(Locale.US, "%,d", value); }
    protected String formatDateTime(long millis) { return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(millis)); }
    protected String safePlayerName(OfflinePlayer player) { return player.getName() == null ? player.getUniqueId().toString().substring(0, 8) : player.getName(); }
    protected boolean isSafeConfigKey(String key) { return key != null && SAFE_CONFIG_KEY_PATTERN.matcher(key).matches(); }

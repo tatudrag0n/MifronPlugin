@@ -310,12 +310,14 @@ final class OnlineShopFeature implements Listener {
          return;
       }
       // Left click buys; right click sells one; shift+right-click sells all.
+      // Every other click type (shift-left, double-click, number keys, drop,
+      // middle click) is ignored so it can never trigger a purchase.
       org.bukkit.event.inventory.ClickType click = event.getClick();
       if (click == org.bukkit.event.inventory.ClickType.SHIFT_RIGHT) {
          this.sell(player, action, true);
       } else if (click.isRightClick()) {
          this.sell(player, action, false);
-      } else {
+      } else if (click == org.bukkit.event.inventory.ClickType.LEFT) {
          this.purchase(player, action);
       }
    }
@@ -455,7 +457,7 @@ final class OnlineShopFeature implements Listener {
     * The overlay exists to visualise an active shop cooldown. With no shop
     * cooldown left, vanilla cooldowns must be left untouched.
     */
-   static boolean shouldOverlayCooldown(long remainingSeconds) {
+   public static boolean shouldOverlayCooldown(long remainingSeconds) {
       return remainingSeconds > 0;
    }
 

@@ -49,7 +49,7 @@ abstract class MifronPart3 extends MifronPart2x2 {
                Block block = shelf.getBlock();
                String signature = this.shelfInventorySignature(shelf);
                if (this.mifron().isShelfShop(block)) { if (!this.isEmptyShelfSignature(signature)) registeredShelfSignatures.add(signature); }
-               else if (!this.slotMachineManager.isMachine(block)) unregisteredShelves.put(this.shopPositionKey(block), signature);
+               else if (!this.minigameBridge.isMachine(block)) unregisteredShelves.put(this.shopPositionKey(block), signature);
             } else if (state instanceof Barrel barrel) {
                Block block = barrel.getBlock();
                String signature = this.mifron().barrelInventorySignature(barrel);
@@ -70,7 +70,7 @@ abstract class MifronPart3 extends MifronPart2x2 {
          for (BlockState state : chunk.getTileEntities()) {
             if (state instanceof Shelf shelf) {
                Block block = shelf.getBlock();
-               if (this.mifron().isShelfShop(block) || this.slotMachineManager.isMachine(block)) continue;
+               if (this.mifron().isShelfShop(block) || this.minigameBridge.isMachine(block)) continue;
                String signature = this.shelfInventorySignature(shelf);
                String previous = before.unregisteredShelfSignatures().get(this.shopPositionKey(block));
                if (!Objects.equals(previous, signature) && !this.isEmptyShelfSignature(signature) && before.registeredShelfSignatures().contains(signature)) pastedShelves.add(block);

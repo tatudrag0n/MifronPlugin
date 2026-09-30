@@ -123,7 +123,7 @@ abstract class MifronPart16 extends MifronPart15x2 {
       }, 20L);
    }
 
-   protected ConfigurationSection getPlayerSection(UUID uuid) {
+   public ConfigurationSection getPlayerSection(UUID uuid) {
       String path = "players." + uuid;
       ConfigurationSection section = this.data.getConfigurationSection(path);
       return section != null ? section : this.data.createSection(path);
@@ -151,7 +151,7 @@ abstract class MifronPart16 extends MifronPart15x2 {
       try {
          if ("friend".equalsIgnoreCase(command.getName())) return this.mifron().handleFriendCommand(sender, args);
          if ("status".equalsIgnoreCase(command.getName())) return this.mifron().handleStatusCommand(sender, args);
-         if ("tutorial".equalsIgnoreCase(command.getName())) return this.mifron().handleTutorialCommand(sender);
+         if ("tutorial".equalsIgnoreCase(command.getName())) return this.mifron().handleTutorialCommand(sender, args);
          return this.mifron().handleMifronCommand(sender, args);
       } catch (Throwable e) {
          this.getLogger().severe("Command failed: /" + label);

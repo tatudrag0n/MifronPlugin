@@ -21,6 +21,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 abstract class MifronPart7x1 extends MifronPart7 {
+   private final Map<java.util.UUID, Long> barrelPurchaseUntil = new java.util.concurrent.ConcurrentHashMap<>();
    protected MerchantOffer randomWeightedBarrelOffer(List<MerchantOffer> candidates) {
       int totalWeight = candidates.stream().mapToInt(o -> Math.max(1, this.mifron().barrelShopWeight(o.material()))).sum();
       int selected = this.random.nextInt(Math.max(1, totalWeight));
@@ -62,6 +63,11 @@ abstract class MifronPart7x1 extends MifronPart7 {
 
    protected void buyBarrelOffer(Player player, ItemStack displayed, int selectedSlot, Inventory inventory) {
       if (displayed == null || displayed.getType() == Material.AIR || !displayed.hasItemMeta()) return;
+      // Rapid left-click spam must not double-charge: merchant flow uses the
+      // same 150ms style guard; barrels get 500ms as purchases restock a slot.
+      long now = System.currentTimeMillis();
+      if (now < this.barrelPurchaseUntil.getOrDefault(player.getUniqueId(), 0L)) return;
+      this.barrelPurchaseUntil.put(player.getUniqueId(), now + 500L);
       Integer basePrice = displayed.getItemMeta().getPersistentDataContainer().get(this.barrelOfferPriceKey, PersistentDataType.INTEGER);
       if (basePrice == null || basePrice <= 0) return;
       int price = this.mifron().applyShopDiscount(player, basePrice);

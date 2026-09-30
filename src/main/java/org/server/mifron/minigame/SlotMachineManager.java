@@ -1,4 +1,7 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
+
+import org.server.mifron.Mifron;
+import org.server.mifron.MifronPdc;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,7 +33,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
-final class SlotMachineManager implements Listener {
+public final class SlotMachineManager implements Listener {
    private static final double REDSTONE_CHANCE = 0.1;
    private static final double JACKPOT_WIN_BONUS = 0.05;
    private static final double JACKPOT_REWARD_BONUS = 1.25;
@@ -38,7 +41,7 @@ final class SlotMachineManager implements Listener {
    private final Map<UUID, SlotMachineManager.SpinSession> activeSessions = new HashMap<>();
    private final Map<String, UUID> busyMachines = new HashMap<>();
 
-   SlotMachineManager(Mifron plugin) {
+   public SlotMachineManager(Mifron plugin) {
       this.plugin = plugin;
    }
 
@@ -132,9 +135,14 @@ final class SlotMachineManager implements Listener {
       return block.getWorld().getUID() + ":" + block.getX() + ":" + block.getY() + ":" + block.getZ();
    }
 
-   @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+   // ignoreCancelled=false on purpose: spinning/stopping is an economy/UI
+   // interaction like shops, so it must work even where hub spawn
+   // protection already cancelled the raw interact (same for both clicks).
+   @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
    public void onPlayerInteract(PlayerInteractEvent event) {
-      if (!event.getAction().isRightClick() || event.getClickedBlock() == null) {
+      // Bedrock (Geyser) taps often arrive as LEFT_CLICK_BLOCK, so machines
+      // accept both clicks exactly like the end-portal-frame teleporters do.
+      if ((!event.getAction().isRightClick() && !event.getAction().isLeftClick()) || event.getClickedBlock() == null) {
          return;
       }
 
@@ -174,7 +182,17 @@ final class SlotMachineManager implements Listener {
       this.finishSession(this.activeSessions.remove(event.getPlayer().getUniqueId()));
    }
 
+   private final java.util.Map<java.util.UUID, Long> lastSpinMillis = new java.util.concurrent.ConcurrentHashMap<>();
+
    private void startSpin(Player player, Block shelf, SlotMachineManager.Difficulty difficulty) {
+      // No debounce existed here: rapid clicks instantly started and stopped
+      // spins. 500ms keeps deliberate play intact while killing machine-gun spins.
+      long now = System.currentTimeMillis();
+      Long last = this.lastSpinMillis.get(player.getUniqueId());
+      if (last != null && now - last < 500L) {
+         return;
+      }
+      this.lastSpinMillis.put(player.getUniqueId(), now);
       if (this.activeSessions.containsKey(player.getUniqueId())) {
          player.sendMessage("§c現在抽選中です。");
       } else {
@@ -490,7 +508,7 @@ final class SlotMachineManager implements Listener {
     * (result already determined and paid) never refunds; an unresolved session
     * refunds unless a completion callback is still pending.
     */
-   static boolean shouldRefundOnInterrupt(boolean settled, boolean hasPendingCompletion, boolean outcomeResolved) {
+   public static boolean shouldRefundOnInterrupt(boolean settled, boolean hasPendingCompletion, boolean outcomeResolved) {
       if (settled) return false;
       return !hasPendingCompletion && !outcomeResolved;
    }

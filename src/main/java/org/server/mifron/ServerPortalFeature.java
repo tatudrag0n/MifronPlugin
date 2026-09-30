@@ -57,6 +57,7 @@ final class ServerPortalFeature implements Listener {
    private final NamespacedKey teleporterOwnerKey;
    private final Map<UUID, Location> pendingCoordinateTargets = new ConcurrentHashMap<>();
    private final Map<UUID, String> pendingFrameRenameKeys = new ConcurrentHashMap<>();
+   private final Map<UUID, Long> lastFramePunchMillis = new ConcurrentHashMap<>();
 
    ServerPortalFeature(Mifron plugin) {
       this.plugin = plugin;
@@ -233,8 +234,35 @@ final class ServerPortalFeature implements Listener {
    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
    public void onFrameBreak(org.bukkit.event.block.BlockBreakEvent event) {
       if (event.getBlock().getType() == Material.END_PORTAL_FRAME) {
-         this.removeFrameLabel(event.getBlock());
+         this.clearPortalTarget(event.getBlock());
       }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onFramePunch(PlayerInteractEvent event) {
+      if (event.getHand() != EquipmentSlot.HAND || !event.getAction().isLeftClick()) {
+         return;
+      }
+      Block frame = event.getClickedBlock();
+      if (frame == null || frame.getType() != Material.END_PORTAL_FRAME) {
+         return;
+      }
+      if (this.isServerWand(event.getItem())) {
+         return;
+      }
+      if (!this.hasFrameTarget(frame)) {
+         return;
+      }
+      Player player = event.getPlayer();
+      long now = System.currentTimeMillis();
+      Long last = this.lastFramePunchMillis.get(player.getUniqueId());
+      if (last != null && now - last < 1000L) {
+         event.setCancelled(true);
+         return;
+      }
+      this.lastFramePunchMillis.put(player.getUniqueId(), now);
+      event.setCancelled(true);
+      this.useTeleporterFrame(player, frame);
    }
 
    private void removeFrameLabel(Block frame) {
@@ -247,7 +275,6 @@ final class ServerPortalFeature implements Listener {
       }
    }
 
-   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    private Material teleporterIcon(TeleportDestination destination) {
       String configured = this.plugin.getConfig().getString("servers." + destination.key() + ".icon", "");
       if (configured != null && !configured.isBlank()) {
@@ -399,6 +426,7 @@ final class ServerPortalFeature implements Listener {
       UUID uuid = event.getPlayer().getUniqueId();
       this.pendingCoordinateTargets.remove(uuid);
       this.pendingFrameRenameKeys.remove(uuid);
+      this.lastFramePunchMillis.remove(uuid);
    }
 
    private String sanitizeFrameName(String raw) {
@@ -426,7 +454,6 @@ final class ServerPortalFeature implements Listener {
       }
    }
 
-   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    private void applyServerPortalFacing(Block block, Player player) {
       if (block.getBlockData() instanceof Orientable orientable) {
          double var8 = player.getLocation().getX() - (block.getX() + 0.5);
@@ -556,6 +583,14 @@ final class ServerPortalFeature implements Listener {
       }
    }
 
+   boolean registerFramePortal(Block frame, Location destination) {
+      if (frame == null || frame.getType() != Material.END_PORTAL_FRAME || destination == null || destination.getWorld() == null) {
+         return false;
+      }
+      this.setCoordinateTarget(frame, destination);
+      return this.hasFrameTarget(frame);
+   }
+
    private void setCoordinateTarget(Block block, Location location) {
       if (block == null || block.getType() != Material.END_PORTAL_FRAME || location == null || location.getWorld() == null) {
          return;
@@ -671,6 +706,8 @@ final class ServerPortalFeature implements Listener {
       } else {
          label = label.append(Component.text(detail, NamedTextColor.WHITE));
       }
+      label = label.append(Component.newline())
+         .append(Component.text("殴ると移動", NamedTextColor.GRAY));
 
       TextDisplay display = (TextDisplay)frame.getWorld().spawnEntity(frame.getLocation().add(0.5, 1.45, 0.5), EntityType.TEXT_DISPLAY);
       display.text(label);

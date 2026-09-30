@@ -87,10 +87,13 @@ final class UtilityItemsFeature implements Listener {
       inventory.setItem(15, this.gearMenuIcon(player));
       inventory.setItem(16, this.plugin.actionItem(Material.DIAMOND_SWORD, ChatColor.RED + "ミニゲーム",
          List.of(ChatColor.GRAY + "FFA・アスレ・スロットの入口"), "menu_minigame", null));
+      inventory.setItem(22, this.plugin.actionItem(Material.BOOK, ChatColor.YELLOW + "チュートリアル",
+         List.of(ChatColor.GRAY + "クリック: 基本操作を再表示"), "menu_tutorial", null));
       for (int slot = 0; slot < inventory.getSize(); slot++) {
          if (inventory.getItem(slot) == null) inventory.setItem(slot, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
       }
       player.openInventory(inventory);
+      this.plugin.tutorialFeature.onMenuOpen(player);
    }
 
    // ------------------------------------------------------------------
@@ -104,7 +107,10 @@ final class UtilityItemsFeature implements Listener {
    record GearDefinition(String id, Material icon, String name, int unlockCost, String description) {}
 
    static final java.util.Map<String, GearDefinition> GEARS = java.util.Map.of(
-      "night_vision", new GearDefinition("night_vision", Material.SPYGLASS, "暗視", 10000, "暗い場所でも明るく見える")
+      "night_vision", new GearDefinition("night_vision", Material.SPYGLASS, "暗視", 10000, "暗い場所でも明るく見える"),
+      "slowfall", new GearDefinition("slowfall", Material.FEATHER, "軽業", 30000, "落下がゆっくりになり落下ダメージを軽減する"),
+      "aqua", new GearDefinition("aqua", Material.HEART_OF_THE_SEA, "水棲", 12000, "水中呼吸と水中採掘が快適になる"),
+      "swift", new GearDefinition("swift", Material.RABBIT_FOOT, "疾風", 15000, "移動速度が上がる")
    );
 
    /** Pure equip rule for tests: unlocked gear toggles unless 3 are already on. */
@@ -148,20 +154,6 @@ final class UtilityItemsFeature implements Listener {
          List.of(ChatColor.GRAY + "装備中: " + equipped + "/" + MAX_EQUIPPED_GEARS, ChatColor.GRAY + "クリック: ギア装備画面を開く"), "menu_gear", null);
    }
 
-   /** Unified minigame entrance: FFA / athletic / slots from one chooser. */
-   void openMinigameUi(Player player) {
-      org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Minigame"));
-      inventory.setItem(11, this.plugin.actionItem(Material.DIAMOND_SWORD, ChatColor.RED + "FFA",
-         List.of(ChatColor.GRAY + "クリック: FFAアリーナへ移動", ChatColor.GRAY + "現地の防具立てをクリックで参加"), "minigame_go", "ffa"));
-      inventory.setItem(13, this.plugin.actionItem(Material.LEATHER_BOOTS, ChatColor.GREEN + "アスレチック",
-         List.of(ChatColor.GRAY + "クリック: アスレ開始地点へ移動"), "minigame_go", "athletic"));
-      inventory.setItem(15, this.plugin.actionItem(Material.GOLD_INGOT, ChatColor.GOLD + "スロット",
-         List.of(ChatColor.GRAY + "棚＋スロットワンドで設置", ChatColor.GRAY + "ウォレットを持って右クリックで開始"), "minigame_go", "slots"));
-      for (int i = 0; i < inventory.getSize(); i++) {
-         if (inventory.getItem(i) == null) inventory.setItem(i, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
-      }
-      player.openInventory(inventory);
-   }
 
    void openGearUi(Player player) {
       org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Gears"));
@@ -186,11 +178,19 @@ final class UtilityItemsFeature implements Listener {
          if (inventory.getItem(i) == null) inventory.setItem(i, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
       }
       player.openInventory(inventory);
+      this.plugin.tutorialFeature.onGearOpen(player);
    }
+
+   private final java.util.Map<java.util.UUID, Long> gearToggleUntil = new java.util.concurrent.ConcurrentHashMap<>();
 
    void toggleGear(Player player, String gearId) {
       GearDefinition gear = GEARS.get(gearId);
       if (gear == null) return;
+      // Unlock charges MP: serialize rapid double-clicks so the second one
+      // always observes the first one's unlocked mark.
+      long now = System.currentTimeMillis();
+      if (now < this.gearToggleUntil.getOrDefault(player.getUniqueId(), 0L)) return;
+      this.gearToggleUntil.put(player.getUniqueId(), now + 1500L);
       var section = this.plugin.getPlayerSection(player.getUniqueId());
       java.util.Set<String> unlocked = new java.util.LinkedHashSet<>(section.getStringList("gears-unlocked"));
       java.util.List<String> equipped = new java.util.ArrayList<>(section.getStringList("gears-equipped"));
@@ -233,18 +233,27 @@ final class UtilityItemsFeature implements Listener {
       this.openGearUi(player);
    }
 
+   static org.bukkit.potion.PotionEffectType gearEffectType(String gearId) {
+      if ("night_vision".equals(gearId)) return org.bukkit.potion.PotionEffectType.NIGHT_VISION;
+      if ("slowfall".equals(gearId)) return org.bukkit.potion.PotionEffectType.SLOW_FALLING;
+      if ("aqua".equals(gearId)) return org.bukkit.potion.PotionEffectType.WATER_BREATHING;
+      if ("swift".equals(gearId)) return org.bukkit.potion.PotionEffectType.SPEED;
+      return null;
+   }
+
    void applyGearEffect(Player player, String gearId) {
-      if ("night_vision".equals(gearId)) {
+      org.bukkit.potion.PotionEffectType type = gearEffectType(gearId);
+      if (type != null) {
          player.addPotionEffect(new org.bukkit.potion.PotionEffect(
-            org.bukkit.potion.PotionEffectType.NIGHT_VISION,
-            org.bukkit.potion.PotionEffect.INFINITE_DURATION, 0, false, false, true));
+            type, org.bukkit.potion.PotionEffect.INFINITE_DURATION, 0, false, false, true));
       }
    }
 
    void removeGearEffect(Player player, String gearId) {
-      if ("night_vision".equals(gearId)) {
-         // Only our own night-vision effect is removed; other effects kept.
-         player.removePotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION);
+      org.bukkit.potion.PotionEffectType type = gearEffectType(gearId);
+      if (type != null) {
+         // Only our own gear effect is removed; other effects kept.
+         player.removePotionEffect(type);
       }
    }
 
@@ -252,8 +261,8 @@ final class UtilityItemsFeature implements Listener {
    public void reapplyGears(Player player) {
       if (player == null || !player.isOnline()) return;
       for (String gearId : this.equippedGears(player)) {
-         if ("night_vision".equals(gearId)
-            && !player.hasPotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION)) {
+         org.bukkit.potion.PotionEffectType type = gearEffectType(gearId);
+         if (type != null && !player.hasPotionEffect(type)) {
             this.applyGearEffect(player, gearId);
          }
       }
@@ -276,14 +285,14 @@ final class UtilityItemsFeature implements Listener {
 
    ItemStack createShopWand(ShopWandType type) {
       if (type.isSlotWand()) {
-         SlotMachineManager.Difficulty difficulty = type.getSlotDifficulty();
-         String diffName = difficulty != null ? difficulty.name() : "";
+         String difficulty = type.getSlotDifficultyName();
+         String diffName = difficulty != null ? difficulty : "";
          return this.createMifronItem(
             Material.BLAZE_ROD,
             "slot_wand",
             ChatColor.GOLD + "スロットワンド [" + diffName + "]",
             List.of(
-               ChatColor.GRAY + "難易度: " + this.getDifficultyDisplayName(difficulty),
+               ChatColor.GRAY + "難易度: " + this.plugin.minigameBridge.describeSlotDifficulty(difficulty),
                ChatColor.GRAY + "右クリック: 棚をスロットマシン化",
                ChatColor.GRAY + "ウォレットを持って棚を右クリックで回転"
             ),
@@ -313,16 +322,6 @@ final class UtilityItemsFeature implements Listener {
       }
    }
 
-   private String getDifficultyDisplayName(SlotMachineManager.Difficulty difficulty) {
-      if (difficulty == null) return "不明";
-      switch (difficulty) {
-         case EASY: return ChatColor.GREEN + "イージー";
-         case NORMAL: return ChatColor.YELLOW + "ノーマル";
-         case HARD: return ChatColor.RED + "ハード";
-         case EXPERT: return "" + ChatColor.DARK_RED + ChatColor.BOLD + "エキスパート";
-         default: return "不明";
-      }
-   }
 
    ItemStack createJumpPadWand(int verticalPower, int horizontalPower) {
       int safeVerticalPower = this.clampJumpPadPower(verticalPower);
@@ -399,7 +398,7 @@ final class UtilityItemsFeature implements Listener {
       return false;
    }
 
-   boolean isMifronItem(ItemStack item, String id) {
+   public boolean isMifronItem(ItemStack item, String id) {
       return id.equals(this.getMifronItemId(item));
    }
 
@@ -471,7 +470,7 @@ final class UtilityItemsFeature implements Listener {
          // at HIGH with ignoreCancelled=true: cancelling here first would
          // make spins impossible, so hands off machine blocks entirely.
          if (event.getAction().isRightClick() && event.getClickedBlock() != null
-            && this.plugin.slotMachineManager.isSlotMachine(event.getClickedBlock())) return;
+            && this.plugin.minigameBridge.isSlotMachine(event.getClickedBlock())) return;
          event.setCancelled(true);
          event.setUseItemInHand(Event.Result.DENY);
          this.lastUtilityUse.put(player.getUniqueId(), now);

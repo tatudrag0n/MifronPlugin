@@ -11,7 +11,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.Listener;
 import org.bukkit.generator.WorldInfo;
 
-public final class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
+public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
    /**
     * Exposes the flat bedrock generator for the main world so
     * {@code bukkit.yml} ({@code worlds.main.generator: Mifron:mifron-flat})
@@ -49,7 +49,7 @@ public final class Mifron extends MifronPart18x2 implements Listener, TabExecuto
          return matched;
       }
       if (args.length >= 2 && this.isMifronRootCommand(command) && "text".equalsIgnoreCase(args[0])) return this.textDisplayFeature.tabComplete(args);
-      if (args.length >= 2 && this.isMifronRootCommand(command) && "ffa".equalsIgnoreCase(args[0])) return this.ffaManager.tabComplete(args, sender);
+      if (args.length >= 2 && this.isMifronRootCommand(command) && "ffa".equalsIgnoreCase(args[0])) return this.minigameBridge.tabCompleteFfa(args, sender);
       if (args.length >= 2 && this.isMifronRootCommand(command) && "structure".equalsIgnoreCase(args[0])) return this.structureManager.tabComplete(args);
       if (args.length >= 2 && this.isMifronRootCommand(command) && "build".equalsIgnoreCase(args[0])) return this.buildWorldManager.tabComplete(args);
       if (args.length >= 2 && this.isMifronRootCommand(command) && "proposal".equalsIgnoreCase(args[0])) return this.proposalManager.tabComplete(args);

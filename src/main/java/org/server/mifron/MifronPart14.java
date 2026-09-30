@@ -153,15 +153,16 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "menu_teleporter" -> this.mifron().openTeleportUi(player);
          case "menu_gear" -> this.utilityItemsFeature.openGearUi(player);
          case "gear_toggle" -> this.utilityItemsFeature.toggleGear(player, this.getUiTargetString(clicked));
-         case "menu_minigame" -> this.utilityItemsFeature.openMinigameUi(player);
+         case "menu_minigame" -> this.minigameBridge.openMinigameMenu(player);
+         case "menu_tutorial" -> { this.mifron().tutorialFeature.resume(player); }
          case "minigame_go" -> {
             String dest = this.getUiTargetString(clicked);
             if ("ffa".equals(dest)) {
-               org.bukkit.Location arena = this.ffaManager.arenaCenter();
+               org.bukkit.Location arena = this.minigameBridge.arenaCenter();
                if (arena == null || arena.getWorld() == null) player.sendMessage("§cFFAアリーナが設定されていません。");
                else player.teleport(arena);
             } else if ("athletic".equals(dest)) {
-               this.athleticManager.sendToSpawn(player);
+               this.minigameBridge.sendToSpawn(player);
             } else {
                player.sendMessage("§eスロットは棚＋スロットワンドで遊べます。ウォレットを持って右クリックで開始。");
             }

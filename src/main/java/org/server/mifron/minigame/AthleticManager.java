@@ -1,4 +1,7 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
+
+import org.server.mifron.Mifron;
+import org.server.mifron.MifronPdc;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -38,14 +41,14 @@ import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
-final class AthleticManager implements Listener {
+public final class AthleticManager implements Listener {
    private final Mifron plugin;
    private final NamespacedKey controlKey;
    private final NamespacedKey panelKey;
    private final Map<UUID, AthleticManager.Run> activeRuns = new HashMap<>();
    private BukkitTask ticker;
 
-   AthleticManager(Mifron plugin) {
+   public AthleticManager(Mifron plugin) {
       this.plugin = plugin;
       this.controlKey = new NamespacedKey(plugin, "athletic_control");
       this.panelKey = new NamespacedKey(plugin, "athletic_panel");
@@ -203,6 +206,13 @@ final class AthleticManager implements Listener {
 
    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
    public void onMove(PlayerMoveEvent event) {
+      // Minigame externalization: athletic runs are disabled unless
+      // explicitly enabled. Data (runs/scores/rewards) is left untouched
+      // so courses can be revived later.
+      if (!this.plugin.getConfig().getBoolean("athletic.enabled", true)) {
+         if (event.getPlayer() != null) this.activeRuns.remove(event.getPlayer().getUniqueId());
+         return;
+      }
       Location to = event.getTo();
       if (to != null && !this.sameBlock(event.getFrom(), to)) {
          Player player = event.getPlayer();
@@ -268,6 +278,7 @@ final class AthleticManager implements Listener {
       String base = "athletic.runs." + run.name();
       String uuid = player.getUniqueId().toString();
       long previous = this.plugin.data().getLong(base + ".scores." + uuid, Long.MAX_VALUE);
+      if (previous == Long.MAX_VALUE) this.plugin.unlockTitle(player, "走者");
       boolean personalBest = elapsed < previous;
       List<AthleticManager.Score> before = this.scores(run.name(), "alltime");
       String oldLeader = before.isEmpty() ? null : before.get(0).uuid();
@@ -283,7 +294,6 @@ final class AthleticManager implements Listener {
          this.plugin.data().set(base + ".monthly." + month + ".scores." + uuid, elapsed);
          this.plugin.data().set(base + ".monthly." + month + ".names." + uuid, player.getName());
       }
-      this.plugin.saveData();
       this.updatePanels(run.name());
 
       int clearReward = this.plugin.data().getInt(base + ".rewards.clear-mp", this.plugin.getConfig().getInt("athletic.defaults.clear-reward-mp", 50));
@@ -298,6 +308,9 @@ final class AthleticManager implements Listener {
       }
       this.plugin.recordQuestProgress(player, "athletic_clears", 1);
       this.plugin.recordQuestProgress(player, "athletic_" + run.name() + "_clears", 1);
+      // Persist scores and wallet together so a crash between them can never
+      // leave a recorded clear without its reward.
+      this.plugin.saveData();
       if (this.isHardcoreRun(run.name())) {
          this.plugin.recordQuestProgress(player, "hardcore_athletic", 1);
       }
@@ -622,7 +635,7 @@ final class AthleticManager implements Listener {
     * payouts leaves the paid list on disk, so the resumed settlement pays only
     * the remainder instead of paying everyone again.
     */
-   static List<String> unpaidMonthlyWinners(List<String> rankedUuids, List<String> paid, int slots) {
+   public static List<String> unpaidMonthlyWinners(List<String> rankedUuids, List<String> paid, int slots) {
       List<String> unpaid = new ArrayList<>();
       if (rankedUuids == null || slots <= 0) return unpaid;
       for (int index = 0; index < Math.min(rankedUuids.size(), slots); index++) {

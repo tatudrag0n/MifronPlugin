@@ -258,6 +258,7 @@ final class QuestService {
             section.set(claimPath, claimed);
             this.plugin.saveData();
             player.sendMessage(ChatColor.GREEN + "\u30af\u30a8\u30b9\u30c8\u5831\u916c: " + definition.name() + " +" + this.formatNumber(reward) + "MP");
+            this.plugin.checkStatTitles(player);
             return true;
          }
       }

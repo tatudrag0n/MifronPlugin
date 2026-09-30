@@ -10,7 +10,7 @@ import org.bukkit.block.Block;
 abstract class MifronPart5 extends MifronPart4x2 {
    protected void assignCustomShelfShopSlot(Block block, int selectedSlot, Material material) {
       if (block == null || material == null || selectedSlot < 0 || selectedSlot >= SHELF_SHOP_OFFER_SLOTS) return;
-      this.slotMachineManager.unregisterMachine(block);
+      this.minigameBridge.unregisterMachine(block);
       String path = this.mifron().shelfShopPath(block);
       if (!"custom".equals(this.mifron().shelfShopMode(block))) this.data.set(path + ".custom", null);
       this.data.set(path + ".enabled", true);

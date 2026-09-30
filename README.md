@@ -5,16 +5,16 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 ## コマンド
 
 - メイン: `/mifron`、短縮: `/mf`
-- プレイヤー向け: `/mf balance`、`/mf pay <player> <amount>`、`/mf build enter|exit`、`/mf athletic ranking <name> [monthly|alltime]`
+- プレイヤー向け: `/mf balance`、`/mf pay <player> <amount>`、`/mf tutorial`、`/mf vote`、`/mf menu`、`/mf quest`、`/mf minigame`、`/mf ffa leave|stats`、`/mf protect chunk`、`/mf build enter|exit`、`/mf athletic ranking <name> [monthly|alltime]`
 - `/mv` はMifronでは登録せず、Multiverse-Core専用です。
 - 管理系サブコマンドは原則 `mifron.admin` または個別権限が必要です。
 
 ## プレイヤー向け主要仕様
 
-- ウォレットは左クリックでMP残高を確認し、棚ショップ・スロット・オークションでは持って右クリックします。アイテム収納には使えません。
+- ウォレットはメニューでクリックするとMP残高を確認でき、棚ショップ・スロット・オークションでは持って右クリックで使います。アイテム収納には使えません。
 - オークション入札時はMPを一時預かりし、他人に最高額を更新された場合は即時返金します。終了時に落札品と売上を自動配送します。
 - 通常のエメラルドはMPへ変換されません。FFA外で死亡すると所持MPの50%を失います。
-- テレポーターは右クリックで候補を展開し、表示アイテムを左クリックすると移動します。
+- テレポーターは survival / minigame の2択で、表示アイテムのクリックで即時移動します。登録済みエンドポータルフレームは（サーバーワンド非所持での）左クリックでも指定座標へ移動します。
 - 棚ショップの商品は見本で、在庫は同じ素材について全棚で共有されます。ウォレットで購入し、棚の商品と同じ通常アイテムを持って右クリックすると1個売却します。
 - 樽ショップは既定で27枠、先頭3枠が掘り出し物枠です。購入した枠だけ新しい商品へ入れ替わります。
 - SurvivalではTNTと溶岩が無効です。ショップ化ブロックと承認済み建築は通常破壊できません。
@@ -26,13 +26,13 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 - `build-world`: プレイヤー別Buildワールド、ワールド境界、初期足場。WorldEdit権限は滞在中だけ付与されます。
 - `athletic.defaults`: クリア、自己ベスト、歴代1位、月間順位の報酬。
 - `world-rules`: 全ワールドのKeepInventory、PvP、固定昼、スポーン位置。
-- `regen.allowed-chunks`: 自然再生成を許可するSurvivalチャンクの明示的な許可リスト。未登録チャンクは再生成対象になりません。`/mf regen allow|deny` で現在地を更新し、`/mf regen [radius]` は許可済み・プレイヤー滞在なしのチャンクだけを再生成します。
+- `regen.excluded-chunks`: 自然再生成から除外するSurvivalチャンクの除外リスト（`regen.allowed-chunks` は現行コードでは参照されません）。`/mf regen allow` で除外解除、`deny` で除外登録、`list` で除外一覧を確認し、`/mf regen [radius]` は Survival・ロード済み・保護外・除外外のチャンクだけを再生成します。
 - `regen.nation-chunks` / `public-facility-chunks` / `staff-excluded-chunks`: 中央範囲以外の保護チャンク。
 - `barrel-shop`: 商品枠と掘り出し物枠。
 - `auction`: 通常・スニーク時の入札加算額。手数料設定はありません。
 - `minoru-bridge`: ローカルAPIの有効化、待受、共有シークレット。`serverSecret` は旧設定からのフォールバックです。
 
-再生成は破壊的操作のため、半径は最大8、許可リスト必須、プレイヤー滞在中のチャンクは自動スキップします。実行前にバックアップを取得してください。
+再生成は破壊的操作のため、半径は最大8です。未ロードのチャンクは自動スキップします。実行前にバックアップを取得してください。
 
 ## 保護の実装範囲
 
@@ -46,8 +46,8 @@ Mifronの保護チャンクでは、扉・ボタン・コンテナ・額縁・�
 
 ## 現在未完了の機能
 
-- Proposalはゲーム内作成・投票に対応せず、外部から `proposals.yml` へ入った提案を管理者が審査する機能です。
-- `/mf regen` は管理者権限が必要です。`allow` / `deny` / `list` と半径指定を提供します。再生成対象は `regen.allowed-chunks` に登録されたSurvivalチャンクだけです。
+- Proposalへの投票はゲーム内で可能です（`/mf vote` でGUIを開き賛成投票）。建築の提案提出（`/mf structure submit`）やクエスト提案フローもゲーム内対応で、審査（`list` / `review` / `approve` / `reject`）は管理者専用です。外部から `proposals.yml` へ入った提案も審査対象です。
+- `/mf regen` は管理者権限が必要です。`allow` は除外解除、`deny` は除外登録、`list` は除外一覧、半径指定で強制再生成します。再生成対象は Survival のロード済み・保護外・除外外チャンクだけです。
 
 ## 保存データ
 

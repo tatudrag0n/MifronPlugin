@@ -1,4 +1,7 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
+
+import org.server.mifron.Mifron;
+import org.server.mifron.MifronPdc;
 
 import java.util.List;
 import java.util.Locale;
@@ -8,10 +11,10 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
 
-final class FfaConfig {
+public final class FfaConfig {
    private final Mifron plugin;
 
-   FfaConfig(Mifron plugin) {
+   public FfaConfig(Mifron plugin) {
       this.plugin = plugin;
    }
 
@@ -31,6 +34,7 @@ final class FfaConfig {
       this.setIfMissing(config, "ffa.world-change.leave-on-exit", true);
       this.setIfMissing(config, "ffa.respawn.delay-ticks", 2);
       this.setIfMissing(config, "ffa.respawn.location", "world-spawn");
+      this.setIfMissing(config, "ffa.disable-fall-damage", true);
       this.setIfMissing(config, "ffa.stands.spacing", 2.5);
       this.setIfMissing(config, "ffa.stands.selected-kit", "sword");
       this.setIfMissing(config, "ffa.kits.enabled", FfaKit.defaultActiveKits().stream().map(FfaKit::key).toList());
@@ -262,6 +266,10 @@ final class FfaConfig {
 
    String respawnLocationMode() {
       return this.plugin.getConfig().getString("ffa.respawn.location", "world-spawn").toLowerCase(Locale.ROOT);
+   }
+
+   boolean disableFallDamage() {
+      return this.plugin.getConfig().getBoolean("ffa.disable-fall-damage", true);
    }
 
    double standSpacing() {

@@ -86,6 +86,7 @@ build-world:
   platform-radius: 16
 
 athletic:
+  enabled: true
   defaults:
     clear-reward-mp: 50
     best-time-reward-mp: 100
@@ -94,16 +95,24 @@ athletic:
     timezone: "Asia/Tokyo"
     monthly-rank-rewards: [ 500, 300, 150 ]
 
+# Experiential tutorial world (stages 1-10, see TutorialFeature).
+tutorial:
+  enabled: true
+  world: tutorial
+  spawn: { x: 0.5, y: 65.0, z: 0.5 }
+  checkpoint: { x: 60.5, y: 65.0, z: 0.5, radius: 4.0 }
+  gate: { x: 0.0, y: 65.0, z: 20.0 }
+
 world-rules:
   fixed-day-worlds:
     - athletic
     - minigame
   spawn:
     main:
-      world: main
-      x: 0.5
-      y: 5.0
-      z: 0.5
+      world: survival
+      x: -31.5
+      y: 72.0
+      z: -43.5
       yaw: 0.0
       pitch: 0.0
     minigame:
@@ -115,9 +124,9 @@ world-rules:
       pitch: 0.0
     survival:
       world: survival
-      x: 0.0
-      y: 79.0
-      z: 0.0
+      x: -31.5
+      y: 72.0
+      z: -43.5
       yaw: 0.0
       pitch: 0.0
   pvp:
@@ -173,6 +182,7 @@ regen:
 main-world:
   name: world
   generator: ocean
+  enabled: false
   border:
     center-x: 0.0
     center-z: 0.0
@@ -232,22 +242,14 @@ creative-world:
   restricted-worldedit-commands: [paste, stack, move, deform, smooth, naturalize]
 
 hub:
-  world: main
-  x: 0.5
-  y: 5.0
-  z: 0.5
+  world: survival
+  x: -31.5
+  y: 72.0
+  z: -43.5
   yaw: 0.0
   pitch: 0.0
 
 servers:
-  main:
-    icon: compass
-    world: main
-    x: 0.5
-    y: 5.0
-    z: 0.5
-    yaw: 0.0
-    pitch: 0.0
   athletic:
     icon: elytra
     world: athletic
@@ -267,35 +269,35 @@ servers:
   survival:
     icon: grass_block
     world: survival
-    x: 0.0
-    y: 79.0
-    z: 0.0
+    x: -31.5
+    y: 72.0
+    z: -43.5
     yaw: 0.0
     pitch: 0.0
 warning-servers:
   basic:
-    world: main
+    world: survival
     x: 0.0
     y: 0.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0
   caution:
-    world: main
+    world: survival
     x: 0.0
     y: 0.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0
   detention:
-    world: main
+    world: survival
     x: 0.0
     y: 0.0
     z: 0.0
     yaw: 0.0
     pitch: 0.0
   imprisonment:
-    world: main
+    world: survival
     x: 0.0
     y: 0.0
     z: 0.0

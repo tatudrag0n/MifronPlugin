@@ -31,7 +31,7 @@ abstract class MifronPart2x1 extends MifronPart2 {
       this.queueDataSave();
    }
 
-   void saveData() {
+   public void saveData() {
       if (this.data == null || this.dataFile == null) return;
       File parent = this.dataFile.getParentFile();
       if (parent != null && !parent.exists() && !parent.mkdirs()) {
@@ -49,7 +49,7 @@ abstract class MifronPart2x1 extends MifronPart2 {
       }
    }
 
-   FileConfiguration data() { return this.data; }
+   public FileConfiguration data() { return this.data; }
 
    @EventHandler
    public void onJoin(PlayerJoinEvent event) {
@@ -71,7 +71,16 @@ abstract class MifronPart2x1 extends MifronPart2 {
       this.mifron().routeByWarningLevel(player);
       this.mifron().refreshPlayerName(player);
       Bukkit.getScheduler().runTaskLater(this, () -> this.mifron().syncAdvancementState(player), 20L);
-      if (this.mifron().isFirstJoin(player)) Bukkit.getScheduler().runTaskLater(this, () -> this.mifron().startTutorial(player, false), 40L);
+      if (this.mifron().isFirstJoin(player)) Bukkit.getScheduler().runTaskLater(this, () -> {
+         // Experiential tutorial world replaces the old chat tutorial for newcomers.
+         if (this.mifron().tutorialFeature.enabled()
+            && !this.mifron().tutorialFeature.completed(player)
+            && !this.mifron().tutorialFeature.isTutorialWorld(player.getWorld())) {
+            this.mifron().tutorialFeature.resume(player);
+         } else if (!this.mifron().tutorialFeature.enabled()) {
+            this.mifron().startTutorial(player, false);
+         }
+      }, 40L);
    }
 
    ItemStack createOnlineShopProduct(String id) {

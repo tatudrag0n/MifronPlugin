@@ -47,7 +47,11 @@ abstract class MifronPart3x1 extends MifronPart3 {
       if (this.isShopWand(item)) { this.mifron().handleShopWandClick(event); return; }
       if (this.isMifronItem(item, "jump_pad_wand")) { this.mifron().handleJumpPadWandClick(event); return; }
       if (this.serverPortalFeature.isServerWand(item)) { this.serverPortalFeature.handleWandClick(event); return; }
-      if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.mifron().isShelf(event.getClickedBlock().getType()) && this.mifron().isShelfShop(event.getClickedBlock()) && !this.slotMachineManager.isMachine(event.getClickedBlock())) {
+      if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.mifron().isShelf(event.getClickedBlock().getType()) && this.mifron().isShelfShop(event.getClickedBlock()) && !this.minigameBridge.isMachine(event.getClickedBlock())) {
+         // Never transact on an already-cancelled interact (protection etc.):
+         // with ignoreCancelled=false this handler would otherwise charge twice
+         // when another listener also processes the click.
+         if (event.isCancelled()) return;
          event.setCancelled(true);
          long now = System.currentTimeMillis();
          if (now < this.shelfShopTransactionUntil.getOrDefault(player.getUniqueId(), 0L)) return;

@@ -41,7 +41,9 @@ public class SpecialItemsFeature implements Listener {
         ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7陸上を氷の上のように高速滑走する。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(使い捨て)"),
         FIREBALL("fireball", "§c§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(使い捨て)"),
-        DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。");
+        DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
+        RECALL_CHARM("recall", "§b§l帰還チャーム", Material.ENDER_PEARL, 0.002, "§7右クリックでsurvivalスポーンへ帰還する。(使い捨て)"),
+        BANDAGE("bandage", "§c§l治療包帯", Material.STRING, 0.005, "§7右クリックで体力を回復する。(使い捨て)");
 
         public final String id;
         public final String displayName;
@@ -128,17 +130,30 @@ public class SpecialItemsFeature implements Listener {
         }
     }
 
+    private final java.util.Map<java.util.UUID, Long> lastUseMillis = new java.util.concurrent.ConcurrentHashMap<>();
+
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
+        // NORMAL priority + no hand check used to double-fire on dual-hand
+        // dispatch (item consumed twice, reward paid twice).
+        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
         if (item == null || !isSpecialItem(item)) return;
+        long now = System.currentTimeMillis();
+        Long last = this.lastUseMillis.get(player.getUniqueId());
+        if (last != null && now - last < 500L) {
+            event.setCancelled(true);
+            return;
+        }
+        this.lastUseMillis.put(player.getUniqueId(), now);
 
         String id = getSpecialId(item);
         if (id == null) return;
 
         if (id.equals("scratch") && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK)) {
             event.setCancelled(true);
+            plugin.tutorialFeature.onSpecialUse(player);
             item.setAmount(item.getAmount() - 1);
             int winMp = (random.nextInt(100) < 10) ? 500 : 50;
             plugin.depositEmeralds(player.getUniqueId(), winMp);
@@ -169,6 +184,25 @@ public class SpecialItemsFeature implements Listener {
             Fireball fireball = player.launchProjectile(Fireball.class, eye.getDirection().multiply(1.5));
             fireball.setYield(2.0f);
             player.getWorld().playSound(eye, Sound.ENTITY_GHAST_SHOOT, 1.0f, 1.0f);
+        } else if (id.equals("recall") && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK)) {
+            event.setCancelled(true);
+            item.setAmount(item.getAmount() - 1);
+            Location dest = plugin.readLocation("world-rules.spawn.main");
+            if (dest == null || dest.getWorld() == null) dest = player.getWorld().getSpawnLocation();
+            player.teleport(dest);
+            player.playSound(dest, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+            player.sendMessage(ChatColor.AQUA + "帰還チャームでスポーンへ戻った！");
+        } else if (id.equals("bandage") && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK)) {
+            event.setCancelled(true);
+            double max = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
+            if (player.getHealth() >= max) {
+               player.sendMessage(ChatColor.GRAY + "体力は満タンだ。");
+               return;
+            }
+            item.setAmount(item.getAmount() - 1);
+            player.setHealth(Math.min(max, player.getHealth() + 12.0));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.5f);
+            player.sendMessage(ChatColor.RED + "治療包帯で回復した！");
         } else if (id.equals("jetpack") && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK)) {
             if (player.getInventory().contains(Material.BLAZE_POWDER)) {
                 player.getInventory().removeItem(new ItemStack(Material.BLAZE_POWDER, 1));

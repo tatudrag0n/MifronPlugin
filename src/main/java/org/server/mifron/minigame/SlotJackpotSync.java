@@ -1,9 +1,12 @@
-package org.server.mifron;
+package org.server.mifron.minigame;
+
+import org.server.mifron.Mifron;
+import org.server.mifron.MifronPdc;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
-final class SlotJackpotSync {
+public final class SlotJackpotSync {
    private SlotJackpotSync() {
    }
 

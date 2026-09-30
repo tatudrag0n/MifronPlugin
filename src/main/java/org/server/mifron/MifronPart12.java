@@ -40,6 +40,28 @@ abstract class MifronPart12 extends MifronPart11x2 {
       player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8F, 1.2F);
    }
 
+   /**
+    * Stat-based auto titles. Uses only server stats (logins, earnings,
+    * rebirths, collections) that vanilla advancements never gate, so these
+    * never overlap the 21 advancement titles.
+    */
+   public void checkStatTitles(Player player) {
+      if (player == null) return;
+      var section = this.mifron().getPlayerSection(player.getUniqueId());
+      if (section.getBoolean("tutorial.completed", false)) this.unlockTitle(player, "新人");
+      int logins = section.getInt("total-logins", 0);
+      if (logins >= 100) this.unlockTitle(player, "古参");
+      else if (logins >= 30) this.unlockTitle(player, "常連");
+      int earned = section.getInt("total-earned-emeralds", 0);
+      if (earned >= 1000000) this.unlockTitle(player, "大富豪");
+      else if (earned >= 100000) this.unlockTitle(player, "富豪");
+      int rebirths = section.getInt("reincarnations", 0);
+      if (rebirths >= 5) this.unlockTitle(player, "輪廻");
+      else if (rebirths >= 1) this.unlockTitle(player, "転生者");
+      if (section.getStringList("elite-killed-mobs").size() >= 10) this.unlockTitle(player, "Elite狩人");
+      if (section.getStringList("rare-collection").size() >= 10) this.unlockTitle(player, "レア収集家");
+   }
+
    public void unlockTitle(Player player, String title) {
       ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
       Set<String> notified = new HashSet<>(section.getStringList("unlocked-titles"));

@@ -1,0 +1,75 @@
+# Test-only shadow of src/main/resources/plugin.yml.
+# MockBukkit 4.115.0 rejects the Paper-only `permission-default` key, so it is
+# omitted here. Production plugin.yml is untouched.
+name: mifron
+version: 26.1.2-votepanel-20260912
+
+main: org.server.mifron.Mifron
+api-version: '1.21'
+load: POSTWORLD
+softdepend:
+  - CoreProtect
+  - WorldEdit
+  - WorldGuard
+  - LuckPerms
+  - Multiverse-Core
+  - Geyser-Spigot
+commands:
+  mshop:
+    description: Open online shop
+    permission: mifron.shop
+  mifron:
+    description: Mifron server management and player utilities.
+    usage: /mifron
+  mf:
+    description: Mifron server management and player utilities.
+    usage: /mf
+  friend:
+    description: Mifron friend system.
+    usage: /friend
+    aliases: [friends]
+  status:
+    description: Reset Mifron status data.
+    usage: /status <player> reset
+  tutorial:
+    description: Start the Mifron tutorial.
+    usage: /tutorial
+permissions:
+  mifron.admin:
+    description: Allows Mifron administrative commands and server-area bypass.
+    default: op
+  mifron.command.use:
+    description: Allows basic Mifron commands.
+    default: true
+  mifron.command.chunk:
+    description: Allows /mifron chunk.
+    default: true
+  mifron.command.status:
+    description: Allows /mifron status.
+    default: true
+  mifron.admin.regen.force:
+    default: op
+  mifron.reward.grant:
+    description: Allows granting Mifron rewards from minigame and athletic completion commands.
+    default: op
+  mifron.protect.bypass:
+    description: Allows bypassing Mifron protected chunk interaction limits.
+    default: op
+  mifron.shop.admin:
+    description: Allows managing Mifron shop blocks.
+    default: op
+  mifron.auction.admin:
+    description: Allows managing Mifron item-frame auctions.
+    default: op
+  mifron.text.admin:
+    description: Allows managing Mifron TextDisplay guide signs.
+    default: op
+  mifron.ffa.admin:
+    description: Allows managing Mifron FFA minigame settings and kit stands.
+    default: op
+  mifron.structure.admin:
+    description: Allows managing Mifron custom structures.
+    default: op
+  mifron.proposal.admin:
+    description: Allows reviewing Mifron proposals.
+    default: op
