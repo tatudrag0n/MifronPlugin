@@ -53,6 +53,7 @@ public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
       if (args.length >= 2 && this.isMifronRootCommand(command) && "build".equalsIgnoreCase(args[0])) return this.buildWorldManager.tabComplete(args);
       if (args.length >= 2 && this.isMifronRootCommand(command) && "proposal".equalsIgnoreCase(args[0])) return this.proposalManager.tabComplete(args);
       if (args.length == 2 && this.isMifronRootCommand(command) && "quest".equalsIgnoreCase(args[0])) return List.of("progress", "propose", "cancel");
+      if (args.length == 2 && this.isMifronRootCommand(command) && "tutorial".equalsIgnoreCase(args[0])) return List.of("restart", "skip");
       if (args.length == 1 && "friend".equalsIgnoreCase(command.getName())) return List.of("add", "accept", "remove", "chat");
       return Collections.emptyList();
    }

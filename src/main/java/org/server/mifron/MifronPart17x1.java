@@ -19,6 +19,10 @@ abstract class MifronPart17x1 extends MifronPart17 {
             this.mifron().tutorialFeature.skip(player);
             return true;
          }
+         if (args.length >= 1 && "restart".equalsIgnoreCase(args[args.length - 1])) {
+            this.mifron().tutorialFeature.restart(player);
+            return true;
+         }
          this.mifron().tutorialFeature.resume(player);
          return true;
       }

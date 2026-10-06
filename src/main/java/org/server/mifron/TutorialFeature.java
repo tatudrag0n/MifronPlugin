@@ -116,7 +116,7 @@ public final class TutorialFeature implements Listener {
          return;
       }
       if (this.completed(player)) {
-         player.sendMessage("§aチュートリアルは完了済みです。");
+         player.sendMessage("§aチュートリアルは完了済みです。受け直す場合は /tutorial restart を実行してください。");
          return;
       }
       Location spawn = this.spawn(null);
@@ -129,6 +129,30 @@ public final class TutorialFeature implements Listener {
       this.plugin.queueDataSave();
       player.teleport(spawn);
       this.onStageStart(player, stage);
+   }
+
+   /** Restarts the tutorial from stage 1. Stage rewards are one-time and are not paid again. */
+   public void restart(Player player) {
+      if (!this.enabled()) {
+         player.sendMessage("§cチュートリアルは現在無効です。");
+         return;
+      }
+      Location spawn = this.spawn(null);
+      if (spawn == null || spawn.getWorld() == null) {
+         player.sendMessage("§cチュートリアルワールドがありません。管理者に連絡してください。");
+         return;
+      }
+      var section = this.plugin.getPlayerSection(player.getUniqueId());
+      section.set("tutorial.stage", 1);
+      section.set("tutorial.kills", 0);
+      section.set("tutorial.stages", null);
+      section.set("tutorial.completed", false);
+      section.set("tutorial.skipped", false);
+      this.plugin.queueDataSave();
+      player.teleport(spawn);
+      player.sendMessage("§eチュートリアルを最初から受け直します（クリア済み報酬の再付与はありません）。");
+      for (String line : INTRO) player.sendMessage(line);
+      this.onStageStart(player, 1);
    }
 
    /** Forfeits remaining rewards and graduates immediately (anti-stuck). */
