@@ -150,24 +150,9 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "menu_wallet" -> player.sendMessage("\u00a7a\u6240\u6301MP: " + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId())));
          case "menu_status" -> this.mifron().openFriendUi(player);
          case "menu_quests" -> this.mifron().openQuestUi(player, "categories");
-         case "menu_teleporter" -> this.mifron().openTeleportUi(player);
          case "menu_gear" -> this.utilityItemsFeature.openGearUi(player);
          case "gear_toggle" -> this.utilityItemsFeature.toggleGear(player, this.getUiTargetString(clicked));
-         case "menu_minigame" -> this.minigameBridge.openMinigameMenu(player);
          case "menu_tutorial" -> { this.mifron().tutorialFeature.resume(player); }
-         case "minigame_go" -> {
-            String dest = this.getUiTargetString(clicked);
-            if ("ffa".equals(dest)) {
-               org.bukkit.Location arena = this.minigameBridge.arenaCenter();
-               if (arena == null || arena.getWorld() == null) player.sendMessage("§cFFAアリーナが設定されていません。");
-               else player.teleport(arena);
-            } else if ("athletic".equals(dest)) {
-               this.minigameBridge.sendToSpawn(player);
-            } else {
-               player.sendMessage("§eスロットは棚＋スロットワンドで遊べます。ウォレットを持って右クリックで開始。");
-            }
-            player.closeInventory();
-         }
          default -> {}
       }
    }
@@ -192,11 +177,5 @@ abstract class MifronPart14 extends MifronPart13x1 {
       }
    }
 
-   BedrockUiFeature bedrockUiFeature() { return this.bedrockUiFeature; }
-
-   void teleportToConfigLocation(Player player, String path) {
-      Location location = this.mifron().readLocation(path);
-      if (location == null) player.sendMessage("\u00a7c\u79fb\u52d5\u5148\u304c\u672a\u8a2d\u5b9a\u3067\u3059: " + path);
-      else { player.teleport(location); this.playTeleportSound(player); player.sendMessage("\u00a7a\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002"); }
-   }
+    BedrockUiFeature bedrockUiFeature() { return this.bedrockUiFeature; }
 }

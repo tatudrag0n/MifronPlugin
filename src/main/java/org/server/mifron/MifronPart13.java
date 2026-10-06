@@ -4,14 +4,11 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -41,38 +38,6 @@ abstract class MifronPart13 extends MifronPart12x2 {
       OfflinePlayer player = Bukkit.getOfflinePlayer(name);
       if (!player.isOnline() && !player.hasPlayedBefore()) { sender.sendMessage("\u00a7c\u30d7\u30ec\u30a4\u30e4\u30fc\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + name); return null; }
       return player;
-   }
-
-   /** Removed teleporter destinations: never listed even if present in config. */
-   private static final Set<String> REMOVED_TELEPORT_KEYS = Set.of("hub", "market", "creative", "build");
-
-   void openTeleportUi(Player player) {
-      Inventory inventory = Bukkit.createInventory(player, 27, Component.text("\u00a75Mifron Teleporter"));
-      // Two-world policy: survival (SMP) or minigame. Detail choices live in
-      // the menu minigame entrance; legacy per-server entries are not listed.
-      inventory.setItem(11, this.mifron().actionItem(this.mifron().serverIconMaterial("servers.survival"), "\u00a7a\u30b5\u30d0\u30a4\u30d0\u30eb",
-         List.of("\u00a77みんなで遊ぶSMP"), "teleport", "servers.survival"));
-      inventory.setItem(15, this.mifron().actionItem(this.mifron().serverIconMaterial("servers.minigame"), "\u00a7c\u30df\u30cb\u30b2\u30fc\u30e0",
-         List.of("\u00a77FFA・アスレ・スロットはメニューのミニゲームから"), "teleport", "servers.minigame"));
-      inventory.setItem(26, this.mifron().actionItem(Material.OAK_DOOR, "\u00a7f\u30e1\u30cb\u30e5\u30fc\u306b\u623b\u308b", List.of(), "menu_back", null));
-      this.mifron().fillEmptyGuiSlots(inventory);
-      player.openInventory(inventory);
-   }
-
-   void openServerPortalTargetUi(Player player, String portalKey) {
-      Inventory inventory = Bukkit.createInventory(player, org.bukkit.event.inventory.InventoryType.DROPPER, Component.text("\u00a75Mifron Teleporter"));
-      inventory.setItem(0, this.mifron().named(Material.ENDER_EYE, "\u00a7d\u30dd\u30fc\u30bf\u30eb\u79fb\u52d5\u5148\u8a2d\u5b9a", List.of()));
-      ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
-      if (servers != null) {
-         int slot = 1;
-         for (String key : servers.getKeys(false)) {
-            if (!this.isSafeConfigKey(key) || slot >= 9) continue;
-            if (REMOVED_TELEPORT_KEYS.contains(key.toLowerCase(Locale.ROOT))) continue;
-            inventory.setItem(slot++, this.mifron().actionItem(this.mifron().serverIconMaterial("servers." + key), "\u00a7d" + key, List.of(), "server_portal_bind", portalKey + "|servers." + key));
-         }
-      }
-      this.mifron().fillEmptyGuiSlots(inventory);
-      player.openInventory(inventory);
    }
 
    protected void fillEmptyGuiSlots(Inventory inventory) {

@@ -9,7 +9,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -20,19 +19,16 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.RegisteredListener;
 
 final class CompassFeature implements Listener {
    private final Mifron plugin;
-   private final NamespacedKey athleticControlKey;
    private final Map<UUID, Long> teleportBlockUntil = new ConcurrentHashMap<>();
    private final Map<UUID, Location> clickLocations = new ConcurrentHashMap<>();
    private final Map<UUID, Long> lastDiagnosticLog = new ConcurrentHashMap<>();
 
    CompassFeature(Mifron plugin) {
       this.plugin = plugin;
-      this.athleticControlKey = new NamespacedKey(plugin, "athletic_control");
    }
 
    boolean handleCompassClick(PlayerInteractEvent event) {
@@ -77,7 +73,7 @@ final class CompassFeature implements Listener {
             // Single-shot: the leaked teleport (if any) is the first one
             // after the click. Consuming the block here keeps the anti-leak
             // protection while a blanket 5s block would also eat legitimate
-            // teleports (FFA join, teleporter, hub) with no feedback.
+            // teleports (hub etc.) with no feedback.
             this.teleportBlockUntil.remove(event.getPlayer().getUniqueId());
             this.clickLocations.remove(event.getPlayer().getUniqueId());
             event.getPlayer().sendMessage(ChatColor.YELLOW + "コンパスの誤作動を防止しました。テレポートする場合は再度お試しください。");
@@ -104,7 +100,6 @@ final class CompassFeature implements Listener {
       ItemStack item = event.getItem();
       return item != null
          && item.getType() == Material.COMPASS
-         && (!item.hasItemMeta() || !item.getItemMeta().getPersistentDataContainer().has(this.athleticControlKey, PersistentDataType.STRING))
          && (event.getAction().isRightClick() || event.getAction().isLeftClick());
    }
 

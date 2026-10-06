@@ -85,16 +85,6 @@ build-world:
   border-size: 256
   platform-radius: 16
 
-athletic:
-  enabled: true
-  defaults:
-    clear-reward-mp: 50
-    best-time-reward-mp: 100
-    all-time-first-place-reward-mp: 1000
-    leader-bonus-percent: 25
-    timezone: "Asia/Tokyo"
-    monthly-rank-rewards: [ 500, 300, 150 ]
-
 # Experiential tutorial world (stages 1-10, see TutorialFeature).
 tutorial:
   enabled: true
@@ -104,22 +94,13 @@ tutorial:
   gate: { x: 0.0, y: 65.0, z: 20.0 }
 
 world-rules:
-  fixed-day-worlds:
-    - athletic
-    - minigame
+  fixed-day-worlds: []
   spawn:
     main:
       world: survival
       x: -31.5
       y: 72.0
       z: -43.5
-      yaw: 0.0
-      pitch: 0.0
-    minigame:
-      world: minigame
-      x: 0.0
-      y: 0.0
-      z: 0.0
       yaw: 0.0
       pitch: 0.0
     survival:
@@ -131,8 +112,7 @@ world-rules:
       pitch: 0.0
   pvp:
     default: false
-    enabled-worlds:
-      - minigame
+    enabled-worlds: []
 
 structures:
   enabled: true
@@ -189,7 +169,7 @@ main-world:
     size: 500.0
 
 mob-spawn:
-  natural-spawn-disabled-worlds: [athletic, minigame]
+  natural-spawn-disabled-worlds: []
 
 ban-rollback:
   enabled: true
@@ -250,22 +230,6 @@ hub:
   pitch: 0.0
 
 servers:
-  athletic:
-    icon: elytra
-    world: athletic
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    yaw: 0.0
-    pitch: 0.0
-  minigame:
-    icon: diamond_sword
-    world: minigame
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    yaw: 0.0
-    pitch: 0.0
   survival:
     icon: grass_block
     world: survival
@@ -334,8 +298,6 @@ quests:
     repeated-block-window-seconds: 30
     repeated-block-max-count: 2
   automatic:
-    hardcore-athletic-runs:
-      - hardcore
     world-progress:
       babel_floors:
         worlds:
@@ -363,371 +325,6 @@ auction:
   bid-step: 100
   sneak-bid-step: 1000
 
-ffa:
-  enabled: true
-  center: null
-  kit-selection: null
-  restrictions:
-    drop-items: false
-    pickup-items: false
-    block-break: false
-    block-place: false
-    restrict-commands: true
-    allowed-commands:
-      - "/mf ffa leave"
-      - "/mf ffa stats"
-  world-change:
-    leave-on-exit: true
-  respawn:
-    delay-ticks: 2
-    location: "world-spawn"
-  stands:
-    spacing: 2.5
-    selected-kit: "sword"
-    selector: {}
-  kits:
-    # One-time MP price to unlock a kit (0 or missing = free). Defaults:
-    # necromancer/assassin/sniper/wizard/vampire/crusher/bug_mania = 10000.
-    unlock-prices: {}
-    armor-balance-version: 3
-    armor-points-bonus: 3.0
-    vampire-balance-version: 1
-    kit-balance-version: 4
-    gameplay-balance-version: 1
-    default: "sword"
-    enabled:
-      - "axe"
-      - "bow"
-      - "spear"
-      - "crossbow"
-      - "sword"
-      - "shield"
-      - "trident"
-      - "mace"
-      - "gambler"
-      - "wizard"
-      - "sniper"
-      - "vampire"
-      - "grappler"
-      - "assassin"
-      - "necromancer"
-      - "trapper"
-      - "bug_mania"
-      - "crusher"
-    food-cooldown-seconds: 15
-    bow:
-      display-name: "&a 狩人"
-      icon: "bow"
-      armor-tier: "leather"
-      armor:
-        helmet: "leather_helmet"
-        chestplate: "chainmail_chestplate"
-        leggings: "leather_leggings"
-        boots: "leather_boots"
-      weapon: "stone_sword"
-      bow: true
-      arrows: 1
-      bow-enchantments:
-        - "power:2"
-        - "infinity:1"
-      food-items:
-        - "cooked_rabbit:1"
-      items: []
-      potions: []
-    sword:
-      display-name: "&c 剣士"
-      icon: "iron_sword"
-      armor-tier: "chainmail"
-      armor:
-        helmet: "iron_helmet"
-        chestplate: "iron_chestplate"
-        leggings: "iron_leggings"
-        boots: "iron_boots"
-      weapon: "iron_sword"
-      golden-apple-cooldown-seconds: 90
-      weapon-enchantments:
-        - "sharpness:1"
-      food-items:
-        - "cooked_beef:1"
-      items: []
-      potions: []
-    shield:
-      display-name: "&9 シールダー"
-      icon: "shield"
-      armor-tier: "chainmail"
-      armor:
-        helmet: "chainmail_helmet"
-        chestplate: "iron_chestplate"
-        leggings: "chainmail_leggings"
-        boots: "chainmail_boots"
-      weapon: "stone_sword"
-      shield: true
-      food-items:
-        - "pumpkin_pie:1"
-      items: []
-      potions: []
-    spear:
-      display-name: "&e 騎士"
-      icon: "iron_spear"
-      armor-tier: "leather"
-      armor:
-        helmet: "leather_helmet"
-        chestplate: "chainmail_chestplate"
-        leggings: "chainmail_leggings"
-        boots: "leather_boots"
-      weapon: "iron_spear"
-      backup-weapon: "iron_sword"
-      horse-max-health: 24.0
-      horse-speed: 0.22
-      horse-jump-strength: 0.65
-      weapon-enchantments: []
-      food-items:
-        - "baked_potato:1"
-      items: []
-      potions: []
-    axe:
-      display-name: "&6 戦士"
-      icon: "iron_axe"
-      armor-tier: "chainmail"
-      armor:
-        helmet: "iron_helmet"
-        chestplate: "iron_chestplate"
-        leggings: "iron_leggings"
-        boots: "iron_boots"
-      weapon: "diamond_axe"
-      weapon-enchantments:
-        - "sharpness:2"
-      slowness-amplifier: 0
-      food-items:
-        - "cooked_porkchop:1"
-      items: []
-      potions: []
-    crossbow:
-      display-name: "&d リボルバー"
-      icon: "crossbow"
-      armor-tier: "chainmail"
-      armor:
-        helmet: "leather_helmet"
-        chestplate: "chainmail_chestplate"
-        leggings: "chainmail_leggings"
-        boots: "chainmail_boots"
-      weapon: "stone_sword"
-      ammo-capacity: 6
-      reload-ticks: 65
-      damage-multiplier: 0.85
-      food-items:
-        - "bread:1"
-      items: []
-      potions: []
-    wizard:
-      display-name: "&5 ケミスト"
-      icon: "splash_potion"
-      armor-tier: "leather"
-      armor:
-        helmet: "golden_helmet"
-        chestplate: "leather_chestplate"
-        leggings: "golden_leggings"
-        boots: "none"
-      weapon: "wooden_sword"
-      potion-cooldowns:
-        slow: 10
-        harm: 13
-        poison: 16
-        weakness: 13
-        blindness: 22
-      food-items:
-        - "honey_bottle:1"
-      items: []
-      potions:
-        - { effect: "slowness", material: "splash_potion", level: 1, seconds: 8, amount: 1, ability: "slow", name: "&7 鈍化のスプラッシュポーション" }
-        - { effect: "harm", material: "splash_potion", level: 1, seconds: 1, amount: 1, ability: "harm", name: "&5 負傷のスプラッシュポーション" }
-        - { effect: "poison", material: "splash_potion", level: 1, seconds: 8, amount: 1, ability: "poison", name: "&2 毒のスプラッシュポーション" }
-        - { effect: "weakness", material: "splash_potion", level: 1, seconds: 10, amount: 1, ability: "weakness", name: "&8 弱化のスプラッシュポーション" }
-        - { effect: "blindness", material: "splash_potion", level: 1, seconds: 5, amount: 1, ability: "blindness", name: "&0 盲目のスプラッシュポーション" }
-    trident:
-      display-name: "&b 海の戦士"
-      icon: "trident"
-      armor-tier: "chainmail"
-      armor:
-        helmet: "turtle_helmet"
-        chestplate: "chainmail_chestplate"
-        leggings: "chainmail_leggings"
-        boots: "iron_boots"
-      weapon: "trident"
-      weapon-enchantments:
-        - "loyalty:3"
-      food-items:
-        - "cooked_salmon:1"
-      items: []
-      potions: []
-    mace:
-      display-name: "&7 重戦士"
-      icon: "mace"
-      armor-tier: "iron"
-      armor:
-        helmet: "chainmail_helmet"
-        chestplate: "iron_chestplate"
-        leggings: "chainmail_leggings"
-        boots: "leather_boots"
-      weapon: "mace"
-      wind-charge: 10
-      wind-charge-refill-seconds: 8
-      max-final-damage: 10.0
-      boots-enchantments: [ "feather_falling:4" ]
-      food-items:
-        - "cooked_beef:1"
-      items: []
-      potions: []
-    gambler:
-      display-name: "&6 ギャンブラー"
-      icon: "golden_sword"
-      armor-tier: "leather"
-      armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
-      min-random-damage: -10
-      max-random-damage: 20
-      min-incoming-reduction: -5
-      max-incoming-reduction: 5
-      mp-min: -10
-      mp-max: 10
-      food-items: [ "cookie:1" ]
-      items: []
-      potions: []
-    sniper:
-      display-name: "&8 スナイパー"
-      icon: "crossbow"
-      armor-tier: "leather"
-      armor: { helmet: "none", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
-      reload-ticks: 100
-      damage-multiplier: 2.5
-      crossbow-enchantments: [ "piercing:4" ]
-      food-items: [ "baked_potato:1" ]
-      items: []
-      potions: []
-    vampire:
-      display-name: "&4 ヴァンパイア"
-      icon: "redstone"
-      armor-tier: "leather"
-      armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
-      lifesteal-percent: 30
-      hunger-steal-percent: 30
-      damage-buff-threshold: 60.0
-      max-damage-buff-tier: 4
-      damage-buff-per-tier-percent: 12.5
-      sun-damage: 2.0
-      items: []
-      potions: []
-    grappler:
-      display-name: "&2 グラップラー"
-      icon: "golden_carrot"
-      armor-tier: "none"
-      armor: { helmet: "none", chestplate: "none", leggings: "none", boots: "none" }
-      food-items: [ "golden_carrot:1" ]
-      items: []
-      potions: []
-    assassin:
-      display-name: "&5 アサシン"
-      icon: "golden_sword"
-      armor-tier: "none"
-      armor: { helmet: "none", chestplate: "none", leggings: "none", boots: "none" }
-      poison-duration-seconds: 4
-      food-items: [ "sweet_berries:1" ]
-      items: []
-      potions: []
-    necromancer:
-      display-name: "&5 ネクロマンサー"
-      icon: "zombie_spawn_egg"
-      armor-tier: "leather"
-      armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
-      # One shared cooldown for the summon ability; it rolls one of the 7 kit
-      # summons plus the phantom at random, with no cap on active summons.
-      summon-cooldown-seconds: 15
-      items: []
-      potions: []
-    trapper:
-      display-name: "&e トラッパー"
-      icon: "stone_pressure_plate"
-      armor-tier: "leather"
-      armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
-      trap-duration-seconds: 30
-      trap-cooldown-seconds: 16
-      fire-trap-initial-damage: 2.0
-      fire-trap-burn-seconds: 6
-      fire-trap-radius: 2.5
-      food-items: [ "baked_potato:1" ]
-      items: []
-      potions: []
-    bug_mania:
-      display-name: "&2 バグマニア"
-      icon: "silverfish_spawn_egg"
-      armor-tier: "leather"
-      armor: { helmet: "leather_helmet", chestplate: "chainmail_chestplate", leggings: "leather_leggings", boots: "none" }
-      max-owned-silverfish: 5
-      max-global-silverfish: 30
-      attack-summon-chance-percent: 15
-      counter-infestation-chance-percent: 20
-      silverfish-death-infestation-chance-percent: 10
-      food-items: [ "spider_eye:1" ]
-      items: []
-      potions: []
-    crusher:
-      display-name: "&c クラッシャー"
-      icon: "tnt"
-      armor-tier: "leather"
-      armor: { helmet: "leather_helmet", chestplate: "leather_chestplate", leggings: "leather_leggings", boots: "leather_boots" }
-      activation-cooldown-ticks: 30
-      food-items: [ "cooked_beef:1" ]
-      items: []
-      potions: []
-  rewards:
-    kill-mp: 50
-    same-target-reset-seconds: 600
-    # Alternating kills between the same two players are suppressed after
-    # this many short-window kills.
-    reciprocal-window-seconds: 180
-    reciprocal-kill-threshold: 6
-    # Per-player positive kill-reward issuance cap. This limits mass farming
-    # across many targets while leaving gameplay and other reward sources intact.
-    kill-mp-window-seconds: 3600
-    kill-mp-window-cap: 3000
-  field-items:
-    enabled: true
-    min-players: 2
-    # Per-player cap on carried field items, so a full inventory can never stop
-    # the FFA exit item from being delivered.
-    max-owned-items: 9
-    event-despawn-seconds: 60
-    loot-despawn-seconds: 90
-    event-interval-min-seconds: 150
-    event-interval-max-seconds: 240
-    max-active:
-      small: 3
-      medium: 5
-      large: 7
-    spawn-intervals:
-      small: { min-seconds: 35, max-seconds: 55 }
-      medium: { min-seconds: 25, max-seconds: 40 }
-      large: { min-seconds: 18, max-seconds: 32 }
-    spawnpoints: []
-    rarities:
-      common: 50
-      uncommon: 30
-      rare: 14
-      epic: 5
-      legendary: 1
-    events:
-      rain: { weight: 10, duration-seconds: 90 }
-      snow: { weight: 10, duration-seconds: 90 }
-      blizzard: { weight: 4, duration-seconds: 45 }
-      berserk: { weight: 10, duration-seconds: 25 }
-      speed: { weight: 10, duration-seconds: 20 }
-      iron_body: { weight: 8, duration-seconds: 25 }
-      overdrive: { weight: 6, duration-seconds: 45 }
-      one_shot_bow: { weight: 4, duration-seconds: 25 }
-      mp_fever: { weight: 8, duration-seconds: 120 }
-      sky_spear: { weight: 3, duration-seconds: 45 }
-      time_shift: { weight: 8, duration-seconds: 90 }
-      heal_self: { weight: 12 }
-      heal_all: { weight: 7 }
 merchant-items:
   - material: OAK_LOG
     amount: 1
@@ -804,8 +401,6 @@ advancement-unlocks:
   nether/summon_wither:
     emeralds: 100
     bonus-percent: 5
-    ffa-classes:
-      - heavy
   nether/explore_nether:
     emeralds: 50
     bonus-percent: 2
@@ -848,8 +443,6 @@ advancement-unlocks:
   adventure/kill_a_mob:
     emeralds: 10
     bonus-percent: 1
-    unlocks:
-      - ffa
 
 # NEW: Online Shop (Creative-style UI)
 online-shop-new:

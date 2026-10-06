@@ -69,7 +69,6 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.merchantOfferRarityKey = new NamespacedKey(this, "merchant_offer_rarity");
       this.barrelOfferPriceKey = new NamespacedKey(this, "barrel_offer_price");
       this.barrelOfferRarityKey = new NamespacedKey(this, "barrel_offer_rarity");
-      this.ffaEntityKindKey = new NamespacedKey(this, "ffa_entity_kind");
       this.reincarnationStarKey = new NamespacedKey(this, "reincarnation_star");
       this.uiActionKey = new NamespacedKey(this, "ui_action");
       this.uiTargetKey = new NamespacedKey(this, "ui_target");
@@ -98,7 +97,6 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().applyServerMotd();
       this.mifron().runStartupStep("migrate barrel shop offer slots", this.mifron()::migrateBarrelShopOfferSlots);
       this.mifron().runStartupStep("migrate hub location", this.mifron()::migrateDefaultHubLocation);
-      this.mifron().runStartupStep("migrate minigame location", this.mifron()::migrateDefaultMinigameLocation);
       this.mifron().runStartupStep("configure survival spawn location", this.mifron()::configureSurvivalSpawnLocation);
       this.mifron().runStartupStep("normalize spawn locations to origin", this.mifron()::normalizeSpawnLocationsToOrigin);
       this.mifron().runStartupStep("load economy price table", this.economyPriceTable::load);
@@ -116,7 +114,6 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("load structures", this.structureManager::load);
       this.mifron().runStartupStep("load proposals", this.proposalManager::load);
       this.mifron().runStartupStep("load text displays", this.textDisplayFeature::load);
-      this.mifron().runStartupStep("load minigame", this.minigameBridge::loadAll);
       this.mifron().runStartupStep("load main world ownership", this.mainWorldFeature::load);
       this.mifron().runStartupStep("load shop stock", this.shopStockService::load);
       this.mifron().runStartupStep("load test server config", this.testServerFeature::load);
@@ -128,9 +125,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register auction events", () -> Bukkit.getPluginManager().registerEvents(this.auctionFeature, this));
       this.mifron().runStartupStep("register structure events", () -> Bukkit.getPluginManager().registerEvents(this.structureManager, this));
       this.mifron().runStartupStep("register build world events", () -> Bukkit.getPluginManager().registerEvents(this.buildWorldManager, this));
-      this.mifron().runStartupStep("register minigame events", this.minigameBridge::registerListeners);
       this.mifron().runStartupStep("register text display events", () -> Bukkit.getPluginManager().registerEvents(this.textDisplayFeature, this));
-      this.mifron().runStartupStep("register server portal events", () -> Bukkit.getPluginManager().registerEvents(this.serverPortalFeature, this));
       this.mifron().runStartupStep("register Survival dimension portal events", () -> Bukkit.getPluginManager().registerEvents(this.survivalDimensionFeature, this));
 
       this.mifron().runStartupStep("register compass events", () -> Bukkit.getPluginManager().registerEvents(this.compassFeature, this));

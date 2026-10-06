@@ -29,7 +29,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.server.ServerCommandEvent;
 import org.bukkit.permissions.PermissionAttachment;
-import org.bukkit.scoreboard.DisplaySlot;
 
 final class WorldPolicyFeature implements Listener {
    private static final Set<String> BLOCKED_PRIVATE_COMMANDS = Set.of(
@@ -62,11 +61,9 @@ final class WorldPolicyFeature implements Listener {
    void applySurvivalSpawn() {
       World survival = Bukkit.getWorld(this.plugin.getConfig().getString("world-rules.spawn.survival.world", "survival"));
       if (survival == null) return;
-      survival.setSpawnLocation(
-         this.plugin.getConfig().getInt("world-rules.spawn.survival.x", 0),
-         this.plugin.getConfig().getInt("world-rules.spawn.survival.y", 79),
-         this.plugin.getConfig().getInt("world-rules.spawn.survival.z", 0)
-      );
+      Location spawn = this.plugin.readLocation("world-rules.spawn.survival");
+      if (spawn == null) return;
+      survival.setSpawnLocation(spawn);
    }
 
    /**
@@ -189,7 +186,6 @@ final class WorldPolicyFeature implements Listener {
 
    @EventHandler
    public void onQuit(PlayerQuitEvent event) {
-      this.hideAthleticBoard(event.getPlayer());
       this.detachCreative(event.getPlayer());
    }
 
@@ -198,7 +194,6 @@ final class WorldPolicyFeature implements Listener {
       Player player = event.getPlayer();
       String from = event.getFrom() == null ? "" : event.getFrom().getName();
       String to = player.getWorld() == null ? "" : player.getWorld().getName();
-      if ("athletic".equalsIgnoreCase(from) && !"athletic".equalsIgnoreCase(to)) this.hideAthleticBoard(player);
       if (this.isCreativeWorld(player.getWorld())) {
          this.enterCreative(player);
       } else if (this.isCreativeWorld(event.getFrom()) || this.creativeReturnModes.containsKey(player.getUniqueId())) {
@@ -288,8 +283,7 @@ final class WorldPolicyFeature implements Listener {
       if (name.equals("creative") || name.equals("build")) return false;
       // The main world is governed by MainWorldFeature's own rules
       // (semi-creative + 0,0 no-edit zone); the legacy hub spawn protection
-      // would otherwise block all interaction near spawn, including armor
-      // stands for FFA kit selection.
+      // would otherwise block all interaction near spawn.
       String mainWorld = this.plugin.getConfig().getString("main-world.name", "main");
       if (mainWorld != null && name.equals(mainWorld.toLowerCase(Locale.ROOT))) return false;
       return true;
@@ -308,12 +302,6 @@ final class WorldPolicyFeature implements Listener {
       return "Creative".equalsIgnoreCase(name) || "build".equalsIgnoreCase(name);
    }
 
-   private void hideAthleticBoard(Player player) {
-      if (player == null || Bukkit.getScoreboardManager() == null) return;
-      var board = player.getScoreboard();
-      if (board != null && board.getObjective("athletic") != null) board.clearSlot(DisplaySlot.SIDEBAR);
-      player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
-   }
 
    boolean isBlockedPrivateCommand(String raw) {
       if (raw == null) return false;

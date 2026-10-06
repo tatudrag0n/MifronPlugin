@@ -23,7 +23,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected static final String FRIEND_STATUS_UI_TITLE = "\u00a72Mifron Status";
    protected static final String QUEST_UI_TITLE = "\u00a7bMifron Quests";
    protected static final String PROPOSAL_UI_TITLE = "\u00a7dMifron Proposals";
-   protected static final String TELEPORT_UI_TITLE = "\u00a75Mifron Teleporter";
    protected static final String MERCHANT_UI_TITLE = "\u00a76Mifron Merchant";
    protected static final long MERCHANT_REROLL_MILLIS = 3600000L;
    protected static final long MERCHANT_TRANSACTION_COOLDOWN_MILLIS = 150L;
@@ -131,7 +130,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected NamespacedKey merchantOfferRarityKey;
    protected NamespacedKey barrelOfferPriceKey;
    protected NamespacedKey barrelOfferRarityKey;
-   protected NamespacedKey ffaEntityKindKey;
    protected NamespacedKey reincarnationStarKey;
    protected NamespacedKey uiActionKey;
    protected NamespacedKey uiTargetKey;
@@ -145,7 +143,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final SiteQuestService siteQuestService = new SiteQuestService((Mifron) this);
    protected final ChunkProtectionFeature chunkProtectionFeature = new ChunkProtectionFeature((Mifron) this);
    protected final ProtectionService protectionService = new ProtectionService((Mifron) this, this.chunkProtectionFeature);
-   protected final ServerPortalFeature serverPortalFeature = new ServerPortalFeature((Mifron) this);
    protected final SurvivalDimensionFeature survivalDimensionFeature = new SurvivalDimensionFeature((Mifron) this);
    protected final CompassFeature compassFeature = new CompassFeature((Mifron) this);
    protected final WorldRulesFeature worldRulesFeature = new WorldRulesFeature((Mifron) this);
@@ -160,7 +157,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final QuestProposalFeature questProposalFeature = new QuestProposalFeature((Mifron) this, this.proposalManager);
    protected final QuestProgressListener questProgressListener = new QuestProgressListener((Mifron) this, this.questService);
    protected final ProtectedInteractionListener protectedInteractionListener = new ProtectedInteractionListener((Mifron) this, this.protectionService);
-   protected final MinigameBridge minigameBridge = MinigameBridges.load((Mifron) this);
    protected final TutorialFeature tutorialFeature = new TutorialFeature((Mifron) this);
    protected final MinoruBridgeFeature minoruBridgeFeature = new MinoruBridgeFeature((Mifron) this);
    protected final ShopBlockFeature shopBlockFeature = new ShopBlockFeature((Mifron) this);

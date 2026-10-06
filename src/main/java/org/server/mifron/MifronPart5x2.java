@@ -57,8 +57,7 @@ abstract class MifronPart5x2 extends MifronPart5x1 {
          for (String coordinates : worldShops.getKeys(false)) {
             boolean enabled = worldShops.getBoolean(coordinates, false) || worldShops.getBoolean(coordinates + ".enabled", false);
             String mode = worldShops.getString(coordinates + ".mode", "sequential");
-            boolean slotMachine = !this.data.getString("slot-machines." + worldId + "." + coordinates + ".difficulty", "").isBlank();
-            if (enabled && !"custom".equalsIgnoreCase(mode) && !slotMachine) paths.add(worldId + "." + coordinates);
+            if (enabled && !"custom".equalsIgnoreCase(mode)) paths.add(worldId + "." + coordinates);
          }
       }
       paths.sort((a, b) -> {

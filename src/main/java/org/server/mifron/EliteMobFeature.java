@@ -29,12 +29,10 @@ public class EliteMobFeature implements Listener {
     private final Mifron plugin;
     private final Random random = new Random();
     private final NamespacedKey eliteKey;
-    private final NamespacedKey ffaKindKey;
 
     public EliteMobFeature(Mifron plugin) {
         this.plugin = plugin;
         this.eliteKey = new NamespacedKey(plugin, "elite_mob");
-        this.ffaKindKey = new NamespacedKey(plugin, "ffa_entity_kind");
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -45,7 +43,6 @@ public class EliteMobFeature implements Listener {
             default -> { }
         }
         String worldName = event.getEntity().getWorld().getName();
-        if (plugin.minigameBridge.isFfaWorld(event.getEntity().getWorld())) return;
         String hubWorld = plugin.getConfig().getString("hub.world", "world");
         if (worldName.equalsIgnoreCase(hubWorld)) return;
         Monster mob = (Monster) event.getEntity();
@@ -76,11 +73,6 @@ public class EliteMobFeature implements Listener {
 
     public boolean isElite(LivingEntity entity) {
         return entity != null && entity.getPersistentDataContainer().has(this.eliteKey, PersistentDataType.BYTE);
-    }
-
-    private boolean isFfaEntity(LivingEntity entity) {
-        String kind = entity.getPersistentDataContainer().get(this.ffaKindKey, PersistentDataType.STRING);
-        return "summon".equals(kind) || "bug_silverfish".equals(kind);
     }
 
     private void makeElite(Monster mob) {
@@ -181,7 +173,7 @@ public class EliteMobFeature implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onDeath(EntityDeathEvent event) {
         LivingEntity entity = event.getEntity();
-        if (!this.isElite(entity) || this.isFfaEntity(entity)) {
+        if (!this.isElite(entity)) {
             return;
         }
         for (ItemStack drop : event.getDrops()) {

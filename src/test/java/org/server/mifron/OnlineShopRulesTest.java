@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import org.server.mifron.minigame.FfaManager;
 
 class OnlineShopRulesTest {
    @Test
@@ -97,13 +96,6 @@ class OnlineShopRulesTest {
       assertTrue(ShopStockService.factorFor(100, 10) < 1.0);
       assertTrue(ShopStockService.factorFor(0, 10) <= ShopStockService.MAX_FACTOR);
       assertTrue(ShopStockService.factorFor(9999, 10) >= ShopStockService.MIN_FACTOR);
-   }
-
-   @Test
-   void revolverPerBulletIsOneSixth() {
-      assertEquals(12L, FfaManager.revolverPerBulletTicks(75L));
-      assertEquals(10L, FfaManager.revolverPerBulletTicks(65L));
-      assertEquals(1L, FfaManager.revolverPerBulletTicks(1L));
    }
 
    @Test

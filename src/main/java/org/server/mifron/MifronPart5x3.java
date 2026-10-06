@@ -24,9 +24,6 @@ abstract class MifronPart5x3 extends MifronPart5x2 {
          World world = this.mifron().worldFromId(worldId);
          for (String coordinates : new ArrayList<>(worldShops.getKeys(false))) {
             Block block = world == null ? null : this.mifron().blockFromCoordinates(world, coordinates);
-            boolean slotMachine = !this.data.getString("slot-machines." + worldId + "." + coordinates + ".difficulty", "").isBlank();
-            if (!slotMachine && block != null) slotMachine = this.minigameBridge.isMachine(block);
-            if (slotMachine) continue;
             removablePaths.add(worldId + "." + coordinates);
             if (block != null) {
                try { this.mifron().clearShelfShopDisplay(block); }

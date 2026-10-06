@@ -72,7 +72,7 @@ final class UtilityItemsFeature implements Listener {
    ItemStack createMenuItem() {
       return this.createMifronItem(
          Material.NETHER_STAR, "menu", ChatColor.LIGHT_PURPLE + "メニュー",
-         List.of(ChatColor.GRAY + "右クリック: メニューを開く", ChatColor.GRAY + "ショップ・ウォレット・ステータス・クエスト・テレポーター")
+         List.of(ChatColor.GRAY + "右クリック: メニューを開く", ChatColor.GRAY + "ショップ・ウォレット・ステータス・クエスト")
       );
    }
 
@@ -83,10 +83,7 @@ final class UtilityItemsFeature implements Listener {
       inventory.setItem(11, this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GOLD + "所持MP: " + this.plugin.formatNumber(walletMp) + " MP", ChatColor.GRAY + "クリック: MP残高確認"), "menu_wallet", null));
       inventory.setItem(12, this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
       inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
-      inventory.setItem(14, this.plugin.actionItem(Material.ENDER_EYE, ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "クリック: 移動先を選択"), "menu_teleporter", null));
       inventory.setItem(15, this.gearMenuIcon(player));
-      inventory.setItem(16, this.plugin.actionItem(Material.DIAMOND_SWORD, ChatColor.RED + "ミニゲーム",
-         List.of(ChatColor.GRAY + "FFA・アスレ・スロットの入口"), "menu_minigame", null));
       inventory.setItem(22, this.plugin.actionItem(Material.BOOK, ChatColor.YELLOW + "チュートリアル",
          List.of(ChatColor.GRAY + "クリック: 基本操作を再表示"), "menu_tutorial", null));
       for (int slot = 0; slot < inventory.getSize(); slot++) {
@@ -284,42 +281,24 @@ final class UtilityItemsFeature implements Listener {
    }
 
    ItemStack createShopWand(ShopWandType type) {
-      if (type.isSlotWand()) {
-         String difficulty = type.getSlotDifficultyName();
-         String diffName = difficulty != null ? difficulty : "";
-         return this.createMifronItem(
-            Material.BLAZE_ROD,
-            "slot_wand",
-            ChatColor.GOLD + "スロットワンド [" + diffName + "]",
-            List.of(
-               ChatColor.GRAY + "難易度: " + this.plugin.minigameBridge.describeSlotDifficulty(difficulty),
-               ChatColor.GRAY + "右クリック: 棚をスロットマシン化",
-               ChatColor.GRAY + "ウォレットを持って棚を右クリックで回転"
-            ),
-            meta -> {
-               PersistentDataContainer container = meta.getPersistentDataContainer();
-               container.set(this.shopWandTypeKey, PersistentDataType.STRING, type.key());
-            }
-         );
-      } else {
-         return this.createMifronItem(
-            Material.BLAZE_ROD,
-            "shop_wand",
-            ChatColor.GOLD + "ショップワンド",
-            type == ShopWandType.SHELF
-               ? List.of(
-                  ChatColor.GRAY + "右クリック: 番号順の順番配置",
-                  ChatColor.GRAY + "Shift+右クリック: オフハンドの商品を指定枠へ配置",
-                  ChatColor.GRAY + "Shift+左クリック: 指定枠を空欄化",
-                  ChatColor.GRAY + "左クリック: ショップ化を解除"
-               )
-               : List.of(ChatColor.GRAY + "種類: " + type.key(), ChatColor.GRAY + "右クリック: 対応ブロックをショップ化", ChatColor.GRAY + "左クリック: ショップ化を解除"),
-            meta -> {
-               PersistentDataContainer container = meta.getPersistentDataContainer();
-               container.set(this.shopWandTypeKey, PersistentDataType.STRING, type.key());
-            }
-         );
-      }
+      ShopWandType safe = type == null ? ShopWandType.SHELF : type;
+      return this.createMifronItem(
+         Material.BLAZE_ROD,
+         "shop_wand",
+         ChatColor.GOLD + "ショップワンド",
+         safe == ShopWandType.SHELF
+            ? List.of(
+               ChatColor.GRAY + "右クリック: 番号順の順番配置",
+               ChatColor.GRAY + "Shift+右クリック: オフハンドの商品を指定枠へ配置",
+               ChatColor.GRAY + "Shift+左クリック: 指定枠を空欄化",
+               ChatColor.GRAY + "左クリック: ショップ化を解除"
+            )
+            : List.of(ChatColor.GRAY + "種類: " + safe.key(), ChatColor.GRAY + "右クリック: 対応ブロックをショップ化", ChatColor.GRAY + "左クリック: ショップ化を解除"),
+         meta -> {
+            PersistentDataContainer container = meta.getPersistentDataContainer();
+            container.set(this.shopWandTypeKey, PersistentDataType.STRING, safe.key());
+         }
+      );
    }
 
 
@@ -466,12 +445,6 @@ final class UtilityItemsFeature implements Listener {
       }
 
       if ("emerald_bundle".equals(id)) {
-         // Slot machines start on wallet right-click, but their handler runs
-         // at HIGH with ignoreCancelled=true: cancelling here first would
-         // make spins impossible, so hands off machine blocks entirely.
-         if (event.getAction().isRightClick() && event.getClickedBlock() != null
-            && this.plugin.minigameBridge.isSlotMachine(event.getClickedBlock())) return;
-         event.setCancelled(true);
          event.setUseItemInHand(Event.Result.DENY);
          this.lastUtilityUse.put(player.getUniqueId(), now);
          if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.plugin.tryShopPayment(player, event.getClickedBlock())) return;

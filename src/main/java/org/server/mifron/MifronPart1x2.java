@@ -29,7 +29,6 @@ abstract class MifronPart1x2 extends MifronPart1x1 {
       this.minoruBridgeFeature.stop();
       try { this.chunkProtectionFeature.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to disable chunk protection cleanly."); e.printStackTrace(); }
       try { this.auctionFeature.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to disable auction settlement cleanly."); e.printStackTrace(); }
-      try { this.minigameBridge.shutdownAll(); } catch (Throwable e) { this.getLogger().severe("Failed to disable minigame cleanly."); e.printStackTrace(); }
       try { this.buildWorldManager.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to disable build worlds cleanly."); e.printStackTrace(); }
       try { this.textDisplayFeature.disable(); } catch (Throwable e) { this.getLogger().severe("Failed to disable text displays cleanly."); e.printStackTrace(); }
       this.mifron().saveData();
@@ -66,11 +65,8 @@ abstract class MifronPart1x2 extends MifronPart1x1 {
       Player player = event.getPlayer();
       String worldName = player.getWorld().getName();
       String survivalWorld = this.getConfig().getString("servers.survival.world", "survival");
-      String minigameWorld = this.getConfig().getString("servers.minigame.world", "minigame");
       if (worldName.equalsIgnoreCase(survivalWorld) || worldName.equalsIgnoreCase("survival"))
          this.mifron().trackAnalytics(player, "survival_join", "survival:" + player.getUniqueId() + ":" + LocalDate.now());
-      else if (worldName.equalsIgnoreCase(minigameWorld) || worldName.equalsIgnoreCase("minigame"))
-         this.mifron().trackAnalytics(player, "minigame_join", "minigame:" + player.getUniqueId() + ":" + LocalDate.now());
    }
 
    protected void scheduleAutoShutdown() {

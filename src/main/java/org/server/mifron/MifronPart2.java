@@ -35,10 +35,6 @@ abstract class MifronPart2 extends MifronPart1x3 {
       if (player != null) this.minoruBridgeFeature.sendAnalyticsEvent(player, eventName, player.getUniqueId() + ":active", dedupeKey, metadataKey, metadataValue);
    }
 
-   public void trackFfaDamageAnalytics(Player player, String kit, double damage, String dedupeKey) {
-      if (player != null) this.minoruBridgeFeature.sendFfaDamageAnalyticsEvent(player, player.getUniqueId() + ":active", dedupeKey, kit, damage);
-   }
-
    protected void trackEconomyAnalytics(UUID uuid, String eventName, int amount, int balanceAfter, String reason) {
       if (uuid == null || amount <= 0) return;
       Player player = Bukkit.getPlayer(uuid);

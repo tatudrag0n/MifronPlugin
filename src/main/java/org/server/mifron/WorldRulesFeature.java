@@ -61,11 +61,6 @@ final class WorldRulesFeature {
 
    private Set<String> fixedDayWorldNames() {
       Set<String> names = new HashSet<>();
-      this.addWorldName(names, "athletic");
-      this.addWorldName(names, "minigame");
-      this.addWorldName(names, this.plugin.getConfig().getString("servers.athletic.world"));
-      this.addWorldName(names, this.plugin.getConfig().getString("servers.minigame.world"));
-
       for (String configuredName : this.plugin.getConfig().getStringList("world-rules.fixed-day-worlds")) {
          this.addWorldName(names, configuredName);
       }
@@ -75,9 +70,6 @@ final class WorldRulesFeature {
 
    private Set<String> pvpWorldNames() {
       Set<String> names = new HashSet<>();
-      this.addWorldName(names, "minigame");
-      this.addWorldName(names, this.plugin.getConfig().getString("servers.minigame.world"));
-
       for (String configuredName : this.plugin.getConfig().getStringList("world-rules.pvp.enabled-worlds")) {
          this.addWorldName(names, configuredName);
       }

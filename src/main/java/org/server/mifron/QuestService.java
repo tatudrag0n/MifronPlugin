@@ -333,14 +333,6 @@ final class QuestService {
                this.addProgress(player, "trades", amount);
                this.addProgress(player, "trades_total", amount);
                break;
-            case "athletic-clears":
-               this.addProgress(player, "athletic_clears", amount);
-               this.addProgress(player, "challenge_activity", amount);
-               break;
-            case "minigame-plays":
-            case "minigame-wins":
-               this.addProgress(player, "minigame_activity", amount);
-               this.addProgress(player, "challenge_activity", amount);
          }
       }
    }

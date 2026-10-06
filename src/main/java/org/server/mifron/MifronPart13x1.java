@@ -23,29 +23,6 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 abstract class MifronPart13x1 extends MifronPart13 {
-   protected Material serverIconMaterial(String path) {
-      Material material = Material.matchMaterial(this.getConfig().getString(path + ".icon", "ender_pearl"));
-      return material != null && material != Material.AIR && material.isItem() ? material : Material.ENDER_PEARL;
-   }
-
-   protected Material parseServerIcon(CommandSender sender, String raw) {
-      Material material = raw == null ? null : Material.matchMaterial(raw.toUpperCase(Locale.ROOT));
-      if (material != null && material != Material.AIR && material.isItem()) return material;
-      sender.sendMessage("\u00a7c\u30a2\u30a4\u30b3\u30f3\u7d20\u6750\u304c\u4f7f\u3048\u307e\u305b\u3093: " + raw);
-      return null;
-   }
-
-   protected List<String> serverIconSuggestions(String prefix) {
-      String normalized = prefix == null ? "" : prefix.toLowerCase(Locale.ROOT);
-      List<String> suggestions = new ArrayList<>();
-      for (Material material : Material.values()) {
-         if (material == Material.AIR || !material.isItem()) continue;
-         String key = material.name().toLowerCase(Locale.ROOT);
-         if (key.startsWith(normalized)) { suggestions.add(key); if (suggestions.size() >= 20) break; }
-      }
-      return suggestions;
-   }
-
    public ItemStack named(Material material, String name, List<String> lore) {
       ItemStack item = new ItemStack(material);
       ItemMeta meta = item.getItemMeta();
@@ -80,17 +57,6 @@ abstract class MifronPart13x1 extends MifronPart13 {
       return item != null && item.hasItemMeta() ? item.getItemMeta().getPersistentDataContainer().get(this.uiTargetKey, PersistentDataType.STRING) : null;
    }
 
-   protected void handleTeleporterUiItem(Player player, ItemStack clicked) {
-      String action = this.mifron().getUiAction(clicked);
-      String target = this.getUiTargetString(clicked);
-      if ("menu_back".equals(action)) { this.playUiClickSound(player); this.utilityItemsFeature.openMenuUi(player); return; }
-      if ("teleport".equals(action) && target != null) { this.playUiClickSound(player); this.mifron().teleportToConfigLocation(player, target); player.closeInventory(); }
-      else if ("server_portal_bind".equals(action) && target != null) {
-         String[] parts = target.split("\\|", 2);
-         if (parts.length == 2) { this.serverPortalFeature.setServerPortalTarget(parts[0], parts[1]); this.playUiClickSound(player); player.sendMessage("\u00a7a\u30dd\u30fc\u30bf\u30eb\u306e\u79fb\u52d5\u5148\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f\u3002"); player.closeInventory(); }
-      }
-   }
-
    @EventHandler
    public void onInventoryClick(InventoryClickEvent event) {
       if (!(event.getWhoClicked() instanceof Player player)) return;
@@ -120,11 +86,9 @@ abstract class MifronPart13x1 extends MifronPart13 {
          && ("\u00a73Mifron Friends".equals(title)
             || "\u00a72Mifron Status".equals(title)
             || QUEST_UI_TITLE.equals(title)
-            || PROPOSAL_UI_TITLE.equals(title)
-            || "\u00a75Mifron Teleporter".equals(title)
-            || "\u00a7dMifron Menu".equals(title)
-            || "\u00a7dMifron Gears".equals(title)
-            || "\u00a7dMifron Minigame".equals(title))) {
+             || PROPOSAL_UI_TITLE.equals(title)
+             || "\u00a7dMifron Menu".equals(title)
+             || "\u00a7dMifron Gears".equals(title))) {
          event.setCancelled(true);
          return;
       }
@@ -132,10 +96,8 @@ abstract class MifronPart13x1 extends MifronPart13 {
       else if ("\u00a72Mifron Status".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleStatusUiClick(player, event.getCurrentItem()); }
       else if (QUEST_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleQuestUiClick(player, event.getCurrentItem()); }
       else if (PROPOSAL_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleProposalUiClick(player, event.getCurrentItem()); }
-      else if ("\u00a75Mifron Teleporter".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.handleTeleporterUiItem(player, event.getCurrentItem()); }
       else if ("\u00a7dMifron Menu".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
       else if ("\u00a7dMifron Gears".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
-      else if ("\u00a7dMifron Minigame".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
       else if ("\u00a76Mifron Merchant".equals(title)) {
          // Every click in the merchant view is cancelled, including bottom
          // (player inventory) clicks: a shift-click there would otherwise move
@@ -185,9 +147,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
          || "\u00a72Mifron Status".equals(title)
          || "\u00a7dMifron Menu".equals(title)
          || "\u00a7dMifron Gears".equals(title)
-         || "\u00a7dMifron Minigame".equals(title)
          || QUEST_UI_TITLE.equals(title)
-         || "\u00a75Mifron Teleporter".equals(title)
          || "\u00a76Mifron Merchant".equals(title)) { event.setCancelled(true); }
    }
 

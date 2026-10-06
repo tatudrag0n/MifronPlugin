@@ -15,56 +15,57 @@ import org.bukkit.entity.Player;
 
 abstract class MifronPart14x1 extends MifronPart14 {
    public Location readLocation(String path) {
-      if (path != null && path.startsWith("servers.")) {
-         String key = path.substring("servers.".length()).split("\\.", 2)[0];
-         if (this.getConfig().getStringList("deleted-servers").contains(key)) return null;
-      }
       String worldName = this.getConfig().getString(path + ".world");
       World world = worldName == null ? null : Bukkit.getWorld(worldName);
       if (world == null) return null;
-      return new Location(world,
+      Location configured = new Location(world,
          this.getConfig().getDouble(path + ".x"),
          this.getConfig().getDouble(path + ".y"),
          this.getConfig().getDouble(path + ".z"),
          (float) this.getConfig().getDouble(path + ".yaw"),
          (float) this.getConfig().getDouble(path + ".pitch"));
+      return this.toSafeLocation(configured);
    }
 
-   protected void handleServerOrderCommand(CommandSender sender, String[] args) {
-      if (!sender.hasPermission("mifron.admin")) { sender.sendMessage("\u00a7c\u6a29\u9650\u304c\u3042\u308a\u307e\u305b\u3093\u3002"); return; }
-      if (args.length < 3) { sender.sendMessage("\u00a7e/mf serverorder <server-id> <position>"); return; }
-      String key = args[1];
-      if (!this.getConfig().isConfigurationSection("servers." + key)) { sender.sendMessage("\u00a7c\u30b5\u30fc\u30d0\u30fc\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + key); return; }
-      int requested;
-      try { requested = Integer.parseInt(args[2]); }
-      catch (NumberFormatException e) { sender.sendMessage("\u00a7cposition \u306f1\u4ee5\u4e0a\u306e\u6574\u6570\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002"); return; }
-      ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
-      if (servers == null || servers.getKeys(false).isEmpty()) { sender.sendMessage("\u00a7c\u767b\u9332\u6e08\u307f\u30b5\u30fc\u30d0\u30fc\u304c\u3042\u308a\u307e\u305b\u3093\u3002"); return; }
-      List<String> keys = new ArrayList<>(servers.getKeys(false));
-      Map<String, Integer> originalIndex = new HashMap<>();
-      for (int i = 0; i < keys.size(); i++) originalIndex.put(keys.get(i), i);
-      keys.sort((a, b) -> {
-         int order = Integer.compare(this.getConfig().getInt("servers." + a + ".order", originalIndex.get(a) + 1), this.getConfig().getInt("servers." + b + ".order", originalIndex.get(b) + 1));
-         return order != 0 ? order : Integer.compare(originalIndex.get(a), originalIndex.get(b));
-      });
-      keys.remove(key);
-      int position = Math.max(1, Math.min(requested, keys.size() + 1));
-      keys.add(position - 1, key);
-      for (int i = 0; i < keys.size(); i++) this.getConfig().set("servers." + keys.get(i) + ".order", i + 1);
-      this.saveConfig();
-      sender.sendMessage("\u00a7a\u30c6\u30ec\u30dd\u30fc\u30c8\u5148\u306e\u8868\u793a\u9806\u3092\u5909\u66f4\u3057\u307e\u3057\u305f: " + key + " \u2192 " + position);
+   /**
+    * Lifts a configured location onto the first free standing spot at or above
+    * it. Config entries such as warning-servers.* point at (0,0,0), which is
+    * solid rock: teleporting there suffocates the player. Players are never
+    * placed inside a block or a liquid.
+    */
+   protected Location toSafeLocation(Location location) {
+      if (location == null || location.getWorld() == null) return location;
+      World world = location.getWorld();
+      if (world.getBlockAt(location).getType().isAir() && this.isStandable(world, location)) return location;
+
+      int x = location.getBlockX();
+      int z = location.getBlockZ();
+      int top = world.getHighestBlockYAt(x, z);
+      int ceiling = world.getMaxHeight() - 2;
+      int start = Math.max(location.getBlockY(), Math.min(top, ceiling));
+
+      for (int y = start; y <= ceiling; y++) {
+         if (!this.isStandable(world, new Location(world, x, y, z))) continue;
+         Location safe = new Location(world, x + 0.5D, y, z + 0.5D, location.getYaw(), location.getPitch());
+         return safe;
+      }
+      // Nothing standable nearby: keep the configured X/Z but use the terrain top.
+      return new Location(world, x + 0.5D, top, z + 0.5D, location.getYaw(), location.getPitch());
    }
 
-   protected void handleServerIconCommand(CommandSender sender, String[] args) {
-      if (!sender.hasPermission("mifron.admin")) { sender.sendMessage("\u00a7c\u6a29\u9650\u304c\u3042\u308a\u307e\u305b\u3093\u3002"); return; }
-      if (args.length < 3) { sender.sendMessage("\u00a7e/mf servericon <server-id> <material>"); return; }
-      String key = args[1];
-      if (!this.getConfig().isConfigurationSection("servers." + key)) { sender.sendMessage("\u00a7c\u30b5\u30fc\u30d0\u30fc\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + key); return; }
-      Material icon = Material.matchMaterial(args[2]);
-      if (icon == null || !icon.isItem() || icon == Material.AIR) { sender.sendMessage("\u00a7c\u6709\u52b9\u306a\u30a2\u30a4\u30c6\u30e0\u3092\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002"); return; }
-      this.getConfig().set("servers." + key + ".icon", icon.name().toLowerCase(Locale.ROOT));
-      this.saveConfig();
-      sender.sendMessage("\u00a7a\u30a2\u30a4\u30b3\u30f3\u3092\u5909\u66f4\u3057\u307e\u3057\u305f: " + key + " \u2192 " + icon.name().toLowerCase(Locale.ROOT));
+   private boolean isStandable(World world, Location location) {
+      Location feet = new Location(world, location.getBlockX(), location.getBlockY(), location.getBlockZ());
+      Location head = feet.clone().add(0.5D, 1.0D, 0.5D);
+      Location ground = feet.clone().add(0.5D, -1.0D, 0.5D);
+      return this.isFree(world, feet) && this.isFree(world, head) && this.isSolid(world, ground);
+   }
+
+   private boolean isFree(World world, Location location) {
+      return world.getBlockAt(location).getType().isAir();
+   }
+
+   private boolean isSolid(World world, Location location) {
+      return world.getBlockAt(location).getType().isSolid();
    }
 
    protected void applyWorldSpawnLocations() {
@@ -87,7 +88,6 @@ abstract class MifronPart14x1 extends MifronPart14 {
    protected void normalizeSpawnLocationsToOrigin() {
       if (!"survival".equalsIgnoreCase(this.getConfig().getString("hub.world"))) this.setLocationCoordinatesToOrigin("hub");
       this.normalizeLocationSection("world-rules.spawn");
-      this.normalizeLocationSection("servers");
       this.normalizeLocationSection("warning-servers");
       this.saveConfig();
    }
@@ -117,13 +117,6 @@ abstract class MifronPart14x1 extends MifronPart14 {
       this.mifron().setIfMissing("world-rules.spawn.survival.z", 0.0);
       this.mifron().setIfMissing("world-rules.spawn.survival.yaw", 0.0);
       this.mifron().setIfMissing("world-rules.spawn.survival.pitch", 0.0);
-      this.mifron().setIfMissing("servers.survival.world", "survival");
-      this.mifron().setIfMissing("servers.survival.x", 0.0);
-      this.mifron().setIfMissing("servers.survival.y", 79.0);
-      this.mifron().setIfMissing("servers.survival.z", 0.0);
-      this.mifron().setIfMissing("servers.survival.yaw", 0.0);
-      this.mifron().setIfMissing("servers.survival.pitch", 0.0);
-      this.mifron().setIfMissing("servers.survival.icon", "grass_block");
       this.saveConfig();
    }
 }

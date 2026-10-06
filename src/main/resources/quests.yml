@@ -78,32 +78,6 @@ quests:
     progress-key: exploration_chunks
     required: 20
     intent: "探索導線"
-  D07:
-    type: "デイリー"
-    name: "今日のアスレ"
-    reset: "毎日リセット"
-    condition: "任意難易度のアスレを2回クリア"
-    base-reward-mp: 175
-    display: "10候補から5件抽選"
-    reincarnation-bonus: true
-    repeat-limit: "1日1回"
-    icon: RABBIT_FOOT
-    progress-key: athletic_clears
-    required: 2
-    intent: "アスレ参加率を上げる"
-  D08:
-    type: "デイリー"
-    name: "ミニゲーム参加"
-    reset: "毎日リセット"
-    condition: "ミニゲームの参加または勝利処理を合計3回"
-    base-reward-mp: 175
-    display: "10候補から5件抽選"
-    reincarnation-bonus: true
-    repeat-limit: "1日1回"
-    icon: FIREWORK_STAR
-    progress-key: minigame_activity
-    required: 3
-    intent: "ミニゲーム人口を維持"
   D09:
     type: "デイリー"
     name: "釣りと収集"
@@ -182,32 +156,6 @@ quests:
     progress-key: trades
     required: 20
     intent: "経済循環を強化"
-  W05:
-    type: "ウィークリー"
-    name: "アスレ週間"
-    reset: "毎週リセット"
-    condition: "アスレを合計10回クリア（難易度による加算差なし）"
-    base-reward-mp: 1000
-    display: "10候補から5件抽選"
-    reincarnation-bonus: true
-    repeat-limit: "週1回"
-    icon: FEATHER
-    progress-key: athletic_clears
-    required: 10
-    intent: "アスレを週課にする"
-  W06:
-    type: "ウィークリー"
-    name: "ミニゲーム週間"
-    reset: "毎週リセット"
-    condition: "ミニゲームの参加または勝利処理を合計15回"
-    base-reward-mp: 1000
-    display: "10候補から5件抽選"
-    reincarnation-bonus: true
-    repeat-limit: "週1回"
-    icon: CROSSBOW
-    progress-key: minigame_activity
-    required: 15
-    intent: "対人/協力系の人口維持"
   W07:
     type: "ウィークリー"
     name: "探索遠征"
@@ -533,32 +481,6 @@ quests:
     progress-key: build_event_participation
     required: 1
     intent: "イベント参加報酬"
-  S22:
-    type: "スペシャル"
-    name: "ミニゲーム王者"
-    reset: "イベント/条件で発生"
-    condition: "ミニゲームで1回勝利"
-    base-reward-mp: 10000
-    display: "イベント時のみ"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: GOLDEN_HELMET
-    progress-key: minigame_champion
-    required: 1
-    intent: "競争系の目玉"
-  S23:
-    type: "スペシャル"
-    name: "アスレ覇者"
-    reset: "条件達成で発生"
-    condition: "hardcore設定のアスレチックを1回完走"
-    base-reward-mp: 12500
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: RABBIT_FOOT
-    progress-key: hardcore_athletic
-    required: 1
-    intent: "高難度チャレンジ"
   S24:
     type: "スペシャル"
     name: "釣り名人"

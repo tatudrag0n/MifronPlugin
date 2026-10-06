@@ -19,7 +19,6 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 
 abstract class MifronPart3x2 extends MifronPart3x1 {
    protected void tryConvertProposedItem(EntityPickupItemEvent event, ItemStack source) {
@@ -51,7 +50,7 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       if (this.mifron().tutorialFeature.isTutorialWorld(entity.getWorld())) return;
       Player killer = entity.getKiller();
       if (killer == null || entity instanceof Player || this.mifron().isMifronMerchant(entity)) return;
-      if (this.isFfaSummonedMob(entity) || !this.isDirectPlayerKill(entity, killer)) return;
+      if (!this.isDirectPlayerKill(entity, killer)) return;
       int baseReward = this.mobKillReward(entity.getType());
       if (baseReward <= 0) return;
       int reward = this.mifron().applyIncomeBonus(killer.getUniqueId(), this.adjustedMobKillReward(killer.getUniqueId(), entity.getType(), baseReward));
@@ -79,14 +78,6 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       double multiplier = Math.max(0.0D, Math.min(100.0D, this.getConfig().getDouble("mob-kill-rewards.first-kill-bonus-multiplier", 5.0D)));
       int minimum = Math.max(0, this.getConfig().getInt("mob-kill-rewards.first-kill-bonus-minimum", 25));
       return (int) Math.min(2000000000L, Math.max((long) minimum, Math.round(baseReward * multiplier)));
-   }
-
-   protected boolean isFfaSummonedMob(LivingEntity entity) {
-      String kind = entity.getPersistentDataContainer().get(this.ffaEntityKindKey, PersistentDataType.STRING);
-      // Summoned pets and Bug Mania silverfish are FFA-owned entities; their
-      // rewards are handled by the FFA flow and must not also pay the generic
-      // mob-kill reward.
-      return "summon".equals(kind) || "bug_silverfish".equals(kind);
    }
 
    protected int adjustedMobKillReward(UUID uuid, EntityType type, int baseReward) {

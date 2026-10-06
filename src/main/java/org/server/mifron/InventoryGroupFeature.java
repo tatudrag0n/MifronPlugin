@@ -53,7 +53,7 @@ public final class InventoryGroupFeature implements Listener {
             var1.restoreAfterJoin(var3);
          }
 
-         var0.getLogger().info("Inventory groups enabled: survival / normal / ephemeral FFA.");
+         var0.getLogger().info("Inventory groups enabled: survival / normal.");
       }
    }
 
@@ -173,10 +173,6 @@ public final class InventoryGroupFeature implements Listener {
       }
 
       String name = world.getName().toLowerCase(Locale.ROOT);
-      if ("ffa".equals(name)) {
-         return InventoryGroupFeature.Group.FFA;
-      }
-
       // Prefer explicit survival names, but do not depend on Multiverse/Paper's exact
       // dimension naming convention. A survival Nether may be named survival_nether,
       // world_nether, or something else entirely. In this server, Nether and End are

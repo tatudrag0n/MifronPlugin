@@ -40,14 +40,13 @@ abstract class MifronPart3x1 extends MifronPart3 {
    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
    public void onInteract(PlayerInteractEvent event) {
       ItemStack item = event.getItem();
-      if (event.getHand() != null && event.getHand() != EquipmentSlot.HAND && !this.serverPortalFeature.isServerWand(item)) return;
+      if (event.getHand() != null && event.getHand() != EquipmentSlot.HAND) return;
       Player player = event.getPlayer();
       this.trackFirstAction(player);
       if (this.compassFeature.handleCompassClick(event)) return;
       if (this.isShopWand(item)) { this.mifron().handleShopWandClick(event); return; }
       if (this.isMifronItem(item, "jump_pad_wand")) { this.mifron().handleJumpPadWandClick(event); return; }
-      if (this.serverPortalFeature.isServerWand(item)) { this.serverPortalFeature.handleWandClick(event); return; }
-      if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.mifron().isShelf(event.getClickedBlock().getType()) && this.mifron().isShelfShop(event.getClickedBlock()) && !this.minigameBridge.isMachine(event.getClickedBlock())) {
+      if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.mifron().isShelf(event.getClickedBlock().getType()) && this.mifron().isShelfShop(event.getClickedBlock())) {
          // Never transact on an already-cancelled interact (protection etc.):
          // with ignoreCancelled=false this handler would otherwise charge twice
          // when another listener also processes the click.

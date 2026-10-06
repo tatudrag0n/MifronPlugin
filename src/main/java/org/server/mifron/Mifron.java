@@ -33,15 +33,15 @@ public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
 
    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
       if (args.length == 1 && this.isMifronRootCommand(command)) {
-         List<String> all = new ArrayList<>(List.of(
-            "check", "list", "tp", "text", "ffa", "structure", "build", "proposal", "vote", "gamerules",
-            "info", "reload", "kit", "balance", "pay", "merchant", "marchant", "minigame", "athletic",
-            "quest", "mp", "regen", "chunk", "protect", "menu", "status", "tutorial", "shelfshop", "shopwand", "slotwand",
-            "jumppadwand", "jumpblock", "serverwand", "sethub", "setserver", "delserver", "serverorder", "servericon", "warning"
-         ));
-         if (!sender.isOp() && !sender.hasPermission("mifron.admin")) {
-            all.removeAll(List.of("reload", "regen", "gamerules", "kit", "shopwand", "slotwand", "jumppadwand", "jumpblock",
-               "serverwand", "sethub", "setserver", "delserver", "serverorder", "servericon", "text", "structure", "warning", "mp"));
+          List<String> all = new ArrayList<>(List.of(
+             "check", "list", "text", "structure", "build", "proposal", "vote", "gamerules",
+             "info", "reload", "kit", "balance", "pay", "merchant", "marchant",
+             "quest", "mp", "regen", "chunk", "protect", "menu", "status", "tutorial", "shelfshop", "shopwand",
+             "jumppadwand", "jumpblock", "sethub", "warning"
+          ));
+          if (!sender.isOp() && !sender.hasPermission("mifron.admin")) {
+             all.removeAll(List.of("reload", "regen", "gamerules", "kit", "shopwand", "jumppadwand", "jumpblock",
+                "sethub", "text", "structure", "warning", "mp"));
          }
          String prefix = args[0].toLowerCase();
          List<String> matched = new ArrayList<>();
@@ -49,7 +49,6 @@ public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
          return matched;
       }
       if (args.length >= 2 && this.isMifronRootCommand(command) && "text".equalsIgnoreCase(args[0])) return this.textDisplayFeature.tabComplete(args);
-      if (args.length >= 2 && this.isMifronRootCommand(command) && "ffa".equalsIgnoreCase(args[0])) return this.minigameBridge.tabCompleteFfa(args, sender);
       if (args.length >= 2 && this.isMifronRootCommand(command) && "structure".equalsIgnoreCase(args[0])) return this.structureManager.tabComplete(args);
       if (args.length >= 2 && this.isMifronRootCommand(command) && "build".equalsIgnoreCase(args[0])) return this.buildWorldManager.tabComplete(args);
       if (args.length >= 2 && this.isMifronRootCommand(command) && "proposal".equalsIgnoreCase(args[0])) return this.proposalManager.tabComplete(args);

@@ -9,7 +9,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
@@ -36,14 +35,12 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerFishEvent.State;
-import org.bukkit.persistence.PersistentDataType;
 
 final class QuestProgressListener implements Listener {
    private static final long DAMAGE_PARTICIPATION_MILLIS = 30000L;
    private static final double EFFECTIVE_DAMAGE_RATIO = 0.2;
    private final Mifron plugin;
    private final QuestService quests;
-   private final NamespacedKey ffaEntityKindKey;
    private final Map<UUID, Map<UUID, QuestProgressListener.DamageParticipation>> damageByEntity = new ConcurrentHashMap<>();
    private final Map<UUID, Map<String, Long>> recentPlacedBlocks = new ConcurrentHashMap<>();
    private final Map<UUID, QuestProgressListener.RepeatedBlockAction> lastBlockActions = new ConcurrentHashMap<>();
@@ -51,7 +48,6 @@ final class QuestProgressListener implements Listener {
    QuestProgressListener(Mifron plugin, QuestService quests) {
       this.plugin = plugin;
       this.quests = quests;
-      this.ffaEntityKindKey = new NamespacedKey(plugin, "ffa_entity_kind");
    }
 
    @EventHandler
@@ -188,13 +184,11 @@ final class QuestProgressListener implements Listener {
    }
 
    private boolean isNecromancerSummon(LivingEntity entity) {
-      String kind = (String)entity.getPersistentDataContainer().get(this.ffaEntityKindKey, PersistentDataType.STRING);
-      return "summon".equals(kind);
+      return false;
    }
 
    private boolean isBugSilverfish(LivingEntity entity) {
-      String kind = (String)entity.getPersistentDataContainer().get(this.ffaEntityKindKey, PersistentDataType.STRING);
-      return "bug_silverfish".equals(kind);
+      return false;
    }
 
    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)

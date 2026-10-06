@@ -44,7 +44,7 @@ import org.bukkit.scheduler.BukkitTask;
  *   {@code /mf main approve}.</li>
  * </ul>
  *
- * <p>All handlers are main-world scoped; survival/FFA worlds are untouched.
+ * <p>All handlers are main-world scoped; survival worlds are untouched.
  */
 final class MainWorldFeature implements Listener {
    private final Mifron plugin;

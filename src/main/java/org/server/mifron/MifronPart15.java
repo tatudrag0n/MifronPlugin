@@ -14,27 +14,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 
 abstract class MifronPart15 extends MifronPart14x2 {
-   protected void migrateDefaultMinigameLocation() {
-      if (!"minigame".equalsIgnoreCase(this.getConfig().getString("servers.minigame.world", "minigame"))) return;
-      boolean oldDefault = Math.abs(this.getConfig().getDouble("servers.minigame.x") - 0.5) < 1.0E-4
-         && Math.abs(this.getConfig().getDouble("servers.minigame.y") - 64.0) < 1.0E-4
-         && Math.abs(this.getConfig().getDouble("servers.minigame.z") - 0.5) < 1.0E-4;
-      boolean missing = !this.getConfig().contains("servers.minigame.x") || !this.getConfig().contains("servers.minigame.y") || !this.getConfig().contains("servers.minigame.z");
-      if (!(oldDefault || missing)) return;
-      this.getConfig().set("servers.minigame.world", "minigame");
-      this.getConfig().set("servers.minigame.x", 0.0);
-      this.getConfig().set("servers.minigame.y", 0.0);
-      this.getConfig().set("servers.minigame.z", 0.0);
-      this.getConfig().set("servers.minigame.yaw", 0.0);
-      this.getConfig().set("servers.minigame.pitch", 0.0);
-      this.mifron().setIfMissing("world-rules.spawn.minigame.world", "minigame");
-      this.mifron().setIfMissing("world-rules.spawn.minigame.x", 0.0);
-      this.mifron().setIfMissing("world-rules.spawn.minigame.y", 0.0);
-      this.mifron().setIfMissing("world-rules.spawn.minigame.z", 0.0);
-      this.mifron().setIfMissing("world-rules.spawn.minigame.yaw", 0.0);
-      this.mifron().setIfMissing("world-rules.spawn.minigame.pitch", 0.0);
-      this.saveConfig();
-   }
 
    protected void setIfMissing(String path, Object value) {
       if (!this.getConfig().contains(path)) this.getConfig().set(path, value);

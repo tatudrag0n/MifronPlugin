@@ -74,7 +74,6 @@ abstract class MifronPart4x2 extends MifronPart4x1 {
 
    protected void configureSequentialShelfShop(Block block) {
       if (block == null) return;
-      this.minigameBridge.unregisterMachine(block);
       String path = this.mifron().shelfShopPath(block);
       int order = "sequential".equals(this.mifron().shelfShopMode(block)) ? this.data.getInt(path + ".order", 0) : 0;
       if (order <= 0) order = this.nextSequentialShelfOrder();

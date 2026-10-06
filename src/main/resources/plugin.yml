@@ -47,9 +47,6 @@ permissions:
     default: true
   mifron.admin.regen.force:
     default: op
-  mifron.reward.grant:
-    description: Allows granting Mifron rewards from minigame and athletic completion commands.
-    default: op
   mifron.protect.bypass:
     description: Allows bypassing Mifron protected chunk interaction limits.
     default: op
@@ -61,9 +58,6 @@ permissions:
     default: op
   mifron.text.admin:
     description: Allows managing Mifron TextDisplay guide signs.
-    default: op
-  mifron.ffa.admin:
-    description: Allows managing Mifron FFA minigame settings and kit stands.
     default: op
   mifron.structure.admin:
     description: Allows managing Mifron custom structures.

@@ -18,8 +18,7 @@ import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
  * Keeps Survival's Nether and End separate from the main world's dimensions.
  *
  * <p>This listener only handles normal Bukkit portal events originating in the
- * configured Survival dimension group. Mifron's server-wand portals are
- * handled by {@link ServerPortalFeature} and remain untouched.</p>
+ * configured Survival dimension group.</p>
  */
 final class SurvivalDimensionFeature implements Listener {
    private static final String CONFIG_ROOT = "survival-dimensions";

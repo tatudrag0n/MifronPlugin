@@ -1,6 +1,5 @@
 package org.server.mifron;
 
-import java.util.Collections;
 import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -41,30 +40,7 @@ abstract class MifronPart17x1 extends MifronPart17 {
 
    protected void handleListCommand(CommandSender sender) {
       List<String> worlds = Bukkit.getWorlds().stream().map(WorldInfo::getName).sorted().toList();
-      ConfigurationSection servers = this.getConfig().getConfigurationSection("servers");
-      List<String> serverKeys = servers == null ? Collections.emptyList() : servers.getKeys(false).stream().sorted().toList();
       sender.sendMessage("\u00a7aWorlds: " + String.join(", ", worlds));
-      sender.sendMessage("\u00a7aConfigured servers: " + (serverKeys.isEmpty() ? "(none)" : String.join(", ", serverKeys)));
-   }
-
-   protected void handleWorldTpCommand(Player player, String[] args) {
-      if (args.length < 2) {
-         player.sendMessage("\u00a7c/mifron tp <worldKey>");
-         return;
-      }
-      String key = args[1];
-      if (this.getConfig().contains("servers." + key)) {
-         this.mifron().teleportToConfigLocation(player, "servers." + key);
-         return;
-      }
-      World world = Bukkit.getWorld(key);
-      if (world == null) {
-         player.sendMessage("\u00a7c\u79fb\u52d5\u5148\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093: " + key);
-         return;
-      }
-      player.teleport(world.getSpawnLocation());
-      this.playTeleportSound(player);
-      player.sendMessage("\u00a7a" + world.getName() + " \u306e\u30b9\u30dd\u30fc\u30f3\u3078\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002");
    }
 
    protected void handleGamerulesCommand(CommandSender sender, String[] args) {
@@ -115,7 +91,6 @@ abstract class MifronPart17x1 extends MifronPart17 {
       this.mifron().syncShelfShopDisplays();
       this.structureManager.load();
       this.proposalManager.load();
-      this.minigameBridge.reloadAll();
       sender.sendMessage("\u00a7aMifron\u8a2d\u5b9a\u3001\u4fa1\u683c\u8868\u3001\u30af\u30a8\u30b9\u30c8\u5b9a\u7fa9\u3092\u518d\u8aad\u8fbc\u3057\u307e\u3057\u305f\u3002");
    }
 
