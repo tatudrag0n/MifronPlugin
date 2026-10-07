@@ -12,7 +12,7 @@ import org.bukkit.inventory.ItemStack;
 abstract class MifronPart17 extends MifronPart16 {
    protected boolean handleMifronCommand(CommandSender sender, String[] args) {
       if (args.length == 0) {
-         sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial|build|proposal|vote");
+         sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial|job|build|proposal|vote");
          return true;
       }
       if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop").contains(args[0].toLowerCase(Locale.ROOT))) {
@@ -75,7 +75,7 @@ abstract class MifronPart17 extends MifronPart16 {
          }
          case "sethub" -> { if (this.isAdminOp(sender)) { this.writeLocation("hub", ((Player) sender).getLocation()); sender.sendMessage("\u00a7a\u4e2d\u592e\u5e83\u5834\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f\u3002"); } }
          case "warning" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleWarningCommand(sender, args); }
-         default -> sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial");
+         default -> sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial|job");
       }
       return true;
    }

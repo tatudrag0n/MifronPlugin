@@ -83,6 +83,9 @@ final class UtilityItemsFeature implements Listener {
       inventory.setItem(11, this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GOLD + "所持MP: " + this.plugin.formatNumber(walletMp) + " MP", ChatColor.GRAY + "クリック: MP残高確認"), "menu_wallet", null));
       inventory.setItem(12, this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
       inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
+      JobType job = this.plugin.jobService.typeOf(player);
+      inventory.setItem(14, this.plugin.actionItem(Material.WOODEN_HOE, ChatColor.GOLD + "ジョブ: " + job.displayName(),
+         List.of(ChatColor.GRAY + job.description(), ChatColor.GRAY + "クリック: 詳細・/mf job で変更"), "menu_job", null));
       inventory.setItem(15, this.gearMenuIcon(player));
       inventory.setItem(22, this.plugin.actionItem(Material.BOOK, ChatColor.YELLOW + "チュートリアル",
          List.of(ChatColor.GRAY + "クリック: 基本操作を再表示"), "menu_tutorial", null));

@@ -153,6 +153,7 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "menu_gear" -> this.utilityItemsFeature.openGearUi(player);
          case "gear_toggle" -> this.utilityItemsFeature.toggleGear(player, this.getUiTargetString(clicked));
          case "menu_tutorial" -> { this.mifron().tutorialFeature.resume(player); }
+         case "menu_job" -> { this.mifron().handleJobCommand(player, new String[] {"job"}); }
          default -> {}
       }
    }
