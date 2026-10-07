@@ -44,6 +44,31 @@ abstract class MifronPart18 extends MifronPart17x1 {
       sender.sendMessage("\u00a7c/mifron mp give <player> <amount>");
    }
 
+   protected void handleTradeCommand(Player player, String[] args) {
+      if (args.length == 0) {
+         player.sendMessage("\u00a7e/trade <player>|accept|deny|cancel|money <\u984d>");
+         return;
+      }
+      String sub = args[0].toLowerCase(java.util.Locale.ROOT);
+      switch (sub) {
+         case "accept" -> this.mifron().tradeService.accept(player);
+         case "deny" -> this.mifron().tradeService.deny(player);
+         case "cancel" -> this.mifron().tradeService.cancel(player, null);
+         case "money" -> {
+            if (args.length < 2) { player.sendMessage("\u00a7c/trade money <\u984d>"); return; }
+            this.mifron().tradeService.setMoney(player, this.mifron().parsePositiveInt(args[1], -1));
+         }
+         default -> {
+            org.bukkit.OfflinePlayer target = this.resolveKnownPlayer(player, args[0]);
+            if (target == null || !target.isOnline() || target.getPlayer() == null) {
+               player.sendMessage("\u00a7c\u76f8\u624b\u304c\u30aa\u30d5\u30e9\u30a4\u30f3\u3067\u3059\u3002");
+               return;
+            }
+            this.mifron().tradeService.request(player, target.getPlayer());
+         }
+      }
+   }
+
    protected void handlePayCommand(Player player, String[] args) {
       if (args.length < 3) { player.sendMessage("\u00a7c/mifron pay <player> <amount>"); return; }
       OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);

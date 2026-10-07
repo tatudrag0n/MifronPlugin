@@ -1,5 +1,9 @@
 server-motd: "Mifron - Community Minecraft Server"
 
+trade:
+  # Maximum MP either side may offer in one trade.
+  max-amount: 1000000
+
 jobs:
   # Hours before a player may change jobs again.
   change-cooldown-hours: 24.0

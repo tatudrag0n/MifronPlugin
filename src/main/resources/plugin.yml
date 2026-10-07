@@ -32,6 +32,9 @@ commands:
   tutorial:
     description: Start the Mifron tutorial.
     usage: /tutorial
+  trade:
+    description: Secure player-to-player trade.
+    usage: /trade <player>|accept|deny|cancel|money <amount>
 permissions:
   mifron.admin:
     description: Allows Mifron administrative commands and server-area bypass.
