@@ -104,6 +104,104 @@ quests:
     progress-key: daily_complete
     required: 5
     intent: "日課完走の達成感"
+  J01:
+    type: "デイリー"
+    name: "狩人の日課"
+    reset: "毎日リセット"
+    condition: "【狩人限定】敵対Mobを30体、直接討伐"
+    base-reward-mp: 200
+    display: "狩人選択時のみ表示"
+    reincarnation-bonus: true
+    repeat-limit: "1日1回"
+    icon: IRON_SWORD
+    progress-key: job_hunt
+    required: 30
+    intent: "狩人の日課"
+    job: hunter
+  J02:
+    type: "デイリー"
+    name: "農民の日課"
+    reset: "毎日リセット"
+    condition: "【農民限定】作物を50個収穫"
+    base-reward-mp: 150
+    display: "農民選択時のみ表示"
+    reincarnation-bonus: true
+    repeat-limit: "1日1回"
+    icon: WHEAT
+    progress-key: job_harvest
+    required: 50
+    intent: "農民の日課"
+    job: farmer
+  J03:
+    type: "デイリー"
+    name: "付呪師の日課"
+    reset: "毎日リセット"
+    condition: "【付呪師限定】高度な金床で3回合成"
+    base-reward-mp: 200
+    display: "付呪師選択時のみ表示"
+    reincarnation-bonus: true
+    repeat-limit: "1日1回"
+    icon: ENCHANTING_TABLE
+    progress-key: job_enchant
+    required: 3
+    intent: "付呪師の日課"
+    job: enchanter
+  J04:
+    type: "デイリー"
+    name: "商人の日課"
+    reset: "毎日リセット"
+    condition: "【商人限定】ショップで10回売却"
+    base-reward-mp: 200
+    display: "商人選択時のみ表示"
+    reincarnation-bonus: true
+    repeat-limit: "1日1回"
+    icon: EMERALD
+    progress-key: job_trade
+    required: 10
+    intent: "商人の日課"
+    job: merchant
+  J05:
+    type: "デイリー"
+    name: "釣り人の日課"
+    reset: "毎日リセット"
+    condition: "【釣り人限定】魚を10匹釣る"
+    base-reward-mp: 150
+    display: "釣り人選択時のみ表示"
+    reincarnation-bonus: true
+    repeat-limit: "1日1回"
+    icon: FISHING_ROD
+    progress-key: job_fish
+    required: 10
+    intent: "釣り人の日課"
+    job: fisher
+  J06:
+    type: "デイリー"
+    name: "鉱夫の日課"
+    reset: "毎日リセット"
+    condition: "【鉱夫限定】鉱石・石系ブロックを100個採掘"
+    base-reward-mp: 175
+    display: "鉱夫選択時のみ表示"
+    reincarnation-bonus: true
+    repeat-limit: "1日1回"
+    icon: IRON_PICKAXE
+    progress-key: job_mine
+    required: 100
+    intent: "鉱夫の日課"
+    job: miner
+  J07:
+    type: "デイリー"
+    name: "冒険者の日課"
+    reset: "毎日リセット"
+    condition: "【冒険者限定】未踏破チャンクを20訪問"
+    base-reward-mp: 175
+    display: "冒険者選択時のみ表示"
+    reincarnation-bonus: true
+    repeat-limit: "1日1回"
+    icon: COMPASS
+    progress-key: job_explore
+    required: 20
+    intent: "冒険者の日課"
+    job: adventurer
   W01:
     type: "ウィークリー"
     name: "週間採掘計画"

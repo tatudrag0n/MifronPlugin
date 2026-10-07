@@ -144,6 +144,13 @@ public final class JobService {
       block.getWorld().dropItemNaturally(block.getLocation(), new org.bukkit.inventory.ItemStack(bonus));
    }
 
+   /** Adds quest progress only when the player's job matches the action. */
+   public void addJobProgress(org.bukkit.entity.Player player, JobAction action, String progressKey, int amount) {
+      if (player == null || action == null || progressKey == null) return;
+      if (this.typeOf(player).incomeAction() != action) return;
+      this.plugin.questService.addProgress(player, progressKey, amount);
+   }
+
    public long changeCooldownMillis() {
       double hours = Math.max(0.0, this.plugin.getConfig().getDouble("jobs.change-cooldown-hours", 24.0));
       return (long) (hours * 3_600_000L);

@@ -56,6 +56,7 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       int reward = this.mifron().applyIncomeBonus(killer.getUniqueId(), this.adjustedMobKillReward(killer.getUniqueId(), entity.getType(), baseReward));
       reward = this.mifron().jobService.applyJobBonus(killer.getUniqueId(), JobAction.HUNT, reward);
       this.mifron().addPlayerStat(killer.getUniqueId(), "total-mob-kills", 1);
+      this.mifron().jobService.addJobProgress(killer, JobAction.HUNT, "job_hunt", 1);
       var section = this.mifron().getPlayerSection(killer.getUniqueId());
       section.set("mob-kill-counts." + entity.getType().name(),
          section.getInt("mob-kill-counts." + entity.getType().name(), 0) + 1);

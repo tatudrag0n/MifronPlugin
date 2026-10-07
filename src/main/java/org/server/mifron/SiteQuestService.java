@@ -79,6 +79,7 @@ final class SiteQuestService {
             Material.PAPER,
             progressKey,
             required,
+            "",
             ""
          );
       }

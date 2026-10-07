@@ -15,8 +15,12 @@ record QuestDefinition(
    Material icon,
    String progressKey,
    int required,
-   String intent
+   String intent,
+   String job
 ) {
+   boolean requiresJob() {
+      return this.job != null && !this.job.isBlank();
+   }
    boolean isCompletionQuest() {
       return this.progressKey.endsWith("_complete");
    }

@@ -69,7 +69,8 @@ final class QuestService {
                      icon == null ? Material.PAPER : icon,
                      section.getString(path + "progress-key", "manual"),
                      Math.max(1, section.getInt(path + "required", 1)),
-                     section.getString(path + "intent", "")
+                     section.getString(path + "intent", ""),
+                     section.getString(path + "job", "")
                   )
                );
          }
@@ -124,9 +125,11 @@ final class QuestService {
                .stream()
                .filter(definition -> definition.type() == type)
                .filter(definition -> type != QuestType.HIDDEN || this.isUnlocked(player, definition))
+               .filter(definition -> this.jobAllows(player, definition))
                .sorted(Comparator.comparing(QuestDefinition::id))
                .toList()
          );
+         result.removeIf(definition -> !this.jobAllows(player, definition));
          this.appendSiteQuests(type, result);
          return result;
       } else if (type == QuestType.MONTHLY || type == QuestType.PERIODIC) {
@@ -138,6 +141,7 @@ final class QuestService {
                .sorted(Comparator.comparing(QuestDefinition::id))
                .toList()
          );
+         result.removeIf(definition -> !this.jobAllows(player, definition));
          this.appendSiteQuests(type, result);
          return result;
       } else {
@@ -146,7 +150,8 @@ final class QuestService {
             .values()
             .stream()
             .filter(definition -> definition.type() == type)
-            .filter(definition -> selected.contains(definition.id()) || definition.isCompletionQuest())
+            .filter(definition -> selected.contains(definition.id()) || definition.isCompletionQuest() || definition.requiresJob())
+            .filter(definition -> this.jobAllows(player, definition))
             .sorted(Comparator.comparing(QuestDefinition::id))
             .forEach(result::add);
          this.appendSiteQuests(type, result);
@@ -154,8 +159,14 @@ final class QuestService {
       }
    }
 
+   boolean jobAllows(org.bukkit.entity.Player player, QuestDefinition definition) {
+      if (definition == null || !definition.requiresJob()) return true;
+      JobType want = JobType.fromKey(definition.job());
+      return want != null && this.plugin.jobService.typeOf(player) == want;
+   }
+
    boolean isVisible(Player player, QuestDefinition definition) {
-      if (definition == null) {
+      if (definition == null || !this.jobAllows(player, definition)) {
          return false;
       } else if (this.siteDefinitions.containsKey(definition.id())) {
          return true;

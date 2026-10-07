@@ -218,6 +218,7 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
+      this.plugin.jobService.addJobProgress(player, JobAction.ENCHANT, "job_enchant", 1);
       if (mpCost > 0 && !this.plugin.withdrawEmeralds(player.getUniqueId(), mpCost)) {
          event.setCancelled(true);
          player.sendMessage(Component.text("MPの支払いに失敗しました。もう一度お試しください。", NamedTextColor.RED));

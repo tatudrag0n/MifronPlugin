@@ -645,6 +645,7 @@ final class OnlineShopFeature implements Listener {
       // Quest sync mirrors merchant sales: trades count per unit sold plus
       // the farming-submission hook for crop materials (deposit already feeds
       // mp_gained through the economy layer for both paths).
+      this.plugin.jobService.addJobProgress(player, JobAction.SELL, "job_trade", sold);
       this.plugin.addPlayerStat(player.getUniqueId(), "total-trades", sold);
       this.plugin.recordFarmingSubmission(player, listed.material());
       this.plugin.queueDataSave();
