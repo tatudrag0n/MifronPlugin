@@ -44,7 +44,7 @@ abstract class MifronPart10 extends MifronPart9x2 {
          }
          MerchantSale sale = this.mifron().removeItemsForMerchantSale(player, material, Math.max(1, quantity), price);
          if (sale == null) { this.mifron().sendItemMessage(player, NamedTextColor.RED, "", material, "\u30921\u500b\u6301\u3063\u3066\u3044\u307e\u305b\u3093\u3002"); return; }
-         this.mifron().depositEmeralds(player.getUniqueId(), sale.totalPrice());
+         this.mifron().depositEmeralds(player.getUniqueId(), this.mifron().jobService.applyJobBonus(player.getUniqueId(), JobAction.SELL, sale.totalPrice()));
          this.mifron().addPlayerStat(player.getUniqueId(), "total-trades", sale.quantity());
          this.mifron().recordFarmingSubmission(player, material);
          this.mifron().markMerchantTraded(container.get(this.merchantOfferMerchantKey, PersistentDataType.STRING));

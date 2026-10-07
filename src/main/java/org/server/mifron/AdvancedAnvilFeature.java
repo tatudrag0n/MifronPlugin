@@ -200,9 +200,10 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
-      if (pending.mpCost() > 0 && this.plugin.getEmeralds(player.getUniqueId()) < pending.mpCost()) {
+      int mpCost = this.plugin.jobService.anvilCost(player, pending.mpCost());
+      if (mpCost > 0 && this.plugin.getEmeralds(player.getUniqueId()) < mpCost) {
          event.setCancelled(true);
-         player.sendMessage(Component.text("MPが足りません。必要MP: " + pending.mpCost(), NamedTextColor.RED));
+         player.sendMessage(Component.text("MPが足りません。必要MP: " + mpCost, NamedTextColor.RED));
          return;
       }
 
@@ -217,7 +218,7 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
-      if (pending.mpCost() > 0 && !this.plugin.withdrawEmeralds(player.getUniqueId(), pending.mpCost())) {
+      if (mpCost > 0 && !this.plugin.withdrawEmeralds(player.getUniqueId(), mpCost)) {
          event.setCancelled(true);
          player.sendMessage(Component.text("MPの支払いに失敗しました。もう一度お試しください。", NamedTextColor.RED));
          return;
@@ -226,8 +227,8 @@ final class AdvancedAnvilFeature implements Listener {
 
       Bukkit.getScheduler().runTask(this.plugin, () -> {
          if (!player.isOnline()) {
-            if (pending.mpCost() > 0) {
-               this.plugin.depositEmeralds(player.getUniqueId(), pending.mpCost());
+            if (mpCost > 0) {
+               this.plugin.depositEmeralds(player.getUniqueId(), mpCost);
             }
             return;
          }
@@ -236,8 +237,8 @@ final class AdvancedAnvilFeature implements Listener {
          if (!this.isSameResult(cursor, pending.result())) {
             // The vanilla container did not complete the transaction (for
             // example because another listener cancelled it). Refund MP.
-            if (pending.mpCost() > 0) {
-               this.plugin.depositEmeralds(player.getUniqueId(), pending.mpCost());
+            if (mpCost > 0) {
+               this.plugin.depositEmeralds(player.getUniqueId(), mpCost);
             }
             player.sendMessage(Component.text("合成が完了しなかったため、MPを返却しました。", NamedTextColor.YELLOW));
             return;

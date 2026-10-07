@@ -11,9 +11,7 @@ import org.bukkit.generator.WorldInfo;
 abstract class MifronPart17x1 extends MifronPart17 {
    protected boolean handleTutorialCommand(CommandSender sender) {
       return this.handleTutorialCommand(sender, new String[0]);
-   }
-
-   protected boolean handleTutorialCommand(CommandSender sender, String[] args) {
+   }   protected boolean handleTutorialCommand(CommandSender sender, String[] args) {
       if (sender instanceof Player player) {
          if (args.length >= 1 && "skip".equalsIgnoreCase(args[args.length - 1])) {
             this.mifron().tutorialFeature.skip(player);
@@ -27,6 +25,27 @@ abstract class MifronPart17x1 extends MifronPart17 {
          return true;
       }
       sender.sendMessage("Player only.");
+      return true;
+   }
+
+   protected boolean handleJobCommand(CommandSender sender, String[] args) {
+      if (!(sender instanceof Player player)) {
+         sender.sendMessage("Player only.");
+         return true;
+      }
+      JobService jobs = this.mifron().jobService;
+      if (args.length < 2) {
+         JobType current = jobs.typeOf(player);
+         player.sendMessage("§a現在のジョブ: " + current.displayName() + " §7(" + current.description() + ")");
+         player.sendMessage("§7変更: /mf job <hunter|farmer|enchanter|merchant|fisher|miner|adventurer|none>");
+         return true;
+      }
+      JobType target = JobType.fromKey(args[1]);
+      if (target == null) {
+         sender.sendMessage("§c不明なジョブです: " + args[1]);
+         return true;
+      }
+      jobs.requestChange(player, target);
       return true;
    }
 

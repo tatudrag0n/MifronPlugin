@@ -158,6 +158,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final QuestProgressListener questProgressListener = new QuestProgressListener((Mifron) this, this.questService);
    protected final ProtectedInteractionListener protectedInteractionListener = new ProtectedInteractionListener((Mifron) this, this.protectionService);
    protected final TutorialFeature tutorialFeature = new TutorialFeature((Mifron) this);
+   protected final JobService jobService = new JobService((Mifron) this);
    protected final MinoruBridgeFeature minoruBridgeFeature = new MinoruBridgeFeature((Mifron) this);
    protected final ShopBlockFeature shopBlockFeature = new ShopBlockFeature((Mifron) this);
    protected final WorldPolicyFeature worldPolicyFeature = new WorldPolicyFeature((Mifron) this);

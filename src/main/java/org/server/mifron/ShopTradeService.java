@@ -86,6 +86,7 @@ final class ShopTradeService {
          // consumed; otherwise a capped wallet silently swallows the item.
          // depositExact pays exactly `price` (the fit check passed), so the
          // withdraw below is a precise rollback, not a lossy refund.
+         price = this.plugin.jobService.applyJobBonus(player.getUniqueId(), JobAction.SELL, price);
          if (!this.plugin.economyManager.depositExact(player.getUniqueId(), price, true)) {
             player.sendMessage(ChatColor.RED + "MP上限に達しているため売却できません。MPを消費してから再度お試しください。");
             return;

@@ -1,5 +1,26 @@
 server-motd: "Mifron - Community Minecraft Server"
 
+jobs:
+  # Hours before a player may change jobs again.
+  change-cooldown-hours: 24.0
+  # Enchanter discount on advanced-anvil MP cost (percent).
+  enchant-discount-percent: 20.0
+  # Income bonus percent per action, paid only to the matching job.
+  bonus:
+    hunt: 20.0
+    harvest: 0.0
+    enchant: 0.0
+    sell: 10.0
+    fish: 0.0
+    mine: 0.0
+    explore: 0.0
+  # Flat MP micro-rewards for faucet-less actions, paid only to the matching job.
+  base:
+    harvest: 2
+    fish: 5
+    mine: 5
+    explore: 10
+
 hub-protection-radius-chunks: 4
 survival-safety:
   disable-tnt: true

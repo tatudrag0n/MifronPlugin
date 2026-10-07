@@ -54,6 +54,7 @@ abstract class MifronPart17 extends MifronPart16 {
          }
          case "status" -> { if (this.mifron().hasPermission(sender, "mifron.command.status")) this.mifron().handleMifronStatusCommand((Player) sender, args); }
          case "tutorial" -> this.mifron().handleTutorialCommand(sender, args);
+         case "job" -> this.mifron().handleJobCommand(sender, args);
          case "shelfshop" -> this.handleShelfShopCommand(sender, args);
          case "shopwand" -> this.giveTypedWand(sender, args.length < 2 ? this.createShopWand() : this.createShopWand(ShopWandType.fromKey(args[1])), "\u00a7a\u30b7\u30e7\u30c3\u30d7\u30ef\u30f3\u30c9\u3092\u5165\u624b\u3057\u307e\u3057\u305f\u3002");
          case "jumppadwand" -> {

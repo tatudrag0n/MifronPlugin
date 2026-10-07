@@ -197,6 +197,7 @@ public class EliteMobFeature implements Listener {
         plugin.addEliteKilledMob(killer.getUniqueId(), typeName);
         int base = plugin.getConfig().getInt("elite-mobs.base-mp." + typeName, 10);
         int reward = Math.max(5, base) * 5;
+        reward = plugin.jobService.applyJobBonus(killer.getUniqueId(), JobAction.HUNT, reward);
         plugin.depositEmeralds(killer.getUniqueId(), reward);
         killer.sendMessage(ChatColor.GOLD + "\u2694\uFE0F \u30a8\u30ea\u30fc\u30c8\u30e2\u30d6\u3092\u8a0e\u4f10\u3057\u305f\uff01 (+" + reward + " MP / 5\u500d & \u30c9\u30ed\u30c3\u30d75\u500d)");
         killer.playSound(killer.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1.2f);

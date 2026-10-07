@@ -641,7 +641,7 @@ final class OnlineShopFeature implements Listener {
          return;
       }
       player.updateInventory();
-      this.plugin.depositEmeralds(player.getUniqueId(), (int) Math.min(2_000_000_000L, gained));
+      this.plugin.depositEmeralds(player.getUniqueId(), this.plugin.jobService.applyJobBonus(player.getUniqueId(), JobAction.SELL, (int) Math.min(2_000_000_000L, gained)));
       // Quest sync mirrors merchant sales: trades count per unit sold plus
       // the farming-submission hook for crop materials (deposit already feeds
       // mp_gained through the economy layer for both paths).

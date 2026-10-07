@@ -36,7 +36,7 @@ public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
           List<String> all = new ArrayList<>(List.of(
              "check", "list", "text", "structure", "build", "proposal", "vote", "gamerules",
              "info", "reload", "kit", "balance", "pay", "merchant", "marchant",
-             "quest", "mp", "regen", "chunk", "protect", "menu", "status", "tutorial", "shelfshop", "shopwand",
+             "quest", "mp", "regen", "chunk", "protect", "menu", "status", "tutorial", "job", "shelfshop", "shopwand",
              "jumppadwand", "jumpblock", "sethub", "warning"
           ));
           if (!sender.isOp() && !sender.hasPermission("mifron.admin")) {
@@ -54,6 +54,7 @@ public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
       if (args.length >= 2 && this.isMifronRootCommand(command) && "proposal".equalsIgnoreCase(args[0])) return this.proposalManager.tabComplete(args);
       if (args.length == 2 && this.isMifronRootCommand(command) && "quest".equalsIgnoreCase(args[0])) return List.of("progress", "propose", "cancel");
       if (args.length == 2 && this.isMifronRootCommand(command) && "tutorial".equalsIgnoreCase(args[0])) return List.of("restart", "skip");
+      if (args.length == 2 && this.isMifronRootCommand(command) && "job".equalsIgnoreCase(args[0])) return List.of("hunter", "farmer", "enchanter", "merchant", "fisher", "miner", "adventurer", "none");
       if (args.length == 1 && "friend".equalsIgnoreCase(command.getName())) return List.of("add", "accept", "remove", "chat");
       return Collections.emptyList();
    }

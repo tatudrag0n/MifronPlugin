@@ -54,6 +54,7 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       int baseReward = this.mobKillReward(entity.getType());
       if (baseReward <= 0) return;
       int reward = this.mifron().applyIncomeBonus(killer.getUniqueId(), this.adjustedMobKillReward(killer.getUniqueId(), entity.getType(), baseReward));
+      reward = this.mifron().jobService.applyJobBonus(killer.getUniqueId(), JobAction.HUNT, reward);
       this.mifron().addPlayerStat(killer.getUniqueId(), "total-mob-kills", 1);
       var section = this.mifron().getPlayerSection(killer.getUniqueId());
       section.set("mob-kill-counts." + entity.getType().name(),
@@ -63,6 +64,7 @@ abstract class MifronPart3x2 extends MifronPart3x1 {
       killer.sendMessage("\u00a7a\u8a0e\u4f10\u5831\u916c: +" + this.mifron().formatNumber(reward) + "MP");
       if (firstKill) {
          int firstKillBonus = this.mifron().applyIncomeBonus(killer.getUniqueId(), this.firstMobKillBonus(baseReward));
+         firstKillBonus = this.mifron().jobService.applyJobBonus(killer.getUniqueId(), JobAction.HUNT, firstKillBonus);
          if (firstKillBonus > 0) {
             this.mifron().depositEmeralds(killer.getUniqueId(), firstKillBonus);
             killer.sendMessage("\u00a76\u521d\u8a0e\u4f10\u30dc\u30fc\u30ca\u30b9: +" + this.mifron().formatNumber(firstKillBonus) + "MP");
