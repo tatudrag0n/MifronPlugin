@@ -112,7 +112,7 @@ final class AdvancedAnvilFeature implements Listener {
       // deterministic representation.
       ItemStack result = this.createNormalizedResult(left, right);
       this.resetResultEnchantments(result, left);
-      int changed = this.mergeEnchantments(result, left, incoming);
+      int changed = this.mergeEnchantments(player, result, left, incoming);
       if (changed == 0) {
          return;
       }
@@ -122,7 +122,7 @@ final class AdvancedAnvilFeature implements Listener {
       totalCost = Math.min(totalCost, this.maximumRepairCost());
       boolean exceedsVanillaLevel = this.hasEnchantmentAboveVanillaMaximum(result);
       int xpCost = exceedsVanillaLevel ? 0 : totalCost;
-      int mpCost = exceedsVanillaLevel ? this.mpCost(totalCost, result, left) : 0;
+      int mpCost = exceedsVanillaLevel ? this.mpCost(player, totalCost, result, left) : 0;
       event.getView().setRepairCost(xpCost);
       this.configureMaximumRepairCost(event.getView());
       this.applyRepairPenalty(result, left, right);
@@ -398,6 +398,11 @@ final class AdvancedAnvilFeature implements Listener {
       return globalMaximumEnchantmentLevel(this.plugin);
    }
 
+   private int maximumEnchantmentLevel(org.bukkit.entity.Player player) {
+      int extra = this.plugin.jobService.enchantLimitBreak(player);
+      return Math.max(1, Math.min(255, globalMaximumEnchantmentLevel(this.plugin) + extra));
+   }
+
    /**
     * Single authoritative source for the Mifron enchantment ceiling. Used by
     * the anvil merge/validation and by the MAX tooltip renderer so the two can
@@ -427,7 +432,7 @@ final class AdvancedAnvilFeature implements Listener {
          .has(new NamespacedKey(plugin, "advanced_anvil_cost_display"), org.bukkit.persistence.PersistentDataType.BYTE);
    }
 
-   private int mpCost(int xpCost, ItemStack result, ItemStack left) {
+   private int mpCost(org.bukkit.entity.Player player, int xpCost, ItemStack result, ItemStack left) {
       int perLevel = Math.max(0, this.plugin.getConfig().getInt("advanced-enchanting.mp-cost-per-level", 1));
       int multiplier = 1;
       Map<Enchantment, Integer> before = this.enchantments(left);
@@ -437,11 +442,18 @@ final class AdvancedAnvilFeature implements Listener {
             multiplier = Math.max(multiplier, this.mpCostMultiplier(entry.getKey()));
          }
       }
-      return AdvancedAnvilRules.mpCost(xpCost, perLevel, multiplier);
+      double scale = this.plugin.jobService.enchantMultiplierScale(player);
+      int scaled = Math.max(1, (int) Math.round(multiplier * scale));
+      return AdvancedAnvilRules.mpCost(xpCost, perLevel, scaled);
    }
 
    private int enchantmentLevelLimit(Enchantment enchantment) {
       return enchantmentLevelLimit(this.plugin, enchantment);
+   }
+
+   private int enchantmentLevelLimit(org.bukkit.entity.Player player, Enchantment enchantment) {
+      int extra = this.plugin.jobService.enchantLimitBreak(player);
+      return Math.max(1, Math.min(255, enchantmentLevelLimit(this.plugin, enchantment) + extra));
    }
 
    private int mpCostMultiplier(Enchantment enchantment) {
@@ -471,14 +483,14 @@ final class AdvancedAnvilFeature implements Listener {
       return false;
    }
 
-   private int mergeEnchantments(ItemStack result, ItemStack left, Map<Enchantment, Integer> incoming) {
+   private int mergeEnchantments(org.bukkit.entity.Player player, ItemStack result, ItemStack left, Map<Enchantment, Integer> incoming) {
       ItemMeta meta = result.getItemMeta();
       if (meta == null) {
          return 0;
       }
 
       int changed = 0;
-      int maxLevel = this.maximumEnchantmentLevel();
+      int maxLevel = this.maximumEnchantmentLevel(player);
       Map<Enchantment, Integer> existing = this.enchantments(left);
       Map<Enchantment, Integer> acceptedIncoming = new HashMap<>();
       for (Map.Entry<Enchantment, Integer> entry : incoming.entrySet()) {
@@ -495,7 +507,7 @@ final class AdvancedAnvilFeature implements Listener {
       for (Map.Entry<Enchantment, Integer> entry : merged.entrySet()) {
          Enchantment enchantment = entry.getKey();
          int existingLevel = existing.getOrDefault(enchantment, 0);
-         int mergedLevel = Math.max(1, Math.min(Math.max(existingLevel, this.enchantmentLevelLimit(enchantment)), entry.getValue()));
+         int mergedLevel = Math.max(1, Math.min(Math.max(existingLevel, this.enchantmentLevelLimit(player, enchantment)), entry.getValue()));
          if (mergedLevel <= existingLevel) {
             continue;
          }

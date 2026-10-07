@@ -90,12 +90,14 @@ final class QuestProgressListener implements Listener {
             this.quests.addProgress(player, "mining_blocks", 1);
          }
          if (this.isMiningBlock(block.getType())) this.plugin.jobService.payJobReward(player, JobAction.MINE);
+         if (this.isMiningBlock(block.getType())) this.plugin.jobService.dropMiningBonus(player, block);
 
          if (this.isCropOrNaturalCollection(block.getType())) {
             this.quests.addProgress(player, "life_actions", 1);
             this.quests.addProgress(player, "fishing_collecting", 1);
          }
          if (this.isCropOrNaturalCollection(block.getType())) this.plugin.jobService.payJobReward(player, JobAction.HARVEST);
+         this.plugin.jobService.dropHarvestBonus(player, block);
       }
    }
 
@@ -110,7 +112,7 @@ final class QuestProgressListener implements Listener {
             this.plugin.data().set(path, new ArrayList<>(seen));
             this.plugin.queueDataSave();
             this.quests.addProgress(player, "exploration_chunks", 1);
-            this.plugin.jobService.payJobReward(player, JobAction.EXPLORE);
+            this.plugin.jobService.payJobReward(player, JobAction.EXPLORE, this.plugin.jobService.typeOf(player) == JobType.ADVENTURER ? 2 : 1);
          }
       }
    }
@@ -121,6 +123,7 @@ final class QuestProgressListener implements Listener {
          this.quests.addProgress(event.getPlayer(), "fishing_collecting", 1);
          this.quests.addProgress(event.getPlayer(), "life_actions", 17);
          this.plugin.jobService.payJobReward(event.getPlayer(), JobAction.FISH);
+         this.plugin.jobService.rollFishingBonus(event.getPlayer());
          if (event.getCaught() instanceof Item item && this.isRareFishingLoot(item.getItemStack().getType())) {
             this.quests.addProgress(event.getPlayer(), "rare_fishing", 1);
          }

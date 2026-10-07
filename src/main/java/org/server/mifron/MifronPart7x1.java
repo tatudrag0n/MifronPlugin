@@ -131,6 +131,7 @@ abstract class MifronPart7x1 extends MifronPart7 {
    protected ItemStack createShopPurchasedItem(Material material, int amount) { return new ItemStack(material, amount); }
    protected int applyShopDiscount(Player player, int price) {
       int discount = Math.max(0, Math.min(95, this.mifron().getPlayerSection(player.getUniqueId()).getInt("shop-discount", 0)));
+      discount = Math.max(0, Math.min(95, discount + this.mifron().jobService.purchaseDiscountPercent(player)));
       return (int) Math.max(1L, Math.min(2000000000L, Math.max(1, price) * (100L - discount) / 100L));
    }
 }

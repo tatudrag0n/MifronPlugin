@@ -137,6 +137,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register main world events", () -> Bukkit.getPluginManager().registerEvents(this.mainWorldFeature, this));
       this.mifron().runStartupStep("register test server events", () -> Bukkit.getPluginManager().registerEvents(this.testServerFeature, this));
       this.mifron().runStartupStep("register tutorial events", () -> Bukkit.getPluginManager().registerEvents(this.tutorialFeature, this));
+      this.mifron().runStartupStep("register job events", () -> Bukkit.getPluginManager().registerEvents(this.jobFeature, this));
       this.mifron().runStartupStep("register special item events", () -> Bukkit.getPluginManager().registerEvents(this.specialItemsFeature, this));
       this.mifron().runStartupStep("register elite mob events", () -> Bukkit.getPluginManager().registerEvents(this.eliteMobFeature, this));
       this.mifron().runStartupStep("register store item events", () -> Bukkit.getPluginManager().registerEvents(this.storeItemFeature, this));

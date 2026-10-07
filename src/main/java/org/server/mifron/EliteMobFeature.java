@@ -136,6 +136,19 @@ public class EliteMobFeature implements Listener {
             ItemStack scratch = plugin.specialItemsFeature.createSpecialItem(SpecialItemsFeature.SpecialType.SCRATCH);
             if (scratch != null) loc.getWorld().dropItemNaturally(loc, scratch);
         }
+        if (plugin.jobService.typeOf(killer) == JobType.HUNTER) {
+            // Hunter signature: one guaranteed diamond plus a slain certificate.
+            loc.getWorld().dropItemNaturally(loc, new ItemStack(Material.DIAMOND, 1 + rng.nextInt(2)));
+            ItemStack certificate = new ItemStack(Material.PAPER);
+            org.bukkit.inventory.meta.ItemMeta meta = certificate.getItemMeta();
+            meta.setDisplayName(org.bukkit.ChatColor.GOLD + "エリート討伐証");
+            meta.setLore(java.util.List.of(org.bukkit.ChatColor.GRAY + entity.getType().name(),
+               org.bukkit.ChatColor.GRAY + killer.getName(),
+               org.bukkit.ChatColor.GRAY + java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toString()));
+            certificate.setItemMeta(meta);
+            loc.getWorld().dropItemNaturally(loc, certificate);
+            killer.sendMessage(org.bukkit.ChatColor.GOLD + "ハンター特典: ダイヤ確定＋討伐証を獲得！");
+        }
     }
 
     private boolean roll(String key, double def) {

@@ -5,6 +5,14 @@ jobs:
   change-cooldown-hours: 24.0
   # Enchanter discount on advanced-anvil MP cost (percent).
   enchant-discount-percent: 20.0
+  # Enchanter signature: extra enchantment levels + above-vanilla MP multiplier scale.
+  enchanter-limit-break: 5
+  enchanter-multiplier-scale: 0.5
+  # Merchant signature: extra purchase discount percent (stacks with shop-discount).
+  merchant-purchase-discount-percent: 10
+  # Fisher signature: treasure roll chances on catch.
+  fisher-treasure-emerald: 0.08
+  fisher-treasure-diamond: 0.02
   # Income bonus percent per action, paid only to the matching job.
   bonus:
     hunt: 20.0
