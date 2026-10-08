@@ -1,6 +1,6 @@
 # MifronPlugin 仕様書
 
-最終更新: 2026-09-23 / 対象: `origin/main` 最新
+最終更新: 2026-10-07 / 対象: `origin/main` 最新
 本プラグインは Paper 26.1.2 向けの総合サーバー管理プラグインである。
 通貨単位は MP（内部的にはエメラルド残高として管理）。
 
@@ -10,7 +10,6 @@
 |---|---|
 | main | 建築ワールド（岩盤平面・セミクリエ・承認制） |
 | survival | メインサバイバル（TerraformGenerator） |
-| athletic / minigame | アスレ・ミニゲーム（VoidGen） |
 | creative / market | クリエ・市場 |
 | 各 `_nether` / `_the_end` | 対応ディメンション |
 
@@ -47,17 +46,15 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 - スポーンは survival のランダムスポーン＋ `/mifron merchant spawn|spawnrare|reroll|clear`（管理者）。
 - 商人売買も `total-trades`・ farming-submission・`mp_gained` に連携。
 
-## 5. メニュー・テレポーター
+## 5. メニュー
 
-- 配布アイテム右クリックでメニュー：SHOP / ウォレット / ステータス / クエスト / テレポーター / ギア。
-- テレポーターで survival・main・FFA・登録地点へ移動（初回保護付き）。
+- 配布アイテム右クリックでメニュー：SHOP / ウォレット / ステータス / クエスト / ジョブ / ギア / チュートリアル。
 
 ## 6. ステータス・クエスト・称号・進捗
 
 - ステータスUI：進捗・討伐・図鑑・ギア・称号・転生の6タブ。討伐タブは討伐数＋エリート討伐状況を日本語Mob名（全87種）で表示。図鑑タブはレアアイテム発見状況。各タブ末尾の「追加」から公式サイトへ誘導。
-- ミニゲームはメニューの「ミニゲーム」からFFA・アスレ・スロットを選択する単一入口。
-- 高度な金床は維持（エンチャント拡張）。チュートリアルで説明。
-- クエスト49件（デイリー/ウィークリー/マンスリー/定期/スペシャル/単発/隠し）。進捗系10件は廃止済み。報酬は2026-09改定で半額。
+- 高度な金床は維持（エンチャント拡張、付呪師は上限突破＋5）。チュートリアルで説明。
+- クエスト50件＋ジョブクエスト7件（デイリー/ウィークリー/マンスリー/定期/スペシャル/単発/隠し）。
 - 称号21種＋特殊。未解放は「???」＋達成ヒント表示。装着はタブ表示に反映。
 - 進捗：mainワールドでの達成は無効（記録・報酬・称号なし、再取得可）。
 - `/mf status reset` は進捗・クエスト・称号・統計を初期化し再達成可能にする。
@@ -78,28 +75,34 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 - 落下ダメージ無効。エンティティ生成系アイテム使用禁止（防具立て除く）。
 - 新規main生成は `mifron-flat`（STARTUP micro-plugin）でY=-64岩盤1層・構造物なし。`bukkit.yml` の `worlds.main.generator: MifronFlat:flat` が必要。
 
-## 9. FFA
+## 9. ジョブ
 
-- ロビー→キット選択（防具立て）→参戦。キット：剣・弓・スナイパー・リボルバー等。
-- リボルバーは1発ずつリロード（1発あたり設定値の1/6）、射撃で中断して発射可。
-- キット選択地点は `ffa.kit-selection`（main）。`/mf ffa setcenter|setkits|createkits|removekits|leave|stats`。
-- 退出時に装備・状態を復元。
+- 7職（狩人/農民/付呪師/商人/釣り人/鉱夫/冒険者）＋無職の単一選択・切替式。切替クールダウンあり（既定24h）。
+- `/mf job` で確認・`/mf job <名>` の2段階確定で変更。メニューからも確認可。
+- 職ごとに対応行動の所得ボーナス＋固有特典（付呪師の上限突破＋5、狩人のElite確定ドロップ、農民の収穫＋1確定、商人の購入割引、釣り人の宝釣り、鉱夫の深層追加ドロップ＋溶岩半減、冒険者の初見2倍）。
+- ジョブ限定デイリークエストJ01-J07（該当職のみ表示・進行）。
 
-## 10. その他機能（概要）
+## 10. 安全取引（/trade）
 
-- アスレチック・ミニゲーム、棚/樽ショップ、チャンク保護・提案・投票、転生、スロット、エリートMob、ジャンプパッド、サーバーポータル、Discord連携・認証・投票・Tebex連携。
+- `/trade <player>` で申込→承諾で双方に共有UI。提示枠16枠×2＋提示MP。
+- 提示変更で双方の確定リセット。双方確定でMP・アイテム同時交換。タイムアウト・閉鎖・退出時は提示を返却。
+- 上限は `trade.max-amount`（既定100万MP）。
+
+## 11. その他機能（概要）
+
+- 棚/樽ショップ、チャンク保護・提案・投票、転生、エリートMob、ジャンプパッド、Discord連携・認証・投票・Tebex連携。
 - テストサーバー機能（config既定off）：whitelist強制＋6時間再起動＋5分前警告。
 
-## 11. 主なコマンド
+## 12. 主なコマンド
 
-- `/mf menu|balance|pay|shop・・|tutorial|status|quest|ffa|merchant|main|protect|proposal|vote|minigame|athletic|gamerules|reload`（一部管理者専用）
+- `/mf menu|balance|pay|shop・・|tutorial|status|quest|job|merchant|main|protect|proposal|vote|gamerules|reload`（一部管理者専用）
+- `/trade <player>|accept|deny|cancel|money <額>`
 - `/mifron merchant spawn|spawnrare|reroll|clear`
 - `/mf main approve|submit|submissions|approve-sub|reject-sub`
-- `/mf ffa setcenter|setkits|createkits|removekits|leave|stats`
 
-## 12. 設定・データ
+## 13. 設定・データ
 
-- `plugins/mifron/config.yml`：全般・FFA・商人・クエスト倍率・ワールド設定等。
+- `plugins/mifron/config.yml`：全般・ジョブ・取引・商人・クエスト倍率・ワールド設定等。
 - `plugins/mifron/data.yml`：プレイヤーデータ（MP・進捗・クエスト・称号・在庫・承認等）。`queueDataSave` で遅延保存。
 - `plugins/mifron/quests.yml`：クエスト定義（配布時は `src/main/resources/quests.yml` が初期配置）。
 - `plugins/mifron/shop-prices.yml` / `economy-price-table.yml`：価格（後者が優先）。
@@ -108,8 +111,8 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 
 ## 13. 運用
 
-- ビルド：`mvn -B clean package`（テスト75件）。
+- ビルド：`mvn -B clean package`（テスト68件）。
 - 検証フロー：`bash deploy/stage-jar.sh` → `~/mifron-staging/`（BUILD_INFO/HISTORY付き）→ ローカル検証 → 承認後のみ本番 `plugins/` へコピー＋再起動（警告・save-all・0人確認）。
 - 本番 `~/MifronPlugin` は config-sync により `origin/main` 追従。未push作業は消えるため必ずpush。
 - ホストRAM 7GBのため本番（4G）と重い処理の同時実行に注意（OOM実績あり）。
-- 既知のログノイズ：ServerPortalFeatureのEventHandler警告2件、DiscordSRV権限WARN、Votifier外部スパム。
+- 既知のログノイズ：DiscordSRV権限WARN、Votifier外部スパム。
