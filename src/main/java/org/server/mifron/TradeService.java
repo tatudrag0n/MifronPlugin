@@ -24,6 +24,49 @@ public final class TradeService {
       this.plugin = plugin;
    }
 
+   static final String SELECT_TITLE = "\u00a76\u53d6\u5f15\u76f8\u624b\u3092\u9078\u629e";
+
+   /** Opens a player-head list; clicking a head sends a trade request. */
+   public void openPlayerSelect(Player player) {
+      if (player == null) return;
+      java.util.List<Player> candidates = new java.util.ArrayList<>();
+      for (Player online : org.bukkit.Bukkit.getOnlinePlayers()) {
+         if (!online.equals(player)) candidates.add(online);
+      }
+      if (candidates.isEmpty()) {
+         player.sendMessage("\u00a7c\u73fe\u5728\u30aa\u30f3\u30e9\u30a4\u30f3\u306e\u30d7\u30ec\u30a4\u30e4\u30fc\u304c\u3044\u307e\u305b\u3093\u3002");
+         return;
+      }
+      org.bukkit.inventory.Inventory view = org.bukkit.Bukkit.createInventory(player,
+         Math.min(54, ((candidates.size() + 8) / 9) * 9), SELECT_TITLE);
+      for (Player target : candidates) {
+         org.bukkit.inventory.ItemStack head = new org.bukkit.inventory.ItemStack(org.bukkit.Material.PLAYER_HEAD);
+         org.bukkit.inventory.meta.SkullMeta meta = (org.bukkit.inventory.meta.SkullMeta) head.getItemMeta();
+         meta.setOwningPlayer(target);
+         meta.setDisplayName(org.bukkit.ChatColor.GREEN + target.getName());
+         meta.setLore(java.util.List.of(org.bukkit.ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u53d6\u5f15\u3092\u7533\u3057\u8fbc\u3080"));
+         head.setItemMeta(meta);
+         view.addItem(head);
+      }
+      player.openInventory(view);
+   }
+
+   /** Handles clicks in the player-select UI. Returns true if consumed. */
+   public boolean onPlayerSelectClick(Player player, org.bukkit.inventory.ItemStack clicked) {
+      if (player == null || clicked == null || clicked.getType() != org.bukkit.Material.PLAYER_HEAD) return true;
+      if (!(clicked.getItemMeta() instanceof org.bukkit.inventory.meta.SkullMeta meta) || meta.getOwningPlayer() == null) return true;
+      java.util.UUID uuid = meta.getOwningPlayer().getUniqueId();
+      Player target = org.bukkit.Bukkit.getPlayer(uuid);
+      if (target == null) {
+         player.sendMessage("\u00a7c\u76f8\u624b\u304c\u30aa\u30d5\u30e9\u30a4\u30f3\u3067\u3059\u3002");
+         player.closeInventory();
+         return true;
+      }
+      player.closeInventory();
+      this.request(player, target);
+      return true;
+   }
+
    public int maxAmount() {
       return Math.max(1, this.plugin.getConfig().getInt("trade.max-amount", 1000000));
    }

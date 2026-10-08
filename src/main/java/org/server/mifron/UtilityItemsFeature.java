@@ -87,6 +87,8 @@ final class UtilityItemsFeature implements Listener {
       inventory.setItem(14, this.plugin.actionItem(Material.WOODEN_HOE, ChatColor.GOLD + "ジョブ: " + job.displayName(),
          List.of(ChatColor.GRAY + job.description(), ChatColor.GRAY + "クリック: 詳細・/mf job で変更"), "menu_job", null));
       inventory.setItem(15, this.gearMenuIcon(player));
+      inventory.setItem(16, this.plugin.actionItem(Material.CHEST, ChatColor.GOLD + "\u53d6\u5f15",
+         List.of(ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u76f8\u624b\u3092\u9078\u3093\u3067\u53d6\u5f15\u7533\u8acb"), "menu_trade", null));
       inventory.setItem(22, this.plugin.actionItem(Material.BOOK, ChatColor.YELLOW + "チュートリアル",
          List.of(ChatColor.GRAY + "クリック: 基本操作を再表示"), "menu_tutorial", null));
       for (int slot = 0; slot < inventory.getSize(); slot++) {

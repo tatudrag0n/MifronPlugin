@@ -45,6 +45,13 @@ final class TradeFeature implements Listener {
    @EventHandler
    public void onClick(InventoryClickEvent event) {
       if (!(event.getWhoClicked() instanceof Player player)) return;
+      if (TradeService.SELECT_TITLE.equals(event.getView().getTitle())) {
+         event.setCancelled(true);
+         if (event.getRawSlot() >= 0 && event.getInventory().equals(event.getClickedInventory())) {
+            this.service().onPlayerSelectClick(player, event.getCurrentItem());
+         }
+         return;
+      }
       TradeSession session = this.service().sessionOf(event.getInventory());
       if (session == null || session.state != TradeSession.State.OPEN) return;
       // Whitelist only: plain left/right on own areas, shift-left moves, buttons.
