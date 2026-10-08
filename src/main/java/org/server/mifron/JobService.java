@@ -193,6 +193,63 @@ public final class JobService {
       return true;
    }
 
+   static final java.util.List<String> TRAVEL_POINTS = java.util.List.of("hub", "survival", "main");
+
+   public int travelCost(org.bukkit.entity.Player player) {
+      if (player != null && this.typeOf(player) == JobType.ADVENTURER) return 0;
+      return Math.max(0, this.plugin.getConfig().getInt("jobs.travel-cost-mp", 500));
+   }
+
+   public long travelCooldownMillis(org.bukkit.entity.Player player) {
+      boolean adventurer = player != null && this.typeOf(player) == JobType.ADVENTURER;
+      double minutes = adventurer
+         ? this.plugin.getConfig().getDouble("jobs.travel-cooldown-adventurer-minutes", 10.0)
+         : this.plugin.getConfig().getDouble("jobs.travel-cooldown-minutes", 60.0);
+      return (long) (Math.max(0.0, minutes) * 60_000L);
+   }
+
+   /** Teleports to a named travel point, charging non-adventurers. */
+   public boolean travel(org.bukkit.entity.Player player, String point) {
+      if (player == null || point == null) return false;
+      String key = point.trim().toLowerCase(java.util.Locale.ROOT);
+      if (!TRAVEL_POINTS.contains(key)) {
+         player.sendMessage("\u00a7c\u4e0d\u660e\u306a\u79fb\u52d5\u5148\u3067\u3059: /travel <hub|survival|main>");
+         return true;
+      }
+      if (this.plugin.tutorialFeature.isTutorialWorld(player.getWorld())) {
+         player.sendMessage("\u00a7c\u30c1\u30e5\u30fc\u30c8\u30ea\u30a2\u30eb\u4e2d\u306f\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002");
+         return true;
+      }
+      long last = this.plugin.getPlayerSection(player.getUniqueId()).getLong("job.travel-at", 0L);
+      long remaining = JobRules.cooldownRemainingMillis(last, System.currentTimeMillis(), this.travelCooldownMillis(player));
+      if (remaining > 0) {
+         player.sendMessage("\u00a7c\u79fb\u52d5\u306e\u30af\u30fc\u30eb\u30c0\u30a6\u30f3\u4e2d\u3067\u3059\u3002\u6b8b\u308a: " + this.formatDuration(remaining));
+         return true;
+      }
+      org.bukkit.Location dest = "hub".equals(key)
+         ? this.plugin.readLocation("hub")
+         : this.plugin.readLocation("world-rules.spawn." + key);
+      if (dest == null || dest.getWorld() == null) {
+         if ("hub".equals(key)) dest = this.plugin.readLocation("world-rules.spawn.survival");
+      }
+      if (dest == null || dest.getWorld() == null) {
+         player.sendMessage("\u00a7c\u79fb\u52d5\u5148\u304c\u672a\u8a2d\u5b9a\u3067\u3059\u3002");
+         return true;
+      }
+      int cost = this.travelCost(player);
+      if (cost > 0 && !this.plugin.withdrawEmeralds(player.getUniqueId(), cost)) {
+         player.sendMessage("\u00a7cMP\u304c\u8db3\u308a\u307e\u305b\u3093\u3002\u5fc5\u8981: " + cost + "MP");
+         return true;
+      }
+      this.plugin.getPlayerSection(player.getUniqueId()).set("job.travel-at", System.currentTimeMillis());
+      this.plugin.queueDataSave();
+      player.teleport(dest);
+      player.sendMessage(cost > 0
+         ? "\u00a76" + key + "\u3078\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002(-" + cost + "MP)"
+         : "\u00a76" + key + "\u3078\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002(\u5192\u967a\u8005\u7279\u5178: \u7121\u6599)");
+      return true;
+   }
+
    String formatDuration(long millis) {
       long hours = millis / 3_600_000L;
       long minutes = (millis % 3_600_000L) / 60_000L;

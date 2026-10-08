@@ -69,6 +69,15 @@ abstract class MifronPart18 extends MifronPart17x1 {
       }
    }
 
+   protected void handleTravelCommand(Player player, String[] args) {
+      if (args.length == 0) {
+         player.sendMessage("\u00a77/travel <hub|survival|main>");
+         player.sendMessage("\u00a77\u6599\u91d1: " + this.mifron().formatNumber(this.mifron().jobService.travelCost(player)) + "MP");
+         return;
+      }
+      this.mifron().jobService.travel(player, args[0]);
+   }
+
    protected void handlePayCommand(Player player, String[] args) {
       if (args.length < 3) { player.sendMessage("\u00a7c/mifron pay <player> <amount>"); return; }
       OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);

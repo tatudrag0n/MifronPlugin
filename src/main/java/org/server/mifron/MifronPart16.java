@@ -152,6 +152,11 @@ abstract class MifronPart16 extends MifronPart15x2 {
          if ("friend".equalsIgnoreCase(command.getName())) return this.mifron().handleFriendCommand(sender, args);
          if ("status".equalsIgnoreCase(command.getName())) return this.mifron().handleStatusCommand(sender, args);
          if ("tutorial".equalsIgnoreCase(command.getName())) return this.mifron().handleTutorialCommand(sender, args);
+         if ("travel".equalsIgnoreCase(command.getName())) {
+            if (!(sender instanceof Player travelPlayer)) { sender.sendMessage("Player only."); return true; }
+            this.mifron().handleTravelCommand(travelPlayer, args);
+            return true;
+         }
          if ("trade".equalsIgnoreCase(command.getName())) {
             if (!(sender instanceof Player tradePlayer)) { sender.sendMessage("Player only."); return true; }
             this.mifron().handleTradeCommand(tradePlayer, args);

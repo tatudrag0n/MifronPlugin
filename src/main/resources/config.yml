@@ -32,6 +32,11 @@ jobs:
     fish: 5
     mine: 5
     explore: 10
+  # Fast-travel fee for non-adventurers (adventurers travel free).
+  travel-cost-mp: 500
+  # Fast-travel cooldowns in minutes.
+  travel-cooldown-minutes: 60.0
+  travel-cooldown-adventurer-minutes: 10.0
 
 hub-protection-radius-chunks: 4
 survival-safety:
