@@ -267,19 +267,6 @@ quests:
     progress-key: exploration_chunks
     required: 150
     intent: "ワールド探索促進"
-  W09:
-    type: "ウィークリー"
-    name: "共同納品"
-    reset: "毎週リセット"
-    condition: "ミニゲーム解放へ合計1,000MPを納品"
-    base-reward-mp: 900
-    display: "10候補から5件抽選"
-    reincarnation-bonus: true
-    repeat-limit: "週1回"
-    icon: BEACON
-    progress-key: community_donations
-    required: 1000
-    intent: "共同コンテンツ参加"
   W10:
     type: "ウィークリー"
     name: "ウィークリー完全達成"
@@ -358,19 +345,6 @@ quests:
     progress-key: exploration_chunks
     required: 1000
     intent: "ワールド全体の導線"
-  M06:
-    type: "マンスリー"
-    name: "月間挑戦者"
-    reset: "毎月リセット"
-    condition: "アスレクリア・ミニゲーム参加・勝利処理を合計60回"
-    base-reward-mp: 4250
-    display: "10件固定表示"
-    reincarnation-bonus: true
-    repeat-limit: "月1回"
-    icon: FIREWORK_ROCKET
-    progress-key: challenge_activity
-    required: 60
-    intent: "サブコンテンツの寿命を延ばす"
   M08:
     type: "マンスリー"
     name: "生活基盤整備"
@@ -384,19 +358,6 @@ quests:
     progress-key: life_actions
     required: 5000
     intent: "生活系の月間目標"
-  M09:
-    type: "マンスリー"
-    name: "共同開拓"
-    reset: "毎月リセット"
-    condition: "ミニゲーム解放へ1MP以上を納品"
-    base-reward-mp: 4000
-    display: "10件固定表示"
-    reincarnation-bonus: true
-    repeat-limit: "月1回"
-    icon: BEACON
-    progress-key: community_participation
-    required: 1
-    intent: "共同プレイの価値化"
   M10:
     type: "マンスリー"
     name: "マンスリー完全達成"
@@ -631,19 +592,6 @@ quests:
     progress-key: mob_catalog
     required: 1
     intent: "討伐タブ連動"
-  S28:
-    type: "スペシャル"
-    name: "共同解放の功労者"
-    reset: "サーバー解放で発生"
-    condition: "ミニゲーム解放へ1MP以上を納品"
-    base-reward-mp: 12500
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: BEACON
-    progress-key: server_unlock_contribution
-    required: 1
-    intent: "共同目標の貢献評価"
   S29:
     type: "スペシャル"
     name: "クリエイターの第一歩"
