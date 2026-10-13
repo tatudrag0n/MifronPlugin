@@ -29,7 +29,6 @@ abstract class MifronPart11 extends MifronPart10x2 {
          inventory.setItem(base, this.mifron().actionItem(Material.PLAYER_HEAD, "\u00a7f" + this.mifron().safePlayerName(user), List.of("\u00a77\u30d7\u30ec\u30a4\u30e4\u30fc"), "friend_profile", user.getUniqueId().toString()));
          inventory.setItem(base + 2, this.mifron().actionItem(online ? Material.LIME_DYE : Material.GRAY_DYE, online ? "\u00a7a\u30aa\u30f3\u30e9\u30a4\u30f3" : "\u00a78\u30aa\u30d5\u30e9\u30a4\u30f3", List.of(), "friend_profile", user.getUniqueId().toString()));
          inventory.setItem(base + 3, this.mifron().actionItem(friend ? Material.RED_DYE : Material.EMERALD, friend ? "\u00a7c\u30d5\u30ec\u30f3\u30c9\u89e3\u9664" : "\u00a7a\u30d5\u30ec\u30f3\u30c9\u7533\u8acb", List.of(), friend ? "friend_remove" : "friend_request", user.getUniqueId().toString()));
-         inventory.setItem(base + 4, this.mifron().actionItem(Material.WRITABLE_BOOK, "\u00a7b\u30c1\u30e3\u30c3\u30c8", List.of(), friend ? "friend_chat_open" : "friend_request", user.getUniqueId().toString()));
          row++;
       }
       if (row == 1) inventory.setItem(9, this.mifron().named(Material.GRAY_STAINED_GLASS_PANE, "\u00a77\u8a72\u5f53\u30d7\u30ec\u30a4\u30e4\u30fc\u306a\u3057", List.of()));
@@ -37,15 +36,6 @@ abstract class MifronPart11 extends MifronPart10x2 {
 
    protected boolean matchesFriendFilter(OfflinePlayer player, String filter) {
       return filter == null || filter.isBlank() || this.mifron().safePlayerName(player).toLowerCase(Locale.ROOT).contains(filter.toLowerCase(Locale.ROOT));
-   }
-
-   protected void fillChatBoxOnly(Player player, Inventory inventory) {
-      UUID chatTarget = this.friendChatService.activeTarget(player.getUniqueId());
-      if (chatTarget == null) return;
-      String draft = this.friendChatService.draft(player.getUniqueId());
-      inventory.setItem(7, this.mifron().actionItem(Material.WRITABLE_BOOK, "\u00a7e\u672c\u6587\u5165\u529b", List.of("\u00a77" + (draft.isBlank() ? "\u672a\u5165\u529b" : draft)), "friend_chat_input", chatTarget.toString()));
-      inventory.setItem(8, this.mifron().actionItem(Material.LIME_CONCRETE, "\u00a7a\u9001\u4fe1", List.of(), "friend_chat_send", chatTarget.toString()));
-      inventory.setItem(15, this.mifron().actionItem(Material.BARRIER, "\u00a7c\u30c1\u30e3\u30c3\u30c8\u6b04\u3092\u9589\u3058\u308b", List.of(), "friend_chat_close", chatTarget.toString()));
    }
 
    protected void fillStatusBox(Player player, Inventory inventory) {

@@ -60,8 +60,6 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "friend_request" -> { if (targetId != null) { this.mifron().sendFriendRequest(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
          case "friend_accept" -> { if (targetId != null) { this.mifron().acceptFriendRequest(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
          case "friend_remove" -> { if (targetId != null) { this.mifron().removeFriend(player, Bukkit.getOfflinePlayer(targetId)); this.mifron().openFriendUi(player); } }
-         case "friend_chat_open" -> { if (targetId != null) { this.friendChatService.openChat(player.getUniqueId(), targetId); this.mifron().openFriendUi(player); } }
-         case "friend_chat_close" -> { this.friendChatService.closeChat(player.getUniqueId()); this.mifron().openFriendUi(player); }
          case "friend_status_detail" -> {
             // The bottom stats box is display-only: jumping to the progress
             // tab from here is surprising, and the top tabs (slots 0-3)
@@ -155,6 +153,11 @@ abstract class MifronPart14 extends MifronPart13x1 {
          case "menu_tutorial" -> { this.mifron().tutorialFeature.resume(player); }
          case "menu_job" -> this.utilityItemsFeature.openJobUi(player);
          case "menu_trade" -> { this.mifron().tradeService.openPlayerSelect(player); }
+         case "menu_vote" -> {
+            if (Bukkit.getPluginManager().getPlugin("VotingPlugin") != null) player.performCommand("vote");
+            else player.sendMessage("\u00a7e\u6295\u7968\u306f\u73fe\u5728\u6e96\u5099\u4e2d\u3067\u3059\u3002Discord\u306e\u6848\u5185\u3092\u3054\u78ba\u8a8d\u304f\u3060\u3055\u3044\u3002");
+         }
+         case "menu_login_bonus" -> this.utilityItemsFeature.openLoginBonusUi(player);
          default -> {}
       }
    }

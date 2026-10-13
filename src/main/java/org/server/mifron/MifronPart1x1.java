@@ -90,6 +90,12 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.getConfig().addDefault("survival-dimensions.overworld", "survival");
       this.getConfig().addDefault("survival-dimensions.nether", "survival_nether");
       this.getConfig().addDefault("survival-dimensions.end", "survival_the_end");
+      this.getConfig().addDefault("chat.blocked-private-commands", List.of());
+      this.getConfig().addDefault("login-bonus.streak-milestones.7", 2000);
+      this.getConfig().addDefault("login-bonus.streak-milestones.30", 10000);
+      this.getConfig().addDefault("login-bonus.streak-milestones.100", 30000);
+      this.getConfig().addDefault("return-bonus.days", 14);
+      this.getConfig().addDefault("return-bonus.mp", 3000);
       this.getConfig().options().copyDefaults(true);
       this.saveConfig();
       this.mifron().applyServerMotd();
@@ -103,6 +109,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("apply economy price table", this.mifron()::applyEconomyPriceTable);
       this.mifron().runStartupStep("cache shelf shop catalog", this.mifron()::rebuildShelfShopCatalog);
       this.mifron().loadData();
+      this.mifron().runStartupStep("load chat policy", this.chatPolicyFeature::load);
       this.mifron().runStartupStep("ensure Survival dimensions", this.survivalDimensionFeature::ensureWorlds);
       this.mifron().runStartupStep("ensure tutorial world", this.tutorialFeature::ensureWorld);
       this.mifron().runStartupStep("start tutorial arena task", this.tutorialFeature::startArenaTask);
@@ -143,6 +150,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register store item events", () -> Bukkit.getPluginManager().registerEvents(this.storeItemFeature, this));
       this.mifron().runStartupStep("register enchant max display events", () -> Bukkit.getPluginManager().registerEvents(this.enchantMaxDisplayFeature, this));
       this.mifron().runStartupStep("register friend chat events", () -> Bukkit.getPluginManager().registerEvents(this.friendChatService, this));
+      this.mifron().runStartupStep("register chat policy events", () -> Bukkit.getPluginManager().registerEvents(this.chatPolicyFeature, this));
       if (Bukkit.getPluginManager().getPlugin("Geyser-Spigot") != null) {
          this.bedrockUiFeature = new BedrockUiFeature((Mifron) this);
          this.getLogger().info("Bedrock mobile Forms UI enabled through Geyser.");

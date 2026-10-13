@@ -1,6 +1,5 @@
 package org.server.mifron;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -98,28 +97,5 @@ abstract class MifronPart18x1 extends MifronPart18 {
       this.setUuidSet(player.getUniqueId(), "friends", playerFriends);
       this.setUuidSet(target.getUniqueId(), "friends", targetFriends);
       player.sendMessage("\u00a7a\u30d5\u30ec\u30f3\u30c9\u3092\u89e3\u9664\u3057\u307e\u3057\u305f: " + this.mifron().safePlayerName(target));
-   }
-
-   protected void sendFriendChatDraft(Player player, OfflinePlayer target) {
-      String message = this.friendChatService.draft(player.getUniqueId()).trim();
-      if (message.isBlank()) { player.sendMessage("\u00a7c\u672c\u6587\u304c\u672a\u5165\u529b\u3067\u3059\u3002"); return; }
-      this.sendFriendChat(player, target, message);
-      this.friendChatService.takeDraft(player.getUniqueId());
-   }
-
-   protected void sendFriendChat(Player player, OfflinePlayer target, String message) {
-      message = this.sanitizeTextInput(message, 256);
-      if (message.isBlank()) { player.sendMessage("\u00a7c\u672c\u6587\u304c\u672a\u5165\u529b\u3067\u3059\u3002"); return; }
-      if (!this.mifron().getUuidSet(player.getUniqueId(), "friends").contains(target.getUniqueId())) { player.sendMessage("\u00a7c\u30d5\u30ec\u30f3\u30c9\u3067\u306f\u3042\u308a\u307e\u305b\u3093\u3002"); return; }
-      player.sendMessage("\u00a7b[Friend -> " + this.mifron().safePlayerName(target) + "] " + message);
-      if (target.isOnline()) {
-         target.getPlayer().sendMessage("\u00a7b[Friend <- " + player.getName() + "] " + message);
-         return;
-      }
-      List<String> notifications = this.mifron().getPlayerSection(target.getUniqueId()).getStringList("offline-messages");
-      notifications.add(this.mifron().safePlayerName(player) + ": " + message);
-      while (notifications.size() > 50) notifications.remove(0);
-      this.mifron().getPlayerSection(target.getUniqueId()).set("offline-messages", notifications);
-      this.mifron().saveData();
    }
 }

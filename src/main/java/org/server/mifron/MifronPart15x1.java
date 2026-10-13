@@ -3,9 +3,11 @@ package org.server.mifron;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
@@ -103,9 +105,43 @@ abstract class MifronPart15x1 extends MifronPart15 {
       section.set("total-logins", total);
       int reward = this.mifron().applyIncomeBonus(player.getUniqueId(), 10 + streak);
       if (total % 10 == 0) reward = this.mifron().safeAdd(reward, this.mifron().safeMultiply(100, total / 10));
+      int milestone = LoginBonusRules.milestoneBonus(this.streakMilestones(), streak);
+      if (milestone > 0) reward = this.mifron().safeAdd(reward, this.mifron().applyIncomeBonus(player.getUniqueId(), milestone));
       this.mifron().depositEmeralds(player.getUniqueId(), reward);
-      player.sendMessage("\u00a7a\u30ed\u30b0\u30a4\u30f3\u5831\u916c: +" + this.mifron().formatNumber(reward) + "MP");
+      player.sendMessage("\u00a7a\u30ed\u30b0\u30a4\u30f3\u5831\u916c: +" + this.mifron().formatNumber(reward) + "MP (\u9023\u7d9a" + streak + "\u65e5)");
+      if (milestone > 0) {
+         Bukkit.broadcastMessage("\u00a76[\u304a\u77e5\u3089\u305b] \u00a7e" + player.getName() + " \u00a7f\u304c\u9023\u7d9a\u30ed\u30b0\u30a4\u30f3 \u00a7e" + streak + "\u65e5 \u00a7f\u3092\u9054\u6210\u3057\u307e\u3057\u305f!");
+      }
       this.checkStatTitles(player);
+      this.queueDataSave();
+   }
+
+   /** Configured streak milestone table (day -> MP), read from config.yml. */
+   protected Map<Integer, Integer> streakMilestones() {
+      ConfigurationSection section = this.getConfig().getConfigurationSection("login-bonus.streak-milestones");
+      if (section == null) return Map.of();
+      Map<Integer, Integer> milestones = new HashMap<>();
+      for (String key : section.getKeys(false)) {
+         try { milestones.put(Integer.parseInt(key), Math.max(0, section.getInt(key))); }
+         catch (NumberFormatException ignored) { }
+      }
+      return milestones;
+   }
+
+   /** Welcome-back bonus for players returning after a long absence. */
+   protected void handleReturnBonus(Player player) {
+      ConfigurationSection section = this.mifron().getPlayerSection(player.getUniqueId());
+      long now = System.currentTimeMillis();
+      long lastSeen = section.getLong("last-seen", 0L);
+      section.set("last-seen", now);
+      if (lastSeen <= 0L) return;
+      long gapDays = Math.max(0L, (now - lastSeen) / 86_400_000L);
+      if (!LoginBonusRules.qualifiesForReturnBonus(gapDays, this.getConfig().getInt("return-bonus.days", 14))) return;
+      int base = Math.max(0, this.getConfig().getInt("return-bonus.mp", 3000));
+      if (base <= 0) return;
+      int reward = this.mifron().applyIncomeBonus(player.getUniqueId(), base);
+      this.mifron().depositEmeralds(player.getUniqueId(), reward);
+      player.sendMessage("\u00a76\u304a\u304b\u3048\u308a\u306a\u3055\u3044! \u00a7a\u5fa9\u5e30\u30dc\u30fc\u30ca\u30b9: +" + this.mifron().formatNumber(reward) + "MP");
       this.queueDataSave();
    }
 

@@ -11,6 +11,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
@@ -210,6 +211,41 @@ final class UtilityItemsFeature implements Listener {
          case ADVENTURER -> Material.COMPASS;
          case NONE -> Material.BARRIER;
       };
+   }
+
+   // ------------------------------------------------------------------
+   // Login bonus: streak, totals and the next streak milestone.
+   // ------------------------------------------------------------------
+
+   static final String LOGIN_BONUS_UI_TITLE = "\u00a7eMifron Login Bonus";
+
+   void openLoginBonusUi(Player player) {
+      org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text(LOGIN_BONUS_UI_TITLE));
+      ConfigurationSection section = this.plugin.getPlayerSection(player.getUniqueId());
+      int streak = section.getInt("login-streak", 0);
+      int total = section.getInt("total-logins", 0);
+      java.util.Map<Integer, Integer> milestones = this.plugin.streakMilestones();
+      inventory.setItem(11, this.plugin.actionItem(Material.CLOCK, ChatColor.YELLOW + "\u9023\u7d9a\u30ed\u30b0\u30a4\u30f3: " + streak + "\u65e5",
+         List.of(ChatColor.GRAY + "\u6bce\u65e5\u30ed\u30b0\u30a4\u30f3\u3059\u308b\u3068\u9023\u7d9a\u65e5\u6570\u304c\u5897\u3048\u307e\u3059\u3002",
+            ChatColor.GRAY + "1\u65e5\u7a7a\u304f\u30681\u65e5\u306b\u623b\u308a\u307e\u3059\u3002"), "login_bonus_info", null));
+      inventory.setItem(13, this.plugin.actionItem(Material.PAPER, ChatColor.AQUA + "\u7d2f\u8a08\u30ed\u30b0\u30a4\u30f3: " + total + "\u65e5",
+         List.of(ChatColor.GRAY + "10\u65e5\u3054\u3068\u306b +100\u00d7(\u56de\u6570) MP \u306e\u8ffd\u52a0\u5831\u916c"), "login_bonus_info", null));
+      int next = LoginBonusRules.nextMilestone(milestones, streak);
+      List<String> milestoneLore = new java.util.ArrayList<>();
+      if (next < 0) {
+         milestoneLore.add(ChatColor.GREEN + "\u5168\u30de\u30a4\u30eb\u30b9\u30c8\u30fc\u30f3\u9054\u6210!");
+      } else {
+         milestoneLore.add(ChatColor.GRAY + "\u3042\u3068 " + (next - streak) + "\u65e5 \u3067 +" + this.plugin.formatNumber(milestones.getOrDefault(next, 0)) + "MP");
+         for (java.util.Map.Entry<Integer, Integer> entry : new java.util.TreeMap<>(milestones).entrySet()) {
+            milestoneLore.add((streak >= entry.getKey() ? ChatColor.GREEN + "\u9054\u6210\u6e08\u307f " : ChatColor.GRAY.toString()) + entry.getKey() + "\u65e5: +" + this.plugin.formatNumber(entry.getValue()) + "MP");
+         }
+      }
+      inventory.setItem(15, this.plugin.actionItem(Material.EMERALD, ChatColor.GOLD + "\u30b9\u30c8\u30ea\u30fc\u30af\u5831\u916c", milestoneLore, "login_bonus_info", null));
+      inventory.setItem(26, this.plugin.actionItem(Material.OAK_DOOR, "\u00a7f\u30e1\u30cb\u30e5\u30fc\u306b\u623b\u308b", List.of(), "menu_back", null));
+      for (int i = 0; i < inventory.getSize(); i++) {
+         if (inventory.getItem(i) == null) inventory.setItem(i, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
+      }
+      player.openInventory(inventory);
    }
 
    private final java.util.Map<java.util.UUID, Long> gearToggleUntil = new java.util.concurrent.ConcurrentHashMap<>();

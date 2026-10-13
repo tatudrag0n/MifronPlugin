@@ -159,13 +159,15 @@ final class MenuFanFeature implements Listener {
       actions.add(this.plugin.actionItem(Material.WOODEN_HOE, ChatColor.GOLD + "ジョブ: " + job.displayName(), List.of(ChatColor.GRAY + "クリック: ジョブを選んで変更"), "menu_job", null));
       actions.add(this.plugin.utilityItemsFeature.gearMenuIcon(player));
       actions.add(this.plugin.actionItem(Material.CHEST, ChatColor.GOLD + "取引", List.of(ChatColor.GRAY + "クリック: 相手を選んで取引申込"), "menu_trade", null));
+      actions.add(this.plugin.actionItem(Material.PAPER, ChatColor.AQUA + "\u6295\u7968", List.of(ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u6295\u7968\u30b5\u30a4\u30c8\u3092\u958b\u304f", ChatColor.GRAY + "1\u65e51\u56de\u306e\u6295\u7968\u3067MP\u304c\u3082\u3089\u3048\u307e\u3059"), "menu_vote", null));
+      actions.add(this.plugin.actionItem(Material.CLOCK, ChatColor.YELLOW + "\u30ed\u30b0\u30dc", List.of(ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u9023\u7d9a\u30ed\u30b0\u30a4\u30f3\u72b6\u6cc1\u3092\u78ba\u8a8d"), "menu_login_bonus", null));
       actions.add(this.plugin.actionItem(Material.BOOK, ChatColor.YELLOW + "チュートリアル", List.of(ChatColor.GRAY + "クリック: 基本操作を再表示"), "menu_tutorial", null));
       return actions;
    }
 
    private List<String> buildLabels(Player player) {
       JobType job = this.plugin.jobService.typeOf(player);
-      return List.of("SHOP", "ウォレット", "ステータス", "クエスト", "ジョブ: " + job.displayName(), "ギア", "取引", "チュートリアル");
+      return List.of("SHOP", "ウォレット", "ステータス", "クエスト", "ジョブ: " + job.displayName(), "ギア", "取引", "\u6295\u7968", "\u30ed\u30b0\u30dc", "チュートリアル");
    }
 
    private void tick(UUID owner) {

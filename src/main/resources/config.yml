@@ -12,6 +12,27 @@ trade:
   # Maximum MP either side may offer in one trade.
   max-amount: 1000000
 
+chat:
+  # Extra private-message commands to block, on top of the built-in list
+  # (tell/msg/w/whisper/message/m/t/r/reply/mail/em/email and "team msg").
+  # Mifron only provides public global chat; directed player-to-player
+  # messages would require a 電気通信事業 filing, so this guard must stay
+  # in place.
+  blocked-private-commands: []
+
+login-bonus:
+  # Extra MP granted when a consecutive login streak reaches a milestone
+  # (days -> MP). Shown in the in-game ログボ screen.
+  streak-milestones:
+    7: 2000
+    30: 10000
+    100: 30000
+
+return-bonus:
+  # Days away before a returning player receives the welcome-back bonus.
+  days: 14
+  mp: 3000
+
 jobs:
   # Hours before a player may change jobs again.
   change-cooldown-hours: 24.0

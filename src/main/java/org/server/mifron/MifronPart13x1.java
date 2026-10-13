@@ -81,7 +81,8 @@ abstract class MifronPart13x1 extends MifronPart13 {
              || PROPOSAL_UI_TITLE.equals(title)
              || "\u00a7dMifron Menu".equals(title)
              || "\u00a7dMifron Gears".equals(title)
-             || UtilityItemsFeature.JOB_UI_TITLE.equals(title))) {
+             || UtilityItemsFeature.JOB_UI_TITLE.equals(title)
+             || UtilityItemsFeature.LOGIN_BONUS_UI_TITLE.equals(title))) {
          event.setCancelled(true);
          return;
       }
@@ -92,6 +93,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
       else if ("\u00a7dMifron Menu".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
       else if ("\u00a7dMifron Gears".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
       else if (UtilityItemsFeature.JOB_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleJobUiClick(player, event.getCurrentItem()); }
+      else if (UtilityItemsFeature.LOGIN_BONUS_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
       else if ("\u00a76Mifron Merchant".equals(title)) {
          // Every click in the merchant view is cancelled, including bottom
          // (player inventory) clicks: a shift-click there would otherwise move
@@ -139,8 +141,9 @@ abstract class MifronPart13x1 extends MifronPart13 {
          || "\u00a73Mifron Friends".equals(title)
          || "\u00a72Mifron Status".equals(title)
          || "\u00a7dMifron Menu".equals(title)
-         || "\u00a7dMifron Gears".equals(title)
-         || QUEST_UI_TITLE.equals(title)
+          || "\u00a7dMifron Gears".equals(title)
+          || UtilityItemsFeature.LOGIN_BONUS_UI_TITLE.equals(title)
+          || QUEST_UI_TITLE.equals(title)
          || "\u00a76Mifron Merchant".equals(title)) { event.setCancelled(true); }
    }
 

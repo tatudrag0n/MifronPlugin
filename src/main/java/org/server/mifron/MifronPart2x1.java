@@ -68,6 +68,7 @@ abstract class MifronPart2x1 extends MifronPart2 {
       this.mifron().giveInitialItems(player);
       this.mifron().applyPendingAdvancementReset(player);
       this.mifron().handleLoginReward(player);
+      this.mifron().handleReturnBonus(player);
       this.mifron().routeByWarningLevel(player);
       this.mifron().refreshPlayerName(player);
       Bukkit.getScheduler().runTaskLater(this, () -> this.mifron().syncAdvancementState(player), 20L);

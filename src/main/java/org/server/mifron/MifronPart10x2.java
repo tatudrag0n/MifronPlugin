@@ -12,7 +12,6 @@ abstract class MifronPart10x2 extends MifronPart10x1 {
       Inventory inventory = Bukkit.createInventory(player, 54, Component.text("§3Mifron Friends"));
       this.fillFriendTopTabs(inventory);
       this.mifron().fillFriendRows(player, inventory, "");
-      this.mifron().fillChatBoxOnly(player, inventory);
       this.mifron().fillStatusBox(player, inventory);
       inventory.setItem(53, this.mifron().actionItem(Material.OAK_DOOR, "§fメニューに戻る", List.of(), "menu_back", null));
       this.mifron().fillEmptyGuiSlots(inventory);

@@ -1,5 +1,5 @@
 name: mifron
-version: 26.1.2-votepanel-20260912
+version: 26.1.2-engagement-20261013
 
 main: org.server.mifron.Mifron
 api-version: '1.21'

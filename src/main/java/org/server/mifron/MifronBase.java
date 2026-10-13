@@ -32,9 +32,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected static final int MAX_JUMP_PAD_POWER = 100;
    protected static final int MAX_EMERALDS = 2000000000;
    protected static final int MAX_FRIEND_REQUESTS = 100;
-   protected static final int MAX_OFFLINE_MESSAGES = 50;
-   protected static final int MAX_FRIEND_MESSAGE_LENGTH = 256;
-   protected static final int MAX_FRIEND_FILTER_LENGTH = 32;
    protected static final int MAX_SHOP_STACKS_PER_CLICK = 64;
    protected static final int BARREL_SHOP_OFFER_SLOTS = 27;
    protected static final int SHELF_SHOP_OFFER_SLOTS = 3;
@@ -137,6 +134,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final PricingService pricingService = new PricingService(this, this.economyPriceTable);
    protected final EconomyManager economyManager = new EconomyManager((Mifron) this);
    protected final FriendChatService friendChatService = new FriendChatService((Mifron) this);
+   protected final ChatPolicyFeature chatPolicyFeature = new ChatPolicyFeature((Mifron) this);
    protected final QuestService questService = new QuestService((Mifron) this);
    protected final SiteQuestService siteQuestService = new SiteQuestService((Mifron) this);
    protected final ChunkProtectionFeature chunkProtectionFeature = new ChunkProtectionFeature((Mifron) this);
