@@ -25,6 +25,19 @@ if [ "$OLD_HEAD" = "$NEW_HEAD" ]; then
   exit 0
 fi
 
+# Mutual sync: never discard unpushed local commits. If local main is ahead,
+# push them first; a failed push leaves the repo untouched for the next run.
+if git merge-base --is-ancestor "$NEW_HEAD" "$OLD_HEAD"; then
+  echo "Local commits ahead of origin/main; pushing $OLD_HEAD"
+  if ! GIT_TERMINAL_PROMPT=0 git push origin "$OLD_HEAD:refs/heads/main"; then
+    echo "ERROR: auto-push failed; keeping local commits (retry next run)"
+    exit 1
+  fi
+elif ! git merge-base --is-ancestor "$OLD_HEAD" "$NEW_HEAD"; then
+  echo "ERROR: local HEAD and origin/main diverged; manual merge required (no reset)"
+  exit 1
+fi
+
 git reset --hard origin/main
 
 # Feature management: Switch/Xbox friend-join broadcasting.

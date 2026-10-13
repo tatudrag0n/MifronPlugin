@@ -113,6 +113,6 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 
 - ビルド：`mvn -B clean package`（テスト68件）。
 - 検証フロー：`bash deploy/stage-jar.sh` → `~/mifron-staging/`（BUILD_INFO/HISTORY付き）→ ローカル検証 → 承認後のみ本番 `plugins/` へコピー＋再起動（警告・save-all・0人確認）。
-- 本番 `~/MifronPlugin` は config-sync により `origin/main` 追従。未push作業は消えるため必ずpush。
+- 本番 `~/MifronPlugin` は config-sync が60秒ごとに `git fetch` し、`origin/main` と双方向同期。未pushのローカルコミットは自動でpush、リモート先行分はresetで取り込み、push失敗時はコミット保護のためresetしない（分岐時は手動マージ）。
 - ホストRAM 7GBのため本番（4G）と重い処理の同時実行に注意（OOM実績あり）。
 - 既知のログノイズ：DiscordSRV権限WARN、Votifier外部スパム。
