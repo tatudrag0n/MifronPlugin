@@ -1,5 +1,13 @@
 server-motd: "Mifron - Community Minecraft Server"
 
+menu:
+  # In-world fan menu shown when the menu item is used.
+  fan-radius: 2.3
+  fan-spread-degrees: 130.0
+  fan-label-scale: 0.9
+  fan-timeout-seconds: 20
+  fan-close-distance: 6.0
+
 trade:
   # Maximum MP either side may offer in one trade.
   max-amount: 1000000

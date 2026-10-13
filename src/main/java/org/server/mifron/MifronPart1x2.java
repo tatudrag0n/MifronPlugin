@@ -30,6 +30,7 @@ abstract class MifronPart1x2 extends MifronPart1x1 {
       try { this.chunkProtectionFeature.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to disable chunk protection cleanly."); e.printStackTrace(); }
       try { this.buildWorldManager.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to disable build worlds cleanly."); e.printStackTrace(); }
       try { this.textDisplayFeature.disable(); } catch (Throwable e) { this.getLogger().severe("Failed to disable text displays cleanly."); e.printStackTrace(); }
+      try { this.menuFanFeature.closeAll(); } catch (Throwable e) { this.getLogger().severe("Failed to close menu fan cleanly."); e.printStackTrace(); }
       this.mifron().saveData();
       InventoryGroupFeature.shutdown(this);
    }

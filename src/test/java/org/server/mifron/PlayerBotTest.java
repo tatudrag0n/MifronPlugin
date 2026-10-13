@@ -22,7 +22,7 @@ import org.mockbukkit.mockbukkit.entity.ZombieMock;
 
 /**
  * PlayerBot: simulated players exercising real plugin flows headlessly.
- * Covers tutorial stage progression (move + kill detection) end to end.
+ * Covers tutorial stage progression (job open + kill detection) end to end.
  */
 class PlayerBotTest {
    private ServerMock server;
@@ -50,15 +50,14 @@ class PlayerBotTest {
    }
 
    @Test
-   void checkpointMoveAdvancesStage() {
+   void jobOpenAdvancesStage() {
       World tutorial = server.getWorld("tutorial");
       assertNotNull(tutorial);
       UUID uuid = bot.getUniqueId();
       plugin.getPlayerSection(uuid).set("tutorial.stage", 5);
       plugin.getPlayerSection(uuid).set("tutorial.completed", false);
-      Location checkpoint = new Location(tutorial, 60.5, 65.0, 0.5);
-      bot.teleport(new Location(tutorial, 50.0, 65.0, 0.5));
-      bot.simulatePlayerMove(checkpoint);
+      bot.teleport(tutorial.getSpawnLocation());
+      plugin.tutorialFeature.onJobOpen(bot);
       assertEquals(6, plugin.getPlayerSection(uuid).getInt("tutorial.stage", 0));
       assertTrue(plugin.getEmeralds(uuid) > 0, "stage reward must be deposited");
    }

@@ -77,25 +77,7 @@ final class UtilityItemsFeature implements Listener {
    }
 
    void openMenuUi(Player player) {
-      org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Menu"));
-      inventory.setItem(10, this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "SHOP", List.of(ChatColor.GRAY + "クリック: ショップを開く（Survivalのみ）"), "menu_shop", null));
-      int walletMp = this.plugin.getEmeralds(player.getUniqueId());
-      inventory.setItem(11, this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GOLD + "所持MP: " + this.plugin.formatNumber(walletMp) + " MP", ChatColor.GRAY + "クリック: MP残高確認"), "menu_wallet", null));
-      inventory.setItem(12, this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
-      inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
-      JobType job = this.plugin.jobService.typeOf(player);
-      inventory.setItem(14, this.plugin.actionItem(Material.WOODEN_HOE, ChatColor.GOLD + "ジョブ: " + job.displayName(),
-         List.of(ChatColor.GRAY + job.description(), ChatColor.GRAY + "クリック: ジョブを選んで変更"), "menu_job", null));
-      inventory.setItem(15, this.gearMenuIcon(player));
-      inventory.setItem(16, this.plugin.actionItem(Material.CHEST, ChatColor.GOLD + "\u53d6\u5f15",
-         List.of(ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u76f8\u624b\u3092\u9078\u3093\u3067\u53d6\u5f15\u7533\u8acb"), "menu_trade", null));
-      inventory.setItem(22, this.plugin.actionItem(Material.BOOK, ChatColor.YELLOW + "チュートリアル",
-         List.of(ChatColor.GRAY + "クリック: 基本操作を再表示"), "menu_tutorial", null));
-      for (int slot = 0; slot < inventory.getSize(); slot++) {
-         if (inventory.getItem(slot) == null) inventory.setItem(slot, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
-      }
-      player.openInventory(inventory);
-      this.plugin.tutorialFeature.onMenuOpen(player);
+      this.plugin.menuFanFeature.open(player);
    }
 
    // ------------------------------------------------------------------
@@ -150,7 +132,7 @@ final class UtilityItemsFeature implements Listener {
       this.plugin.queueDataSave();
    }
 
-   private ItemStack gearMenuIcon(Player player) {
+   ItemStack gearMenuIcon(Player player) {
       int equipped = this.equippedGears(player).size();
       return this.plugin.actionItem(Material.IRON_CHESTPLATE, ChatColor.AQUA + "ギア",
          List.of(ChatColor.GRAY + "装備中: " + equipped + "/" + MAX_EQUIPPED_GEARS, ChatColor.GRAY + "クリック: ギア装備画面を開く"), "menu_gear", null);
