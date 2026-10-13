@@ -3,9 +3,7 @@ package org.server.mifron;
 import java.util.Locale;
 
 enum ShopWandType {
-   SHELF("shelf"),
-   BARREL("barrel"),
-   FRAME("frame");
+   SHELF("shelf");
 
    private final String key;
 

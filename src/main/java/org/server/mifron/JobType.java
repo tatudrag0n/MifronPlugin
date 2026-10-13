@@ -4,7 +4,7 @@ package org.server.mifron;
 enum JobType {
    HUNTER("hunter", "狩人", "モブ討伐の報酬が増加する"),
    FARMER("farmer", "農民", "作物収穫でMPがもらえる"),
-   ENCHANTER("enchanter", "付呪師", "高度な金床のMPコストが割引される"),
+   ENCHANTER("enchanter", "鍛冶屋", "高度な金床のMPコストが割引される"),
    MERCHANT("merchant", "商人", "ショップ売却額が増加する"),
    FISHER("fisher", "釣り人", "釣りでMPがもらえる"),
    MINER("miner", "鉱夫", "採掘でMPがもらえる"),

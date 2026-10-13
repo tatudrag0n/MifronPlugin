@@ -75,7 +75,6 @@ abstract class MifronPart4 extends MifronPart3x2 {
       if (!this.mifron().withdrawEmeralds(player.getUniqueId(), discountedPrice, false)) return true;
       this.mifron().changeShelfShopStock(offer.material(), -offer.amount());
       this.mifron().giveShopPurchasedItems(player, offer.material(), offer.amount());
-      this.mifron().tutorialFeature.onShopBuy(player);
       this.mifron().markShopActivity(block);
       this.mifron().addPlayerStat(player.getUniqueId(), "total-trades", offer.amount(), false);
       this.queueDataSave();
@@ -97,7 +96,6 @@ abstract class MifronPart4 extends MifronPart3x2 {
          return true;
       }
       held.setAmount(held.getAmount() - 1);
-      this.mifron().tutorialFeature.onShopSell(player);
       this.mifron().changeShelfShopStock(material, 1);
       this.mifron().markShopActivity(block);
       this.mifron().addPlayerStat(player.getUniqueId(), "total-trades", 1, false);

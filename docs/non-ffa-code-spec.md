@@ -56,7 +56,7 @@
 
 - 7職＋無職の単一選択。`/mf job` で確認、`/mf job <名>` の2段階確定で変更。切替クールダウンは `jobs.change-cooldown-hours`（既定24h）。
 - 所得ボーナスは `jobs.bonus.<行動>`（既定：討伐20%、売却10%）、職限定の微少報酬は `jobs.base.<行動>`。
-- 固有特典：付呪師は上限突破（`jobs.enchanter-limit-break` 既定+5）と超過倍率軽減（`jobs.enchanter-multiplier-scale` 既定0.5）、商人は購入割引上乗せ（`jobs.merchant-purchase-discount-percent` 既定10）、釣り人は宝釣り（`jobs.fisher-treasure-emerald/diamond`）。
+- 固有特典：鍛冶屋は上限突破（`jobs.enchanter-limit-break` 既定+5）と超過倍率軽減（`jobs.enchanter-multiplier-scale` 既定0.5）、商人は購入割引上乗せ（`jobs.merchant-purchase-discount-percent` 既定10）、釣り人は宝釣り（`jobs.fisher-treasure-emerald/diamond`）。
 - ジョブクエストJ01-J07は `job` 指定職のみ表示・進行するデイリー。
 
 ## 安全取引

@@ -94,11 +94,6 @@ public class ShopBlockFeature implements Listener {
          this.prices.open(player, block, slot);
          return;
       }
-      if (shopType.contains("BARREL")) {
-         event.setCancelled(true);
-         this.trades.tradeBarrel(player, block, shopType, hand);
-         return;
-      }
       if (!shopType.contains("SHELF")) return;
       this.showShelfPrice(player, block, slot);
       if (owner && !this.trades.isWallet(hand)) return;
@@ -111,22 +106,6 @@ public class ShopBlockFeature implements Listener {
 
    @EventHandler
    public void onClose(InventoryCloseEvent event) { this.prices.onClose(event); }
-
-   @EventHandler(ignoreCancelled = true)
-   public void onHopperMove(InventoryMoveItemEvent event) {
-      // PDC shop barrels are not covered by the legacy barrel-shop move guard,
-      // so hoppers could drain SELL_BARREL stock for free. Block every
-      // extraction from a PDC shop barrel. (BUY_BARREL collection uses direct
-      // addItem, never move events, so it is unaffected.)
-      if (event.getSource().getHolder() instanceof org.bukkit.block.Barrel srcBarrel && this.store.isShop(srcBarrel.getBlock())) {
-         event.setCancelled(true);
-         return;
-      }
-      if (!(event.getDestination().getHolder() instanceof org.bukkit.block.Barrel barrel)) return;
-      if (!this.store.isShop(barrel.getBlock()) || !"SELL_BARREL".equals(this.store.shopType(barrel.getBlock()))) return;
-      ItemStack moving = event.getItem();
-      if (moving == null || this.trades.isSpecial(moving) || this.trades.isWallet(moving)) event.setCancelled(true);
-   }
 
    private void showShelfPrice(Player player, Block block, int slot) {
       int price = this.store.slotPrice(block, slot);
@@ -166,6 +145,6 @@ public class ShopBlockFeature implements Listener {
    }
 
    private boolean isShopBlockType(Material type) {
-      return type.name().endsWith("_SHELF") || type == Material.BARREL || type == Material.HOPPER;
+      return type.name().endsWith("_SHELF");
    }
 }

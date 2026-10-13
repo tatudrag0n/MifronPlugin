@@ -232,21 +232,6 @@ online-shop:
       rarity: COMMON
       cooldown-seconds: 0
       display-name: "&6 買取棚ショップ"
-    sell-barrel:
-      material: BARREL
-      category: shop
-      price: 100
-      rarity: COMMON
-      cooldown-seconds: 0
-      display-name: "&a 販売樽ショップ"
-    buy-barrel:
-      material: HOPPER
-      category: shop
-      price: 100
-      rarity: COMMON
-      cooldown-seconds: 0
-      display-name: "&c 買取樽ショップ"
-
 shops:
   inactivity-days: 30
 
@@ -353,15 +338,6 @@ quests:
         worlds:
           - nation
           - nations
-
-barrel-shop:
-  offer-slots: 27
-  bargain-slots: 3
-
-auction:
-  duration-minutes: 1440
-  bid-step: 100
-  sneak-bid-step: 1000
 
 merchant-items:
   - material: OAK_LOG
@@ -527,19 +503,3 @@ online-shop-new:
       cooldown-seconds: 0
       display-name: "&6 買取棚ショップ"
       shop-type: BUY_SHELF
-    sell-barrel-shop:
-      material: BARREL
-      category: special
-      price: 100
-      rarity: COMMON
-      cooldown-seconds: 0
-      display-name: "&a 販売樽ショップ"
-      shop-type: SELL_BARREL
-    buy-barrel-shop:
-      material: HOPPER
-      category: special
-      price: 100
-      rarity: COMMON
-      cooldown-seconds: 0
-      display-name: "&c 買取樽ショップ"
-      shop-type: BUY_BARREL

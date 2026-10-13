@@ -134,17 +134,17 @@ quests:
     job: farmer
   J03:
     type: "デイリー"
-    name: "付呪師の日課"
+    name: "鍛冶屋の日課"
     reset: "毎日リセット"
-    condition: "【付呪師限定】高度な金床で3回合成"
+    condition: "【鍛冶屋限定】高度な金床で3回合成"
     base-reward-mp: 200
-    display: "付呪師選択時のみ表示"
+    display: "鍛冶屋選択時のみ表示"
     reincarnation-bonus: true
     repeat-limit: "1日1回"
     icon: ENCHANTING_TABLE
     progress-key: job_enchant
     required: 3
-    intent: "付呪師の日課"
+    intent: "鍛冶屋の日課"
     job: enchanter
   J04:
     type: "デイリー"
@@ -501,19 +501,6 @@ quests:
     progress-key: trades_total
     required: 500
     intent: "経済参加の評価"
-  S19:
-    type: "スペシャル"
-    name: "オークション参加者"
-    reset: "オークションで発生"
-    condition: "オークション額縁を1回作成"
-    base-reward-mp: 3500
-    display: "条件発生"
-    reincarnation-bonus: true
-    repeat-limit: "1回限り"
-    icon: ITEM_FRAME
-    progress-key: auctions
-    required: 1
-    intent: "オークション導線"
   S20:
     type: "スペシャル"
     name: "国家の礎"

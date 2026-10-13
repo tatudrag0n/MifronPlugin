@@ -2,7 +2,6 @@ package org.server.mifron;
 
 import java.util.stream.Collectors;
 import org.bukkit.Material;
-import org.bukkit.block.Barrel;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -10,33 +9,10 @@ import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 abstract class MifronPart3x1 extends MifronPart3 {
-   protected String barrelInventorySignature(Barrel barrel) {
-      return java.util.Arrays.stream(barrel.getInventory().getContents()).map(item -> {
-         if (item == null || item.getType() == Material.AIR) return "AIR";
-         ItemMeta meta = item.getItemMeta();
-         Integer price = MifronPdc.get(meta.getPersistentDataContainer(), this.barrelOfferPriceKey, PersistentDataType.INTEGER);
-         String rarity = MifronPdc.get(meta.getPersistentDataContainer(), this.barrelOfferRarityKey, PersistentDataType.STRING);
-         if (price == null || price <= 0 || rarity == null || rarity.isBlank()) return "INVALID:" + item.getType().name();
-         int damage = meta instanceof Damageable damageable ? damageable.getDamage() : 0;
-         return "OFFER:" + item.getType().name() + ":" + item.getAmount() + ":" + price + ":" + rarity + ":" + damage;
-      }).collect(Collectors.joining("|"));
-   }
-
-   protected boolean isBarrelOfferSignature(String signature) {
-      if (signature == null || signature.isBlank()) return false;
-      boolean hasOffer = false;
-      for (String slot : signature.split("\\|", -1)) {
-         if (slot.startsWith("OFFER:")) hasOffer = true;
-         else if (!"AIR".equals(slot)) return false;
-      }
-      return hasOffer;
-   }
-
    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
    public void onInteract(PlayerInteractEvent event) {
       ItemStack item = event.getItem();
@@ -58,10 +34,6 @@ abstract class MifronPart3x1 extends MifronPart3 {
          if (this.isMifronItem(item, "emerald_bundle")) this.mifron().tryShopPayment(player, event.getClickedBlock());
          else this.mifron().tryShopSell(player, event.getClickedBlock(), item);
          return;
-      }
-      if (event.getAction().isRightClick() && event.getClickedBlock() != null && this.mifron().isBarrelShop(event.getClickedBlock()) && event.getClickedBlock().getState() instanceof Barrel barrel) {
-         player.openInventory(barrel.getInventory());
-         event.setCancelled(true);
       }
    }
 

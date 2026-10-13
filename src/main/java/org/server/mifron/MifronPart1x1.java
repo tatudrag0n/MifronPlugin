@@ -67,8 +67,6 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.merchantOfferMerchantKey = new NamespacedKey(this, "merchant_offer_merchant");
       this.merchantOfferActionKey = new NamespacedKey(this, "merchant_offer_action");
       this.merchantOfferRarityKey = new NamespacedKey(this, "merchant_offer_rarity");
-      this.barrelOfferPriceKey = new NamespacedKey(this, "barrel_offer_price");
-      this.barrelOfferRarityKey = new NamespacedKey(this, "barrel_offer_rarity");
       this.reincarnationStarKey = new NamespacedKey(this, "reincarnation_star");
       this.uiActionKey = new NamespacedKey(this, "ui_action");
       this.uiTargetKey = new NamespacedKey(this, "ui_target");
@@ -95,7 +93,6 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.getConfig().options().copyDefaults(true);
       this.saveConfig();
       this.mifron().applyServerMotd();
-      this.mifron().runStartupStep("migrate barrel shop offer slots", this.mifron()::migrateBarrelShopOfferSlots);
       this.mifron().runStartupStep("migrate hub location", this.mifron()::migrateDefaultHubLocation);
       this.mifron().runStartupStep("configure survival spawn location", this.mifron()::configureSurvivalSpawnLocation);
       this.mifron().runStartupStep("normalize spawn locations to origin", this.mifron()::normalizeSpawnLocationsToOrigin);
@@ -108,6 +105,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().loadData();
       this.mifron().runStartupStep("ensure Survival dimensions", this.survivalDimensionFeature::ensureWorlds);
       this.mifron().runStartupStep("ensure tutorial world", this.tutorialFeature::ensureWorld);
+      this.mifron().runStartupStep("start tutorial arena task", this.tutorialFeature::startArenaTask);
       this.mifron().runStartupStep("load build worlds", this.buildWorldManager::load);
       this.mifron().runStartupStep("start Minoru bridge API", this.minoruBridgeFeature::start);
       this.mifron().runStartupStep("sync shelf shop displays", this.mifron()::syncShelfShopDisplays);
@@ -117,12 +115,10 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("load main world ownership", this.mainWorldFeature::load);
       this.mifron().runStartupStep("load shop stock", this.shopStockService::load);
       this.mifron().runStartupStep("load test server config", this.testServerFeature::load);
-      this.mifron().runStartupStep("start auction settlement", this.auctionFeature::start);
       this.mifron().runStartupStep("register Mifron events", this::registerMifronSelfEvents);
       this.mifron().runStartupStep("register chunk protection events", () -> Bukkit.getPluginManager().registerEvents(this.chunkProtectionFeature, this));
       this.mifron().runStartupStep("register protected interaction events", () -> Bukkit.getPluginManager().registerEvents(this.protectedInteractionListener, this));
       this.mifron().runStartupStep("register quest progress events", () -> Bukkit.getPluginManager().registerEvents(this.questProgressListener, this));
-      this.mifron().runStartupStep("register auction events", () -> Bukkit.getPluginManager().registerEvents(this.auctionFeature, this));
       this.mifron().runStartupStep("register structure events", () -> Bukkit.getPluginManager().registerEvents(this.structureManager, this));
       this.mifron().runStartupStep("register build world events", () -> Bukkit.getPluginManager().registerEvents(this.buildWorldManager, this));
       this.mifron().runStartupStep("register text display events", () -> Bukkit.getPluginManager().registerEvents(this.textDisplayFeature, this));
@@ -132,6 +128,8 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register utility item events", () -> Bukkit.getPluginManager().registerEvents(this.utilityItemsFeature, this));
       this.mifron().runStartupStep("register advanced anvil events", () -> Bukkit.getPluginManager().registerEvents(this.advancedAnvilFeature, this));
       this.mifron().runStartupStep("register shop block events", () -> Bukkit.getPluginManager().registerEvents(this.shopBlockFeature, this));
+      this.mifron().runStartupStep("register barrel shop events", () -> Bukkit.getPluginManager().registerEvents(this.barrelShopFeature, this));
+      this.mifron().runStartupStep("start barrel shop hover", this.barrelShopFeature::startHoverTask);
       this.mifron().runStartupStep("register quest proposal events", () -> Bukkit.getPluginManager().registerEvents(this.questProposalFeature, this));
       this.mifron().runStartupStep("register world policy events", () -> Bukkit.getPluginManager().registerEvents(this.worldPolicyFeature, this));
       this.mifron().runStartupStep("register main world events", () -> Bukkit.getPluginManager().registerEvents(this.mainWorldFeature, this));

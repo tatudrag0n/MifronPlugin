@@ -1,7 +1,6 @@
 package org.server.mifron;
 
 import org.bukkit.Material;
-import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -17,10 +16,8 @@ abstract class MifronPart4x1 extends MifronPart4 {
       this.shopWandActionUntil.put(player.getUniqueId(), now + SHOP_WAND_ACTION_COOLDOWN_MILLIS);
       ShopWandType type = this.shopWandType(wand);
       if (type == null) { player.sendMessage("\u00a7c\u30ef\u30f3\u30c9\u7a2e\u985e\u3092\u5224\u5225\u3067\u304d\u307e\u305b\u3093\u3002"); event.setCancelled(true); return; }
-      if (type == ShopWandType.FRAME) { player.sendMessage("\u00a7c\u984d\u7e01\u30b7\u30e7\u30c3\u30d7\u306f\u672a\u5b9f\u88c5\u3067\u3059\u3002"); event.setCancelled(true); return; }
       if (block == null || !this.isValidShopWandTarget(block, type)) { player.sendMessage("\u00a7c" + this.shopWandTargetMessage(type)); event.setCancelled(true); return; }
       if (event.getAction().isLeftClick() && !this.mifron().canManageShop(player, block)) { player.sendMessage("\u00a7c\u4f5c\u6210\u8005\u307e\u305f\u306f\u7ba1\u7406\u8005\u306e\u307f\u89e3\u9664\u3067\u304d\u307e\u3059\u3002"); event.setCancelled(true); return; }
-      if (block.getType() == Material.BARREL) { this.handleBarrelShopWandClick(player, block, event, type); return; }
       if (event.getAction().isRightClick()) {
          if (player.isSneaking()) {
             ItemStack specified = player.getInventory().getItemInOffHand();
@@ -56,33 +53,10 @@ abstract class MifronPart4x1 extends MifronPart4 {
 
 
    protected boolean isValidShopWandTarget(Block block, ShopWandType type) {
-      if (type == ShopWandType.SHELF) return this.mifron().isShelf(block.getType());
-      return type == ShopWandType.BARREL ? block.getType() == Material.BARREL : this.mifron().isShelf(block.getType()) || block.getType() == Material.BARREL;
+      return this.mifron().isShelf(block.getType());
    }
 
    protected String shopWandTargetMessage(ShopWandType type) {
-      if (type == ShopWandType.SHELF) return "\u68da\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u304f\u3060\u3055\u3044\u3002";
-      return type == ShopWandType.BARREL ? "\u6a3d\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u304f\u3060\u3055\u3044\u3002" : "\u68da\u307e\u305f\u306f\u6a3d\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u304f\u3060\u3055\u3044\u3002";
-   }
-
-   protected void handleBarrelShopWandClick(Player player, Block block, PlayerInteractEvent event, ShopWandType type) {
-      if (event.getAction().isRightClick()) {
-         if (!(block.getState() instanceof Barrel barrel)) { player.sendMessage("\u00a7c\u6a3d\u3092\u8aad\u307f\u8fbc\u3081\u307e\u305b\u3093\u3067\u3057\u305f\u3002"); event.setCancelled(true); return; }
-         this.mifron().populateBarrelShop(barrel);
-         if (type == ShopWandType.BARREL) this.mifron().setBarrelShopMeta(block); else this.mifron().clearBarrelShopMeta(block);
-         this.mifron().setBarrelShop(block, true);
-         this.mifron().setShopOwner(block, player.getUniqueId());
-         player.sendMessage("\u00a7a\u6a3d\u3092\u30b7\u30e7\u30c3\u30d7\u5316\u3057\u307e\u3057\u305f\u3002");
-         event.setCancelled(true);
-         return;
-      }
-      if (event.getAction().isLeftClick()) {
-         if (this.mifron().setBarrelShop(block, false)) {
-            if (block.getState() instanceof Barrel barrel) barrel.getInventory().clear();
-            this.mifron().clearBarrelShopMeta(block);
-            player.sendMessage("\u00a7a\u6a3d\u306e\u30b7\u30e7\u30c3\u30d7\u5316\u3092\u89e3\u9664\u3057\u307e\u3057\u305f\u3002");
-         } else player.sendMessage("\u00a7e\u3053\u306e\u6a3d\u306f\u30b7\u30e7\u30c3\u30d7\u5316\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002");
-         event.setCancelled(true);
-      }
+      return "\u68da\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u304f\u3060\u3055\u3044\u3002";
    }
 }

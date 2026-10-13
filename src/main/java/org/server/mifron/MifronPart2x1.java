@@ -97,11 +97,8 @@ abstract class MifronPart2x1 extends MifronPart2 {
          return variant == null ? new ItemStack(material) : variant;
       }
       if ("shelf_shop_wand".equalsIgnoreCase(id)) return this.utilityItemsFeature.createShopWand(ShopWandType.SHELF);
-      if ("barrel_shop_wand".equalsIgnoreCase(id)) return this.utilityItemsFeature.createShopWand(ShopWandType.BARREL);
       if ("sell-shelf".equalsIgnoreCase(id) || "sell-shelf-shop".equalsIgnoreCase(id)) return this.createShopBlockItem("SELL_SHELF", Material.OAK_SHELF, "\u00a7a\u8ca9\u58f2\u68da\u30b7\u30e7\u30c3\u30d7");
       if ("buy-shelf".equalsIgnoreCase(id) || "buy-shelf-shop".equalsIgnoreCase(id)) return this.createShopBlockItem("BUY_SHELF", Material.SPRUCE_SHELF, "\u00a76\u8cb7\u53d6\u68da\u30b7\u30e7\u30c3\u30d7");
-      if ("sell-barrel".equalsIgnoreCase(id) || "sell-barrel-shop".equalsIgnoreCase(id)) return this.createShopBlockItem("SELL_BARREL", Material.BARREL, "\u00a79\u8ca9\u58f2\u6a3d\u30b7\u30e7\u30c3\u30d7");
-      if ("buy-barrel".equalsIgnoreCase(id) || "buy-barrel-shop".equalsIgnoreCase(id)) return this.createShopBlockItem("BUY_BARREL", Material.HOPPER, "\u00a7c\u8cb7\u53d6\u6a3d\u30b7\u30e7\u30c3\u30d7");
       Material material = Material.matchMaterial(this.getConfig().getString("online-shop.items." + id + ".material", "PAPER"));
       return material == null ? null : new ItemStack(material);
    }

@@ -56,15 +56,6 @@ abstract class MifronPart8 extends MifronPart7x2 {
       return (int) Math.max(1L, Math.min(2000000000L, (long) Math.max(1, basePrice) * (95 + this.random.nextInt(11)) / 100L));
    }
 
-   protected List<MerchantOffer> barrelShopOffers() {
-      List<MerchantOffer> offers = new ArrayList<>();
-      for (Material material : Material.values()) {
-         if (!this.pricingService.isBarrelPoolItem(material) || !this.mifron().isBarrelShopPoolItem(material)) continue;
-         offers.add(new MerchantOffer(material, 1, this.pricingService.barrelTier(material), this.mifron().materialPrice(material)));
-      }
-      return offers;
-   }
-
    protected List<Material> randomShopMaterials(int count) {
       if (count <= 0) return List.of();
       List<Material> materials = new ArrayList<>();
@@ -86,10 +77,6 @@ abstract class MifronPart8 extends MifronPart7x2 {
       if (economyPrice > 0) return economyPrice;
       Integer exact = this.mifron().exactMaterialPrice(material);
       return exact == null ? 0 : Math.max(1, exact);
-   }
-
-   protected int barrelShopWeight(Material material) {
-      return this.pricingService.barrelWeight(material);
    }
 
    protected List<MerchantOffer> allMerchantOffers() {

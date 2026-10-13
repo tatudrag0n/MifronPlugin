@@ -47,32 +47,8 @@ final class ShopTradeService {
       this.trade(player, block, shopType, displayed, hand, this.store.slotPrice(block, slot));
    }
 
-   void tradeBarrel(Player player, Block block, String shopType, ItemStack hand) {
-      if ("BUY_BARREL".equals(shopType)) {
-         Block below = block.getRelative(BlockFace.DOWN);
-         if (below.getType() != Material.HOPPER || !(below.getState() instanceof Hopper hopper) || hopper.getInventory().firstEmpty() == -1) {
-            player.sendMessage(ChatColor.RED + "\u8cb7\u53d6\u6a3d\u306f\u7a7a\u304d\u306e\u3042\u308b\u30db\u30c3\u30d1\u30fc\u3092\u4e0b\u306b\u63a5\u7d9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002");
-            return;
-         }
-      }
-      ItemStack displayed = null;
-      if (block.getState() instanceof org.bukkit.block.Barrel barrel) {
-         for (ItemStack item : barrel.getInventory().getContents()) {
-            if (item != null && item.getType() != Material.AIR && !this.isSpecial(item) && !this.isWallet(item)) {
-               displayed = item;
-               break;
-            }
-         }
-      }
-      if (displayed == null) {
-         player.sendMessage(ChatColor.YELLOW + "\u6a3d\u306b\u5546\u54c1\u304c\u5165\u3063\u3066\u3044\u307e\u305b\u3093\u3002");
-         return;
-      }
-      this.trade(player, block, shopType, displayed, hand, this.store.slotPrice(block, 0));
-   }
-
    private void trade(Player player, Block block, String shopType, ItemStack displayed, ItemStack hand, int price) {
-      boolean buyShop = "BUY_SHELF".equals(shopType) || "BUY_BARREL".equals(shopType);
+      boolean buyShop = "BUY_SHELF".equals(shopType);
       if (buyShop) {
          if (hand == null || hand.getType() != displayed.getType() || this.isSpecial(hand) || this.isWallet(hand)) {
             player.sendMessage(ChatColor.GOLD + "\u8cb7\u53d6: " + displayed.getType().name() + " = " + price + " MP");
@@ -91,22 +67,6 @@ final class ShopTradeService {
          if (!this.plugin.economyManager.depositExact(player.getUniqueId(), price, true)) {
             player.sendMessage(ChatColor.RED + "MP上限に達しているため売却できません。MPを消費してから再度お試しください。");
             return;
-         }
-         if ("BUY_BARREL".equals(shopType)) {
-            Block below = block.getRelative(BlockFace.DOWN);
-            if (below.getType() == Material.HOPPER && below.getState() instanceof Hopper hopper) {
-               ItemStack taken = displayed.clone();
-               taken.setAmount(1);
-               if (hopper.getInventory().addItem(taken).isEmpty()) {
-                  hand.setAmount(hand.getAmount() - 1);
-                  this.store.touch(block);
-                  player.sendMessage(ChatColor.GOLD + displayed.getType().name() + " \u3092 " + price + " MP \u3067\u58f2\u5374\u3057\u307e\u3057\u305f\u3002");
-                  return;
-               }
-               this.plugin.withdrawEmeralds(player.getUniqueId(), price);
-               player.sendMessage(ChatColor.RED + "\u30db\u30c3\u30d1\u30fc\u304c\u6e80\u676f\u3067\u3059\u3002");
-               return;
-            }
          }
          hand.setAmount(hand.getAmount() - 1);
          this.store.touch(block);

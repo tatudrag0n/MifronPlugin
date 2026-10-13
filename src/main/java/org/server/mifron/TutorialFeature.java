@@ -15,6 +15,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Zombie;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -24,6 +25,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.entity.EntityCombustEvent;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.Location;
 
 /**
  * Experiential tutorial world: short explain -&gt; real action -&gt; next goal.
@@ -35,29 +39,26 @@ import org.bukkit.inventory.ItemStack;
 public final class TutorialFeature implements Listener {
    private final Mifron plugin;
 
-   static final int FINAL_STAGE = 10;
+   static final int FINAL_STAGE = 7;
 
    private static final String[] INTRO = {
-      "§6Mifronチュートリアルへようこそ。遊びながら基本を覚えよう。",
-      "§7各エリアで短い説明→実際の操作→次の目的の順に進む。",
-      "§7進み具合は保存される。/tutorial でいつでも再開できる。",
+      "§6Mifronチュートリアルへようこそ。7段階で基本を一通り体験できる。",
+      "§7各段階で「説明→操作→次の目的」の順に進む。進み具合は保存される。",
+      "§7途中で止めても /tutorial で再開できる。",
    };
 
    private static final String[] STAGE_TEXT = {
       "",
-      "§e[1/10] メニュー: §7配布アイテムを右クリックでメニューを開こう。",
-      "§e[2/10] 討伐: §7北のMob小屋でゾンビを3体倒そう。",
-      "§e[3/10] 売却: §7ドロップ品を持ってデモ棚に右クリックで売却しよう。",
-      "§e[4/10] 購入: §7ウォレットを持ってデモ棚を右クリックで1個買おう。",
-      "§e[5/10] 探索: §7東のデッキ（Checkpoint）まで歩こう。",
-      "§e[6/10] Elite: §7南のElite小屋の elite を倒そう。紫の名前が目印。",
-      "§e[7/10] Rare: §7配布スクラッチを右クリックで削ろう。",
-      "§e[8/10] Gear: §7メニューからギア画面を開こう。",
-      "§e[9/10] 金床: §7高度な金床で合成結果を取ろう。",
-      "§e[10/10] 卒業: §7金のボタンを押して通常Survivalへ出発しよう。",
+      "§e[1/7] メニュー: §7配布アイテムを右クリックするとメニューが開く。SHOP・ウォレット・ステータス・クエスト・ジョブ・ギア・チュートリアルが並ぶ。",
+      "§e[2/7] 討伐: §7南の金ブロックの上のゾンビを3体倒そう。倒すと少し後に復活する。討伐数はステータスの討伐タブで見られる。",
+      "§e[3/7] Elite: §7中央の北側の金ブロックの上の Elite を倒そう。紫の名前が目印。Elite は通常より硬く、ドロップが増える(リンゴ・ダイヤ・エンチャント本など)。",
+      "§e[4/7] Rare: §7配布スクラッチを右クリックして削ろう。10%で500MP、90%で50MP。スクラッチは Elite 討伐時にも2%で出る。",
+      "§e[5/7] ジョブ: §7メニューのジョブから職を選ぼう(もう一度クリックで確定)。7職+無職。職ごとに対応する行動で MP ボーナスが付く。切替は24時間に1回まで。",
+      "§e[6/7] 金床: §7金床で本を素材に、道具へエンチャントを付けよう。結果を左クリックで取ると完了。高度な金床は MP を消費し、上限を超えて付けられる。",
+      "§e[7/7] 卒業: §7金のボタンを押して通常 Survival へ出発しよう。ギアは 10,000MP で暗視を解放できる(最大3つ装備)。",
    };
 
-   private static final int[] STAGE_REWARD = {0, 50, 150, 100, 100, 150, 300, 150, 100, 150, 500};
+   private static final int[] STAGE_REWARD = {0, 50, 150, 300, 150, 100, 500};
 
    public TutorialFeature(Mifron plugin) {
       this.plugin = plugin;
@@ -65,7 +66,10 @@ public final class TutorialFeature implements Listener {
 
    public void ensureWorld() {
       String name = this.worldName();
-      if (Bukkit.getWorld(name) != null) return;
+      if (Bukkit.getWorld(name) != null) {
+         this.lockDaytime(Bukkit.getWorld(name));
+         return;
+      }
       WorldCreator creator = new WorldCreator(name).environment(World.Environment.NORMAL).type(WorldType.FLAT).generateStructures(false);
       World world = Bukkit.createWorld(creator);
       if (world == null) {
@@ -74,10 +78,71 @@ public final class TutorialFeature implements Listener {
       }
       world.setGameRule(GameRule.KEEP_INVENTORY, true);
       world.setGameRule(GameRule.PVP, false);
-      world.setGameRule(GameRule.DO_MOB_SPAWNING, true);
+      world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
       world.setDifficulty(org.bukkit.Difficulty.NORMAL);
       world.setSpawnLocation(this.spawn(world));
+      this.lockDaytime(world);
       this.plugin.getLogger().info("[mifron] Tutorial world ready: " + name);
+   }
+
+   /** Tutorial world is always daytime (no cycle, fixed noon-ish time). */
+   void lockDaytime(World world) {
+      if (world == null) return;
+      world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+      world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+      world.setStorm(false);
+      world.setThundering(false);
+      world.setTime(1000L);
+      world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
+   }
+
+   // ---- tutorial anchors: fixed, respawning zombie / elite on one gold block ----
+
+   /** Kill anchor (south) and elite anchor (north-east). Mobs stand on top of a gold block. */
+   private Location anchor(World world, String key) {
+      String base = "tutorial." + key + ".";
+      return new Location(world,
+         this.plugin.getConfig().getDouble(base + "x", 0.5),
+         this.plugin.getConfig().getDouble(base + "y", -60.0),
+         this.plugin.getConfig().getDouble(base + "z", 0.5));
+   }
+
+   /** Keeps one fixed mob on each anchor; a killed mob is respawned within ~2 seconds. */
+   public void startArenaTask() {
+      new BukkitRunnable() {
+         @Override public void run() {
+            World world = Bukkit.getWorld(worldName());
+            if (world == null || !enabled()) return;
+            ensureAnchorMob(world, anchor(world, "kill-anchor"), false);
+            ensureAnchorMob(world, anchor(world, "elite-anchor"), true);
+         }
+      }.runTaskTimer(this.plugin, 40L, 40L);
+   }
+
+   private void ensureAnchorMob(World world, Location loc, boolean elite) {
+      loc.getChunk().load(true);
+      for (Entity e : world.getNearbyEntities(loc, 1.0, 1.5, 1.0)) {
+         if (e instanceof Monster) return;
+      }
+      // Face the player side (north-ward for the south kill mob, south-ward for the north elite mob).
+      float yaw = elite ? 0.0F : 180.0F;
+      Location spawnLoc = loc.clone();
+      spawnLoc.setYaw(yaw);
+      world.spawn(spawnLoc, Zombie.class, zombie -> {
+         zombie.setAI(false);
+         zombie.setPersistent(true);
+         zombie.setRemoveWhenFarAway(false);
+         zombie.setShouldBurnInDay(false);
+         zombie.setCanPickupItems(false);
+         zombie.setRotation(yaw, 0.0F);
+      });
+      if (elite) this.plugin.eliteMobFeature.elitizeNearest(world, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), 1.5);
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onCombust(EntityCombustEvent event) {
+      if (!this.isTutorialWorld(event.getEntity().getWorld())) return;
+      if (event.getEntity() instanceof Monster) event.setCancelled(true);
    }
 
    public boolean enabled() {
@@ -188,11 +253,37 @@ public final class TutorialFeature implements Listener {
       this.onStageStart(player, next);
    }
 
+   private boolean hasSword(Player player) {
+      for (ItemStack item : player.getInventory().getContents()) {
+         if (item != null && item.getType().name().endsWith("_SWORD")) return true;
+      }
+      return false;
+   }
+
    private void onStageStart(Player player, int stage) {
       if (stage < 1 || stage > FINAL_STAGE) return;
       for (String line : STAGE_TEXT[stage].split("\n")) player.sendMessage(line);
+      // Anvil stage: hand out a Sharpness VI book so the player has something to combine.
+      if (stage == 6) {
+         ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
+         org.bukkit.inventory.meta.EnchantmentStorageMeta meta =
+            (org.bukkit.inventory.meta.EnchantmentStorageMeta) book.getItemMeta();
+         meta.addStoredEnchant(org.bukkit.enchantments.Enchantment.SHARPNESS, 6, true);
+         book.setItemMeta(meta);
+         for (ItemStack leftover : player.getInventory().addItem(book).values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+         }
+         player.sendMessage("§7ダメージ増加VIの本を渡した。金床で剣に合成しよう。");
+      }
+      // Kill stage: the player needs a weapon (zombies are fixed in place, so the player fights).
+      if (stage == 2 && !this.hasSword(player)) {
+         for (ItemStack leftover : player.getInventory().addItem(new ItemStack(Material.IRON_SWORD)).values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+         }
+         player.sendMessage("§7鉄の剣を渡した。攻撃は左クリック、倒すまで殴ろう。");
+      }
       // Stage 7 hands out its demo item so nobody can get stuck waiting for luck.
-      if (stage == 7) {
+      if (stage == 4) {
          org.bukkit.inventory.ItemStack scratch =
             this.plugin.specialItemsFeature.createSpecialItem(
                org.server.mifron.SpecialItemsFeature.SpecialType.SCRATCH);
@@ -222,24 +313,16 @@ public final class TutorialFeature implements Listener {
       if (this.stageOf(player) == 1 && this.inTutorial(player)) this.advance(player);
    }
 
-   public void onGearOpen(Player player) {
-      if (this.stageOf(player) == 8 && this.inTutorial(player)) this.advance(player);
-   }
-
-   public void onShopSell(Player player) {
-      if (this.stageOf(player) == 3 && this.inTutorial(player)) this.advance(player);
-   }
-
-   public void onShopBuy(Player player) {
-      if (this.stageOf(player) == 4 && this.inTutorial(player)) this.advance(player);
+   public void onJobOpen(Player player) {
+      if (this.stageOf(player) == 5 && this.inTutorial(player)) this.advance(player);
    }
 
    public void onSpecialUse(Player player) {
-      if (this.stageOf(player) == 7 && this.inTutorial(player)) this.advance(player);
+      if (this.stageOf(player) == 4 && this.inTutorial(player)) this.advance(player);
    }
 
    public void onAnvilUse(Player player) {
-      if (this.stageOf(player) == 9 && this.inTutorial(player)) this.advance(player);
+      if (this.stageOf(player) == 6 && this.inTutorial(player)) this.advance(player);
    }
 
    private boolean inTutorial(Player player) {
@@ -275,7 +358,7 @@ public final class TutorialFeature implements Listener {
          } else {
             killer.sendMessage("§7討伐 " + kills + "/3");
          }
-      } else if (stage == 6) {
+      } else if (stage == 3) {
          if (this.plugin.eliteMobFeature.isElite(entity)) {
             killer.sendMessage("§dElite討伐！");
             this.advance(killer);
@@ -294,19 +377,6 @@ public final class TutorialFeature implements Listener {
          this.plugin.queueDataSave();
          for (String line : INTRO) player.sendMessage(line);
          this.onStageStart(player, 1);
-         return;
-      }
-      if (stage == 5) {
-         Location to = event.getTo();
-         double cx = this.plugin.getConfig().getDouble("tutorial.checkpoint.x", 60.5);
-         double cy = this.plugin.getConfig().getDouble("tutorial.checkpoint.y", 65.0);
-         double cz = this.plugin.getConfig().getDouble("tutorial.checkpoint.z", 0.5);
-         double r = this.plugin.getConfig().getDouble("tutorial.checkpoint.radius", 4.0);
-         if (to.getWorld() != null && to.getWorld().getName().equalsIgnoreCase(this.worldName())
-            && Math.abs(to.getX() - cx) <= r && Math.abs(to.getY() - cy) <= r + 3.0 && Math.abs(to.getZ() - cz) <= r) {
-            player.sendMessage("§aチェックポイント到達！");
-            this.advance(player);
-         }
          return;
       }
       if (stage == FINAL_STAGE) {

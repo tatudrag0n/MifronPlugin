@@ -45,6 +45,7 @@ final class OnlineShopFeature implements Listener {
    private static final int PREV_SLOT = 45;
    private static final int MENU_SLOT = 48;
    private static final int PAGE_SLOT = 49;
+   static final int SPECIAL_TAB_SLOT = 47;
    private static final int NEXT_SLOT = 53;
    private final Mifron plugin;
    private final NamespacedKey accessKey;
@@ -305,6 +306,10 @@ final class OnlineShopFeature implements Listener {
          player.openInventory(this.createInventory(player));
          return;
       }
+      if (action.equals("tab:special")) {
+         this.openSpecialTab(player);
+         return;
+      }
       if (action.equals("menu_back")) {
          this.plugin.utilityItemsFeature.openMenuUi(player);
          return;
@@ -405,6 +410,7 @@ final class OnlineShopFeature implements Listener {
       }
       if (page > 0) inventory.setItem(PREV_SLOT, this.actionIcon(Material.ARROW, "\u00a7e\u524d\u306e\u30da\u30fc\u30b8", "page:prev"));
       inventory.setItem(MENU_SLOT, this.actionIcon(Material.OAK_DOOR, "\u00a7f\u30e1\u30cb\u30e5\u30fc\u306b\u623b\u308b", "menu_back"));
+      inventory.setItem(SPECIAL_TAB_SLOT, this.actionIcon(Material.BARREL, "\u00a7d\u7279\u6b8a\u30bf\u30d6", "tab:special"));
       inventory.setItem(PAGE_SLOT, this.actionIcon(Material.PAPER, "\u00a7e\u30da\u30fc\u30b8 " + (page + 1) + " / " + (maxPage + 1), null));
       // Next always shows: on the last page it wraps to the next genre.
       inventory.setItem(NEXT_SLOT, this.actionIcon(Material.ARROW, page < maxPage ? "\u00a7e\u6b21\u306e\u30da\u30fc\u30b8" : "\u00a7e\u6b21\u306e\u30ab\u30c6\u30b4\u30ea\u3078", "page:next"));
@@ -596,7 +602,7 @@ final class OnlineShopFeature implements Listener {
       this.cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(id, until);
       this.plugin.data().set("online-shop-cooldowns." + player.getUniqueId() + "." + id, until);
       this.plugin.shopStockService.onPurchase(id);
-      // Quest sync: merchant/barrel/shelf trades already count; OnlineShop
+      // Quest sync: merchant/shelf trades already count; OnlineShop
       // purchases must count exactly once per delivered item, like theirs.
       this.plugin.addPlayerStat(player.getUniqueId(), "total-trades", 1);
       this.plugin.queueDataSave();
@@ -836,5 +842,57 @@ final class OnlineShopFeature implements Listener {
          seconds = OnlineShopRules.applyConsumableCap(seconds, cap);
       }
       return seconds;
+   }
+
+   /** Special tab: sell shelf and buy shelf (1000 MP, stock 1). Owner-made shops only. */
+   void openSpecialTab(Player player) {
+      Inventory inventory = Bukkit.createInventory(player, 27, SPECIAL_TITLE);
+      inventory.setItem(11, this.specialIcon(this.plugin.barrelShopFeature.createSellShelf(), "special:sell"));
+      inventory.setItem(15, this.specialIcon(this.plugin.barrelShopFeature.createBuyShelf(), "special:buy"));
+      inventory.setItem(22, this.actionIcon(Material.OAK_DOOR, "\u00a7f\u30e1\u30cb\u30e5\u30fc\u306b\u623b\u308b", "special:back"));
+      player.openInventory(inventory);
+   }
+
+   private ItemStack specialIcon(ItemStack shelf, String action) {
+      ItemMeta meta = shelf.getItemMeta();
+      meta.getPersistentDataContainer().set(this.productKey, PersistentDataType.STRING, action);
+      shelf.setItemMeta(meta);
+      return shelf;
+   }
+
+   static final String SPECIAL_TITLE = "\u00a7dMifron SHOP \u7279\u6b8a";
+
+   @EventHandler
+   public void onSpecialClick(InventoryClickEvent event) {
+      if (!(event.getWhoClicked() instanceof Player player)) return;
+      if (!SPECIAL_TITLE.equals(event.getView().getTitle())) return;
+      event.setCancelled(true);
+      if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
+      ItemStack clicked = event.getCurrentItem();
+      if (clicked == null || !clicked.hasItemMeta()) return;
+      String action = clicked.getItemMeta().getPersistentDataContainer().get(this.productKey, PersistentDataType.STRING);
+      if (action == null) return;
+      if (action.equals("special:back")) {
+         player.openInventory(this.createInventory(player));
+         return;
+      }
+      if (!this.inSurvivalWorld(player)) {
+         player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
+         return;
+      }
+      int price = BarrelShopFeature.DEFAULT_PRICE;
+      if (!this.plugin.withdrawEmeralds(player.getUniqueId(), price)) {
+         player.sendMessage(ChatColor.RED + "MP \u304c\u8db3\u308a\u307e\u305b\u3093\u3002\u5fc5\u8981 MP: " + price);
+         return;
+      }
+      ItemStack shelf = action.equals("special:sell")
+         ? this.plugin.barrelShopFeature.createSellShelf()
+         : this.plugin.barrelShopFeature.createBuyShelf();
+      if (!player.getInventory().addItem(shelf).isEmpty()) {
+         this.plugin.depositEmeralds(player.getUniqueId(), price);
+         player.sendMessage(ChatColor.RED + "\u30a4\u30f3\u30d9\u30f3\u30c8\u30ea\u306b\u7a7a\u304d\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
+         return;
+      }
+      player.sendMessage(ChatColor.GREEN + "\u68da\u3092\u8cfc\u5165\u3057\u307e\u3057\u305f(" + price + " MP)\u3002\u7a7a\u306e\u6a3d\u306e\u4e0a\u306b\u7f6e\u304f\u3068\u5e97\u306b\u306a\u308a\u307e\u3059\u3002");
    }
 }

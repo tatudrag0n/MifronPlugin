@@ -45,11 +45,7 @@ final class EconomyPriceTable {
                   section.getBoolean(path + "Merchant_Buy_Pool", false),
                   section.getBoolean(path + "Merchant_Sell_Pool", false),
                   Math.max(0, section.getInt(path + "Merchant_Buy_Weight", 0)),
-                  Math.max(0, section.getInt(path + "Merchant_Sell_Weight", 0)),
-                  section.getBoolean(path + "Barrel_Shop_Pool", false),
-                  section.getString(path + "Barrel_Shop_Tier", ""),
-                  Math.max(0, section.getInt(path + "Barrel_Shop_Weight", 0)),
-                  section.getBoolean(path + "Auction_Allowed", false)
+                  Math.max(0, section.getInt(path + "Merchant_Sell_Weight", 0))
                );
                this.entries.put(material.name(), entry);
             }
@@ -95,11 +91,6 @@ final class EconomyPriceTable {
       return entry == null ? 0 : entry.sellEm();
    }
 
-   boolean isAuctionAllowed(Material material) {
-      EconomyPriceTable.Entry entry = this.entry(material);
-      return entry != null && entry.auctionAllowed();
-   }
-
    record Entry(
       Material material,
       String itemId,
@@ -111,15 +102,6 @@ final class EconomyPriceTable {
       boolean merchantBuyPool,
       boolean merchantSellPool,
       int merchantBuyWeight,
-      int merchantSellWeight,
-      boolean barrelShopPool,
-      String barrelShopTier,
-      int barrelShopWeight,
-      boolean auctionAllowed
-   ) {
-      String barrelTierKey() {
-         String normalized = this.barrelShopTier == null ? "" : this.barrelShopTier.toLowerCase(Locale.ROOT);
-         return !normalized.contains("掘り出し") && !normalized.contains("bargain") ? "junk" : "bargain";
-      }
-   }
+      int merchantSellWeight
+   ) {}
 }

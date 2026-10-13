@@ -32,7 +32,7 @@ final class ProtectionService {
       } else if (this.hasBypass(player)) {
          return true;
       } else {
-         return (type == InteractionType.SHOP || type == InteractionType.AUCTION) && this.isShopInteractionAllowed(player, location)
+         return type == InteractionType.SHOP && this.isShopInteractionAllowed(player, location)
             ? true
             : this.chunkProtection.canBuild(player, location);
       }

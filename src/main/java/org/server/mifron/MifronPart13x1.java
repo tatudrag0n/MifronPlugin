@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
-import org.bukkit.block.Barrel;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -70,13 +69,6 @@ abstract class MifronPart13x1 extends MifronPart13 {
             + " slot=" + event.getRawSlot() + " click=" + event.getClick()
             + " action=" + this.mifron().getUiAction(probe));
       }
-      if (this.isBarrelShopInventory(event.getView().getTopInventory())) {
-         event.setCancelled(true);
-         // Plain LEFT only: shift/double/number-key clicks must never purchase.
-         if (event.getClickedInventory() == event.getView().getTopInventory()
-            && event.getClick() == org.bukkit.event.inventory.ClickType.LEFT) this.buyBarrelOffer(player, event.getCurrentItem(), event.getSlot(), event.getView().getTopInventory());
-         return;
-      }
       if (event.getClickedInventory() == null) return;
       String title = this.mifron().inventoryTitle(event.getView().title());
       // Bottom-inventory clicks in a Mifron GUI must never trigger top actions:
@@ -88,7 +80,8 @@ abstract class MifronPart13x1 extends MifronPart13 {
             || QUEST_UI_TITLE.equals(title)
              || PROPOSAL_UI_TITLE.equals(title)
              || "\u00a7dMifron Menu".equals(title)
-             || "\u00a7dMifron Gears".equals(title))) {
+             || "\u00a7dMifron Gears".equals(title)
+             || UtilityItemsFeature.JOB_UI_TITLE.equals(title))) {
          event.setCancelled(true);
          return;
       }
@@ -98,6 +91,7 @@ abstract class MifronPart13x1 extends MifronPart13 {
       else if (PROPOSAL_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleProposalUiClick(player, event.getCurrentItem()); }
       else if ("\u00a7dMifron Menu".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
       else if ("\u00a7dMifron Gears".equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleMenuUiClick(player, event.getCurrentItem()); }
+      else if (UtilityItemsFeature.JOB_UI_TITLE.equals(title)) { event.setCancelled(true); this.reconcileMifronCursor(player, event); this.mifron().handleJobUiClick(player, event.getCurrentItem()); }
       else if ("\u00a76Mifron Merchant".equals(title)) {
          // Every click in the merchant view is cancelled, including bottom
          // (player inventory) clicks: a shift-click there would otherwise move
@@ -137,7 +131,6 @@ abstract class MifronPart13x1 extends MifronPart13 {
 
    @EventHandler
    public void onInventoryDrag(InventoryDragEvent event) {
-      if (this.isBarrelShopInventory(event.getView().getTopInventory())) { event.setCancelled(true); return; }
       // Mifron GUIs have no close-time item return path: anything dragged
       // into the top inventory would vanish on close. Cancel every drag in
       // these views (clicks there are already fully cancelled).
@@ -151,12 +144,4 @@ abstract class MifronPart13x1 extends MifronPart13 {
          || "\u00a76Mifron Merchant".equals(title)) { event.setCancelled(true); }
    }
 
-   @EventHandler
-   public void onInventoryMoveItem(InventoryMoveItemEvent event) {
-      if (this.isBarrelShopInventory(event.getSource()) || this.isBarrelShopInventory(event.getDestination())) event.setCancelled(true);
-   }
-
-   protected boolean isBarrelShopInventory(Inventory inventory) {
-      return inventory != null && inventory.getHolder() instanceof Barrel barrel && this.mifron().isBarrelShop(barrel.getBlock());
-   }
 }

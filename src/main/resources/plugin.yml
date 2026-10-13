@@ -59,9 +59,6 @@ permissions:
   mifron.shop.admin:
     description: Allows managing Mifron shop blocks.
     default: op
-  mifron.auction.admin:
-    description: Allows managing Mifron item-frame auctions.
-    default: op
   mifron.text.admin:
     description: Allows managing Mifron TextDisplay guide signs.
     default: op

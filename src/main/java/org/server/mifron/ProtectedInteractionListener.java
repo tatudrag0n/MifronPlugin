@@ -141,11 +141,9 @@ final class ProtectedInteractionListener implements Listener {
    public void onEntityInteract(PlayerInteractEntityEvent event) {
       Entity entity = event.getRightClicked();
       if (entity instanceof ItemFrame || entity instanceof ArmorStand) {
-         if (!this.plugin.isAuctionFrame(entity) || !this.plugin.isAuctionInteractionItem(this.handItem(event.getPlayer(), event.getHand()))) {
-            if (!this.protection.canInteract(event.getPlayer(), entity.getLocation(), InteractionType.ENTITY_EDIT)) {
-               event.setCancelled(true);
-               event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
-            }
+         if (!this.protection.canInteract(event.getPlayer(), entity.getLocation(), InteractionType.ENTITY_EDIT)) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
          }
       }
    }
@@ -154,11 +152,9 @@ final class ProtectedInteractionListener implements Listener {
    public void onEntityDamage(EntityDamageByEntityEvent event) {
       if (event.getEntity() instanceof ItemFrame || event.getEntity() instanceof ArmorStand) {
          if (event.getDamager() instanceof Player player) {
-            if (!this.plugin.isAuctionFrame(event.getEntity()) || !this.plugin.isAuctionInteractionItem(player.getInventory().getItemInMainHand())) {
-               if (!this.protection.canInteract(player, event.getEntity().getLocation(), InteractionType.ENTITY_EDIT)) {
-                  event.setCancelled(true);
-                  player.sendMessage(ChatColor.RED + "このチャンクは保護されています。");
-               }
+            if (!this.protection.canInteract(player, event.getEntity().getLocation(), InteractionType.ENTITY_EDIT)) {
+               event.setCancelled(true);
+               player.sendMessage(ChatColor.RED + "このチャンクは保護されています。");
             }
          } else {
             if (this.protection.isProtected(event.getEntity().getLocation())) {
@@ -230,10 +226,6 @@ final class ProtectedInteractionListener implements Listener {
       } else {
          return null;
       }
-   }
-
-   private ItemStack handItem(Player player, EquipmentSlot hand) {
-      return hand == EquipmentSlot.OFF_HAND ? player.getInventory().getItemInOffHand() : player.getInventory().getItemInMainHand();
    }
 
    private InteractionType interactionType(Material material) {

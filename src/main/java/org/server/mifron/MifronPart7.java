@@ -146,9 +146,6 @@ abstract class MifronPart7 extends MifronPart6x2 {
    protected String jumpPadPath(Block block) {
       return "jump-pads." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
    }
-   protected void migrateBarrelShopOfferSlots() {
-      if (this.getConfig().getInt("barrel-shop.offer-slots", 27) == 18) { this.getConfig().set("barrel-shop.offer-slots", 27); this.saveConfig(); }
-   }
    protected int clampJumpPadPower(int power) { return Math.max(1, Math.min(100, power)); }
    protected int oldJumpPadPowerToNewPower(int power) { return this.clampJumpPadPower(Math.max(1, Math.min(5, power)) * 2); }
    protected double jumpPadHorizontalVelocity(int power) {
@@ -159,12 +156,5 @@ abstract class MifronPart7 extends MifronPart6x2 {
       int safe = this.clampJumpPadPower(power);
       return 0.75 + Math.min(10, safe) * 0.15 + Math.max(0, safe - 10) * 0.05;
    }
-   protected MerchantOffer randomBarrelOffer(List<MerchantOffer> pool, Set<Material> used, boolean bargain) {
-      List<MerchantOffer> candidates = pool.stream().filter(o -> !used.contains(o.material())).filter(o -> !bargain || this.mifron().isMerchantRarityAtLeast(this.mifron().merchantRarity(o.material()), "rare")).toList();
-      if (candidates.isEmpty()) candidates = pool.stream().filter(o -> !used.contains(o.material())).toList();
-      if (candidates.isEmpty()) { used.clear(); candidates = pool; }
-      MerchantOffer offer = this.mifron().randomWeightedBarrelOffer(candidates);
-      used.add(offer.material());
-      return new MerchantOffer(offer.material(), offer.amount(), bargain ? "bargain" : "junk", offer.price());
-   }
+
 }

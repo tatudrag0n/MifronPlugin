@@ -85,7 +85,7 @@ final class UtilityItemsFeature implements Listener {
       inventory.setItem(13, this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
       JobType job = this.plugin.jobService.typeOf(player);
       inventory.setItem(14, this.plugin.actionItem(Material.WOODEN_HOE, ChatColor.GOLD + "ジョブ: " + job.displayName(),
-         List.of(ChatColor.GRAY + job.description(), ChatColor.GRAY + "クリック: 詳細・/mf job で変更"), "menu_job", null));
+         List.of(ChatColor.GRAY + job.description(), ChatColor.GRAY + "クリック: ジョブを選んで変更"), "menu_job", null));
       inventory.setItem(15, this.gearMenuIcon(player));
       inventory.setItem(16, this.plugin.actionItem(Material.CHEST, ChatColor.GOLD + "\u53d6\u5f15",
          List.of(ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u76f8\u624b\u3092\u9078\u3093\u3067\u53d6\u5f15\u7533\u8acb"), "menu_trade", null));
@@ -180,7 +180,54 @@ final class UtilityItemsFeature implements Listener {
          if (inventory.getItem(i) == null) inventory.setItem(i, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
       }
       player.openInventory(inventory);
-      this.plugin.tutorialFeature.onGearOpen(player);
+   }
+
+   // ------------------------------------------------------------------
+   // Jobs: pick a job from the menu. Reuses JobService.requestChange, so the
+   // two-step confirm (second click within 60s) and the change cooldown apply.
+   // ------------------------------------------------------------------
+
+   static final String JOB_UI_TITLE = "\u00a7dMifron Jobs";
+
+   void openJobUi(Player player) {
+      org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text(JOB_UI_TITLE));
+      JobType current = this.plugin.jobService.typeOf(player);
+      int slot = 10;
+      for (JobType type : JobType.values()) {
+         boolean isCurrent = type == current;
+         java.util.List<String> lore = new java.util.ArrayList<>();
+         lore.add(ChatColor.GRAY + type.description());
+         if (isCurrent) {
+            lore.add(ChatColor.GREEN + "現在のジョブ");
+         } else {
+            lore.add(ChatColor.YELLOW + "クリック: このジョブに変更(もう一度クリックで確定)");
+         }
+         long cooldown = this.plugin.jobService.changeCooldownRemaining(player.getUniqueId());
+         if (!isCurrent && cooldown > 0) {
+            lore.add(ChatColor.RED + "変更クールダウン中: " + this.plugin.jobService.formatDuration(cooldown));
+         }
+         inventory.setItem(slot++, this.plugin.actionItem(jobIcon(type),
+            (isCurrent ? ChatColor.GREEN : ChatColor.YELLOW) + type.displayName(),
+            lore, "job_select", type.key()));
+      }
+      for (int i = 0; i < inventory.getSize(); i++) {
+         if (inventory.getItem(i) == null) inventory.setItem(i, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
+      }
+      player.openInventory(inventory);
+      this.plugin.tutorialFeature.onJobOpen(player);
+   }
+
+   private static Material jobIcon(JobType type) {
+      return switch (type) {
+         case HUNTER -> Material.IRON_SWORD;
+         case FARMER -> Material.WHEAT;
+         case ENCHANTER -> Material.ENCHANTING_TABLE;
+         case MERCHANT -> Material.EMERALD;
+         case FISHER -> Material.FISHING_ROD;
+         case MINER -> Material.IRON_PICKAXE;
+         case ADVENTURER -> Material.COMPASS;
+         case NONE -> Material.BARRIER;
+      };
    }
 
    private final java.util.Map<java.util.UUID, Long> gearToggleUntil = new java.util.concurrent.ConcurrentHashMap<>();

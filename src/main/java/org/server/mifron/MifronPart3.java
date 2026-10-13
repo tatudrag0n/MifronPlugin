@@ -13,7 +13,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
@@ -37,8 +36,6 @@ abstract class MifronPart3 extends MifronPart2x2 {
    protected ShopPasteSnapshot snapshotWorldEditShops(World world) {
       Map<String, String> unregisteredShelves = new HashMap<>();
       Set<String> registeredShelfSignatures = new HashSet<>();
-      Map<String, String> unregisteredBarrels = new HashMap<>();
-      Set<String> registeredBarrelSignatures = new HashSet<>();
       List<Material> catalog = this.mifron().shelfShopCatalogMaterials();
       for (int start = 0; start < catalog.size(); start += SHELF_SHOP_OFFER_SLOTS) {
          registeredShelfSignatures.add(this.shelfOfferSignature(catalog.subList(start, Math.min(catalog.size(), start + SHELF_SHOP_OFFER_SLOTS))));
@@ -50,22 +47,16 @@ abstract class MifronPart3 extends MifronPart2x2 {
                String signature = this.shelfInventorySignature(shelf);
                 if (this.mifron().isShelfShop(block)) { if (!this.isEmptyShelfSignature(signature)) registeredShelfSignatures.add(signature); }
                 else unregisteredShelves.put(this.shopPositionKey(block), signature);
-            } else if (state instanceof Barrel barrel) {
-               Block block = barrel.getBlock();
-               String signature = this.mifron().barrelInventorySignature(barrel);
-               if (this.mifron().isBarrelShop(block)) { if (this.mifron().isBarrelOfferSignature(signature)) registeredBarrelSignatures.add(signature); }
-               else unregisteredBarrels.put(this.shopPositionKey(block), signature);
             }
          }
       }
-      return new ShopPasteSnapshot(world, Map.copyOf(unregisteredShelves), Set.copyOf(registeredShelfSignatures), Map.copyOf(unregisteredBarrels), Set.copyOf(registeredBarrelSignatures));
+      return new ShopPasteSnapshot(world, Map.copyOf(unregisteredShelves), Set.copyOf(registeredShelfSignatures));
    }
 
    protected void registerPastedShops(Player player, ShopPasteSnapshot before) {
       World world = before.world();
       if (world == null) return;
       List<Block> pastedShelves = new ArrayList<>();
-      List<Block> pastedBarrels = new ArrayList<>();
       for (org.bukkit.Chunk chunk : world.getLoadedChunks()) {
          for (BlockState state : chunk.getTileEntities()) {
             if (state instanceof Shelf shelf) {
@@ -74,20 +65,13 @@ abstract class MifronPart3 extends MifronPart2x2 {
                String signature = this.shelfInventorySignature(shelf);
                String previous = before.unregisteredShelfSignatures().get(this.shopPositionKey(block));
                if (!Objects.equals(previous, signature) && !this.isEmptyShelfSignature(signature) && before.registeredShelfSignatures().contains(signature)) pastedShelves.add(block);
-            } else if (state instanceof Barrel barrel) {
-               Block block = barrel.getBlock();
-               if (this.mifron().isBarrelShop(block)) continue;
-               String signature = this.mifron().barrelInventorySignature(barrel);
-               String previous = before.unregisteredBarrelSignatures().get(this.shopPositionKey(block));
-               if (!Objects.equals(previous, signature) && this.mifron().isBarrelOfferSignature(signature) && before.registeredBarrelSignatures().contains(signature)) pastedBarrels.add(block);
             }
          }
       }
-      if (pastedShelves.isEmpty() && pastedBarrels.isEmpty()) return;
+      if (pastedShelves.isEmpty()) return;
       BlockFace facing = player.getFacing();
       pastedShelves.sort((a, b) -> this.comparePastedShelves(a, b, facing));
       for (Block block : pastedShelves) { this.mifron().configureSequentialShelfShop(block); this.mifron().setShopOwner(block, player.getUniqueId()); }
-      for (Block block : pastedBarrels) { this.mifron().setBarrelShopMeta(block); this.mifron().setBarrelShop(block, true); this.mifron().setShopOwner(block, player.getUniqueId()); }
       this.queueDataSave();
       if (player.isOnline()) player.sendMessage("\u00a7aWorldEdit\u3067\u8cbc\u308a\u4ed8\u3051\u305f\u30b7\u30e7\u30c3\u30d7\u3092\u81ea\u52d5\u767b\u9332\u3057\u307e\u3057\u305f\u3002");
    }

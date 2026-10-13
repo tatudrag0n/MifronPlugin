@@ -25,11 +25,6 @@ abstract class MifronPart8x1 extends MifronPart8 {
       return this.mifron().isMerchantPoolItem(material) && this.pricingService.merchantWeight(selling, material) > 0;
    }
 
-   protected boolean isBarrelShopPoolItem(Material material) {
-      String name = material.name();
-      return this.mifron().isPricedShopItem(material) && this.pricingService.isBarrelPoolItem(material) && !name.endsWith("_SPAWN_EGG") && !MERCHANT_EXCLUDED_ITEMS.contains(material);
-   }
-
    protected boolean isPricedShopItem(Material material) {
       return material != null && material.isItem() && this.pricingService.salePrice(material) > 0;
    }

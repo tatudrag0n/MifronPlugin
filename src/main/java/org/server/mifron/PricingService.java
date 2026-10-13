@@ -15,7 +15,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 
 /**
- * Single source of truth for item pricing, merchant weight pools and barrel
+ * Single source of truth for item pricing and merchant weight pools
  * shop configuration. Loads shop-prices.yml into {@link EnumMap} caches so hot
  * paths (materialPrice / materialBuyPrice / merchant rolls) never touch YAML.
  *
@@ -25,14 +25,6 @@ import org.bukkit.plugin.Plugin;
  * not reach back into the MifronPart inheritance chain.
  */
 final class PricingService {
-
-   /** Barrel shop pool entry (replaces the former BarrelShopConfig on MifronBase). */
-   record BarrelPoolEntry(String tier, int weight) {
-      String tierKey() {
-         String normalized = this.tier == null ? "" : this.tier.toLowerCase(Locale.ROOT);
-         return normalized.contains("掘り出し") || normalized.contains("bargain") ? "bargain" : "junk";
-      }
-   }
 
    private static final Set<Material> EXCLUDED_ITEMS = Set.of(
       Material.AIR, Material.BARRIER, Material.BEDROCK, Material.COMMAND_BLOCK,
@@ -48,7 +40,6 @@ final class PricingService {
    private final EnumMap<Material, Integer> buyPrices = new EnumMap<>(Material.class);
    private final EnumMap<Material, Integer> merchantBuyWeights = new EnumMap<>(Material.class);
    private final EnumMap<Material, Integer> merchantSellWeights = new EnumMap<>(Material.class);
-   private final EnumMap<Material, BarrelPoolEntry> barrelPools = new EnumMap<>(Material.class);
 
    PricingService(Plugin plugin, EconomyPriceTable economyPriceTable) {
       this.plugin = plugin;
@@ -60,7 +51,6 @@ final class PricingService {
       this.buyPrices.clear();
       this.merchantBuyWeights.clear();
       this.merchantSellWeights.clear();
-      this.barrelPools.clear();
       try (InputStream input = this.plugin.getResource("shop-prices.yml")) {
          if (input == null) {
             this.plugin.getLogger().severe("Bundled shop-prices.yml is missing.");
@@ -82,7 +72,6 @@ final class PricingService {
          }
          this.loadWeightedPool(prices.getConfigurationSection("merchant.buy"), this.merchantBuyWeights);
          this.loadWeightedPool(prices.getConfigurationSection("merchant.sell"), this.merchantSellWeights);
-         this.loadBarrelPool(prices.getConfigurationSection("barrel"));
          this.applyAliases(prices.getConfigurationSection("aliases"));
          this.plugin.getLogger().info("Loaded " + this.salePrices.size() + " shop prices from shop-prices.yml.");
       } catch (Exception e) {
@@ -100,16 +89,6 @@ final class PricingService {
       }
    }
 
-   private void loadBarrelPool(ConfigurationSection section) {
-      if (section == null) return;
-      for (String materialName : section.getKeys(false)) {
-         int weight = section.getInt(materialName + ".weight", 0);
-         if (weight <= 0) continue;
-         String tier = section.getString(materialName + ".tier", "junk").toLowerCase(Locale.ROOT);
-         Material material = Material.matchMaterial(materialName);
-         if (material != null) this.barrelPools.put(material, new BarrelPoolEntry(tier, weight));
-      }
-   }
 
    private void applyAliases(ConfigurationSection aliases) {
       if (aliases == null) return;
@@ -124,8 +103,6 @@ final class PricingService {
          this.buyPrices.putIfAbsent(target, buyPrice);
          this.copyWeightAlias(this.merchantBuyWeights, source, target);
          this.copyWeightAlias(this.merchantSellWeights, source, target);
-         BarrelPoolEntry barrelConfig = this.barrelPools.get(source);
-         if (barrelConfig != null) this.barrelPools.putIfAbsent(target, barrelConfig);
       }
    }
 
@@ -137,7 +114,7 @@ final class PricingService {
    /**
     * Applies economy-price-table.yml over shop-prices.yml. The economy table
     * wins, matching the historical behaviour that also overrode merchant weight
-    * pools and barrel shop configuration.
+    * pools.
     */
    int applyEconomyPriceTable() {
       int applied = 0;
@@ -147,13 +124,12 @@ final class PricingService {
          if (entry.sellEm() > 0) this.buyPrices.put(material, entry.sellEm());
          if (entry.merchantBuyPool() && entry.merchantBuyWeight() > 0) this.merchantBuyWeights.put(material, entry.merchantBuyWeight());
          if (entry.merchantSellPool() && entry.merchantSellWeight() > 0) this.merchantSellWeights.put(material, entry.merchantSellWeight());
-         if (entry.barrelShopPool() && entry.barrelShopWeight() > 0) this.barrelPools.put(material, new BarrelPoolEntry(entry.barrelTierKey(), entry.barrelShopWeight()));
          applied++;
       }
       return applied;
    }
 
-   // ---- Queries used by shop / merchant / barrel code paths ----
+   // ---- Queries used by shop / merchant code paths ----
 
    int salePrice(Material material) {
       Integer price = material == null ? null : this.salePrices.get(material);
@@ -180,20 +156,6 @@ final class PricingService {
    private int merchantWeight(EnumMap<Material, Integer> weights, Material material) {
       Integer weight = material == null ? null : weights.get(material);
       return weight == null ? 0 : weight;
-   }
-
-   int barrelWeight(Material material) {
-      BarrelPoolEntry entry = material == null ? null : this.barrelPools.get(material);
-      return entry == null ? 0 : entry.weight();
-   }
-
-   String barrelTier(Material material) {
-      BarrelPoolEntry entry = material == null ? null : this.barrelPools.get(material);
-      return entry == null ? "junk" : entry.tier();
-   }
-
-   boolean isBarrelPoolItem(Material material) {
-      return material != null && this.barrelPools.containsKey(material);
    }
 
    /** Materials that participate in the merchant roll pool for the given side. */

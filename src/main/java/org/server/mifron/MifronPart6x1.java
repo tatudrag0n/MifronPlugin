@@ -108,19 +108,14 @@ abstract class MifronPart6x1 extends MifronPart6 {
       } else this.queueDataSave();
    }
 
-   boolean isBarrelShop(Block block) {
-      return block != null && block.getType() == Material.BARREL && this.data.getBoolean(this.mifron().barrelShopPath(block), false);
-   }
    boolean isShopBlock(Block block) {
       if (block == null) return false;
       // PDC-based shops (ShopBlockFeature) and data.yml-based legacy shops
-      // (shelf/barrel) are both authoritative; a shop tagged by either path
+      // (shelf) are both authoritative; a shop tagged by either path
       // must be protected from explosions and unauthorized breaking.
       if (this.shopBlockFeature != null && this.shopBlockFeature.isPdcShop(block)) return true;
-      return this.mifron().isShelfShop(block) || this.mifron().isBarrelShop(block);
+      return this.mifron().isShelfShop(block);
    }
-   boolean isAuctionFrame(Entity entity) { return this.auctionFeature.isAuctionFrame(entity); }
-   boolean isAuctionInteractionItem(ItemStack item) { return this.auctionFeature.isAuctionInteractionItem(item); }
    public void recordQuestProgress(Player player, String progressKey, int amount) { this.questService.addProgress(player, progressKey, amount); }
    void recordSpecialQuestProgress(UUID uuid, String progressKey, int amount) { this.questService.addSpecialProgress(uuid, progressKey, amount); }
    void completeSpecialQuestProgress(UUID uuid, String progressKey) { this.questService.completeSpecialProgress(uuid, progressKey); }

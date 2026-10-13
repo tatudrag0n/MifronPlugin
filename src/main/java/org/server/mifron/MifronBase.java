@@ -128,8 +128,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected NamespacedKey merchantOfferMerchantKey;
    protected NamespacedKey merchantOfferActionKey;
    protected NamespacedKey merchantOfferRarityKey;
-   protected NamespacedKey barrelOfferPriceKey;
-   protected NamespacedKey barrelOfferRarityKey;
    protected NamespacedKey reincarnationStarKey;
    protected NamespacedKey uiActionKey;
    protected NamespacedKey uiTargetKey;
@@ -150,7 +148,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final AdvancedAnvilFeature advancedAnvilFeature = new AdvancedAnvilFeature((Mifron) this);
    protected BedrockUiFeature bedrockUiFeature;
    protected final TextDisplayFeature textDisplayFeature = new TextDisplayFeature((Mifron) this);
-   protected final AuctionFeature auctionFeature = new AuctionFeature((Mifron) this, this.economyPriceTable);
    protected final BuildWorldManager buildWorldManager = new BuildWorldManager((Mifron) this);
    protected final StructureManager structureManager = new StructureManager((Mifron) this);
    protected final ProposalManager proposalManager = new ProposalManager((Mifron) this);
@@ -164,6 +161,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final JobFeature jobFeature = new JobFeature((Mifron) this);
    protected final MinoruBridgeFeature minoruBridgeFeature = new MinoruBridgeFeature((Mifron) this);
    protected final ShopBlockFeature shopBlockFeature = new ShopBlockFeature((Mifron) this);
+   protected final BarrelShopFeature barrelShopFeature = new BarrelShopFeature((Mifron) this);
    protected final WorldPolicyFeature worldPolicyFeature = new WorldPolicyFeature((Mifron) this);
    protected final MainWorldFeature mainWorldFeature = new MainWorldFeature((Mifron) this);
    protected final TestServerFeature testServerFeature = new TestServerFeature((Mifron) this);
@@ -238,9 +236,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected record ShopPasteSnapshot(
       World world,
       Map<String, String> unregisteredShelfSignatures,
-      Set<String> registeredShelfSignatures,
-      Map<String, String> unregisteredBarrelSignatures,
-      Set<String> registeredBarrelSignatures
+      Set<String> registeredShelfSignatures
    ) {}
    protected record TitleDefinition(Material icon, List<String> requiredAdvancements) {}
 }

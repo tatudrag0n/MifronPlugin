@@ -8,6 +8,5 @@ enum InteractionType {
    REDSTONE,
    ENTITY_EDIT,
    SHOP,
-   AUCTION,
    UI;
 }

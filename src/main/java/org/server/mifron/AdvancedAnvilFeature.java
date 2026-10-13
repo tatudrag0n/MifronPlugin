@@ -70,11 +70,6 @@ final class AdvancedAnvilFeature implements Listener {
 
    @EventHandler(priority = EventPriority.HIGHEST)
    public void onPrepareAnvil(PrepareAnvilEvent event) {
-      if (event.getViewers() != null) {
-         for (org.bukkit.entity.HumanEntity viewer : event.getViewers()) {
-            if (viewer instanceof org.bukkit.entity.Player player) this.plugin.tutorialFeature.onAnvilUse(player);
-         }
-      }
       AnvilInventory inventory = event.getInventory();
       this.pendingResults.remove(inventory);
 
