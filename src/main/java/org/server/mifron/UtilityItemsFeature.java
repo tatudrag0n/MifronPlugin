@@ -175,6 +175,19 @@ final class UtilityItemsFeature implements Listener {
    void openJobUi(Player player) {
       org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text(JOB_UI_TITLE));
       JobType current = this.plugin.jobService.typeOf(player);
+      JobService.JobLevelInfo levelInfo = this.plugin.jobService.levelInfo(player.getUniqueId());
+      java.util.List<String> levelLore = new java.util.ArrayList<>();
+      levelLore.add(ChatColor.GRAY + "\u30b8\u30e7\u30d6\u884c\u52d5\u3067XP\u3092\u7372\u5f97");
+      if (current == JobType.NONE) levelLore.add(ChatColor.GRAY + "\u30b8\u30e7\u30d6\u672a\u9078\u629e\u3067\u306fXP\u306f\u8caf\u307e\u308a\u307e\u305b\u3093");
+      if (levelInfo.xpForNextLevel() > 0) {
+         levelLore.add(ChatColor.AQUA + "XP: " + this.plugin.formatNumber(levelInfo.xpIntoLevel()) + " / " + this.plugin.formatNumber(levelInfo.xpForNextLevel()));
+         levelLore.add(ChatColor.GRAY + "\u6b21\u306e\u30ec\u30d9\u30eb\u307e\u3067 " + this.plugin.formatNumber(levelInfo.xpForNextLevel() - levelInfo.xpIntoLevel()));
+      } else {
+         levelLore.add(ChatColor.GREEN + "MAX LEVEL");
+      }
+      levelLore.add(ChatColor.YELLOW + "\u30ec\u30d9\u30eb\u30dc\u30fc\u30ca\u30b9: +" + this.plugin.jobService.formatBonusPercent(levelInfo.bonusPercent()) + "%");
+      inventory.setItem(4, this.plugin.actionItem(Material.EXPERIENCE_BOTTLE,
+         ChatColor.GOLD + "\u30b8\u30e7\u30d6\u30ec\u30d9\u30eb: Lv." + levelInfo.level(), levelLore, "job_level_info", null));
       int slot = 10;
       for (JobType type : JobType.values()) {
          boolean isCurrent = type == current;

@@ -36,7 +36,8 @@ public final class JobService {
    public double bonusPercent(UUID uuid, JobAction action) {
       if (uuid == null || action == null) return 0.0;
       if (this.typeOf(uuid).incomeAction() != action) return 0.0;
-      return Math.max(0.0, this.plugin.getConfig().getDouble("jobs.bonus." + action.key(), 0.0));
+      double base = Math.max(0.0, this.plugin.getConfig().getDouble("jobs.bonus." + action.key(), 0.0));
+      return base + this.levelBonusPercent(uuid);
    }
 
    /** Applies the player's job bonus for an action to an amount. */
@@ -148,7 +149,95 @@ public final class JobService {
    public void addJobProgress(org.bukkit.entity.Player player, JobAction action, String progressKey, int amount) {
       if (player == null || action == null || progressKey == null) return;
       if (this.typeOf(player).incomeAction() != action) return;
+      this.grantJobXp(player, action, amount);
       this.plugin.questService.addProgress(player, progressKey, amount);
+   }
+
+   // ------------------------------------------------------------------
+   // Job leveling: XP accrues from matching job actions, levels are derived
+   // (players.<uuid>.job.xp) and pay a small income bonus plus titles.
+   // ------------------------------------------------------------------
+
+   public record JobLevelInfo(int level, int xp, int xpIntoLevel, int xpForNextLevel, double bonusPercent) {}
+
+   /** Lifetime job XP. */
+   public int jobXp(UUID uuid) {
+      if (uuid == null) return 0;
+      return Math.max(0, this.plugin.getPlayerSection(uuid).getInt("job.xp", 0));
+   }
+
+   public int jobLevel(UUID uuid) {
+      return JobLevelRules.levelForXp(this.jobXp(uuid), this.levelBaseXp(), this.levelGrowthPercent(), this.levelMax());
+   }
+
+   public double levelBonusPercent(UUID uuid) {
+      return JobLevelRules.bonusPercent(this.jobLevel(uuid), this.levelBonusPerLevel(), this.levelBonusCap());
+   }
+
+   public JobLevelInfo levelInfo(UUID uuid) {
+      int xp = this.jobXp(uuid);
+      int level = JobLevelRules.levelForXp(xp, this.levelBaseXp(), this.levelGrowthPercent(), this.levelMax());
+      int into = JobLevelRules.xpIntoLevel(xp, level, this.levelBaseXp(), this.levelGrowthPercent(), this.levelMax());
+      int next = JobLevelRules.xpNeededForNext(level, this.levelBaseXp(), this.levelGrowthPercent(), this.levelMax());
+      return new JobLevelInfo(level, xp, into, next, JobLevelRules.bonusPercent(level, this.levelBonusPerLevel(), this.levelBonusCap()));
+   }
+
+   private int levelBaseXp() {
+      return Math.max(1, this.plugin.getConfig().getInt("jobs.leveling.base-xp", 100));
+   }
+
+   private double levelGrowthPercent() {
+      return Math.max(0.0, this.plugin.getConfig().getDouble("jobs.leveling.growth-percent", 15.0));
+   }
+
+   private int levelMax() {
+      return Math.max(2, Math.min(1000, this.plugin.getConfig().getInt("jobs.leveling.max-level", 50)));
+   }
+
+   private double levelBonusPerLevel() {
+      return Math.max(0.0, this.plugin.getConfig().getDouble("jobs.leveling.bonus-percent-per-level", 0.5));
+   }
+
+   private double levelBonusCap() {
+      return Math.max(0.0, this.plugin.getConfig().getDouble("jobs.leveling.bonus-max-percent", 25.0));
+   }
+
+   private void grantJobXp(org.bukkit.entity.Player player, JobAction action, int amount) {
+      int perAction = Math.max(0, this.plugin.getConfig().getInt("jobs.leveling.xp." + action.key(), 0));
+      if (perAction <= 0) return;
+      int units = Math.max(1, Math.min(1000, amount));
+      long gained = (long) perAction * units;
+      int before = this.jobXp(player.getUniqueId());
+      long cap = JobLevelRules.xpForLevel(this.levelMax(), this.levelBaseXp(), this.levelGrowthPercent(), this.levelMax());
+      int after = (int) Math.min(cap, (long) before + gained);
+      if (after == before) return;
+      this.plugin.getPlayerSection(player.getUniqueId()).set("job.xp", after);
+      this.plugin.queueDataSave();
+      int oldLevel = JobLevelRules.levelForXp(before, this.levelBaseXp(), this.levelGrowthPercent(), this.levelMax());
+      int newLevel = JobLevelRules.levelForXp(after, this.levelBaseXp(), this.levelGrowthPercent(), this.levelMax());
+      if (newLevel > oldLevel) this.onJobLevelUp(player, newLevel);
+   }
+
+   private void onJobLevelUp(org.bukkit.entity.Player player, int level) {
+      double bonus = JobLevelRules.bonusPercent(level, this.levelBonusPerLevel(), this.levelBonusCap());
+      player.sendMessage("\u00a76\u30b8\u30e7\u30d6\u30ec\u30d9\u30eb\u30a2\u30c3\u30d7! \u00a7eLv." + level
+         + "\u00a77 (\u53ce\u5165\u30dc\u30fc\u30ca\u30b9 +" + this.formatBonusPercent(bonus) + "%)");
+      player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0F, 1.0F);
+      org.bukkit.configuration.ConfigurationSection titles = this.plugin.getConfig().getConfigurationSection("jobs.leveling.titles");
+      if (titles != null) {
+         String title = titles.getString(String.valueOf(level));
+         if (title != null && !title.isBlank()) this.plugin.unlockTitle(player, title);
+      }
+      java.util.List<Integer> broadcasts = this.plugin.getConfig().getIntegerList("jobs.leveling.broadcast-levels");
+      if (broadcasts.contains(level)) {
+         org.bukkit.Bukkit.broadcastMessage("\u00a76[\u304a\u77e5\u3089\u305b] \u00a7e" + player.getName()
+            + " \u00a7f\u304c\u30b8\u30e7\u30d6Lv." + level + "\u3092\u9054\u6210!");
+      }
+   }
+
+   String formatBonusPercent(double percent) {
+      if (Math.abs(percent - Math.rint(percent)) < 1.0E-9) return String.valueOf((long) Math.rint(percent));
+      return String.format(java.util.Locale.US, "%.1f", percent);
    }
 
    public long changeCooldownMillis() {

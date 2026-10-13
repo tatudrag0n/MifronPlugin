@@ -37,6 +37,7 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 
 - `/mf job` で確認、`/mf job <名>` の2段階確定で変更。切替クールダウンは `jobs.change-cooldown-hours`(既定24h)。
 - 対応行動に所得ボーナス(Hunter討伐+20%、Merchant売却+10%)、職限定の微少報酬(Farmer/Fisher/Miner/Adventurer)。
+- ジョブレベル: 対応行動でXPを貯めるとレベルアップし、収入ボーナスが加算(+0.5%/Lv、上限+25%、最大Lv.50)。Lv.10/25/40で称号「常連」「熟練者」「達人」を解放し、節目レベルは全体告知されます。設定は `jobs.leveling.*`。
 - 固有特典:Enchanterはエンチャ上限突破+5と超過MP倍率半減、HunterはElite討伐でダイヤ確定+討伐証、Farmerは完熟収穫+1確定、Merchantは購入割引+10%、Fisherは宝釣り、Minerは深層鉱石追加ドロップ+溶岩半減、Adventurerは `/travel` 無料・CD短縮。
 - ジョブ限定デイリークエストJ01-J07は該当職のみ表示・進行します。
 ## 安全取引(/trade)

@@ -52,6 +52,8 @@ abstract class MifronPart16 extends MifronPart15x2 {
    protected boolean canUseTitle(Player player, String title) {
       TitleDefinition definition = this.titleDefinitions().get(title);
       if (definition == null) return false;
+      Set<String> unlocked = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("unlocked-titles"));
+      if (unlocked.contains(title)) return true;
       Set<String> completed = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
       return this.hasTitle(completed, definition);
    }

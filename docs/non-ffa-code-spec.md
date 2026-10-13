@@ -58,6 +58,9 @@
 - 所得ボーナスは `jobs.bonus.<行動>`（既定：討伐20%、売却10%）、職限定の微少報酬は `jobs.base.<行動>`。
 - 固有特典：鍛冶屋は上限突破（`jobs.enchanter-limit-break` 既定+5）と超過倍率軽減（`jobs.enchanter-multiplier-scale` 既定0.5）、商人は購入割引上乗せ（`jobs.merchant-purchase-discount-percent` 既定10）、釣り人は宝釣り（`jobs.fisher-treasure-emerald/diamond`）。
 - ジョブクエストJ01-J07は `job` 指定職のみ表示・進行するデイリー。
+- ジョブレベルは対応行動のXP(`jobs.leveling.xp.*`)から算出し、必要量は `jobs.leveling`(base-xp既定100、成長+15%/Lv、最大50)で決まります。保存先は `players.<uuid>.job.xp` です。
+- レベルごとに収入ボーナスが `bonus-percent-per-level`(既定+0.5%、上限 `bonus-max-percent` 既定25%)加算されます。`jobs.leveling.titles` の節目で称号(常連/熟練者/達人)を解放し、`broadcast-levels` で全体告知します。
+- ジョブUIのレベル表示(スロット4)とメニューのジョブ項目名に現在レベルを表示します。
 
 ## 安全取引
 

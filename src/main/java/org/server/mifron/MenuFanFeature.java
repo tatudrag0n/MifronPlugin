@@ -157,7 +157,7 @@ final class MenuFanFeature implements Listener {
       actions.add(this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GOLD + "所持MP: " + this.plugin.formatNumber(walletMp) + " MP"), "menu_wallet", null));
       actions.add(this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
       actions.add(this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
-      actions.add(this.plugin.actionItem(Material.WOODEN_HOE, ChatColor.GOLD + "ジョブ: " + job.displayName(), List.of(ChatColor.GRAY + "クリック: ジョブを選んで変更"), "menu_job", null));
+      actions.add(this.plugin.actionItem(Material.WOODEN_HOE, ChatColor.GOLD + "ジョブ: " + job.displayName() + " Lv." + this.plugin.jobService.jobLevel(player.getUniqueId()), List.of(ChatColor.GRAY + "クリック: ジョブを選んで変更"), "menu_job", null));
       actions.add(this.plugin.utilityItemsFeature.gearMenuIcon(player));
       actions.add(this.plugin.actionItem(Material.CHEST, ChatColor.GOLD + "取引", List.of(ChatColor.GRAY + "クリック: 相手を選んで取引申込"), "menu_trade", null));
       actions.add(this.plugin.actionItem(Material.PAPER, ChatColor.AQUA + "\u6295\u7968", List.of(ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u6295\u7968\u30b5\u30a4\u30c8\u3092\u958b\u304f", ChatColor.GRAY + "1\u65e51\u56de\u306e\u6295\u7968\u3067MP\u304c\u3082\u3089\u3048\u307e\u3059"), "menu_vote", null));
@@ -169,7 +169,7 @@ final class MenuFanFeature implements Listener {
 
    private List<String> buildLabels(Player player) {
       JobType job = this.plugin.jobService.typeOf(player);
-      return List.of("SHOP", "ウォレット", "ステータス", "クエスト", "ジョブ: " + job.displayName(), "ギア", "取引", "\u6295\u7968", "\u30ed\u30b0\u30dc", "\u76ee\u6a19", "チュートリアル");
+      return List.of("SHOP", "ウォレット", "ステータス", "クエスト", "ジョブ: " + job.displayName() + " Lv." + this.plugin.jobService.jobLevel(player.getUniqueId()), "ギア", "取引", "\u6295\u7968", "\u30ed\u30b0\u30dc", "\u76ee\u6a19", "チュートリアル");
    }
 
    private void tick(UUID owner) {

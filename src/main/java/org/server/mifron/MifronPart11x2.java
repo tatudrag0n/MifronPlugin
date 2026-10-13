@@ -69,7 +69,7 @@ abstract class MifronPart11x2 extends MifronPart11x1 {
       int slot = 9;
       int from = safePage * pageSize;
       for (Entry<String, TitleDefinition> entry : titles.subList(from, Math.min(titles.size(), from + pageSize))) {
-         boolean unlocked = this.hasTitle(completed, entry.getValue());
+         boolean unlocked = this.mifron().canUseTitle(player, entry.getKey());
          boolean wearing = unlocked && entry.getKey().equals(selected);
          String hint = TITLE_HINTS.getOrDefault(entry.getKey(), "\u00a77\u7279\u6b8a\u306a\u6761\u4ef6\u3067\u7372\u5f97");
          List<String> lore = unlocked

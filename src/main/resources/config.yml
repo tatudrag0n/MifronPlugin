@@ -95,6 +95,43 @@ jobs:
   # Fast-travel cooldowns in minutes.
   travel-cooldown-minutes: 60.0
   travel-cooldown-adventurer-minutes: 10.0
+  # Job levels: XP accrues from matching job actions (players.<uuid>.job.xp).
+  # base-xp is the XP for level 2; each next level needs growth-percent more.
+  leveling:
+    base-xp: 100
+    growth-percent: 15.0
+    max-level: 50
+    bonus-percent-per-level: 0.5
+    bonus-max-percent: 25.0
+    xp:
+      hunt: 3
+      harvest: 1
+      enchant: 4
+      sell: 2
+      fish: 2
+      mine: 1
+      explore: 2
+    # Level -> title unlocked at that level (see titles below).
+    titles:
+      10: "常連"
+      25: "熟練者"
+      40: "達人"
+    broadcast-levels: [10, 25, 40, 50]
+
+titles:
+  # Extra titles selectable once unlocked (job levels grant these).
+  job-veteran:
+    display-name: "常連"
+    icon: EXPERIENCE_BOTTLE
+    required-advancements: []
+  job-expert:
+    display-name: "熟練者"
+    icon: DIAMOND
+    required-advancements: []
+  job-master:
+    display-name: "達人"
+    icon: NETHERITE_INGOT
+    required-advancements: []
 
 hub-protection-radius-chunks: 4
 survival-safety:
