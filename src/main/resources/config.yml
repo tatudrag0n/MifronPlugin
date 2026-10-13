@@ -33,6 +33,23 @@ return-bonus:
   days: 14
   mp: 3000
 
+starter-goals:
+  # MP paid for each post-tutorial starter goal (menu / job / mine 64 /
+  # sell / protect / quest). Shown in the 目標 checklist UI.
+  reward-mp: 300
+
+referral:
+  # Invite system: /mf refer issues a 6-digit code; a new player redeems it
+  # with /mf refer <code>. Both sides are paid once the invitee graduates.
+  reward-mp-invitee: 3000
+  reward-mp-inviter: 3000
+  # Only players who joined within this many days can be referred.
+  eligible-days: 7
+  # How long an issued code stays valid.
+  code-ttl-hours: 48
+  # Maximum inviter rewards per ISO week.
+  weekly-cap: 5
+
 jobs:
   # Hours before a player may change jobs again.
   change-cooldown-hours: 24.0

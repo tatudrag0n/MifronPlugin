@@ -96,6 +96,12 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.getConfig().addDefault("login-bonus.streak-milestones.100", 30000);
       this.getConfig().addDefault("return-bonus.days", 14);
       this.getConfig().addDefault("return-bonus.mp", 3000);
+      this.getConfig().addDefault("starter-goals.reward-mp", 300);
+      this.getConfig().addDefault("referral.reward-mp-invitee", 3000);
+      this.getConfig().addDefault("referral.reward-mp-inviter", 3000);
+      this.getConfig().addDefault("referral.eligible-days", 7);
+      this.getConfig().addDefault("referral.code-ttl-hours", 48L);
+      this.getConfig().addDefault("referral.weekly-cap", 5);
       this.getConfig().options().copyDefaults(true);
       this.saveConfig();
       this.mifron().applyServerMotd();

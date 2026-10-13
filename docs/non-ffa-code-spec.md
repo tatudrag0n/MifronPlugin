@@ -109,6 +109,13 @@
 - 14日以上空けて復帰すると `return-bonus.days` / `return-bonus.mp` に従い復帰ボーナスを受け取ります。
 - メニューの「投票」は VotingPlugin の `/vote` を開きます。投票報酬は VotingPlugin 側で設定します。
 
+## 初日導線と紹介
+
+- 初参加時に歓迎タイトルと全体告知を出し、チュートリアル卒業時は全体告知と「目標」チェックリストを自動表示します。
+- 目標は menu / job / 採掘64 / 売却 / チャンク保護 / クエスト受取の6項目。各 `starter-goals.reward-mp`(既定300MP)をUIから1回だけ受け取れます。
+- `/mf refer` で6桁コードを発行(`referral.code-ttl-hours` 既定48h)。参加 `referral.eligible-days`(既定7日)以内の新規が `/mf refer <code>` で登録し、卒業時に双方が `referral.reward-mp-invitee/inviter`(既定3000MP)を獲得します。
+- 紹介は1人1回まで、紹介者の報酬は週 `referral.weekly-cap`(既定5件)まで。紹介者がオフラインの場合は次回ログイン時に通知します。
+
 ## 自動停止
 
 - 最後のプレイヤー退出後、既定600秒でホスト停止を予約します。再参加すると予約を取り消します。

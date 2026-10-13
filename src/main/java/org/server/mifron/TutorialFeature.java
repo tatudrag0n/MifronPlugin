@@ -425,6 +425,9 @@ public final class TutorialFeature implements Listener {
       this.plugin.checkStatTitles(player);
       player.sendMessage("§6チュートリアル完了！通常Survivalへ出発。");
       player.playSound(player.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0F, 1.0F);
+      Bukkit.broadcastMessage("\u00a76[\u304a\u77e5\u3089\u305b] \u00a7e" + player.getName() + " \u00a7f\u304c\u30c1\u30e5\u30fc\u30c8\u30ea\u30a2\u30eb\u3092\u5352\u696d\u3057\u307e\u3057\u305f!");
+      this.plugin.referralService.onTutorialGraduated(player);
       this.sendToSurvival(player);
+      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.plugin.starterGoalsFeature.open(player), 80L);
    }
 }

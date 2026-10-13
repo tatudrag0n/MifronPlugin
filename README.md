@@ -12,11 +12,12 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 - **Discord連携・認証・投票** — MinoruブリッジAPIによるWeb側とのMP連携、提案・投票パネル。
 - **全体チャットのみ** — ゲーム内は全体チャットを提供し、個人宛DM(`/tell`・`/msg`・`/mail`など)は電気通信事業の届出対象になるため廃止。該当コマンドは遮断し、案内はDiscordへ誘導します。
 - **ログボ・復帰ボーナス・投票** — メニュー「ログボ」で連続ログイン・累計・次の節目を確認でき、節目達成は追加報酬と全体告知。14日以上ぶりの復帰ボーナス、メニュー「投票」から投票サイトへ。
+- **初日導線と紹介制度** — 初参加は歓迎表示、チュートリアル卒業は全体告知+「目標」チェックリスト(6項目・各300MP)。`/mf refer` の6桁コードを新規プレイヤーが使うと、相手の卒業時に双方へ紹介報酬。
 
 ## コマンド
 
 - メイン: `/mifron`、短縮: `/mf`
-- プレイヤー向け: `/mf balance`、`/mf pay <player> <amount>`、`/mf tutorial [restart|skip]`、`/mf vote`、`/mf menu`、`/mf quest`、`/mf job [hunter|farmer|enchanter|merchant|fisher|miner|adventurer|none]`、`/mf protect chunk`、`/mf build enter|exit`、`/trade <player>|accept|deny|cancel|money <額>`、`/travel <hub|survival|main>`
+- プレイヤー向け: `/mf balance`、`/mf pay <player> <amount>`、`/mf tutorial [restart|skip]`、`/mf vote`、`/mf menu`、`/mf quest`、`/mf job [hunter|farmer|enchanter|merchant|fisher|miner|adventurer|none]`、`/mf protect chunk`、`/mf build enter|exit`、`/mf refer [code]`、`/trade <player>|accept|deny|cancel|money <額>`、`/travel <hub|survival|main>`
 - `/mv` はMifronでは登録せず、Multiverse-Core専用です。
 - 管理系サブコマンドは原則 `mifron.admin` または個別権限が必要です。
 

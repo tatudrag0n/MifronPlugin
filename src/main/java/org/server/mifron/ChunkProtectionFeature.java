@@ -333,6 +333,7 @@ final class ChunkProtectionFeature implements Listener {
       file.set(base + ".created-at", System.currentTimeMillis());
       this.saveProtectionFile(file);
       player.sendMessage(ChatColor.GREEN + "\u30c1\u30e3\u30f3\u30af\u4fdd\u8b77\u306e\u63d0\u6848\u3092Discord\u3078\u9001\u4fe1\u3057\u307e\u3057\u305f\u3002\u7ba1\u7406\u8005\u306e\u627f\u8a8d\u3092\u304a\u5f85\u3061\u304f\u3060\u3055\u3044\u3002");
+      this.plugin.starterGoalsFeature.mark(player, "protect");
    }
 
    void handleChunkProtectCommand(CommandSender sender, String[] args) {

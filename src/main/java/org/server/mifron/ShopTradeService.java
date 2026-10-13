@@ -70,8 +70,9 @@ final class ShopTradeService {
          }
          hand.setAmount(hand.getAmount() - 1);
          this.store.touch(block);
-         player.sendMessage(ChatColor.GOLD + displayed.getType().name() + " \u3092 " + price + " MP \u3067\u58f2\u5374\u3057\u307e\u3057\u305f\u3002");
-         return;
+          player.sendMessage(ChatColor.GOLD + displayed.getType().name() + " \u3092 " + price + " MP \u3067\u58f2\u5374\u3057\u307e\u3057\u305f\u3002");
+          this.plugin.starterGoalsFeature.mark(player, "sell");
+          return;
       }
       if (!this.isWallet(hand)) {
          player.sendMessage(ChatColor.YELLOW + "\u8ca9\u58f2: " + displayed.getType().name() + " = " + price + " MP");

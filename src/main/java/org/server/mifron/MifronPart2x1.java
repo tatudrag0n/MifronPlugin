@@ -60,7 +60,14 @@ abstract class MifronPart2x1 extends MifronPart2 {
       session.set("analytics.session-id", sessionId);
       session.set("analytics.session-start", System.currentTimeMillis());
       boolean firstJoin = !player.hasPlayedBefore();
-      if (firstJoin) session.set("tutorial.auto-pending", true);
+      if (firstJoin) {
+         session.set("tutorial.auto-pending", true);
+         session.set("first-seen", System.currentTimeMillis());
+         player.showTitle(net.kyori.adventure.title.Title.title(
+            net.kyori.adventure.text.Component.text("\u00a76Mifron \u3078\u3088\u3046\u3053\u305d"),
+            net.kyori.adventure.text.Component.text("\u00a77\u30c1\u30e5\u30fc\u30c8\u30ea\u30a2\u30eb\u304c\u59cb\u307e\u308a\u307e\u3059\u3002")));
+         Bukkit.broadcastMessage("\u00a76[\u304a\u77e5\u3089\u305b] \u00a7f\u65b0\u3057\u3044\u5192\u967a\u8005 \u00a7e" + player.getName() + " \u00a7f\u304cMifron\u306b\u3084\u3063\u3066\u304d\u307e\u3057\u305f!");
+      }
       this.minoruBridgeFeature.sendAnalyticsEvent(player, firstJoin ? "first_join" : "return_join", sessionId, "join:" + player.getUniqueId());
       this.minoruBridgeFeature.sendAnalyticsEvent(player, "play_session_start", sessionId, "session-start:" + sessionId);
       this.flushPendingFirstMpEvent(player);
@@ -69,6 +76,7 @@ abstract class MifronPart2x1 extends MifronPart2 {
       this.mifron().applyPendingAdvancementReset(player);
       this.mifron().handleLoginReward(player);
       this.mifron().handleReturnBonus(player);
+      this.mifron().referralService.flushPendingNotice(player);
       this.mifron().routeByWarningLevel(player);
       this.mifron().refreshPlayerName(player);
       Bukkit.getScheduler().runTaskLater(this, () -> this.mifron().syncAdvancementState(player), 20L);
