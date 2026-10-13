@@ -116,6 +116,13 @@
 - `/mf refer` で6桁コードを発行(`referral.code-ttl-hours` 既定48h)。参加 `referral.eligible-days`(既定7日)以内の新規が `/mf refer <code>` で登録し、卒業時に双方が `referral.reward-mp-invitee/inviter`(既定3000MP)を獲得します。
 - 紹介は1人1回まで、紹介者の報酬は週 `referral.weekly-cap`(既定5件)まで。紹介者がオフラインの場合は次回ログイン時に通知します。
 
+## 定期イベント
+
+- `events.<id>` に週次の曜日・時刻・長さ・事前告知分数を設定します(既定: `fishing-festival` 土曜20:00・60分・15分前告知・有効)。
+- 30秒間隔のタスクが事前告知・開始・終了を全体へブロードキャストします。
+- `quests.yml` の `event: <id>` を付けたクエストは該当イベントの開催中のみ表示されます(例: S30「釣り大会 完走」)。
+- `/mf event list|start <id> [分]|stop` は管理者向けの手動制御です。手動開催状態は `events.manual-active/until` に保存されます。
+
 ## 自動停止
 
 - 最後のプレイヤー退出後、既定600秒でホスト停止を予約します。再参加すると予約を取り消します。

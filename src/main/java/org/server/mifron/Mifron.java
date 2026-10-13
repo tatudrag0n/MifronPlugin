@@ -37,7 +37,7 @@ public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
              "check", "list", "text", "structure", "build", "proposal", "vote", "gamerules",
              "info", "reload", "kit", "balance", "pay", "merchant", "marchant",
              "quest", "mp", "regen", "chunk", "protect", "menu", "status", "tutorial", "job", "shelfshop", "shopwand",
-             "jumppadwand", "jumpblock", "sethub", "warning", "refer"
+             "jumppadwand", "jumpblock", "sethub", "warning", "refer", "event"
           ));
           if (!sender.isOp() && !sender.hasPermission("mifron.admin")) {
              all.removeAll(List.of("reload", "regen", "gamerules", "kit", "shopwand", "jumppadwand", "jumpblock",

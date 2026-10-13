@@ -592,3 +592,17 @@ quests:
     progress-key: creator_approved
     required: 1
     intent: "CREWMATE的導線"
+  S30:
+    type: "スペシャル"
+    name: "釣り大会 完走"
+    reset: "イベント時のみ"
+    condition: "イベント中に魚を10匹釣る"
+    base-reward-mp: 3000
+    display: "イベント時のみ"
+    reincarnation-bonus: true
+    repeat-limit: "1回限り"
+    icon: FISHING_ROD
+    progress-key: fishing
+    required: 10
+    intent: "定期イベント"
+    event: fishing-festival

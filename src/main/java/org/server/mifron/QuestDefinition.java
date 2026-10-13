@@ -16,10 +16,14 @@ record QuestDefinition(
    String progressKey,
    int required,
    String intent,
-   String job
+   String job,
+   String event
 ) {
    boolean requiresJob() {
       return this.job != null && !this.job.isBlank();
+   }
+   boolean hasEvent() {
+      return this.event != null && !this.event.isBlank();
    }
    boolean isCompletionQuest() {
       return this.progressKey.endsWith("_complete");

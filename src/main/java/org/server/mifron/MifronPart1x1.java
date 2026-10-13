@@ -102,6 +102,12 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.getConfig().addDefault("referral.eligible-days", 7);
       this.getConfig().addDefault("referral.code-ttl-hours", 48L);
       this.getConfig().addDefault("referral.weekly-cap", 5);
+      this.getConfig().addDefault("events.fishing-festival.enabled", true);
+      this.getConfig().addDefault("events.fishing-festival.name", "\u91e3\u308a\u5927\u4f1a");
+      this.getConfig().addDefault("events.fishing-festival.day", "SATURDAY");
+      this.getConfig().addDefault("events.fishing-festival.time", "20:00");
+      this.getConfig().addDefault("events.fishing-festival.duration-minutes", 60);
+      this.getConfig().addDefault("events.fishing-festival.announce-minutes-before", 15);
       this.getConfig().options().copyDefaults(true);
       this.saveConfig();
       this.mifron().applyServerMotd();
@@ -116,6 +122,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("cache shelf shop catalog", this.mifron()::rebuildShelfShopCatalog);
       this.mifron().loadData();
       this.mifron().runStartupStep("load chat policy", this.chatPolicyFeature::load);
+      this.mifron().runStartupStep("load events", this.eventService::load);
       this.mifron().runStartupStep("ensure Survival dimensions", this.survivalDimensionFeature::ensureWorlds);
       this.mifron().runStartupStep("ensure tutorial world", this.tutorialFeature::ensureWorld);
       this.mifron().runStartupStep("start tutorial arena task", this.tutorialFeature::startArenaTask);
@@ -180,6 +187,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("normalize merchants", this.mifron()::normalizeMerchants);
       Bukkit.getScheduler().runTaskTimer(this, this.worldRulesFeature::enforceFixedDayWorlds, 1L, 100L);
       Bukkit.getScheduler().runTaskTimer(this, this.mifron()::grantPlaytimeRewards, 1200L, 1200L);
+      Bukkit.getScheduler().runTaskTimer(this, this.eventService::tick, 600L, 600L);
       Bukkit.getScheduler().runTaskTimer(this, this.mifron()::tickMerchants, 1200L, 1200L);
       Bukkit.getScheduler().runTaskTimer(this, this.mifron()::tickShelfShopActionBars, 10L, 10L);
       Bukkit.getScheduler().runTaskTimer(this, this.mifron()::cleanupInactiveShops, 20L, 20L * 60L * 60L * 24L);

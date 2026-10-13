@@ -50,6 +50,18 @@ referral:
   # Maximum inviter rewards per ISO week.
   weekly-cap: 5
 
+events:
+  # Weekly event schedule: pre-start/start/end broadcasts run automatically
+  # and quests with a matching "event:" key are only available while active.
+  # Manual control: /mf event start <id> [分] / /mf event stop / /mf event list
+  fishing-festival:
+    enabled: true
+    name: "釣り大会"
+    day: SATURDAY
+    time: "20:00"
+    duration-minutes: 60
+    announce-minutes-before: 15
+
 jobs:
   # Hours before a player may change jobs again.
   change-cooldown-hours: 24.0

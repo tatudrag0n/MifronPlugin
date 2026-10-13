@@ -80,6 +80,7 @@ final class SiteQuestService {
             progressKey,
             required,
             "",
+            "",
             ""
          );
       }

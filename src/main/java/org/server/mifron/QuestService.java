@@ -70,7 +70,8 @@ final class QuestService {
                      section.getString(path + "progress-key", "manual"),
                      Math.max(1, section.getInt(path + "required", 1)),
                      section.getString(path + "intent", ""),
-                     section.getString(path + "job", "")
+                     section.getString(path + "job", ""),
+                     section.getString(path + "event", "")
                   )
                );
          }
@@ -167,6 +168,9 @@ final class QuestService {
 
    boolean isVisible(Player player, QuestDefinition definition) {
       if (definition == null || !this.jobAllows(player, definition)) {
+         return false;
+      } else if (definition.hasEvent() && !this.plugin.eventService.isActive(definition.event())) {
+         // Time-locked event quests only appear while their event is running.
          return false;
       } else if (this.siteDefinitions.containsKey(definition.id())) {
          return true;
