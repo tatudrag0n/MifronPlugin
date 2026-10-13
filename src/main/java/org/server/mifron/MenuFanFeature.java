@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -47,8 +49,12 @@ final class MenuFanFeature implements Listener {
       final long expiresAt;
       final double closeDistance;
       final List<Entity> entities = new ArrayList<>();
+      final List<ItemDisplay> icons = new ArrayList<>();
+      final List<TextDisplay> labels = new ArrayList<>();
+      final List<String> labelTexts = new ArrayList<>();
       final List<ItemStack> actions = new ArrayList<>();
       final Map<UUID, Integer> targets = new HashMap<>();
+      int hovered = -1;
       BukkitTask task;
 
       Session(UUID owner, Location origin, long expiresAt, double closeDistance) {
@@ -85,6 +91,29 @@ final class MenuFanFeature implements Listener {
       );
    }
 
+   /**
+    * Index of the entry whose direction from the viewer is closest to the
+    * view direction while staying within {@code maxAngleDegrees}, or -1 when
+    * the player is not looking at any entry.
+    */
+   static int hoveredIndex(List<Vector> itemDirections, Vector forward, double maxAngleDegrees) {
+      if (itemDirections == null || itemDirections.isEmpty() || forward == null || forward.lengthSquared() <= 1.0E-9) return -1;
+      Vector view = forward.clone().normalize();
+      double cosThreshold = Math.cos(Math.toRadians(Math.max(0.0, maxAngleDegrees)));
+      int best = -1;
+      double bestDot = cosThreshold;
+      for (int i = 0; i < itemDirections.size(); i++) {
+         Vector direction = itemDirections.get(i);
+         if (direction == null || direction.lengthSquared() <= 1.0E-9) continue;
+         double dot = direction.clone().normalize().dot(view);
+         if (dot > bestDot) {
+            bestDot = dot;
+            best = i;
+         }
+      }
+      return best;
+   }
+
    void open(Player player) {
       if (player == null) return;
       this.close(player.getUniqueId());
@@ -94,6 +123,7 @@ final class MenuFanFeature implements Listener {
       double radius = Math.max(1.0, this.plugin.getConfig().getDouble("menu.fan-radius", 2.3));
       double spread = Math.max(10.0, this.plugin.getConfig().getDouble("menu.fan-spread-degrees", 130.0));
       double labelScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-label-scale", 0.9));
+      double iconScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 1.0));
       long timeoutMillis = Math.max(1, this.plugin.getConfig().getInt("menu.fan-timeout-seconds", 20)) * 1000L;
       double closeDistance = Math.max(2.0, this.plugin.getConfig().getDouble("menu.fan-close-distance", 6.0));
       List<ItemStack> actions = this.buildActions(player);
@@ -111,15 +141,18 @@ final class MenuFanFeature implements Listener {
          Location labelPosition = position.clone().add(0.0, 0.45, 0.0);
          String labelText = labels.get(i);
          int index = i;
-         ItemDisplay display = world.spawn(position, ItemDisplay.class, entity -> {
-            entity.setItemStack(icon);
-            entity.setBillboard(Display.Billboard.CENTER);
-            entity.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-            entity.setGravity(false);
-            entity.setInvulnerable(true);
-            entity.setPersistent(false);
-            entity.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(1.3f, 1.3f, 1.3f), new Quaternionf()));
-         });
+          ItemDisplay display = world.spawn(position, ItemDisplay.class, entity -> {
+             entity.setItemStack(icon);
+             entity.setBillboard(Display.Billboard.CENTER);
+             entity.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+             entity.setGravity(false);
+             entity.setInvulnerable(true);
+             entity.setPersistent(false);
+             float scale = (float) iconScale;
+             entity.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(scale, scale, scale), new Quaternionf()));
+             entity.setInterpolationDuration(3);
+             entity.setInterpolationDelay(0);
+          });
          TextDisplay label = world.spawn(labelPosition, TextDisplay.class, entity -> {
             entity.text(Component.text(labelText));
             entity.setBillboard(Display.Billboard.CENTER);
@@ -139,13 +172,16 @@ final class MenuFanFeature implements Listener {
          session.entities.add(display);
          session.entities.add(label);
          session.entities.add(hit);
+         session.icons.add(display);
+         session.labels.add(label);
+         session.labelTexts.add(labelText);
          session.actions.add(actions.get(index));
          session.targets.put(hit.getUniqueId(), index);
          this.byInteraction.put(hit.getUniqueId(), session);
       }
       if (session.entities.isEmpty()) return;
       this.sessions.put(player.getUniqueId(), session);
-      session.task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> this.tick(player.getUniqueId()), 10L, 10L);
+      session.task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> this.tick(player.getUniqueId()), 2L, 2L);
       this.plugin.tutorialFeature.onMenuOpen(player);
    }
 
@@ -189,6 +225,7 @@ final class MenuFanFeature implements Listener {
          this.close(owner);
          return;
       }
+      this.updateHover(player, session);
       // Fallback detection: the attack packet may not surface as an event on
       // every server build, so poll the interaction's recorded last attack.
       for (Map.Entry<UUID, Integer> entry : session.targets.entrySet()) {
@@ -201,6 +238,45 @@ final class MenuFanFeature implements Listener {
             this.select(player, entry.getValue());
             return;
          }
+      }
+   }
+
+   /** Highlights the entry under the crosshair: it grows and glows while the rest shrink. */
+   private void updateHover(Player player, Session session) {
+      if (session.icons.isEmpty()) return;
+      Location eye = player.getEyeLocation();
+      Vector forward = eye.getDirection();
+      List<Vector> directions = new ArrayList<>(session.icons.size());
+      for (ItemDisplay icon : session.icons) {
+         directions.add(icon == null || !icon.isValid() ? null : icon.getLocation().toVector().subtract(eye.toVector()));
+      }
+      double maxAngle = this.plugin.getConfig().getDouble("menu.fan-hover-max-angle-degrees", 12.0);
+      int hovered = hoveredIndex(directions, forward, maxAngle);
+      if (hovered == session.hovered) return;
+      session.hovered = hovered;
+      this.applyHoverStyles(session);
+   }
+
+   private void applyHoverStyles(Session session) {
+      double baseScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 1.0));
+      double hoverMultiplier = Math.max(1.0, this.plugin.getConfig().getDouble("menu.fan-hover-multiplier", 1.5));
+      double idleMultiplier = Math.max(0.1, Math.min(1.0, this.plugin.getConfig().getDouble("menu.fan-idle-multiplier", 0.85)));
+      for (int i = 0; i < session.icons.size(); i++) {
+         ItemDisplay display = session.icons.get(i);
+         if (display == null || !display.isValid()) continue;
+         double multiplier = session.hovered < 0 ? 1.0 : (i == session.hovered ? hoverMultiplier : idleMultiplier);
+         float scale = (float) (baseScale * multiplier);
+         display.setInterpolationDelay(0);
+         display.setInterpolationDuration(3);
+         display.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(scale, scale, scale), new Quaternionf()));
+         display.setGlowing(i == session.hovered);
+      }
+      for (int i = 0; i < session.labels.size(); i++) {
+         TextDisplay label = session.labels.get(i);
+         if (label == null || !label.isValid()) continue;
+         String text = i < session.labelTexts.size() ? session.labelTexts.get(i) : "";
+         if (i == session.hovered) label.text(Component.text(text, NamedTextColor.YELLOW).decorate(TextDecoration.BOLD));
+         else label.text(Component.text(text));
       }
    }
 

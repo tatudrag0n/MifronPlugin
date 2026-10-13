@@ -2,6 +2,7 @@ package org.server.mifron;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.List;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
@@ -28,5 +29,19 @@ class MenuFanRulesTest {
       Vector up = new Vector(0, 1, 0);
       Vector unchanged = MenuFanFeature.rotateY(up, 123.0);
       assertEquals(1.0, unchanged.getY(), 0.0001);
+   }
+
+   @Test
+   void hoveredIndexPicksClosestWithinAngle() {
+      List<Vector> directions = List.of(new Vector(0, 0, 1), new Vector(1, 0, 0), new Vector(0, 0, -1));
+      assertEquals(0, MenuFanFeature.hoveredIndex(directions, new Vector(0, 0, 1), 10.0));
+      assertEquals(1, MenuFanFeature.hoveredIndex(directions, new Vector(1, 0, 0), 10.0));
+      assertEquals(2, MenuFanFeature.hoveredIndex(directions, new Vector(0, 0, -1), 10.0));
+      // Slightly off-axis but still inside the angle window.
+      assertEquals(0, MenuFanFeature.hoveredIndex(directions, new Vector(0.1, 0, 1), 10.0));
+      // Outside every window (looking up) returns -1.
+      assertEquals(-1, MenuFanFeature.hoveredIndex(directions, new Vector(0, 1, 0), 10.0));
+      assertEquals(-1, MenuFanFeature.hoveredIndex(List.of(), new Vector(0, 0, 1), 10.0));
+      assertEquals(-1, MenuFanFeature.hoveredIndex(directions, new Vector(0, 0, 0), 10.0));
    }
 }

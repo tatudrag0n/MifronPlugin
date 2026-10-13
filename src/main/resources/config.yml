@@ -7,6 +7,12 @@ menu:
   fan-label-scale: 0.9
   fan-timeout-seconds: 20
   fan-close-distance: 6.0
+  # Icon size. The entry under the crosshair grows and glows (label turns
+  # yellow + bold) while the others shrink, so the selection is obvious.
+  fan-icon-scale: 1.0
+  fan-hover-multiplier: 1.5
+  fan-idle-multiplier: 0.85
+  fan-hover-max-angle-degrees: 12.0
 
 trade:
   # Maximum MP either side may offer in one trade.

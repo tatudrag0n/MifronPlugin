@@ -1,5 +1,5 @@
 name: mifron
-version: 26.1.2-jobleve-20261013
+version: 26.1.2-menuux-20261013
 
 main: org.server.mifron.Mifron
 api-version: '1.21'
