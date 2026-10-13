@@ -97,6 +97,8 @@ abstract class MifronPart17x1 extends MifronPart17 {
          return;
       }
       this.reloadConfig();
+      this.chatPolicyFeature.load();
+      this.eventService.load();
       this.applyMainWorldBorder();
       this.economyPriceTable.load();
       this.questService.load();

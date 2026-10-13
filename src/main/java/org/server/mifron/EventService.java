@@ -54,6 +54,7 @@ final class EventService {
             Math.max(0, entry.getInt("announce-minutes-before", 15)),
             entry.getBoolean("enabled", false)));
       }
+      this.plugin.getLogger().info("Loaded " + this.events.size() + " events: " + String.join(", ", this.events.keySet()));
    }
 
    static LocalTime parseTime(String raw) {
