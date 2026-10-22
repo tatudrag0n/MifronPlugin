@@ -24,4 +24,9 @@ final class ShelfShopTradeRules {
    static boolean itemMaySell(String mode) {
       return mode == null || mode.isBlank() || !"sell".equalsIgnoreCase(mode);
    }
+
+   /** The distributed menu item doubles as the wallet payment item. */
+   static boolean isWalletItem(String itemId) {
+      return "emerald_bundle".equals(itemId) || "menu".equals(itemId);
+   }
 }

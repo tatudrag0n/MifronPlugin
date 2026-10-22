@@ -31,7 +31,7 @@ abstract class MifronPart3x1 extends MifronPart3 {
          long now = System.currentTimeMillis();
          if (now < this.shelfShopTransactionUntil.getOrDefault(player.getUniqueId(), 0L)) return;
          this.shelfShopTransactionUntil.put(player.getUniqueId(), now + 90L);
-         if (this.isMifronItem(item, "emerald_bundle")) this.mifron().tryShopPayment(player, event.getClickedBlock());
+         if (this.isMifronItem(item, "emerald_bundle") || this.isMifronItem(item, "menu")) this.mifron().tryShopPayment(player, event.getClickedBlock());
          else this.mifron().tryShopSell(player, event.getClickedBlock(), item);
          return;
       }

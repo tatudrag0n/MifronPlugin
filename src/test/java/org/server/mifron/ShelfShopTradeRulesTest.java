@@ -22,4 +22,12 @@ class ShelfShopTradeRulesTest {
       assertTrue(ShelfShopTradeRules.itemMaySell("buy"));
       assertTrue(ShelfShopTradeRules.itemMaySell("both"));
    }
+
+   @Test
+   void menuItemAtIsWalletLikeEmeraldBundle() {
+      assertTrue(ShelfShopTradeRules.isWalletItem("menu"));
+      assertTrue(ShelfShopTradeRules.isWalletItem("emerald_bundle"));
+      assertFalse(ShelfShopTradeRules.isWalletItem("shelf_shop_wand"));
+      assertFalse(ShelfShopTradeRules.isWalletItem(null));
+   }
 }

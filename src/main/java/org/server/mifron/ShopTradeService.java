@@ -26,7 +26,10 @@ final class ShopTradeService {
 
    boolean isWallet(ItemStack item) {
       if (item == null || !item.hasItemMeta()) return false;
-      return "emerald_bundle".equals(item.getItemMeta().getPersistentDataContainer().get(this.itemKey, PersistentDataType.STRING));
+      String id = item.getItemMeta().getPersistentDataContainer().get(this.itemKey, PersistentDataType.STRING);
+      // The distributed menu item pays for shelf-shop purchases like the old
+      // emerald_bundle wallet.
+      return ShelfShopTradeRules.isWalletItem(id);
    }
 
    boolean isSpecial(ItemStack item) {
@@ -76,7 +79,7 @@ final class ShopTradeService {
       }
       if (!this.isWallet(hand)) {
          player.sendMessage(ChatColor.YELLOW + "\u8ca9\u58f2: " + displayed.getType().name() + " = " + price + " MP");
-         player.sendMessage(ChatColor.GRAY + "\u30a6\u30a9\u30ec\u30c3\u30c8\u3092\u6301\u3063\u3066\u53f3\u30af\u30ea\u30c3\u30af\u3067\u8cfc\u5165\u3057\u307e\u3059\u3002");
+         player.sendMessage(ChatColor.GRAY + "\u300c\u30e1\u30cb\u30e5\u30fc\u300d\u3092\u6301\u3063\u3066\u53f3\u30af\u30ea\u30c3\u30af\u3067\u8cfc\u5165\u3057\u307e\u3059\u3002");
          return;
       }
       if (!this.plugin.withdrawEmeralds(player.getUniqueId(), price)) {
