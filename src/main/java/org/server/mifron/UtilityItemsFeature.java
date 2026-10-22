@@ -52,6 +52,9 @@ final class UtilityItemsFeature implements Listener {
    private final NamespacedKey jumpPadPowerKey;
    private final NamespacedKey jumpPadVerticalPowerKey;
    private final NamespacedKey jumpPadHorizontalPowerKey;
+   // Retired Tebex store link item: keyed outside the "item" PDC, so it gets
+   // its own sweep on join like the legacy fixed items.
+   private final NamespacedKey storeActivatorKey;
 
    UtilityItemsFeature(Mifron plugin) {
       this.plugin = plugin;
@@ -60,6 +63,7 @@ final class UtilityItemsFeature implements Listener {
       this.jumpPadPowerKey = new NamespacedKey(plugin, "jump_pad_power");
       this.jumpPadVerticalPowerKey = new NamespacedKey(plugin, "jump_pad_vertical_power");
       this.jumpPadHorizontalPowerKey = new NamespacedKey(plugin, "jump_pad_horizontal_power");
+      this.storeActivatorKey = new NamespacedKey(plugin, "mifron_store_activator");
    }
 
    void giveInitialItems(Player player) {
@@ -67,7 +71,23 @@ final class UtilityItemsFeature implements Listener {
       // Migrate away from the old five separate items: they are all inside
       // the single menu item now.
       for (String legacyId : LEGACY_INITIAL_ITEM_IDS) this.removeMifronItems(player, legacyId);
+      this.removeStoreActivators(player);
       this.updateOrGiveMifronItem(player, "menu", this.createMenuItem());
+   }
+
+   /** Removes leftover Tebex store link items from the whole inventory. */
+   private void removeStoreActivators(Player player) {
+      ItemStack[] contents = player.getInventory().getContents();
+      for (int slot = 0; slot < contents.length; slot++) {
+         if (this.isStoreActivator(contents[slot])) player.getInventory().setItem(slot, null);
+      }
+      if (this.isStoreActivator(player.getInventory().getItemInOffHand())) player.getInventory().setItemInOffHand(null);
+   }
+
+   private boolean isStoreActivator(ItemStack item) {
+      if (item == null || !item.hasItemMeta()) return false;
+      ItemMeta meta = item.getItemMeta();
+      return meta != null && meta.getPersistentDataContainer().has(this.storeActivatorKey, PersistentDataType.BYTE);
    }
 
    ItemStack createMenuItem() {

@@ -185,7 +185,6 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register menu fan events", () -> Bukkit.getPluginManager().registerEvents(this.menuFanFeature, this));
       this.mifron().runStartupStep("register special item events", () -> Bukkit.getPluginManager().registerEvents(this.specialItemsFeature, this));
       this.mifron().runStartupStep("register elite mob events", () -> Bukkit.getPluginManager().registerEvents(this.eliteMobFeature, this));
-      this.mifron().runStartupStep("register store item events", () -> Bukkit.getPluginManager().registerEvents(this.storeItemFeature, this));
       this.mifron().runStartupStep("register enchant max display events", () -> Bukkit.getPluginManager().registerEvents(this.enchantMaxDisplayFeature, this));
       this.mifron().runStartupStep("register friend chat events", () -> Bukkit.getPluginManager().registerEvents(this.friendChatService, this));
       this.mifron().runStartupStep("register chat policy events", () -> Bukkit.getPluginManager().registerEvents(this.chatPolicyFeature, this));
