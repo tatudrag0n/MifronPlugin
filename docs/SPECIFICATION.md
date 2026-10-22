@@ -8,7 +8,6 @@
 
 | ワールド | 用途 |
 |---|---|
-| main | 建築ワールド（岩盤平面・セミクリエ・承認制） |
 | survival | メインサバイバル（TerraformGenerator） |
 | tutorial | 体験チュートリアル（10段階・卒業で通知） |
 | 各 `_nether` / `_the_end` | 対応ディメンション |
@@ -66,15 +65,9 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 - 一度解放すればON/OFF（装備/解除）切替可。再ログイン・再起動後も維持。
 - 旧暗視フラグは初回利用時に自動移行。
 
-## 8. mainワールドルール
+## 8. 建築ワールド（廃止済み）
 
-- セミクリエイティブ：Survival/Adventureで飛行可、クリエインベントリから建築ブロック・防具立て取得可（TNT・スポナー・技術系・スポーンエッグ・バケツ類は不可、configで追加可）、使用時も消費しない、掘削は即時破壊。
-- 岩盤は誰も破壊・設置不可（WorldEdit除く）。
-- スポーン中心の半径30円内は編集不可。
-- 設置ブロックは承認制：設置→承認待ち（赤い靄）→承認で固定。空気・置換で自動解除。管理者は `/mf main approve [all|<player>]`。
-- 直接建築の代替フロー：`/mf main submit <schematic> <x> <y> <z>` で申請→ `/mf main submissions` 確認→管理者が `/mf main approve-sub <id>`（WorldEdit自動設置、なければ手動手順表示）／`reject-sub` で却下。
-- 落下ダメージ無効。エンティティ生成系アイテム使用禁止（防具立て除く）。
-- 新規main生成は `mifron-flat`（STARTUP micro-plugin）でY=-64岩盤1層・構造物なし。`bukkit.yml` の `worlds.main.generator: MifronFlat:flat` が必要。
+- 旧建築ワールド群（共有main・共有Creative・プレイヤー別Buildワールド）は廃止済みです。`main-world.enabled` と `build-world.enabled` はいずれも既定 `false` で、configを有効化しない限り `/mf main`・`/mf build` は動作しません。
 
 ## 9. ジョブ
 
@@ -96,10 +89,9 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 
 ## 12. 主なコマンド
 
-- `/mf menu|balance|pay|shop・・|tutorial|status|quest|job|merchant|main|protect|proposal|vote|gamerules|reload`（一部管理者専用）
+- `/mf menu|balance|pay|shop・・|tutorial|status|quest|job|merchant|protect|proposal|vote|gamerules|reload`（一部管理者専用）
 - `/trade <player>|accept|deny|cancel|money <額>`
 - `/mifron merchant spawn|spawnrare|reroll|clear`
-- `/mf main approve|submit|submissions|approve-sub|reject-sub`
 
 ## 13. 設定・データ
 
@@ -107,8 +99,6 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 - `plugins/mifron/data.yml`：プレイヤーデータ（MP・進捗・クエスト・称号・在庫・承認等）。`queueDataSave` で遅延保存。
 - `plugins/mifron/quests.yml`：クエスト定義（配布時は `src/main/resources/quests.yml` が初期配置）。
 - `plugins/mifron/shop-prices.yml` / `economy-price-table.yml`：価格（後者が優先）。
-- `bukkit.yml`：`worlds.main.generator: MifronFlat:flat`。
-- `server.properties`：`level-type` は `default`（MifronFlat使用時）。
 
 ## 14. 運用
 
