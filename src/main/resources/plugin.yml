@@ -1,5 +1,5 @@
 name: mifron
-version: 26.1.2-nostore-20261022
+version: 26.1.2-menuwallet-20261022
 
 main: org.server.mifron.Mifron
 api-version: '1.21'

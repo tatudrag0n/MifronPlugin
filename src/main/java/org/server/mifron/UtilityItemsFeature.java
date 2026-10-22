@@ -557,6 +557,13 @@ final class UtilityItemsFeature implements Listener {
 
       boolean clicked = event.getAction().isRightClick() || event.getAction().isLeftClick();
       if ("menu".equals(id) && clicked) {
+         // Right-clicking a shelf shop transacts with the menu item as the
+         // wallet (like the old emerald_bundle). Leave the event untouched so
+         // the dedicated shop listeners (higher priority) run their trade.
+         if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null
+            && this.plugin.isShopShelfBlock(event.getClickedBlock())) {
+            return;
+         }
          event.setCancelled(true);
          event.setUseItemInHand(Event.Result.DENY);
          event.setUseInteractedBlock(Event.Result.DENY);
