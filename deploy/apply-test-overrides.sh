@@ -56,7 +56,7 @@ for vc in "$TEST_DIR"/plugins/Votifier/config.yml "$TEST_DIR"/plugins/nuvotifier
   sed -i -E "s/^(\s*port:\s*)[0-9]+/\1$VOTE_PORT/" "$vc"
 done
 
-for jar in "$TEST_DIR"/plugins/DiscordSRV-*.jar "$TEST_DIR"/plugins/tebex-*.jar "$TEST_DIR"/plugins/MifronAuth.jar; do
+for jar in "$TEST_DIR"/plugins/DiscordSRV-*.jar "$TEST_DIR"/plugins/MifronAuth.jar; do
   [ -e "$jar" ] || continue
   mv -f "$jar" "$jar.disabled-test"
   echo "Disabled on test: $(basename "$jar")"

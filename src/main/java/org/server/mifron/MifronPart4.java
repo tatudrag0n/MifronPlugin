@@ -21,13 +21,12 @@ abstract class MifronPart4 extends MifronPart3x2 {
    @EventHandler
    public void onPlayerDeath(PlayerDeathEvent event) {
       Player player = event.getEntity();
-      // Fixed utility items and the store link must
-      // never drop on the ground: pull them out of the drops and re-issue
-      // them on respawn. Everything else drops exactly as before.
+      // Fixed utility items must never drop on the ground: pull them out
+      // of the drops and re-issue them on respawn. Everything else drops
+      // exactly as before.
       List<ItemStack> kept = new ArrayList<>();
       event.getDrops().removeIf(stack -> {
-          if (stack != null && (this.utilityItemsFeature.isDeathProtectedItem(stack)
-             || this.storeItemFeature.isStoreItem(stack))) {
+          if (stack != null && this.utilityItemsFeature.isDeathProtectedItem(stack)) {
             kept.add(stack.clone());
             return true;
          }

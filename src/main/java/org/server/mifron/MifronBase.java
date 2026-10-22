@@ -170,7 +170,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final ShopStockService shopStockService = new ShopStockService((Mifron) this);
    protected final SpecialItemsFeature specialItemsFeature = new SpecialItemsFeature((Mifron) this);
    protected final EliteMobFeature eliteMobFeature = new EliteMobFeature((Mifron) this);
-   protected final StoreItemFeature storeItemFeature = new StoreItemFeature((Mifron) this);
    protected final EnchantMaxDisplayFeature enchantMaxDisplayFeature = new EnchantMaxDisplayFeature((Mifron) this);
    protected OnlineShopFeature onlineShopFeature;
    protected final Random random = new Random();

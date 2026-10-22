@@ -289,7 +289,6 @@ regen:
   # 除外リスト。ここにない Survival チャンクが月次再生成対象です。
   # 形式：survival,チャンク X,チャンク Z
   excluded-chunks: []
-  allowed-chunks: []
   interval-days: 30
   monthly-enabled: true
   monthly-max-chunks: 256
