@@ -51,9 +51,9 @@ public final class TutorialFeature implements Listener {
 
    private static final String[] STAGE_TEXT = {
       "",
-      "§e[1/7] メニュー: §7配布アイテムを右クリックするとメニューが開く。SHOP・ウォレット・ステータス・クエスト・ジョブ・レリック・チュートリアルが並ぶ。",
-      "§e[2/7] 討伐: §7南の金ブロックの上のゾンビを3体倒そう。1体倒すたびにMPがもらえる(30MP)。討伐数はステータスの討伐タブで見られる。",
-      "§e[3/7] Elite: §7中央の北側の金ブロックの上の Elite を倒そう。紫の名前が目印。Elite は通常より硬く、ドロップが増える(リンゴ・ダイヤ・エンチャント本など)。討伐で100MPもらえる。",
+      "§e[1/7] メニュー: §7配布アイテムを右クリックするとメニューが開く。SHOP・ウォレット・ステータス・クエスト・取引・投票・ログボ・目標・チュートリアルが並ぶ。",
+      "§e[2/7] 討伐: §7北側の金ブロックの上のゾンビを3体倒そう。1体倒すたびにMPがもらえる(30MP)。討伐数はステータスの討伐タブで見られる。",
+      "§e[3/7] Elite: §7討伐ゾンビのさらに北の金ブロックの上の Elite を倒そう。紫の名前が目印。Elite は通常より硬く、ドロップが増える(リンゴ・ダイヤ・エンチャント本など)。討伐で100MPもらえる。",
       "§e[4/7] レリック: §7配布スクラッチを右クリックして削ろう。10%で500MP、90%で50MP。スクラッチは Elite 討伐時にも2%で出る。レリックは /mf relic <id> で入手できる。",
       "§e[5/7] レリック: §7/mf relic でレリックを入手し、持つだけで効果が発動するものがある。レリックは売買不可の特殊アイテム。",
       "§e[6/7] 金床: §7金床で本を素材に、道具へエンチャントを付けよう。結果を左クリックで取ると完了。高度な金床は MP を消費し、上限を超えて付けられる。",
@@ -121,13 +121,27 @@ public final class TutorialFeature implements Listener {
       }.runTaskTimer(this.plugin, 40L, 40L);
    }
 
+   /** Minecraft yaw (degrees) at {@code from} looking toward {@code to}: 0 = south, 180 = north. */
+   static float yawTowards(Location from, Location to) {
+      double dx = to.getX() - from.getX();
+      double dz = to.getZ() - from.getZ();
+      if (Math.abs(dx) < 1.0E-6 && Math.abs(dz) < 1.0E-6) return 0.0F;
+      double degrees = Math.toDegrees(Math.atan2(-dx, dz));
+      degrees = (degrees % 360.0 + 360.0) % 360.0;
+      return (float) degrees;
+   }
+
    private void ensureAnchorMob(World world, Location loc, boolean elite) {
       loc.getChunk().load(true);
       for (Entity e : world.getNearbyEntities(loc, 1.0, 1.5, 1.0)) {
          if (e instanceof Monster) return;
       }
-      // Face the player side (north-ward for the south kill mob, south-ward for the north elite mob).
-      float yaw = elite ? 0.0F : 180.0F;
+      // Anchor points sit between the tutorial spawn and the gate, so the mob
+      // faces the tutorial spawn where players arrive from. The legacy fixed
+      // yaw (180 for the kill mob) pointed it away after the anchors moved.
+      Location arrival = this.spawn(null);
+      float yaw = arrival != null && arrival.getWorld().equals(loc.getWorld())
+         ? yawTowards(loc, arrival) : (elite ? 0.0F : 180.0F);
       Location spawnLoc = loc.clone();
       spawnLoc.setYaw(yaw);
       world.spawn(spawnLoc, Zombie.class, zombie -> {
@@ -315,7 +329,8 @@ public final class TutorialFeature implements Listener {
       if (this.stageOf(player) == 1 && this.inTutorial(player)) this.advance(player);
    }
 
-   public void onJobOpen(Player player) {
+   /** Stage 5: any relic item obtained (via /mf relic or a lucky transform). */
+   public void onRelicObtained(Player player) {
       if (this.stageOf(player) == 5 && this.inTutorial(player)) this.advance(player);
    }
 
@@ -336,7 +351,7 @@ public final class TutorialFeature implements Listener {
       Player player = event.getPlayer();
       if (!this.enabled() || this.completed(player)) return;
       if (this.stageOf(player) > 0 && !this.isTutorialWorld(player.getWorld())) {
-         player.sendMessage("§eチュートリアル未完了（" + this.stageOf(player) + "/10）。/tutorial で再開できる。");
+         player.sendMessage("§eチュートリアル未完了（" + this.stageOf(player) + "/" + FINAL_STAGE + "）。/tutorial で再開できる。");
       }
    }
 

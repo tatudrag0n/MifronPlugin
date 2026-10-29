@@ -50,14 +50,14 @@ class PlayerBotTest {
    }
 
    @Test
-   void jobOpenAdvancesStage() {
+   void relicObtainedAdvancesStage() {
       World tutorial = server.getWorld("tutorial");
       assertNotNull(tutorial);
       UUID uuid = bot.getUniqueId();
       plugin.getPlayerSection(uuid).set("tutorial.stage", 5);
       plugin.getPlayerSection(uuid).set("tutorial.completed", false);
       bot.teleport(tutorial.getSpawnLocation());
-      plugin.tutorialFeature.onJobOpen(bot);
+      plugin.tutorialFeature.onRelicObtained(bot);
       assertEquals(6, plugin.getPlayerSection(uuid).getInt("tutorial.stage", 0));
       assertTrue(plugin.getEmeralds(uuid) > 0, "stage reward must be deposited");
    }
