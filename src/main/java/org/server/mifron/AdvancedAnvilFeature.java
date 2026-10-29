@@ -195,7 +195,13 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
-      int mpCost = this.plugin.jobService.anvilCost(player, pending.mpCost());
+      final int mpCost;
+      if (player != null && this.plugin.utilityItemsFeature.equippedGears(player).contains("enchanter")) {
+         double discount = Math.max(0.0, this.plugin.getConfig().getDouble("jobs.enchant-discount-percent", 20.0));
+         mpCost = JobRules.applyDiscount(pending.mpCost(), discount);
+      } else {
+         mpCost = pending.mpCost();
+      }
       if (mpCost > 0 && this.plugin.getEmeralds(player.getUniqueId()) < mpCost) {
          event.setCancelled(true);
          player.sendMessage(Component.text("MPが足りません。必要MP: " + mpCost, NamedTextColor.RED));
@@ -213,7 +219,6 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
-      this.plugin.jobService.addJobProgress(player, JobAction.ENCHANT, "job_enchant", 1);
       if (mpCost > 0 && !this.plugin.withdrawEmeralds(player.getUniqueId(), mpCost)) {
          event.setCancelled(true);
          player.sendMessage(Component.text("MPの支払いに失敗しました。もう一度お試しください。", NamedTextColor.RED));
@@ -395,7 +400,10 @@ final class AdvancedAnvilFeature implements Listener {
    }
 
    private int maximumEnchantmentLevel(org.bukkit.entity.Player player) {
-      int extra = this.plugin.jobService.enchantLimitBreak(player);
+      int extra = 0;
+      if (player != null && this.plugin.utilityItemsFeature.equippedGears(player).contains("enchanter")) {
+         extra = Math.max(0, Math.min(100, this.plugin.getConfig().getInt("jobs.enchanter-limit-break", 5)));
+      }
       return Math.max(1, Math.min(255, globalMaximumEnchantmentLevel(this.plugin) + extra));
    }
 
@@ -438,7 +446,10 @@ final class AdvancedAnvilFeature implements Listener {
             multiplier = Math.max(multiplier, this.mpCostMultiplier(entry.getKey()));
          }
       }
-      double scale = this.plugin.jobService.enchantMultiplierScale(player);
+      double scale = 1.0;
+      if (player != null && this.plugin.utilityItemsFeature.equippedGears(player).contains("enchanter")) {
+         scale = Math.max(0.0, Math.min(1.0, this.plugin.getConfig().getDouble("jobs.enchanter-multiplier-scale", 0.5)));
+      }
       int scaled = Math.max(1, (int) Math.round(multiplier * scale));
       return AdvancedAnvilRules.mpCost(xpCost, perLevel, scaled);
    }
@@ -448,7 +459,10 @@ final class AdvancedAnvilFeature implements Listener {
    }
 
    private int enchantmentLevelLimit(org.bukkit.entity.Player player, Enchantment enchantment) {
-      int extra = this.plugin.jobService.enchantLimitBreak(player);
+      int extra = 0;
+      if (player != null && this.plugin.utilityItemsFeature.equippedGears(player).contains("enchanter")) {
+         extra = Math.max(0, Math.min(100, this.plugin.getConfig().getInt("jobs.enchanter-limit-break", 5)));
+      }
       return Math.max(1, Math.min(255, enchantmentLevelLimit(this.plugin, enchantment) + extra));
    }
 

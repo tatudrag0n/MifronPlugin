@@ -25,6 +25,5 @@ abstract class MifronPart10x2 extends MifronPart10x1 {
       inventory.setItem(2, this.mifron().actionItem(Material.NAME_TAG, "\u00a76\u79f0\u53f7", List.of("\u00a77\u79f0\u53f7\u4e00\u89a7\u3068\u9078\u629e"), "status_tab_titles", null));
       inventory.setItem(3, this.mifron().actionItem(Material.ZOMBIE_SPAWN_EGG, "\u00a7c\u8a0e\u4f10", List.of("\u00a77Mob\u8a0e\u4f10\u72b6\u6cc1"), "status_tab_kills", null));
       inventory.setItem(4, this.mifron().actionItem(Material.ENDER_CHEST, "\u00a7d\u56f3\u9451", List.of("\u00a77\u30ec\u30a2\u30a2\u30a4\u30c6\u30e0\u53ce\u96c6"), "status_tab_collection", null));
-      inventory.setItem(5, this.mifron().actionItem(Material.IRON_CHESTPLATE, "\u00a7b\u30ae\u30a2", List.of("\u00a77\u88c5\u5099\u4e2d\u30ae\u30a2"), "status_tab_gears", null));
    }
 }

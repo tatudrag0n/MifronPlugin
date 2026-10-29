@@ -18,7 +18,7 @@ final class JobFeature implements Listener {
    public void onLavaDamage(EntityDamageEvent event) {
       if (event.getCause() != EntityDamageEvent.DamageCause.LAVA) return;
       if (!(event.getEntity() instanceof Player player)) return;
-      if (this.plugin.jobService.typeOf(player) != JobType.MINER) return;
+      if (!this.plugin.utilityItemsFeature.equippedGears(player).contains("miner")) return;
       // Miner signature: halve lava damage (survival = effective mining uptime).
       event.setDamage(event.getDamage() / 2.0);
    }

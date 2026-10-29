@@ -179,14 +179,14 @@ abstract class MifronPart12 extends MifronPart11x2 {
       return this.mifron().getConfig().getString("official-site-url", "https://mifron.mct-official.com/");
    }
 
-   /** Rare-item collection tab: discovered vs undiscovered SpecialType finds. */
+   /** Rare-item collection tab: discovered vs undiscovered RelicType finds. */
    protected void fillCollectionTab(Player player, Inventory inventory) {
       Set<String> found = new HashSet<>(this.mifron().getPlayerSection(player.getUniqueId()).getStringList("rare-collection"));
-      SpecialItemsFeature.SpecialType[] types = SpecialItemsFeature.SpecialType.values();
+      RelicFeature.RelicType[] types = RelicFeature.RelicType.values();
       inventory.setItem(45, this.mifron().named(Material.ENDER_CHEST, "\u00a7d\u30ec\u30a2\u56f3\u9451",
          List.of("\u00a77" + found.size() + "/" + types.length)));
       int slot = 10;
-      for (SpecialItemsFeature.SpecialType type : types) {
+      for (RelicFeature.RelicType type : types) {
          boolean has = found.contains(type.id);
          inventory.setItem(slot++, this.mifron().statusItem(has ? type.baseMaterial : Material.GRAY_STAINED_GLASS_PANE,
             (has ? "\u00a7a" : "\u00a78") + (has ? type.displayName : "???"),

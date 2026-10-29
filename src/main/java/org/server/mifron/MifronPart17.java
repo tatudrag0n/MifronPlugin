@@ -12,10 +12,10 @@ import org.bukkit.inventory.ItemStack;
 abstract class MifronPart17 extends MifronPart16 {
    protected boolean handleMifronCommand(CommandSender sender, String[] args) {
       if (args.length == 0) {
-         sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial|job|build|proposal|vote");
+         sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial|build|proposal|vote|relic");
          return true;
       }
-      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop", "event").contains(args[0].toLowerCase(Locale.ROOT))) {
+      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop", "event", "relic").contains(args[0].toLowerCase(Locale.ROOT))) {
          sender.sendMessage("Player only.");
          return true;
       }
@@ -54,7 +54,7 @@ abstract class MifronPart17 extends MifronPart16 {
          }
          case "status" -> { if (this.mifron().hasPermission(sender, "mifron.command.status")) this.mifron().handleMifronStatusCommand((Player) sender, args); }
          case "tutorial" -> this.mifron().handleTutorialCommand(sender, args);
-         case "job" -> this.mifron().handleJobCommand(sender, args);
+
          case "refer" -> this.mifron().referralService.handleCommand(sender, args);
          case "event" -> this.mifron().eventService.handleCommand(sender, args);
          case "shelfshop" -> this.handleShelfShopCommand(sender, args);
@@ -75,9 +75,13 @@ abstract class MifronPart17 extends MifronPart16 {
             if (this.denyUnlessAdmin(sender)) return true;
             this.handleMakeEliteCommand(sender, args);
          }
+         case "relic", "special" -> {
+            if (this.denyUnlessAdmin(sender)) return true;
+            this.relicFeature.handleCommand(sender, args);
+         }
          case "sethub" -> { if (this.isAdminOp(sender)) { this.writeLocation("hub", ((Player) sender).getLocation()); sender.sendMessage("\u00a7a\u4e2d\u592e\u5e83\u5834\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f\u3002"); } }
          case "warning" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleWarningCommand(sender, args); }
-         default -> sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial|job");
+         default -> sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial");
       }
       return true;
    }

@@ -22,10 +22,8 @@ public final class JobService {
    }
 
    public JobType typeOf(UUID uuid) {
-      if (uuid == null) return JobType.NONE;
-      String key = this.plugin.getPlayerSection(uuid).getString("job.type", "none");
-      JobType type = JobType.fromKey(key);
-      return type == null ? JobType.NONE : type;
+      // Jobs are abolished; no job bonuses apply.
+      return JobType.NONE;
    }
 
    public JobType typeOf(Player player) {

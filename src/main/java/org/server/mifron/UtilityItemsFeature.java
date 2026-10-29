@@ -91,12 +91,24 @@ final class UtilityItemsFeature implements Listener {
 
    record GearDefinition(String id, Material icon, String name, int unlockCost, String description) {}
 
-   static final java.util.Map<String, GearDefinition> GEARS = java.util.Map.of(
-      "night_vision", new GearDefinition("night_vision", Material.SPYGLASS, "暗視", 10000, "暗い場所でも明るく見える"),
-      "slowfall", new GearDefinition("slowfall", Material.FEATHER, "軽業", 30000, "落下がゆっくりになり落下ダメージを軽減する"),
-      "aqua", new GearDefinition("aqua", Material.HEART_OF_THE_SEA, "水棲", 12000, "水中呼吸と水中採掘が快適になる"),
-      "swift", new GearDefinition("swift", Material.RABBIT_FOOT, "疾風", 15000, "移動速度が上がる")
-   );
+    static final java.util.Map<String, GearDefinition> GEARS = java.util.Map.ofEntries(
+       java.util.Map.entry("night_vision", new GearDefinition("night_vision", Material.SPYGLASS, "暗視", 10000, "暗い場所でも明るく見える")),
+       java.util.Map.entry("slowfall", new GearDefinition("slowfall", Material.FEATHER, "軽業", 30000, "落下がゆっくりになり落下ダメージを軽減する")),
+       java.util.Map.entry("aqua", new GearDefinition("aqua", Material.HEART_OF_THE_SEA, "水棲", 12000, "水中呼吸と水中採掘が快適になる")),
+       java.util.Map.entry("swift", new GearDefinition("swift", Material.RABBIT_FOOT, "疾風", 15000, "移動速度が上がる")),
+       java.util.Map.entry("haste", new GearDefinition("haste", Material.GOLDEN_PICKAXE, "採掘加速", 5000, "採掘速度が上がる")),
+       java.util.Map.entry("luck", new GearDefinition("luck", Material.RABBIT_FOOT, "幸運", 5000, "幸運効果でドロップが増える")),
+       java.util.Map.entry("regen", new GearDefinition("regen", Material.GLISTERING_MELON_SLICE, "再生", 8000, "ゆっくりHPが回復する")),
+       java.util.Map.entry("strength", new GearDefinition("strength", Material.IRON_SWORD, "攻撃力", 8000, "攻撃ダメージが上がる")),
+       java.util.Map.entry("resistance", new GearDefinition("resistance", Material.SHIELD, "耐性", 8000, "被ダメージが軽減される")),
+       java.util.Map.entry("hunter", new GearDefinition("hunter", Material.IRON_SWORD, "狩人", 20000, "モブ討伐報酬が増加し、Elite確定ドロップ")),
+       java.util.Map.entry("farmer", new GearDefinition("farmer", Material.WHEAT, "農民", 15000, "作物収穫でMPを獲得し、収穫量+1")),
+       java.util.Map.entry("enchanter", new GearDefinition("enchanter", Material.ENCHANTING_TABLE, "鍛冶屋", 25000, "高度な金床のMPコスト割引と上限突破")),
+       java.util.Map.entry("merchant", new GearDefinition("merchant", Material.EMERALD, "商人", 20000, "ショップ売却額が増加")),
+       java.util.Map.entry("fisher", new GearDefinition("fisher", Material.FISHING_ROD, "釣り人", 15000, "釣りでMPを獲得し、宝釣り")),
+       java.util.Map.entry("miner", new GearDefinition("miner", Material.IRON_PICKAXE, "鉱夫", 20000, "採掘でMPを獲得、深層追加ドロップ、溶岩ダメージ半減")),
+       java.util.Map.entry("adventurer", new GearDefinition("adventurer", Material.COMPASS, "冒険者", 20000, "未踏破チャンク初回訪問でMPを獲得（2倍）"))
+    );
 
    /** Pure equip rule for tests: unlocked gear toggles unless 3 are already on. */
    static boolean canEquip(java.util.List<String> equipped, String id) {
@@ -105,13 +117,11 @@ final class UtilityItemsFeature implements Listener {
    }
 
    java.util.List<String> unlockedGears(Player player) {
-      this.migrateNightVision(player);
-      return new java.util.ArrayList<>(this.plugin.getPlayerSection(player.getUniqueId()).getStringList("gears-unlocked"));
+      return new java.util.ArrayList<>();
    }
 
    java.util.List<String> equippedGears(Player player) {
-      this.migrateNightVision(player);
-      return new java.util.ArrayList<>(this.plugin.getPlayerSection(player.getUniqueId()).getStringList("gears-equipped"));
+      return new java.util.ArrayList<>();
    }
 
    /** One-time migration from the old night-vision flags to the gear system. */
@@ -141,89 +151,7 @@ final class UtilityItemsFeature implements Listener {
 
 
    void openGearUi(Player player) {
-      org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text("§dMifron Gears"));
-      int slot = 10;
-      for (GearDefinition gear : GEARS.values()) {
-         boolean unlocked = this.unlockedGears(player).contains(gear.id());
-         boolean equipped = unlocked && this.equippedGears(player).contains(gear.id());
-         java.util.List<String> lore = new java.util.ArrayList<>();
-         lore.add(ChatColor.GRAY + gear.description());
-         if (!unlocked) {
-            lore.add(ChatColor.GRAY + "クリック: " + gear.unlockCost() + " MPで解放");
-         } else if (equipped) {
-            lore.add(ChatColor.GREEN + "装備中（クリックで外す）");
-         } else {
-            lore.add(ChatColor.YELLOW + "クリック: 装備する");
-         }
-         inventory.setItem(slot++, this.plugin.actionItem(gear.icon(),
-            (equipped ? ChatColor.GREEN : unlocked ? ChatColor.YELLOW : ChatColor.GRAY) + gear.name(),
-            lore, "gear_toggle", gear.id()));
-      }
-      for (int i = 0; i < inventory.getSize(); i++) {
-         if (inventory.getItem(i) == null) inventory.setItem(i, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
-      }
-      player.openInventory(inventory);
-   }
-
-   // ------------------------------------------------------------------
-   // Jobs: pick a job from the menu. Reuses JobService.requestChange, so the
-   // two-step confirm (second click within 60s) and the change cooldown apply.
-   // ------------------------------------------------------------------
-
-   static final String JOB_UI_TITLE = "\u00a7dMifron Jobs";
-
-   void openJobUi(Player player) {
-      org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(player, 27, Component.text(JOB_UI_TITLE));
-      JobType current = this.plugin.jobService.typeOf(player);
-      JobService.JobLevelInfo levelInfo = this.plugin.jobService.levelInfo(player.getUniqueId());
-      java.util.List<String> levelLore = new java.util.ArrayList<>();
-      levelLore.add(ChatColor.GRAY + "\u30b8\u30e7\u30d6\u884c\u52d5\u3067XP\u3092\u7372\u5f97");
-      if (current == JobType.NONE) levelLore.add(ChatColor.GRAY + "\u30b8\u30e7\u30d6\u672a\u9078\u629e\u3067\u306fXP\u306f\u8caf\u307e\u308a\u307e\u305b\u3093");
-      if (levelInfo.xpForNextLevel() > 0) {
-         levelLore.add(ChatColor.AQUA + "XP: " + this.plugin.formatNumber(levelInfo.xpIntoLevel()) + " / " + this.plugin.formatNumber(levelInfo.xpForNextLevel()));
-         levelLore.add(ChatColor.GRAY + "\u6b21\u306e\u30ec\u30d9\u30eb\u307e\u3067 " + this.plugin.formatNumber(levelInfo.xpForNextLevel() - levelInfo.xpIntoLevel()));
-      } else {
-         levelLore.add(ChatColor.GREEN + "MAX LEVEL");
-      }
-      levelLore.add(ChatColor.YELLOW + "\u30ec\u30d9\u30eb\u30dc\u30fc\u30ca\u30b9: +" + this.plugin.jobService.formatBonusPercent(levelInfo.bonusPercent()) + "%");
-      inventory.setItem(4, this.plugin.actionItem(Material.EXPERIENCE_BOTTLE,
-         ChatColor.GOLD + "\u30b8\u30e7\u30d6\u30ec\u30d9\u30eb: Lv." + levelInfo.level(), levelLore, "job_level_info", null));
-      int slot = 10;
-      for (JobType type : JobType.values()) {
-         boolean isCurrent = type == current;
-         java.util.List<String> lore = new java.util.ArrayList<>();
-         lore.add(ChatColor.GRAY + type.description());
-         if (isCurrent) {
-            lore.add(ChatColor.GREEN + "現在のジョブ");
-         } else {
-            lore.add(ChatColor.YELLOW + "クリック: このジョブに変更(もう一度クリックで確定)");
-         }
-         long cooldown = this.plugin.jobService.changeCooldownRemaining(player.getUniqueId());
-         if (!isCurrent && cooldown > 0) {
-            lore.add(ChatColor.RED + "変更クールダウン中: " + this.plugin.jobService.formatDuration(cooldown));
-         }
-         inventory.setItem(slot++, this.plugin.actionItem(jobIcon(type),
-            (isCurrent ? ChatColor.GREEN : ChatColor.YELLOW) + type.displayName(),
-            lore, "job_select", type.key()));
-      }
-      for (int i = 0; i < inventory.getSize(); i++) {
-         if (inventory.getItem(i) == null) inventory.setItem(i, this.plugin.named(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of()));
-      }
-      player.openInventory(inventory);
-      this.plugin.tutorialFeature.onJobOpen(player);
-   }
-
-   private static Material jobIcon(JobType type) {
-      return switch (type) {
-         case HUNTER -> Material.IRON_SWORD;
-         case FARMER -> Material.WHEAT;
-         case ENCHANTER -> Material.ENCHANTING_TABLE;
-         case MERCHANT -> Material.EMERALD;
-         case FISHER -> Material.FISHING_ROD;
-         case MINER -> Material.IRON_PICKAXE;
-         case ADVENTURER -> Material.COMPASS;
-         case NONE -> Material.BARRIER;
-      };
+      player.sendMessage(ChatColor.GRAY + "ギアシステムは削除されました。");
    }
 
    // ------------------------------------------------------------------
@@ -318,6 +246,11 @@ final class UtilityItemsFeature implements Listener {
       if ("slowfall".equals(gearId)) return org.bukkit.potion.PotionEffectType.SLOW_FALLING;
       if ("aqua".equals(gearId)) return org.bukkit.potion.PotionEffectType.WATER_BREATHING;
       if ("swift".equals(gearId)) return org.bukkit.potion.PotionEffectType.SPEED;
+      if ("haste".equals(gearId)) return org.bukkit.potion.PotionEffectType.HASTE;
+      if ("luck".equals(gearId)) return org.bukkit.potion.PotionEffectType.LUCK;
+      if ("regen".equals(gearId)) return org.bukkit.potion.PotionEffectType.REGENERATION;
+      if ("strength".equals(gearId)) return org.bukkit.potion.PotionEffectType.STRENGTH;
+      if ("resistance".equals(gearId)) return org.bukkit.potion.PotionEffectType.RESISTANCE;
       return null;
    }
 

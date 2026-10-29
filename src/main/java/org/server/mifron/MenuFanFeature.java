@@ -114,10 +114,9 @@ final class MenuFanFeature implements Listener {
       return best;
    }
 
-   void open(Player player) {
+   void openStatusTabs(Player player) {
       if (player == null) return;
       this.close(player.getUniqueId());
-      this.plugin.starterGoalsFeature.mark(player, "menu");
       Location eye = player.getEyeLocation();
       Vector forward = eye.getDirection().normalize();
       double radius = Math.max(1.0, this.plugin.getConfig().getDouble("menu.fan-radius", 2.3));
@@ -126,8 +125,13 @@ final class MenuFanFeature implements Listener {
       double iconScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 1.0));
       long timeoutMillis = Math.max(1, this.plugin.getConfig().getInt("menu.fan-timeout-seconds", 20)) * 1000L;
       double closeDistance = Math.max(2.0, this.plugin.getConfig().getDouble("menu.fan-close-distance", 6.0));
-      List<ItemStack> actions = this.buildActions(player);
-      List<String> labels = this.buildLabels(player);
+      List<ItemStack> actions = new ArrayList<>();
+      actions.add(this.plugin.actionItem(Material.BOOK, ChatColor.GOLD + "進捗", List.of(ChatColor.GRAY + "クリック: 進捗タブを開く"), "status_tab_progress", null));
+      actions.add(this.plugin.actionItem(Material.IRON_SWORD, ChatColor.RED + "討伐", List.of(ChatColor.GRAY + "クリック: 討伐タブを開く"), "status_tab_kills", null));
+      actions.add(this.plugin.actionItem(Material.NAME_TAG, ChatColor.YELLOW + "称号", List.of(ChatColor.GRAY + "クリック: 称号タブを開く"), "status_tab_titles", null));
+      actions.add(this.plugin.actionItem(Material.ENDER_CHEST, ChatColor.LIGHT_PURPLE + "図鑑", List.of(ChatColor.GRAY + "クリック: 図鑑タブを開く"), "status_tab_collection", null));
+      actions.add(this.plugin.actionItem(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "転生", List.of(ChatColor.GRAY + "クリック: 転生タブを開く"), "status_tab_reincarnation", null));
+      List<String> labels = List.of("進捗", "討伐", "称号", "図鑑", "転生");
       Session session = new Session(player.getUniqueId(), eye.clone(), System.currentTimeMillis() + timeoutMillis, closeDistance);
       int count = Math.min(actions.size(), labels.size());
       double[] angles = fanAngles(count, spread);
@@ -185,15 +189,91 @@ final class MenuFanFeature implements Listener {
       this.plugin.tutorialFeature.onMenuOpen(player);
    }
 
+   void open(Player player) {
+      if (player == null) return;
+      this.close(player.getUniqueId());
+      this.plugin.starterGoalsFeature.mark(player, "menu");
+      Location eye = player.getEyeLocation();
+      Vector forward = eye.getDirection().normalize();
+      double radius = Math.max(1.0, this.plugin.getConfig().getDouble("menu.fan-radius", 2.3));
+      double spread = Math.max(10.0, this.plugin.getConfig().getDouble("menu.fan-spread-degrees", 130.0));
+      double labelScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-label-scale", 0.9));
+      double iconScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 1.0));
+      long timeoutMillis = Math.max(1, this.plugin.getConfig().getInt("menu.fan-timeout-seconds", 20)) * 1000L;
+      double closeDistance = Math.max(2.0, this.plugin.getConfig().getDouble("menu.fan-close-distance", 6.0));
+      List<ItemStack> actions = this.buildActions(player);
+      List<String> labels = this.buildLabels(player);
+      Session session = new Session(player.getUniqueId(), eye.clone(), System.currentTimeMillis() + timeoutMillis, closeDistance);
+      int count = Math.min(actions.size(), labels.size());
+      int rows = count > 6 ? 2 : 1;
+      int perRow = (count + rows - 1) / rows;
+      for (int i = 0; i < count; i++) {
+         int row = i / perRow;
+         int col = i % perRow;
+         int rowCount = Math.min(perRow, count - row * perRow);
+         double[] rowAngles = fanAngles(rowCount, spread);
+         double angle = rowAngles[col];
+         double heightOffset = rows == 2 ? (row == 0 ? 0.55 : -0.55) : 0.0;
+         Vector direction = rotateY(forward, angle).normalize();
+         Location position = eye.clone().add(direction.multiply(radius)).add(0.0, heightOffset, 0.0);
+         World world = position.getWorld();
+         if (world == null) continue;
+         ItemStack icon = actions.get(i).clone();
+         icon.setAmount(1);
+         Location labelPosition = position.clone().add(0.0, 0.35, 0.0);
+         String labelText = labels.get(i);
+         int index = i;
+          ItemDisplay display = world.spawn(position, ItemDisplay.class, entity -> {
+             entity.setItemStack(icon);
+             entity.setBillboard(Display.Billboard.CENTER);
+             entity.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+             entity.setGravity(false);
+             entity.setInvulnerable(true);
+             entity.setPersistent(false);
+             float scale = (float) iconScale;
+             entity.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(scale, scale, scale), new Quaternionf()));
+             entity.setInterpolationDuration(3);
+             entity.setInterpolationDelay(0);
+          });
+         TextDisplay label = world.spawn(labelPosition, TextDisplay.class, entity -> {
+            entity.text(Component.text(labelText));
+            entity.setBillboard(Display.Billboard.CENTER);
+            entity.setSeeThrough(false);
+            entity.setShadowed(true);
+            entity.setPersistent(false);
+            entity.setInvulnerable(true);
+            float scale = (float) labelScale;
+            entity.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(scale, scale, scale), new Quaternionf()));
+         });
+         Interaction hit = world.spawn(position, Interaction.class, entity -> {
+            entity.setInteractionWidth(1.0f);
+            entity.setInteractionHeight(1.0f);
+            entity.setResponsive(true);
+            entity.setPersistent(false);
+         });
+         session.entities.add(display);
+         session.entities.add(label);
+         session.entities.add(hit);
+         session.icons.add(display);
+         session.labels.add(label);
+         session.labelTexts.add(labelText);
+         session.actions.add(actions.get(index));
+         session.targets.put(hit.getUniqueId(), index);
+         this.byInteraction.put(hit.getUniqueId(), session);
+      }
+      if (session.entities.isEmpty()) return;
+      this.sessions.put(player.getUniqueId(), session);
+      session.task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> this.tick(player.getUniqueId()), 2L, 2L);
+      this.plugin.tutorialFeature.onMenuOpen(player);
+   }
+
    private List<ItemStack> buildActions(Player player) {
-      JobType job = this.plugin.jobService.typeOf(player);
       int walletMp = this.plugin.getEmeralds(player.getUniqueId());
       List<ItemStack> actions = new ArrayList<>();
       actions.add(this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "SHOP", List.of(ChatColor.GRAY + "クリック: ショップを開く（Survivalのみ）"), "menu_shop", null));
       actions.add(this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GOLD + "所持MP: " + this.plugin.formatNumber(walletMp) + " MP"), "menu_wallet", null));
       actions.add(this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
       actions.add(this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
-      actions.add(this.plugin.actionItem(Material.WOODEN_HOE, ChatColor.GOLD + "ジョブ: " + job.displayName() + " Lv." + this.plugin.jobService.jobLevel(player.getUniqueId()), List.of(ChatColor.GRAY + "クリック: ジョブを選んで変更"), "menu_job", null));
       actions.add(this.plugin.utilityItemsFeature.gearMenuIcon(player));
       actions.add(this.plugin.actionItem(Material.CHEST, ChatColor.GOLD + "取引", List.of(ChatColor.GRAY + "クリック: 相手を選んで取引申込"), "menu_trade", null));
       actions.add(this.plugin.actionItem(Material.PAPER, ChatColor.AQUA + "\u6295\u7968", List.of(ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u6295\u7968\u30b5\u30a4\u30c8\u3092\u958b\u304f", ChatColor.GRAY + "1\u65e51\u56de\u306e\u6295\u7968\u3067MP\u304c\u3082\u3089\u3048\u307e\u3059"), "menu_vote", null));
@@ -204,8 +284,7 @@ final class MenuFanFeature implements Listener {
    }
 
    private List<String> buildLabels(Player player) {
-      JobType job = this.plugin.jobService.typeOf(player);
-      return List.of("SHOP", "ウォレット", "ステータス", "クエスト", "ジョブ: " + job.displayName() + " Lv." + this.plugin.jobService.jobLevel(player.getUniqueId()), "ギア", "取引", "\u6295\u7968", "\u30ed\u30b0\u30dc", "\u76ee\u6a19", "チュートリアル");
+      return List.of("SHOP", "ウォレット", "ステータス", "クエスト", "ギア", "取引", "\u6295\u7968", "\u30ed\u30b0\u30dc", "\u76ee\u6a19", "チュートリアル");
    }
 
    private void tick(UUID owner) {

@@ -72,10 +72,60 @@ abstract class MifronPart18 extends MifronPart17x1 {
    protected void handleTravelCommand(Player player, String[] args) {
       if (args.length == 0) {
          player.sendMessage("\u00a77/travel <hub|survival|main>");
-         player.sendMessage("\u00a77\u6599\u91d1: " + this.mifron().formatNumber(this.mifron().jobService.travelCost(player)) + "MP");
+         boolean adv = this.mifron().utilityItemsFeature.equippedGears(player).contains("adventurer");
+         int cost = adv ? 0 : Math.max(0, this.mifron().getConfig().getInt("jobs.travel-cost-mp", 500));
+         player.sendMessage("\u00a77\u6599\u91d1: " + this.mifron().formatNumber(cost) + "MP");
          return;
       }
-      this.mifron().jobService.travel(player, args[0]);
+      this.travelTo(player, args[0]);
+   }
+
+   private void travelTo(Player player, String point) {
+      String key = point.trim().toLowerCase(java.util.Locale.ROOT);
+      java.util.List<String> points = java.util.List.of("hub", "survival", "main");
+      if (!points.contains(key)) {
+         player.sendMessage("\u00a7c\u4e0d\u660e\u306a\u79fb\u52d5\u5148\u3067\u3059: /travel <hub|survival|main>");
+         return;
+      }
+      if (this.mifron().tutorialFeature.isTutorialWorld(player.getWorld())) {
+         player.sendMessage("\u00a7c\u30c1\u30e5\u30fc\u30c8\u30ea\u30a2\u30eb\u4e2d\u306f\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002");
+         return;
+      }
+      boolean adv = this.mifron().utilityItemsFeature.equippedGears(player).contains("adventurer");
+      double minutes = adv
+         ? this.mifron().getConfig().getDouble("jobs.travel-cooldown-adventurer-minutes", 10.0)
+         : this.mifron().getConfig().getDouble("jobs.travel-cooldown-minutes", 60.0);
+      long cooldown = (long) (Math.max(0.0, minutes) * 60_000L);
+      long last = this.mifron().getPlayerSection(player.getUniqueId()).getLong("travel-at", 0L);
+      long remaining = JobRules.cooldownRemainingMillis(last, System.currentTimeMillis(), cooldown);
+      if (remaining > 0) {
+         long hours = remaining / 3_600_000L;
+         long mins = (remaining % 3_600_000L) / 60_000L;
+         String dur = (hours > 0 ? hours + "時間" : "") + mins + "分";
+         player.sendMessage("\u00a7c\u79fb\u52d5\u306e\u30af\u30fc\u30eb\u30c0\u30a6\u30f3\u4e2d\u3067\u3059\u3002\u6b8b\u308a: " + dur);
+         return;
+      }
+      org.bukkit.Location dest = "hub".equals(key)
+         ? this.mifron().readLocation("hub")
+         : this.mifron().readLocation("world-rules.spawn." + key);
+      if (dest == null || dest.getWorld() == null) {
+         if ("hub".equals(key)) dest = this.mifron().readLocation("world-rules.spawn.survival");
+      }
+      if (dest == null || dest.getWorld() == null) {
+         player.sendMessage("\u00a7c\u79fb\u52d5\u5148\u304c\u672a\u8a2d\u5b9a\u3067\u3059\u3002");
+         return;
+      }
+      int cost = adv ? 0 : Math.max(0, this.mifron().getConfig().getInt("jobs.travel-cost-mp", 500));
+      if (cost > 0 && !this.mifron().withdrawEmeralds(player.getUniqueId(), cost)) {
+         player.sendMessage("\u00a7cMP\u304c\u8db3\u308a\u307e\u305b\u3093\u3002\u5fc5\u8981: " + cost + "MP");
+         return;
+      }
+      this.mifron().getPlayerSection(player.getUniqueId()).set("travel-at", System.currentTimeMillis());
+      this.mifron().queueDataSave();
+      player.teleport(dest);
+      player.sendMessage(cost > 0
+         ? "\u00a76" + key + "\u3078\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002(-" + cost + "MP)"
+         : "\u00a76" + key + "\u3078\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002(\u5192\u967a\u8005\u7279\u5178: \u7121\u6599)");
    }
 
    protected void handlePayCommand(Player player, String[] args) {

@@ -161,9 +161,8 @@ final class QuestService {
    }
 
    boolean jobAllows(org.bukkit.entity.Player player, QuestDefinition definition) {
-      if (definition == null || !definition.requiresJob()) return true;
-      JobType want = JobType.fromKey(definition.job());
-      return want != null && this.plugin.jobService.typeOf(player) == want;
+      // Jobs are abolished: every quest is available to everyone.
+      return true;
    }
 
    boolean isVisible(Player player, QuestDefinition definition) {

@@ -23,6 +23,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.event.entity.EntityCombustEvent;
@@ -44,18 +45,19 @@ public final class TutorialFeature implements Listener {
    private static final String[] INTRO = {
       "§6Mifronチュートリアルへようこそ。7段階で基本を一通り体験できる。",
       "§7各段階で「説明→操作→次の目的」の順に進む。進み具合は保存される。",
+      "§7MPは討伐・進捗達成・スクラッチ・レリックなどで獲得できる。 tutorial 中もMPが入る。",
       "§7途中で止めても /tutorial で再開できる。",
    };
 
    private static final String[] STAGE_TEXT = {
       "",
-      "§e[1/7] メニュー: §7配布アイテムを右クリックするとメニューが開く。SHOP・ウォレット・ステータス・クエスト・ジョブ・ギア・チュートリアルが並ぶ。",
-      "§e[2/7] 討伐: §7南の金ブロックの上のゾンビを3体倒そう。倒すと少し後に復活する。討伐数はステータスの討伐タブで見られる。",
-      "§e[3/7] Elite: §7中央の北側の金ブロックの上の Elite を倒そう。紫の名前が目印。Elite は通常より硬く、ドロップが増える(リンゴ・ダイヤ・エンチャント本など)。",
-      "§e[4/7] Rare: §7配布スクラッチを右クリックして削ろう。10%で500MP、90%で50MP。スクラッチは Elite 討伐時にも2%で出る。",
-      "§e[5/7] ジョブ: §7メニューのジョブから職を選ぼう(もう一度クリックで確定)。7職+無職。職ごとに対応する行動で MP ボーナスが付く。切替は24時間に1回まで。",
+      "§e[1/7] メニュー: §7配布アイテムを右クリックするとメニューが開く。SHOP・ウォレット・ステータス・クエスト・ジョブ・レリック・チュートリアルが並ぶ。",
+      "§e[2/7] 討伐: §7南の金ブロックの上のゾンビを3体倒そう。1体倒すたびにMPがもらえる(30MP)。討伐数はステータスの討伐タブで見られる。",
+      "§e[3/7] Elite: §7中央の北側の金ブロックの上の Elite を倒そう。紫の名前が目印。Elite は通常より硬く、ドロップが増える(リンゴ・ダイヤ・エンチャント本など)。討伐で100MPもらえる。",
+      "§e[4/7] レリック: §7配布スクラッチを右クリックして削ろう。10%で500MP、90%で50MP。スクラッチは Elite 討伐時にも2%で出る。レリックは /mf relic <id> で入手できる。",
+      "§e[5/7] レリック: §7/mf relic でレリックを入手し、持つだけで効果が発動するものがある。レリックは売買不可の特殊アイテム。",
       "§e[6/7] 金床: §7金床で本を素材に、道具へエンチャントを付けよう。結果を左クリックで取ると完了。高度な金床は MP を消費し、上限を超えて付けられる。",
-      "§e[7/7] 卒業: §7金のボタンを押して通常 Survival へ出発しよう。ギアは 10,000MP で暗視を解放できる(最大3つ装備)。",
+      "§e[7/7] 卒業: §7金のボタンを押して通常 Survival へ出発しよう。レリックは /mf relic <id> で入手でき、持っているだけで効果が発動するものもある。",
    };
 
    private static final int[] STAGE_REWARD = {0, 50, 150, 300, 150, 100, 500};
@@ -285,8 +287,8 @@ public final class TutorialFeature implements Listener {
       // Stage 7 hands out its demo item so nobody can get stuck waiting for luck.
       if (stage == 4) {
          org.bukkit.inventory.ItemStack scratch =
-            this.plugin.specialItemsFeature.createSpecialItem(
-               org.server.mifron.SpecialItemsFeature.SpecialType.SCRATCH);
+            this.plugin.relicFeature.createRelicItem(
+               org.server.mifron.RelicFeature.RelicType.SCRATCH);
          if (scratch != null) {
             for (ItemStack leftover : player.getInventory().addItem(scratch).values()) {
                player.getWorld().dropItemNaturally(player.getLocation(), leftover);
@@ -347,6 +349,8 @@ public final class TutorialFeature implements Listener {
       int stage = this.stageOf(killer);
       if (this.completed(killer)) return;
       if (stage == 2) {
+         this.plugin.depositEmeralds(killer.getUniqueId(), 30);
+         killer.sendMessage("§a+30MP 討伐報酬");
          var section = this.plugin.getPlayerSection(killer.getUniqueId());
          int kills = section.getInt("tutorial.kills", 0) + 1;
          section.set("tutorial.kills", kills);
@@ -360,10 +364,24 @@ public final class TutorialFeature implements Listener {
          }
       } else if (stage == 3) {
          if (this.plugin.eliteMobFeature.isElite(entity)) {
-            killer.sendMessage("§dElite討伐！");
+            this.plugin.depositEmeralds(killer.getUniqueId(), 100);
+            killer.sendMessage("§dElite討伐！ +100MP");
             this.advance(killer);
          }
+      } else {
+         // Tutorial world kills also pay a small MP reward outside the two stages.
+         this.plugin.depositEmeralds(killer.getUniqueId(), 15);
+         killer.sendMessage("§a+15MP 討伐報酬");
       }
+   }
+
+   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+   public void onAdvancement(PlayerAdvancementDoneEvent event) {
+      Player player = event.getPlayer();
+      String key = event.getAdvancement().getKey().getKey();
+      if (key.startsWith("recipes/")) return;
+      this.plugin.depositEmeralds(player.getUniqueId(), 50);
+      player.sendMessage("§a+50MP 進捗達成: " + key);
    }
 
    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

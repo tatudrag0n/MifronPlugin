@@ -80,8 +80,10 @@ abstract class MifronPart11x2 extends MifronPart11x1 {
    }
 
    protected boolean hasTitle(Set<String> completed, TitleDefinition definition) {
-      return !definition.requiredAdvancements().isEmpty()
-         ? definition.requiredAdvancements().stream().allMatch(requirement -> this.mifron().matchesTitleRequirement(completed, requirement))
-         : completed.size() >= this.mifron().countTrackableAdvancements() && this.mifron().countTrackableAdvancements() > 0;
+      // Mifron titles are granted by Mifron-specific progress (stats, jobs,
+      // collections, elites), never by vanilla advancement completion, so an
+      // empty requirement list never auto-unlocks a title.
+      if (definition.requiredAdvancements().isEmpty()) return false;
+      return definition.requiredAdvancements().stream().allMatch(requirement -> this.mifron().matchesTitleRequirement(completed, requirement));
    }
 }

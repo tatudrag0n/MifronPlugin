@@ -28,27 +28,6 @@ abstract class MifronPart17x1 extends MifronPart17 {
       return true;
    }
 
-   protected boolean handleJobCommand(CommandSender sender, String[] args) {
-      if (!(sender instanceof Player player)) {
-         sender.sendMessage("Player only.");
-         return true;
-      }
-      JobService jobs = this.mifron().jobService;
-      if (args.length < 2) {
-         JobType current = jobs.typeOf(player);
-         player.sendMessage("§a現在のジョブ: " + current.displayName() + " §7(" + current.description() + ")");
-         player.sendMessage("§7変更: /mf job <hunter|farmer|enchanter|merchant|fisher|miner|adventurer|none>");
-         return true;
-      }
-      JobType target = JobType.fromKey(args[1]);
-      if (target == null) {
-         sender.sendMessage("§c不明なジョブです: " + args[1]);
-         return true;
-      }
-      jobs.requestChange(player, target);
-      return true;
-   }
-
    protected void handleRegenCommand(CommandSender sender, String[] args) {
       this.chunkProtectionFeature.handleRegenCommand(sender, args);
    }

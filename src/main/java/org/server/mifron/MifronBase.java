@@ -36,52 +36,29 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected static final int BARREL_SHOP_OFFER_SLOTS = 27;
    protected static final int SHELF_SHOP_OFFER_SLOTS = 3;
    protected static final int MOB_REWARD_FARM_THRESHOLD_PER_HOUR = 100;
+   // Mifron's own titles only. These are granted by Mifron-specific progress
+   // (stats, jobs, collections, elites) and never by vanilla advancements, so
+   // they do not overlap with normal progress.
    protected static final Map<String, TitleDefinition> TITLE_DEFINITIONS = Map.ofEntries(
-      Map.entry("sniper", new TitleDefinition(Material.BOW, List.of("adventure/sniper_duel", "adventure/bullseye"))),
-      Map.entry("hunter", new TitleDefinition(Material.CROSSBOW, List.of("adventure/two_birds_one_arrow", "adventure/arbalistic"))),
-      Map.entry("hero", new TitleDefinition(Material.DIAMOND_SWORD, List.of("adventure/kill_all_mobs"))),
-      Map.entry("omniscient", new TitleDefinition(Material.KNOWLEDGE_BOOK, List.of())),
-      Map.entry("rookie", new TitleDefinition(Material.WOODEN_SWORD, List.of("story/root"))),
-      Map.entry("miner", new TitleDefinition(Material.STONE_PICKAXE, List.of("story/mine_stone"))),
-      Map.entry("smith", new TitleDefinition(Material.FURNACE, List.of("story/smelt_iron"))),
-      Map.entry("knight", new TitleDefinition(Material.IRON_SWORD, List.of("story/obtain_armor"))),
-      Map.entry("caster", new TitleDefinition(Material.LAVA_BUCKET, List.of("story/lava_bucket"))),
-      Map.entry("digger", new TitleDefinition(Material.DIAMOND, List.of("story/mine_diamond"))),
-      Map.entry("traveler", new TitleDefinition(Material.OBSIDIAN, List.of("story/enter_the_nether"))),
-      Map.entry("enchanter", new TitleDefinition(Material.ENCHANTING_TABLE, List.of("story/enchant_item"))),
-      Map.entry("farmer", new TitleDefinition(Material.WHEAT, List.of("husbandry/plant_seed"))),
-      Map.entry("breeder", new TitleDefinition(Material.CARROT, List.of("husbandry/breed_an_animal"))),
-      Map.entry("angler", new TitleDefinition(Material.FISHING_ROD, List.of("husbandry/fishy_business"))),
-      Map.entry("ranger", new TitleDefinition(Material.ARROW, List.of("adventure/shoot_arrow"))),
-      Map.entry("trader", new TitleDefinition(Material.EMERALD, List.of("adventure/trade"))),
-      Map.entry("dreamer", new TitleDefinition(Material.RED_BED, List.of("adventure/sleep_in_bed"))),
-      Map.entry("ender", new TitleDefinition(Material.ENDER_PEARL, List.of("story/follow_ender_eye"))),
-      Map.entry("conqueror", new TitleDefinition(Material.NETHER_BRICKS, List.of("nether/find_fortress"))),
-      Map.entry("dragonborn", new TitleDefinition(Material.DRAGON_HEAD, List.of("end/kill_dragon")))
+      Map.entry("新人", new TitleDefinition(Material.WOODEN_SWORD, List.of())),
+      Map.entry("古参", new TitleDefinition(Material.COMPASS, List.of())),
+      Map.entry("富豪", new TitleDefinition(Material.GOLD_INGOT, List.of())),
+      Map.entry("大富豪", new TitleDefinition(Material.GOLD_BLOCK, List.of())),
+      Map.entry("転生者", new TitleDefinition(Material.ENDER_PEARL, List.of())),
+      Map.entry("輪廻", new TitleDefinition(Material.NETHER_STAR, List.of())),
+      Map.entry("Elite狩人", new TitleDefinition(Material.IRON_SWORD, List.of())),
+      Map.entry("レア収集家", new TitleDefinition(Material.ENDER_CHEST, List.of()))
    );
    /** Achievement hints shown for locked titles (title id -> hint). */
    protected static final Map<String, String> TITLE_HINTS = Map.ofEntries(
-      Map.entry("sniper", "条件: 50m超の狙撃と的当て(的ブロック)"),
-      Map.entry("hunter", "条件: クロスボウ関連の進捗2種"),
-      Map.entry("hero", "条件: 全モブ討伐の進捗"),
-      Map.entry("omniscient", "条件: 全進捗コンプリート"),
-      Map.entry("rookie", "ヒント: インベントリを開く"),
-      Map.entry("miner", "ヒント: 石を掘る"),
-      Map.entry("smith", "ヒント: 鉄を精錬する"),
-      Map.entry("knight", "ヒント: 鉄の防具一式を装備する"),
-      Map.entry("caster", "ヒント: 溶岩入りバケツを持ち帰る"),
-      Map.entry("digger", "ヒント: ダイヤモンドを手に入れる"),
-      Map.entry("traveler", "ヒント: ネザーへ行く"),
-      Map.entry("enchanter", "ヒント: エンチャントテーブルを使う"),
-      Map.entry("farmer", "ヒント: 種を植える"),
-      Map.entry("breeder", "ヒント: 動物を繁殖させる"),
-      Map.entry("angler", "ヒント: 魚を釣る"),
-      Map.entry("ranger", "ヒント: 矢を射る"),
-      Map.entry("trader", "ヒント: 村人と取引する"),
-      Map.entry("dreamer", "ヒント: ベッドで眠る"),
-      Map.entry("ender", "ヒント: エンダーアイを使う"),
-      Map.entry("conqueror", "ヒント: ネザー要塞を見つける"),
-      Map.entry("dragonborn", "ヒント: エンダードラゴンを倒す")
+      Map.entry("新人", "ヒント: チュートリアルを完了する"),
+      Map.entry("古参", "ヒント: ログイン30回以上"),
+      Map.entry("富豪", "ヒント: 累計収入100,000MP以上"),
+      Map.entry("大富豪", "ヒント: 累計収入1,000,000MP以上"),
+      Map.entry("転生者", "ヒント: 1回以上転生する"),
+      Map.entry("輪廻", "ヒント: 5回以上転生する"),
+      Map.entry("Elite狩人", "ヒント: エリートMobを10種討伐する"),
+      Map.entry("レア収集家", "ヒント: レアアイテムを10種収集する")
    );
    protected static final Set<Material> MERCHANT_EXCLUDED_ITEMS = Set.of(
       Material.AIR, Material.BARRIER, Material.BEDROCK, Material.COMMAND_BLOCK,
@@ -153,7 +130,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final QuestProgressListener questProgressListener = new QuestProgressListener((Mifron) this, this.questService);
    protected final ProtectedInteractionListener protectedInteractionListener = new ProtectedInteractionListener((Mifron) this, this.protectionService);
    protected final TutorialFeature tutorialFeature = new TutorialFeature((Mifron) this);
-   protected final JobService jobService = new JobService((Mifron) this);
    protected final TradeService tradeService = new TradeService((Mifron) this);
    protected final TradeFeature tradeFeature = new TradeFeature((Mifron) this);
    protected final JobFeature jobFeature = new JobFeature((Mifron) this);
@@ -168,7 +144,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final MainWorldFeature mainWorldFeature = new MainWorldFeature((Mifron) this);
    protected final TestServerFeature testServerFeature = new TestServerFeature((Mifron) this);
    protected final ShopStockService shopStockService = new ShopStockService((Mifron) this);
-   protected final SpecialItemsFeature specialItemsFeature = new SpecialItemsFeature((Mifron) this);
+   protected final RelicFeature relicFeature = new RelicFeature((Mifron) this);
    protected final EliteMobFeature eliteMobFeature = new EliteMobFeature((Mifron) this);
    protected final StoreItemFeature storeItemFeature = new StoreItemFeature((Mifron) this);
    protected final EnchantMaxDisplayFeature enchantMaxDisplayFeature = new EnchantMaxDisplayFeature((Mifron) this);

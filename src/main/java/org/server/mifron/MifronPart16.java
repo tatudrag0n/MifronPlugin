@@ -119,7 +119,7 @@ abstract class MifronPart16 extends MifronPart15x2 {
          } catch (Throwable ignored) {
          }
          try {
-            this.mifron().utilityItemsFeature.reapplyGears(player);
+            // gears removed
          } catch (Throwable ignored) {
          }
       }, 20L);
