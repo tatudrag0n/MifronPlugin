@@ -17,19 +17,25 @@ import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 public class RelicFeature implements Listener {
     private final Mifron plugin;
     private final NamespacedKey keyRelic;
     private final Random random = new Random();
+    private final Map<UUID, BukkitTask> visionTasks = new HashMap<>();
 
     public RelicFeature(Mifron plugin) {
         this.plugin = plugin;
@@ -40,7 +46,7 @@ public class RelicFeature implements Listener {
         HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
         SCRATCH("scratch", "§e§lスクラッチ", Material.PAPER, 0.01, "§7右クリックで運試し！MPを獲得できる。"),
         JETPACK("jetpack", "§b§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に空を飛ぶ。"),
-        ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7陸上を氷の上のように高速滑走する。"),
+        ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7陸上を氷の上のように滑る。スニークでブレーキ。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(使い捨て)"),
         FIREBALL("fireball", "§c§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(使い捨て)"),
         DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
@@ -52,7 +58,7 @@ public class RelicFeature implements Listener {
         GUARDIAN("guardian", "§9§l守護者の盾", Material.SHIELD, 0.0003, "§7持っている間、耐性を得る。"),
         MAGNET("magnet", "§e§l磁力の石", Material.LODESTONE, 0.0003, "§7持っている間、近くのアイテムを引き寄せる。"),
         WIND("wind", "§a§l風の翼", Material.FEATHER, 0.0003, "§7持っている間、跳躍力が上がる。"),
-        VISION("vision", "§8§l千里眼", Material.SPYGLASS, 0.0003, "§7持っている間、暗視を得る。");
+        VISION("vision", "§8§l千里眼", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
 
         public final String id;
         public final String displayName;
@@ -187,12 +193,22 @@ public class RelicFeature implements Listener {
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
-        // NORMAL priority + no hand check used to double-fire on dual-hand
-        // dispatch (item consumed twice, reward paid twice).
-        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
         if (item == null || !isRelicItem(item)) return;
+
+        // Vision relic: scoping starts on right click, stop is handled by the
+        // task itself (it ends when the player is no longer using the item).
+        // Checked before the HAND-only guard so an off-hand spyglass works
+        // too; starting a scope task twice is idempotent.
+        if ("vision".equals(getRelicId(item)) && event.getAction().isRightClick()) {
+            this.startScopedVision(player);
+            return;
+        }
+
+        // NORMAL priority + no hand check used to double-fire on dual-hand
+        // dispatch (item consumed twice, reward paid twice).
+        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
         long now = System.currentTimeMillis();
         Long last = this.lastUseMillis.get(player.getUniqueId());
         if (last != null && now - last < 500L) {
@@ -307,38 +323,82 @@ public class RelicFeature implements Listener {
         Player player = event.getPlayer();
         ItemStack boots = player.getInventory().getBoots();
         if (boots != null && isRelicItem(boots) && "skates".equals(getRelicId(boots))) {
-            if (player.isOnGround()) {
-                Vector vel = player.getVelocity();
-                double hx = vel.getX();
-                double hz = vel.getZ();
-                double speed = Math.sqrt(hx * hx + hz * hz);
-                Vector facing = player.getLocation().getDirection();
-                facing.setY(0);
-                if (facing.lengthSquared() > 0) facing.normalize();
-                if (player.isSprinting()) {
-                    hx += facing.getX() * 0.12;
-                    hz += facing.getZ() * 0.12;
-                } else if (speed > 0.05) {
-                    // keep sliding, slight friction
-                    hx *= 0.985;
-                    hz *= 0.985;
-                }
-                double newSpeed = Math.sqrt(hx * hx + hz * hz);
-                if (newSpeed > 1.2) {
-                    double scale = 1.2 / newSpeed;
-                    hx *= scale;
-                    hz *= scale;
-                }
-                if (newSpeed > 0.02) {
-                    player.setVelocity(new Vector(hx, vel.getY(), hz));
-                    player.getWorld().spawnParticle(org.bukkit.Particle.SNOWFLAKE, player.getLocation(), 2, 0.1, 0.1, 0.1, 0.01);
-                }
-            }
+            this.updateSkating(player, event);
+        }
+        ItemStack inUse = player.getItemInUse();
+        if (inUse != null && isRelicItem(inUse) && "vision".equals(getRelicId(inUse))) {
+            // Covers relogs and other paths where no interact event fired.
+            this.startScopedVision(player);
         }
         if (jetpackActive.contains(player.getUniqueId())) {
             tryBoostJetpack(player);
         }
         applyPassiveRelics(player);
+    }
+
+    // ------------------------------------------------------------------
+    // Roller skates: emulate real ice-riding physics instead of a raw
+    // speed boost. Movement the client reports per tick is taken as the
+    // current momentum, ice friction keeps it, and small steering thrust
+    // curves the glide — so long slides and wide turns feel like ice.
+    // ------------------------------------------------------------------
+
+    /** Fraction of horizontal momentum kept per tick (vanilla ice is 0.98). */
+    static final double SKATE_FRICTION = 0.982;
+    /** Strong momentum bleed used as a brake while sneaking. */
+    static final double SKATE_SNEAK_FRICTION = 0.70;
+    /** Per-tick thrust while sprinting on skates (blocks/tick). */
+    static final double SKATE_SPRINT_ACCEL = 0.05;
+    /** Per-tick steering/thrust below sprint (blocks/tick). */
+    static final double SKATE_WALK_ACCEL = 0.02;
+    /** Top glide speed (blocks/tick, ~12 blocks/s). */
+    static final double SKATE_MAX_SPEED = 0.62;
+    /** Below this speed the ice friction alone has already stopped the player. */
+    static final double SKATE_STOP_SPEED = 0.01;
+
+    /** One ice-model step for the given momentum and wish direction. */
+    static org.bukkit.util.Vector iceStep(org.bukkit.util.Vector current, org.bukkit.util.Vector wish, boolean sprinting, boolean sneaking) {
+        double hx = current.getX() * (sneaking ? SKATE_SNEAK_FRICTION : SKATE_FRICTION);
+        double hz = current.getZ() * (sneaking ? SKATE_SNEAK_FRICTION : SKATE_FRICTION);
+        if (wish != null && wish.lengthSquared() > 1.0E-9) {
+            double accel = sprinting ? SKATE_SPRINT_ACCEL : SKATE_WALK_ACCEL;
+            org.bukkit.util.Vector dir = wish.clone().normalize();
+            hx += dir.getX() * accel;
+            hz += dir.getZ() * accel;
+        }
+        double speed = Math.sqrt(hx * hx + hz * hz);
+        if (speed > SKATE_MAX_SPEED) {
+            double scale = SKATE_MAX_SPEED / speed;
+            hx *= scale;
+            hz *= scale;
+        }
+        if (speed < SKATE_STOP_SPEED) {
+            hx = 0.0;
+            hz = 0.0;
+        }
+        return new org.bukkit.util.Vector(hx, 0.0, hz);
+    }
+
+    private void updateSkating(Player player, PlayerMoveEvent event) {
+        if (!player.isOnGround()) return;
+        // Actual displacement since the last event is the true momentum —
+        // player.getVelocity() only mirrors the last server-set/knockback
+        // velocity, not what the client produced this tick.
+        double dx = event.getTo().getX() - event.getFrom().getX();
+        double dz = event.getTo().getZ() - event.getFrom().getZ();
+        org.bukkit.util.Vector momentum = new org.bukkit.util.Vector(dx, 0.0, dz);
+        boolean moving = momentum.lengthSquared() > 1.0E-6;
+        if (!moving && !player.isSprinting()) return;
+        org.bukkit.util.Vector facing = player.getLocation().getDirection();
+        facing.setY(0.0);
+        if (facing.lengthSquared() <= 1.0E-9) facing = null;
+        org.bukkit.util.Vector slid = iceStep(momentum, facing, player.isSprinting(), player.isSneaking());
+        double speed = Math.sqrt(slid.getX() * slid.getX() + slid.getZ() * slid.getZ());
+        if (speed <= 0.02) return;
+        player.setVelocity(new org.bukkit.util.Vector(slid.getX(), player.getVelocity().getY(), slid.getZ()));
+        int count = Math.max(1, Math.min(6, (int) Math.round(speed * 8)));
+        player.getWorld().spawnParticle(org.bukkit.Particle.SNOWFLAKE,
+            player.getLocation().add(0.0, 0.1, 0.0), count, 0.25, 0.05, 0.25, 0.01);
     }
 
     private void applyPassiveRelics(Player player) {
@@ -355,7 +415,6 @@ public class RelicFeature implements Listener {
                 case "swift" -> player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SPEED, 60, 0, true, false));
                 case "guardian" -> player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE, 60, 0, true, false));
                 case "wind" -> player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.JUMP_BOOST, 60, 0, true, false));
-                case "vision" -> player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION, 260, 0, true, false));
                 case "magnet" -> {
                     for (org.bukkit.entity.Entity e : player.getNearbyEntities(6, 6, 6)) {
                         if (e instanceof org.bukkit.entity.Item itemEntity) {
@@ -369,6 +428,43 @@ public class RelicFeature implements Listener {
                 default -> { }
             }
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Vision relic: night vision only while the player is actually scoping
+    // through the spyglass (right click held), not while merely holding it.
+    // ------------------------------------------------------------------
+
+    /** Starts the while-scoped night vision loop for one player (idempotent). */
+    private void startScopedVision(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (this.visionTasks.containsKey(uuid)) return;
+        this.visionTasks.put(uuid, Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            Player current = Bukkit.getPlayer(uuid);
+            if (current == null || !current.isOnline()) {
+                this.stopScopedVision(uuid);
+                return;
+            }
+            ItemStack inUse = current.getItemInUse();
+            if (inUse != null && isRelicItem(inUse) && "vision".equals(getRelicId(inUse))) {
+                // Stay above 10 seconds so the overlay never starts to blur.
+                current.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                    org.bukkit.potion.PotionEffectType.NIGHT_VISION, 260, 0, true, false));
+            } else {
+                current.removePotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION);
+                this.stopScopedVision(uuid);
+            }
+        }, 0L, 4L));
+    }
+
+    private void stopScopedVision(UUID uuid) {
+        BukkitTask task = this.visionTasks.remove(uuid);
+        if (task != null) task.cancel();
+    }
+
+    @EventHandler
+    public void onVisionQuit(PlayerQuitEvent event) {
+        this.stopScopedVision(event.getPlayer().getUniqueId());
     }
 
     @EventHandler
