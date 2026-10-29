@@ -45,7 +45,7 @@ public class RelicFeature implements Listener {
     public enum RelicType {
         HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
         SCRATCH("scratch", "§e§lスクラッチ", Material.PAPER, 0.01, "§7右クリックで運試し！MPを獲得できる。"),
-        JETPACK("jetpack", "§b§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に空を飛ぶ。"),
+        JETPACK("jetpack", "§b§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に空を飛ぶ。後退(S)キーでふわっと着地。"),
         ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7陸上を氷の上のように滑る。スニークでブレーキ。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(使い捨て)"),
         FIREBALL("fireball", "§c§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(使い捨て)"),
@@ -190,6 +190,8 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, Long> lastUseMillis = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<java.util.UUID> jetpackActive = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Map<java.util.UUID, Long> lastJetpackBoost = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Set<java.util.UUID> landingAssist = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Map<java.util.UUID, Long> lastJetpackDescendFuel = new java.util.concurrent.ConcurrentHashMap<>();
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
@@ -332,6 +334,14 @@ public class RelicFeature implements Listener {
         }
         if (jetpackActive.contains(player.getUniqueId())) {
             tryBoostJetpack(player);
+        }
+        if (landingAssist.contains(player.getUniqueId())) {
+            if (player.isOnGround()) {
+                // Soft touchdown: landing while holding the assist never hurts.
+                player.setFallDistance(0.0f);
+            } else {
+                tryGentleDescent(player);
+            }
         }
         applyPassiveRelics(player);
     }
@@ -478,6 +488,55 @@ public class RelicFeature implements Listener {
         } else {
             jetpackActive.remove(player.getUniqueId());
         }
+        // Back (S) key: gentle landing assist flag; the hop loop lives in the
+        // move-event ticker so a steadily held key keeps floating the player.
+        if (jetpack && event.getInput().isBackward()) {
+            landingAssist.add(player.getUniqueId());
+        } else {
+            landingAssist.remove(player.getUniqueId());
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Jetpack landing assist: holding Back (S) floats the player down at a
+    // capped sink speed and wipes fall distance on touchdown — a soft
+    // landing instead of a crash. It still burns powder, just slower.
+    // ------------------------------------------------------------------
+
+    /** Sink speed cap (blocks/tick) while the landing assist is held. */
+    static final double JETPACK_DESCEND_SPEED = 0.12;
+    /** Fuel burn cadence for the landing assist (ms). */
+    static final long JETPACK_DESCEND_FUEL_MILLIS = 800L;
+
+    /** Clamps vertical speed to the gentle sink; upward speed is untouched. */
+    static double descendY(double currentY) {
+        return currentY < -JETPACK_DESCEND_SPEED ? -JETPACK_DESCEND_SPEED : currentY;
+    }
+
+    private void tryGentleDescent(Player player) {
+        ItemStack chest = player.getInventory().getChestplate();
+        if (chest == null || !isRelicItem(chest) || !"jetpack".equals(getRelicId(chest))) {
+            landingAssist.remove(player.getUniqueId());
+            return;
+        }
+        Vector vel = player.getVelocity();
+        if (vel.getY() >= -JETPACK_DESCEND_SPEED) return; // rising or gently drifting: nothing to do yet
+        long now = System.currentTimeMillis();
+        Long last = lastJetpackDescendFuel.get(player.getUniqueId());
+        if (last == null || now - last >= JETPACK_DESCEND_FUEL_MILLIS) {
+            if (!player.getInventory().contains(Material.BLAZE_POWDER)) {
+                return; // out of fuel: fall normally, boost path reports the refill hint
+            }
+            player.getInventory().removeItem(new ItemStack(Material.BLAZE_POWDER, 1));
+            lastJetpackDescendFuel.put(player.getUniqueId(), now);
+            player.getWorld().spawnParticle(org.bukkit.Particle.SMOKE,
+                player.getLocation().add(0.0, 0.3, 0.0), 8, 0.2, 0.1, 0.2, 0.01);
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.5f, 0.6f);
+        }
+        // Hold a steady float: the clamp runs every move event while airborne,
+        // so gravity cannot build a fast fall between fuel ticks.
+        player.setVelocity(new Vector(vel.getX(), descendY(vel.getY()), vel.getZ()));
+        player.setFallDistance(0.0f);
     }
 
     private void tryBoostJetpack(Player player) {
