@@ -120,9 +120,9 @@ final class MenuFanFeature implements Listener {
       Location eye = player.getEyeLocation();
       Vector forward = eye.getDirection().normalize();
       double radius = Math.max(1.0, this.plugin.getConfig().getDouble("menu.fan-radius", 2.3));
-      double spread = Math.max(10.0, this.plugin.getConfig().getDouble("menu.fan-spread-degrees", 130.0));
+      double spread = Math.max(10.0, this.plugin.getConfig().getDouble("menu.fan-spread-degrees", 110.0));
       double labelScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-label-scale", 0.9));
-      double iconScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 1.0));
+      double iconScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 0.8));
       long timeoutMillis = Math.max(1, this.plugin.getConfig().getInt("menu.fan-timeout-seconds", 20)) * 1000L;
       double closeDistance = Math.max(2.0, this.plugin.getConfig().getDouble("menu.fan-close-distance", 6.0));
       List<ItemStack> actions = new ArrayList<>();
@@ -196,9 +196,9 @@ final class MenuFanFeature implements Listener {
       Location eye = player.getEyeLocation();
       Vector forward = eye.getDirection().normalize();
       double radius = Math.max(1.0, this.plugin.getConfig().getDouble("menu.fan-radius", 2.3));
-      double spread = Math.max(10.0, this.plugin.getConfig().getDouble("menu.fan-spread-degrees", 130.0));
+      double spread = Math.max(10.0, this.plugin.getConfig().getDouble("menu.fan-spread-degrees", 110.0));
       double labelScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-label-scale", 0.9));
-      double iconScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 1.0));
+      double iconScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 0.8));
       long timeoutMillis = Math.max(1, this.plugin.getConfig().getInt("menu.fan-timeout-seconds", 20)) * 1000L;
       double closeDistance = Math.max(2.0, this.plugin.getConfig().getDouble("menu.fan-close-distance", 6.0));
       List<ItemStack> actions = this.buildActions(player);
@@ -274,7 +274,6 @@ final class MenuFanFeature implements Listener {
       actions.add(this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GOLD + "所持MP: " + this.plugin.formatNumber(walletMp) + " MP"), "menu_wallet", null));
       actions.add(this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
       actions.add(this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));
-      actions.add(this.plugin.utilityItemsFeature.gearMenuIcon(player));
       actions.add(this.plugin.actionItem(Material.CHEST, ChatColor.GOLD + "取引", List.of(ChatColor.GRAY + "クリック: 相手を選んで取引申込"), "menu_trade", null));
       actions.add(this.plugin.actionItem(Material.PAPER, ChatColor.AQUA + "\u6295\u7968", List.of(ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u6295\u7968\u30b5\u30a4\u30c8\u3092\u958b\u304f", ChatColor.GRAY + "1\u65e51\u56de\u306e\u6295\u7968\u3067MP\u304c\u3082\u3089\u3048\u307e\u3059"), "menu_vote", null));
       actions.add(this.plugin.actionItem(Material.CLOCK, ChatColor.YELLOW + "\u30ed\u30b0\u30dc", List.of(ChatColor.GRAY + "\u30af\u30ea\u30c3\u30af: \u9023\u7d9a\u30ed\u30b0\u30a4\u30f3\u72b6\u6cc1\u3092\u78ba\u8a8d"), "menu_login_bonus", null));
@@ -284,7 +283,7 @@ final class MenuFanFeature implements Listener {
    }
 
    private List<String> buildLabels(Player player) {
-      return List.of("SHOP", "ウォレット", "ステータス", "クエスト", "ギア", "取引", "\u6295\u7968", "\u30ed\u30b0\u30dc", "\u76ee\u6a19", "チュートリアル");
+      return List.of("SHOP", "ウォレット", "ステータス", "クエスト", "取引", "\u6295\u7968", "\u30ed\u30b0\u30dc", "\u76ee\u6a19", "チュートリアル");
    }
 
    private void tick(UUID owner) {
@@ -314,7 +313,7 @@ final class MenuFanFeature implements Listener {
          Object attacker = previous.getPlayer();
          UUID attackerId = attacker instanceof Player player2 ? player2.getUniqueId() : attacker instanceof UUID id ? id : null;
          if (attackerId != null && attackerId.equals(owner)) {
-            this.select(player, entry.getValue());
+            this.select(player, selectedIndex(session.hovered, entry.getValue()));
             return;
          }
       }
@@ -329,7 +328,7 @@ final class MenuFanFeature implements Listener {
       for (ItemDisplay icon : session.icons) {
          directions.add(icon == null || !icon.isValid() ? null : icon.getLocation().toVector().subtract(eye.toVector()));
       }
-      double maxAngle = this.plugin.getConfig().getDouble("menu.fan-hover-max-angle-degrees", 12.0);
+      double maxAngle = this.plugin.getConfig().getDouble("menu.fan-hover-max-angle-degrees", 20.0);
       int hovered = hoveredIndex(directions, forward, maxAngle);
       if (hovered == session.hovered) return;
       session.hovered = hovered;
@@ -337,8 +336,8 @@ final class MenuFanFeature implements Listener {
    }
 
    private void applyHoverStyles(Session session) {
-      double baseScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 1.0));
-      double hoverMultiplier = Math.max(1.0, this.plugin.getConfig().getDouble("menu.fan-hover-multiplier", 1.5));
+      double baseScale = Math.max(0.1, this.plugin.getConfig().getDouble("menu.fan-icon-scale", 0.8));
+      double hoverMultiplier = Math.max(1.0, this.plugin.getConfig().getDouble("menu.fan-hover-multiplier", 1.25));
       double idleMultiplier = Math.max(0.1, Math.min(1.0, this.plugin.getConfig().getDouble("menu.fan-idle-multiplier", 0.85)));
       for (int i = 0; i < session.icons.size(); i++) {
          ItemDisplay display = session.icons.get(i);
@@ -368,6 +367,16 @@ final class MenuFanFeature implements Listener {
       this.plugin.handleMenuUiClick(player, action);
    }
 
+   /**
+    * Index a click should open. The crosshair highlight and the physical
+    * Interaction hitboxes disagree near entry borders (axis-aligned hitboxes
+    * are wider than the angular highlight), so the highlighted entry always
+    * wins; when nothing is highlighted the physically clicked entry is used.
+    */
+   static int selectedIndex(int hovered, int clickedIndex) {
+      return hovered >= 0 ? hovered : clickedIndex;
+   }
+
    private void close(UUID owner) {
       Session session = this.sessions.remove(owner);
       if (session == null) return;
@@ -392,7 +401,7 @@ final class MenuFanFeature implements Listener {
       Integer index = session.targets.get(hit.getUniqueId());
       Player player = event.getPlayer();
       if (index == null || player == null || !player.getUniqueId().equals(session.owner)) return;
-      this.select(player, index);
+      this.select(player, selectedIndex(session.hovered, index));
    }
 
    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = false)

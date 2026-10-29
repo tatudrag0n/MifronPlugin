@@ -44,4 +44,14 @@ class MenuFanRulesTest {
       assertEquals(-1, MenuFanFeature.hoveredIndex(List.of(), new Vector(0, 0, 1), 10.0));
       assertEquals(-1, MenuFanFeature.hoveredIndex(directions, new Vector(0, 0, 0), 10.0));
    }
+
+   @Test
+   void clickFollowsHighlightWhenHovered() {
+      // The crosshair highlight decides the target: clicking a neighboring
+      // hitbox opens the entry the player sees highlighted, not the hitbox.
+      assertEquals(3, MenuFanFeature.selectedIndex(3, 1));
+      assertEquals(3, MenuFanFeature.selectedIndex(3, 4));
+      // With nothing highlighted the physically clicked entry opens.
+      assertEquals(1, MenuFanFeature.selectedIndex(-1, 1));
+   }
 }
