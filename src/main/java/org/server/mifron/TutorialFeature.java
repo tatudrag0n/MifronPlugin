@@ -133,15 +133,24 @@ public final class TutorialFeature implements Listener {
 
    private void ensureAnchorMob(World world, Location loc, boolean elite) {
       loc.getChunk().load(true);
-      for (Entity e : world.getNearbyEntities(loc, 1.0, 1.5, 1.0)) {
-         if (e instanceof Monster) return;
-      }
       // Anchor points sit between the tutorial spawn and the gate, so the mob
       // faces the tutorial spawn where players arrive from. The legacy fixed
       // yaw (180 for the kill mob) pointed it away after the anchors moved.
       Location arrival = this.spawn(null);
       float yaw = arrival != null && arrival.getWorld().equals(loc.getWorld())
          ? yawTowards(loc, arrival) : (elite ? 0.0F : 180.0F);
+      for (Entity e : world.getNearbyEntities(loc, 1.0, 1.5, 1.0)) {
+         if (!(e instanceof Monster)) continue;
+         // Mobs persist across restarts, so also re-anchor a stale rotation
+         // instead of only fixing mobs spawned from now on.
+         if (Math.abs(yawDelta(e.getLocation().getYaw(), yaw)) > 10.0F) {
+            Location fixed = e.getLocation();
+            fixed.setYaw(yaw);
+            e.teleport(fixed);
+            e.setRotation(yaw, 0.0F);
+         }
+         return;
+      }
       Location spawnLoc = loc.clone();
       spawnLoc.setYaw(yaw);
       world.spawn(spawnLoc, Zombie.class, zombie -> {
@@ -153,6 +162,11 @@ public final class TutorialFeature implements Listener {
          zombie.setRotation(yaw, 0.0F);
       });
       if (elite) this.plugin.eliteMobFeature.elitizeNearest(world, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), 1.5);
+   }
+
+   /** Signed shortest turn from {@code currentYaw} to {@code targetYaw} in [-180, 180]. */
+   static float yawDelta(float currentYaw, float targetYaw) {
+      return ((targetYaw - currentYaw + 540.0F) % 360.0F) - 180.0F;
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
