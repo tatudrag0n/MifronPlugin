@@ -1,5 +1,5 @@
 name: mifron
-version: 26.1.2-jetdescend-20261029
+version: 26.1.2-nvscope-20261029
 
 main: org.server.mifron.Mifron
 api-version: '1.21'

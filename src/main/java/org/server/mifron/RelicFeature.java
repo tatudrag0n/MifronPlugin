@@ -58,7 +58,7 @@ public class RelicFeature implements Listener {
         GUARDIAN("guardian", "§9§l守護者の盾", Material.SHIELD, 0.0003, "§7持っている間、耐性を得る。"),
         MAGNET("magnet", "§e§l磁力の石", Material.LODESTONE, 0.0003, "§7持っている間、近くのアイテムを引き寄せる。"),
         WIND("wind", "§a§l風の翼", Material.FEATHER, 0.0003, "§7持っている間、跳躍力が上がる。"),
-        VISION("vision", "§8§l千里眼", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
+        VISION("vision", "§8§l暗視スコープ", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
 
         public final String id;
         public final String displayName;
