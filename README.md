@@ -18,17 +18,18 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 ## コマンド
 
 - メイン: `/mifron`、短縮: `/mf`
-- プレイヤー向け: `/mf balance`、`/mf pay <player> <amount>`、`/mf tutorial [restart|skip]`、`/mf vote`、`/mf menu`、`/mf quest`、`/mf job [hunter|farmer|enchanter|merchant|fisher|miner|adventurer|none]`、`/mf protect chunk`、`/mf build enter|exit`、`/mf refer [code]`、`/trade <player>|accept|deny|cancel|money <額>`、`/travel <hub|survival|main>`
+- プレイヤー向け: `/mf balance`、`/mf pay <player> <amount>`、`/mf tutorial [restart|skip]`、`/mf vote`、`/mf menu`、`/mf quest`、`/mf job [hunter|farmer|enchanter|merchant|fisher|miner|adventurer|none]`、`/mf protect chunk`、`/mf refer [code]`、`/trade <player>|accept|deny|cancel|money <額>`、`/travel <hub|survival|main>`(`build-world` が既定無効のため `/mf build` は省略)
 - `/mv` はMifronでは登録せず、Multiverse-Core専用です。
 - 管理系サブコマンドは原則 `mifron.admin` または個別権限が必要です。
 
 ## プレイヤー向け主要仕様
 
-- ウォレットはメニューでクリックするとMP残高を確認でき、棚ショップでは持って右クリックで使います。アイテム収納には使えません。
+- 参加時に配布されるのは「メニュー」1個だけです(旧配布アイテム: ウォレット・ステータス・テレポーター・フレンド帳・クエスト帳・オンラインショップ扉・ストア案内は参加時に回収します)。
+- メニューの「ウォレット」をクリックするとMP残高を確認できます。「メニュー」は旧ウォレットアイテム(emerald_bundle)と同等の棚ショップの決済アイテムです。アイテム収納には使えません。
 - チャットは全体のみです。`/tell` `/msg` `/w` `/whisper` `/message` `/m` `/t` `/r` `/reply` `/mail` `/em` `/email` と `/team msg` は遮断されます(個人宛はDiscordをご利用ください)。
 - 通常のエメラルドはMPへ変換されません。死亡すると所持MPの50%を失います。
-- 棚ショップの商品は見本で、在庫は同じ素材について全棚で共有されます。ウォレットで購入し、棚の商品と同じ通常アイテムを持って右クリックすると1個売却します。
-- 空の樽の上に棚を置くと樽ショップになります。販売棚は樽内の在庫を1個ずつ購入でき、買取棚は持っているアイテムを樽へ売却できます。棚と樽は作成者のみ開けます。
+- 棚ショップの商品は見本で、在庫は同じ素材について全棚で共有されます。棚の購入は「メニュー」を右手に持って右クリックで在庫とMPを消費し、棚の商品と同じ通常アイテムを持って右クリックすると1個売却します。「メニュー」を右手にした棚ショップの右クリックは、ファンメニューを開かずに購入になります。
+- 空の樽の上に棚を置くと樽ショップになります。販売棚は樽内の在庫を1個ずつ購入でき、買取棚は持っているアイテムを樽へ売却できます(既定価格は1,000MP)。棚と樽は作成者のみ開けます。
 - SurvivalではTNTと溶岩が無効です。ショップ化ブロックと承認済み建築は通常破壊できません。
 
 ## ジョブ
@@ -52,12 +53,10 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 
 - `jobs`: ボーナス率、職限定報酬、割引、切替クールダウン、ファストトラベル費用。
 - `trade`: 取引のMP上限。
-- `build-world`: プレイヤー別Buildワールド、ワールド境界、初期足場。WorldEdit権限は滞在中だけ付与されます。
+- `build-world`: プレイヤー別Buildワールド、ワールド境界、初期足場。WorldEdit権限は滞在中だけ付与されます。既定は無効(`enabled: false`・共有Creativeワールドは廃止済み)で、有効化した場合のみ `/mf build enter|exit` が動きます。
 - `world-rules`: 全ワールドのKeepInventory、PvP、固定昼、スポーン位置。
-- `regen.excluded-chunks`: 自然再生成から除外するSurvivalチャンクの除外リスト(`regen.allowed-chunks` は現行コードでは参照されません)。`/mf regen allow` で除外解除、`deny` で除外登録、`list` で除外一覧を確認し、`/mf regen [radius]` は Survival・ロード済み・保護外・除外外のチャンクだけを再生成します。
+- `regen.excluded-chunks`: 自然再生成から除外するSurvivalチャンクの除外リスト。`/mf regen allow` で除外解除、`deny` で除外登録、`list` で除外一覧を確認し、`/mf regen [radius]` は Survival・ロード済み・保護外・除外外のチャンクだけを再生成します。月次の自動再生成(`regen.interval-days` / `monthly-enabled` / `monthly-max-chunks`)も参照します。
 - `regen.nation-chunks` / `public-facility-chunks` / `staff-excluded-chunks`: 中央範囲以外の保護チャンク。
-- `barrel-shop`: 商品枠と掘り出し物枠。
-- `auction`: 通常・スニーク時の入札加算額。手数料設定はありません。
 - `minoru-bridge`: ローカルAPIの有効化、待受、共有シークレット。`serverSecret` は旧設定からのフォールバックです。
 
 再生成は破壊的操作のため、半径は最大8です。未ロードのチャンクは自動スキップします。実行前にバックアップを取得してください。

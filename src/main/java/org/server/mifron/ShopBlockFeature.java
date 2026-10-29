@@ -101,6 +101,13 @@ public class ShopBlockFeature implements Listener {
       this.trades.tradeShelf(player, block, shopType, hand, slot);
    }
 
+   /** True when this block is a tag-based shelf shop (menu-wallet purchase target). */
+   boolean isShelfShopBlock(Block block) {
+      if (block == null) return false;
+      String type = this.store.shopType(block);
+      return "SELL_SHELF".equals(type) || "BUY_SHELF".equals(type);
+   }
+
    @EventHandler
    public void onClick(InventoryClickEvent event) { this.prices.onClick(event); }
 

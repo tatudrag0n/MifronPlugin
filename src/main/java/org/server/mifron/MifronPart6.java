@@ -123,6 +123,14 @@ abstract class MifronPart6 extends MifronPart5x3 {
       return this.data.getBoolean(path, false) || this.data.getBoolean(path + ".enabled", false);
    }
 
+   /** True when a right-click on this block is a shelf-shop trade on either
+    * shelf-shop system (tag-based shelfs or legacy data.yml shops). Barrel-shop
+    * shelfs are excluded: the menu item keeps opening the fan menu there. */
+   boolean isShopShelfBlock(Block block) {
+      return this.shopBlockFeature.isShelfShopBlock(block)
+         || this.isShelfShop(block);
+   }
+
    boolean setShelfShop(Block block, boolean enabled) {
       String path = this.shelfShopPath(block);
       boolean existed = this.mifron().isShelfShop(block);

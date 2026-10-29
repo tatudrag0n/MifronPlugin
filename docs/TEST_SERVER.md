@@ -15,7 +15,7 @@
 | RCON | 25575 | 25576 |
 | Whitelist | off | **on** (forced) |
 | Auto-restart | off | **every 6h + 5min warning** (`test-server.*`) |
-| DiscordSRV/Tebex | enabled | disabled (tokens never shared) |
+| DiscordSRV | enabled | disabled (tokens never shared) |
 | MifronAuth | enabled | disabled (whitelist replaces Discord auth) |
 | Minoru bridge | 127.0.0.1:8123 | 127.0.0.1:8125 (8124 = minoru-bot) |
 
