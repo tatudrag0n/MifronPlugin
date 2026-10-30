@@ -56,14 +56,21 @@ public class RelicFeature implements Listener {
     public RelicFeature(Mifron plugin) {
         this.plugin = plugin;
         this.keyRelic = new NamespacedKey(plugin, "relic_id");
-        this.ghostIceData = Bukkit.createBlockData(Material.PACKED_ICE);
+        this.ghostIceData = Bukkit.createBlockData(Material.BLUE_ICE);
+        this.magnetTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickMagnet, 20L, 4L);
+    }
+
+    /** Cancels background tasks owned by this feature. */
+    public void shutdown() {
+        if (this.magnetTask != null) { this.magnetTask.cancel(); this.magnetTask = null; }
+        this.stopDragTask();
     }
 
     public enum RelicType {
         HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
         ENCHBOOK("enchbook", "§e§l全適用の魔導書", Material.ENCHANTED_BOOK, 0.0008, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
-        JETPACK("jetpack", "§b§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しでゆっくり上昇。後退(S)キーでふわっと着地。"),
-        ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7足元が氷ブロックのように滑る。スニークでブレーキ。"),
+        JETPACK("jetpack", "§b§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しでゆっくり上昇(推進力強化)。後退(S)キーでふわっと着地。"),
+        ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(クールダウン10秒)"),
         FIREBALL("fireball", "§c§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
         DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
@@ -74,6 +81,7 @@ public class RelicFeature implements Listener {
         DASHFOOT("dashfoot", "§f§l疾風のウサギの足", Material.RABBIT_FOOT, 0.001, "§7右クリックで前方へ強くダッシュする。"),
         REFLECT("reflect", "§9§l反射の守護盾", Material.SHIELD, 0.0005, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
         NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, 0.0006, "§7右クリックで夜をそのまま朝へスキップする。"),
+        MAGNET("magnet", "§e§l磁力の石", Material.LODESTONE, 0.0004, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
         SHRINKSTAR("shrinkstar", "§a§l微粒のネザースター", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
         VISION("vision", "§8§l暗視スコープ", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
 
@@ -216,7 +224,9 @@ public class RelicFeature implements Listener {
     private final java.util.Set<java.util.UUID> seaswimRising = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Map<java.util.UUID, java.util.Set<java.util.UUID>> dragFollowers = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> reflectCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, Long> magnetCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private org.bukkit.scheduler.BukkitTask dragTask;
+    private org.bukkit.scheduler.BukkitTask magnetTask;
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
@@ -267,9 +277,13 @@ public class RelicFeature implements Listener {
         } else if ("dashfoot".equals(id) && rightClick && !player.isSneaking()) {
             event.setCancelled(true);
             this.tryDash(player);
-        } else if (("giantcore".equals(id) || "shrinkstar".equals(id)) && rightClick) {
+        } else if ("magnet".equals(id) && rightClick) {
             event.setCancelled(true);
-            this.tryResize(player, "giantcore".equals(id));
+            if (!this.rollingCooldown(player, magnetCooldown, 2000L, "磁力バースト")) return;
+            this.pullMagnet(player, 24.0, 1.35);
+            player.getWorld().spawnParticle(org.bukkit.Particle.ENCHANT, player.getLocation().add(0.0, 1.0, 0.0), 40, 1.5, 1.5, 1.5, 0.5);
+            player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 1.6f);
+            player.sendMessage(ChatColor.YELLOW + "磁力バースト！周囲のアイテムを一気に引き寄せた。");
         }
     }
 
@@ -768,8 +782,10 @@ public class RelicFeature implements Listener {
         if (!this.hasSeaswim(player)) {
             this.seaswimRising.remove(player.getUniqueId());
             player.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
+            player.setSwimming(false);
             return;
         }
+        player.setSwimming(true);
         boolean rising = this.seaswimRising.contains(player.getUniqueId());
         if (rising) {
             player.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
@@ -823,11 +839,40 @@ public class RelicFeature implements Listener {
         if (task != null) task.cancel();
     }
 
+    /** Background pull while the magnet relic is held (items + XP). */
+    private void tickMagnet() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (!this.hasMagnet(p)) continue;
+            this.pullMagnet(p, 12.0, 0.55);
+        }
+    }
+
+    private boolean hasMagnet(Player player) {
+        for (ItemStack hand : new ItemStack[]{player.getInventory().getItemInMainHand(), player.getInventory().getItemInOffHand()}) {
+            if (hand != null && isRelicItem(hand) && "magnet".equals(getRelicId(hand))) return true;
+        }
+        return false;
+    }
+
+    /** Pulls nearby items and XP orbs toward the player. */
+    private void pullMagnet(Player player, double radius, double strength) {
+        for (org.bukkit.entity.Entity e : player.getNearbyEntities(radius, radius, radius)) {
+            if (e == player) continue;
+            if (!(e instanceof org.bukkit.entity.Item) && !(e instanceof org.bukkit.entity.ExperienceOrb)) continue;
+            org.bukkit.util.Vector to = player.getLocation().add(0.0, 0.5, 0.0).toVector().subtract(e.getLocation().toVector());
+            double dist = to.length();
+            if (dist < 0.6) continue;
+            double pull = strength * (1.0 - dist / (radius + 1.0)) + 0.12;
+            e.setVelocity(to.normalize().multiply(Math.min(strength, pull)));
+        }
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
         this.stopScopedVision(uuid);
         this.clearGhostIce(uuid);
+        event.getPlayer().setSwimming(false);
         AttributeInstance attr = event.getPlayer().getAttribute(Attribute.SCALE);
         if (attr != null && scaleExpiry.remove(uuid) != null) attr.setBaseValue(1.0);
         dragFollowers.remove(uuid);
@@ -911,9 +956,9 @@ public class RelicFeature implements Listener {
     }
 
     /** Gentle climb: only ever nudges upward speed to the hover cap. */
-    static final double JETPACK_CLIMB_SPEED = 0.16;
+    static final double JETPACK_CLIMB_SPEED = 0.40;
     /** Speed added per move tick while holding Space (grows to the cap). */
-    static final double JETPACK_CLIMB_ACCEL = 0.09;
+    static final double JETPACK_CLIMB_ACCEL = 0.20;
 
     /** Caps vertical speed to a gentle climb; existing rises are untouched. */
     static double climbY(double currentY) {
@@ -942,7 +987,7 @@ public class RelicFeature implements Listener {
         if (!onGround && vel.getY() >= JETPACK_CLIMB_SPEED) return;
         player.getInventory().removeItem(new ItemStack(Material.BLAZE_POWDER, 1));
         lastJetpackBoost.put(player.getUniqueId(), now);
-        double targetY = onGround ? 0.35 : climbY(vel.getY());
+        double targetY = onGround ? 0.60 : climbY(vel.getY());
         player.setVelocity(new Vector(vel.getX(), targetY, vel.getZ()));
         player.setFallDistance(0.0f);
         player.getWorld().spawnParticle(org.bukkit.Particle.FLAME, player.getLocation().add(0.0, 0.5, 0.0), 10, 0.3, 0.2, 0.3, 0.04);
