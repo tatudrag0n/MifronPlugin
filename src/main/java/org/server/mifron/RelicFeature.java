@@ -147,7 +147,14 @@ public class RelicFeature implements Listener {
             return;
         }
         RelicType type = null;
-        String wanted = LEGACY_RELIC_IDS.getOrDefault(args[1].toLowerCase(), args[1]);
+        String raw = args[1].toLowerCase();
+        String wanted = raw;
+        boolean known = false;
+        for (RelicType candidate : RelicType.values()) {
+            if (candidate.id.equalsIgnoreCase(raw)) { known = true; break; }
+        }
+        // Only fall back to the legacy alias when the id no longer exists.
+        if (!known) wanted = LEGACY_RELIC_IDS.getOrDefault(raw, raw);
         for (RelicType candidate : RelicType.values()) {
             if (candidate.id.equalsIgnoreCase(wanted)) {
                 type = candidate;
@@ -411,7 +418,6 @@ public class RelicFeature implements Listener {
         "tide", "seaswim",
         "swift", "dashfoot",
         "guardian", "reflect",
-        "magnet", "nightclock",
         "wind", "shrinkstar");
 
     /**
