@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mc-common.sh"
+
 DEPLOY_USER="${DEPLOY_USER:-${SUDO_USER:-$USER}}"
 DEPLOY_HOME="$(getent passwd "$DEPLOY_USER" | cut -d: -f6 || true)"
 DEPLOY_HOME="${DEPLOY_HOME:-$HOME}"

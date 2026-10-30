@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVER_DIR="${SERVER_DIR:-$HOME/main-server}"
-REPO_DIR="${REPO_DIR:-$HOME/MifronPlugin}"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mc-common.sh"
 SOURCE="$REPO_DIR/server-config"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 FEATURE_DIR="$REPO_DIR/server-features"
