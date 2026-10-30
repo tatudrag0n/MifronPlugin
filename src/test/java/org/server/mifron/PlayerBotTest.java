@@ -22,7 +22,7 @@ import org.mockbukkit.mockbukkit.entity.ZombieMock;
 
 /**
  * PlayerBot: simulated players exercising real plugin flows headlessly.
- * Covers tutorial stage progression (job open + kill detection) end to end.
+ * Covers tutorial stage progression end to end.
  */
 class PlayerBotTest {
    private ServerMock server;

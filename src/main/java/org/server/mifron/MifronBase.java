@@ -37,8 +37,8 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected static final int SHELF_SHOP_OFFER_SLOTS = 3;
    protected static final int MOB_REWARD_FARM_THRESHOLD_PER_HOUR = 100;
    // Mifron's own titles only. These are granted by Mifron-specific progress
-   // (stats, jobs, collections, elites) and never by vanilla advancements, so
-   // they do not overlap with normal progress.
+   // (stats, collections, elites) and never by vanilla advancements, so they
+   // do not overlap with normal progress.
    protected static final Map<String, TitleDefinition> TITLE_DEFINITIONS = Map.ofEntries(
       Map.entry("新人", new TitleDefinition(Material.WOODEN_SWORD, List.of())),
       Map.entry("古参", new TitleDefinition(Material.COMPASS, List.of())),
@@ -132,7 +132,6 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final TutorialFeature tutorialFeature = new TutorialFeature((Mifron) this);
    protected final TradeService tradeService = new TradeService((Mifron) this);
    protected final TradeFeature tradeFeature = new TradeFeature((Mifron) this);
-   protected final JobFeature jobFeature = new JobFeature((Mifron) this);
    protected final MenuFanFeature menuFanFeature = new MenuFanFeature((Mifron) this);
    protected final StarterGoalsFeature starterGoalsFeature = new StarterGoalsFeature((Mifron) this);
    protected final ReferralService referralService = new ReferralService((Mifron) this);

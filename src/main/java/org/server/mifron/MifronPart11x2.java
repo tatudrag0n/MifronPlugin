@@ -80,7 +80,7 @@ abstract class MifronPart11x2 extends MifronPart11x1 {
    }
 
    protected boolean hasTitle(Set<String> completed, TitleDefinition definition) {
-      // Mifron titles are granted by Mifron-specific progress (stats, jobs,
+      // Mifron titles are granted by Mifron-specific progress (stats,
       // collections, elites), never by vanilla advancement completion, so an
       // empty requirement list never auto-unlocks a title.
       if (definition.requiredAdvancements().isEmpty()) return false;

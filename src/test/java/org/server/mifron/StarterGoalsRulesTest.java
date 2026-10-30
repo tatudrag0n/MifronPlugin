@@ -31,6 +31,6 @@ class StarterGoalsRulesTest {
       for (StarterGoalsFeature.Goal goal : StarterGoalsFeature.GOALS) {
          assertTrue(ids.add(goal.id()), "duplicate goal id: " + goal.id());
       }
-      assertEquals(6, StarterGoalsFeature.GOALS.size());
+      assertEquals(5, StarterGoalsFeature.GOALS.size());
    }
 }

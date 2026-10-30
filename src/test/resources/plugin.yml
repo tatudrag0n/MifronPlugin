@@ -38,7 +38,7 @@ commands:
     description: Secure player-to-player trade.
     usage: /trade <player>|accept|deny|cancel|money <amount>
   travel:
-    description: Fast travel to key points (free for adventurers).
+    description: Fast travel to key points.
     usage: /travel <hub|survival|main>
 permissions:
   mifron.admin:

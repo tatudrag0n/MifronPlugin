@@ -11,8 +11,8 @@ import org.bukkit.entity.Player;
 /**
  * Post-tutorial starter checklist. Goals complete either from explicit marks
  * (menu opened, sold an item, protected a chunk, claimed a quest) or from
- * existing lifetime counters (job picked, blocks mined). Each goal pays a
- * small MP reward once, claimed from the UI.
+ * existing lifetime counters (blocks mined). Each goal pays a small MP reward
+ * once, claimed from the UI.
  */
 final class StarterGoalsFeature {
    static final String UI_TITLE = "\u00a7aMifron Starter Goals";
@@ -21,7 +21,6 @@ final class StarterGoalsFeature {
 
    static final List<Goal> GOALS = List.of(
       new Goal("menu", Material.NETHER_STAR, "\u30e1\u30cb\u30e5\u30fc\u3092\u958b\u304f", "\u30e1\u30cb\u30e5\u30fc\u30a2\u30a4\u30c6\u30e0\u3092\u53f3\u30af\u30ea\u30c3\u30af"),
-      new Goal("job", Material.WOODEN_HOE, "\u30b8\u30e7\u30d6\u3092\u9078\u3076", "\u30e1\u30cb\u30e5\u30fc\u306e\u300c\u30b8\u30e7\u30d6\u300d\u304b\u3089\u9078\u629e"),
       new Goal("mine", Material.IRON_PICKAXE, "\u30d6\u30ed\u30c3\u30af\u309264\u500b\u63a1\u6398", "Survival\u3067\u6398\u3063\u3066\u307f\u3088\u3046"),
       new Goal("sell", Material.EMERALD, "\u30a2\u30a4\u30c6\u30e0\u3092\u58f2\u5374", "\u8cb7\u53d6\u68da\u306b\u30a2\u30a4\u30c6\u30e0\u3092\u6301\u3063\u3066\u53f3\u30af\u30ea\u30c3\u30af"),
       new Goal("protect", Material.SHIELD, "\u30c1\u30e3\u30f3\u30af\u4fdd\u8b77\u3092\u63d0\u6848", "/mf protect chunk"),
@@ -47,7 +46,6 @@ final class StarterGoalsFeature {
       ConfigurationSection section = this.plugin.getPlayerSection(player.getUniqueId());
       if (section.getBoolean("starter-goals.done." + goal.id(), false)) return true;
       return switch (goal.id()) {
-         case "job" -> !"none".equalsIgnoreCase(section.getString("job.type", "none"));
          case "mine" -> StarterGoalsRules.miningComplete(section.getInt("total-blocks-broken", 0));
          default -> false;
       };

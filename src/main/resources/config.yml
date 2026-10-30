@@ -40,8 +40,8 @@ return-bonus:
   mp: 3000
 
 starter-goals:
-  # MP paid for each post-tutorial starter goal (menu / job / mine 64 /
-  # sell / protect / quest). Shown in the 目標 checklist UI.
+  # MP paid for each post-tutorial starter goal (menu / mine 64 / sell /
+  # protect / quest). Shown in the 目標 checklist UI.
   reward-mp: 300
 
 referral:
@@ -68,76 +68,14 @@ events:
     duration-minutes: 60
     announce-minutes-before: 15
 
-jobs:
-  # Hours before a player may change jobs again.
-  change-cooldown-hours: 24.0
-  # Enchanter discount on advanced-anvil MP cost (percent).
-  enchant-discount-percent: 20.0
-  # Enchanter signature: extra enchantment levels + above-vanilla MP multiplier scale.
-  enchanter-limit-break: 5
-  enchanter-multiplier-scale: 0.5
-  # Merchant signature: extra purchase discount percent (stacks with shop-discount).
-  merchant-purchase-discount-percent: 10
-  # Fisher signature: treasure roll chances on catch.
-  fisher-treasure-emerald: 0.08
-  fisher-treasure-diamond: 0.02
-  # Income bonus percent per action, paid only to the matching job.
-  bonus:
-    hunt: 20.0
-    harvest: 0.0
-    enchant: 0.0
-    sell: 10.0
-    fish: 0.0
-    mine: 0.0
-    explore: 0.0
-  # Flat MP micro-rewards for faucet-less actions, paid only to the matching job.
-  base:
-    harvest: 2
-    fish: 5
-    mine: 5
-    explore: 10
-  # Fast-travel fee for non-adventurers (adventurers travel free).
-  travel-cost-mp: 500
-  # Fast-travel cooldowns in minutes.
-  travel-cooldown-minutes: 60.0
-  travel-cooldown-adventurer-minutes: 10.0
-  # Job levels: XP accrues from matching job actions (players.<uuid>.job.xp).
-  # base-xp is the XP for level 2; each next level needs growth-percent more.
-  leveling:
-    base-xp: 100
-    growth-percent: 15.0
-    max-level: 50
-    bonus-percent-per-level: 0.5
-    bonus-max-percent: 25.0
-    xp:
-      hunt: 3
-      harvest: 1
-      enchant: 4
-      sell: 2
-      fish: 2
-      mine: 1
-      explore: 2
-    # Level -> title unlocked at that level (see titles below).
-    titles:
-      10: "常連"
-      25: "熟練者"
-      40: "達人"
-    broadcast-levels: [10, 25, 40, 50]
+travel:
+  # Fast-travel fee and cooldown applied to every player.
+  cost-mp: 500
+  cooldown-minutes: 60.0
 
-titles:
-  # Extra titles selectable once unlocked (job levels grant these).
-  job-veteran:
-    display-name: "常連"
-    icon: EXPERIENCE_BOTTLE
-    required-advancements: []
-  job-expert:
-    display-name: "熟練者"
-    icon: DIAMOND
-    required-advancements: []
-  job-master:
-    display-name: "達人"
-    icon: NETHERITE_INGOT
-    required-advancements: []
+# Extra titles selectable once unlocked. Built-in titles are defined in code;
+# quest proposals may add entries here.
+titles: {}
 
 hub-protection-radius-chunks: 4
 survival-safety:

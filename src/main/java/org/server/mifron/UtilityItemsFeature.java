@@ -120,14 +120,7 @@ final class UtilityItemsFeature implements Listener {
        java.util.Map.entry("luck", new GearDefinition("luck", Material.RABBIT_FOOT, "幸運", 5000, "幸運効果でドロップが増える")),
        java.util.Map.entry("regen", new GearDefinition("regen", Material.GLISTERING_MELON_SLICE, "再生", 8000, "ゆっくりHPが回復する")),
        java.util.Map.entry("strength", new GearDefinition("strength", Material.IRON_SWORD, "攻撃力", 8000, "攻撃ダメージが上がる")),
-       java.util.Map.entry("resistance", new GearDefinition("resistance", Material.SHIELD, "耐性", 8000, "被ダメージが軽減される")),
-       java.util.Map.entry("hunter", new GearDefinition("hunter", Material.IRON_SWORD, "狩人", 20000, "モブ討伐報酬が増加し、Elite確定ドロップ")),
-       java.util.Map.entry("farmer", new GearDefinition("farmer", Material.WHEAT, "農民", 15000, "作物収穫でMPを獲得し、収穫量+1")),
-       java.util.Map.entry("enchanter", new GearDefinition("enchanter", Material.ENCHANTING_TABLE, "鍛冶屋", 25000, "高度な金床のMPコスト割引と上限突破")),
-       java.util.Map.entry("merchant", new GearDefinition("merchant", Material.EMERALD, "商人", 20000, "ショップ売却額が増加")),
-       java.util.Map.entry("fisher", new GearDefinition("fisher", Material.FISHING_ROD, "釣り人", 15000, "釣りでMPを獲得し、宝釣り")),
-       java.util.Map.entry("miner", new GearDefinition("miner", Material.IRON_PICKAXE, "鉱夫", 20000, "採掘でMPを獲得、深層追加ドロップ、溶岩ダメージ半減")),
-       java.util.Map.entry("adventurer", new GearDefinition("adventurer", Material.COMPASS, "冒険者", 20000, "未踏破チャンク初回訪問でMPを獲得（2倍）"))
+       java.util.Map.entry("resistance", new GearDefinition("resistance", Material.SHIELD, "耐性", 8000, "被ダメージが軽減される"))
     );
 
    /** Pure equip rule for tests: unlocked gear toggles unless 3 are already on. */

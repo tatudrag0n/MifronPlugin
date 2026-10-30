@@ -72,8 +72,7 @@ abstract class MifronPart18 extends MifronPart17x1 {
    protected void handleTravelCommand(Player player, String[] args) {
       if (args.length == 0) {
          player.sendMessage("\u00a77/travel <hub|survival|main>");
-         boolean adv = this.mifron().utilityItemsFeature.equippedGears(player).contains("adventurer");
-         int cost = adv ? 0 : Math.max(0, this.mifron().getConfig().getInt("jobs.travel-cost-mp", 500));
+         int cost = Math.max(0, this.mifron().getConfig().getInt("travel.cost-mp", 500));
          player.sendMessage("\u00a77\u6599\u91d1: " + this.mifron().formatNumber(cost) + "MP");
          return;
       }
@@ -91,13 +90,11 @@ abstract class MifronPart18 extends MifronPart17x1 {
          player.sendMessage("\u00a7c\u30c1\u30e5\u30fc\u30c8\u30ea\u30a2\u30eb\u4e2d\u306f\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002");
          return;
       }
-      boolean adv = this.mifron().utilityItemsFeature.equippedGears(player).contains("adventurer");
-      double minutes = adv
-         ? this.mifron().getConfig().getDouble("jobs.travel-cooldown-adventurer-minutes", 10.0)
-         : this.mifron().getConfig().getDouble("jobs.travel-cooldown-minutes", 60.0);
+      double minutes = this.mifron().getConfig().getDouble("travel.cooldown-minutes", 60.0);
       long cooldown = (long) (Math.max(0.0, minutes) * 60_000L);
       long last = this.mifron().getPlayerSection(player.getUniqueId()).getLong("travel-at", 0L);
-      long remaining = JobRules.cooldownRemainingMillis(last, System.currentTimeMillis(), cooldown);
+      long elapsed = Math.max(0L, System.currentTimeMillis() - last);
+      long remaining = last <= 0L ? 0L : Math.max(0L, cooldown - elapsed);
       if (remaining > 0) {
          long hours = remaining / 3_600_000L;
          long mins = (remaining % 3_600_000L) / 60_000L;
@@ -115,7 +112,7 @@ abstract class MifronPart18 extends MifronPart17x1 {
          player.sendMessage("\u00a7c\u79fb\u52d5\u5148\u304c\u672a\u8a2d\u5b9a\u3067\u3059\u3002");
          return;
       }
-      int cost = adv ? 0 : Math.max(0, this.mifron().getConfig().getInt("jobs.travel-cost-mp", 500));
+      int cost = Math.max(0, this.mifron().getConfig().getInt("travel.cost-mp", 500));
       if (cost > 0 && !this.mifron().withdrawEmeralds(player.getUniqueId(), cost)) {
          player.sendMessage("\u00a7cMP\u304c\u8db3\u308a\u307e\u305b\u3093\u3002\u5fc5\u8981: " + cost + "MP");
          return;
@@ -125,7 +122,7 @@ abstract class MifronPart18 extends MifronPart17x1 {
       player.teleport(dest);
       player.sendMessage(cost > 0
          ? "\u00a76" + key + "\u3078\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002(-" + cost + "MP)"
-         : "\u00a76" + key + "\u3078\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002(\u5192\u967a\u8005\u7279\u5178: \u7121\u6599)");
+         : "\u00a76" + key + "\u3078\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002");
    }
 
    protected void handlePayCommand(Player player, String[] args) {
