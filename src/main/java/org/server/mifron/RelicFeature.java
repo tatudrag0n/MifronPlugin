@@ -83,7 +83,7 @@ public class RelicFeature implements Listener {
     public enum RelicType {
         HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
         ENCHBOOK("enchbook", "§e§l全適用の魔導書", Material.ENCHANTED_BOOK, 0.0008, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
-        JETPACK("jetpack", "§b§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しでゆっくり上昇(推進力強化)。後退(S)キーでふわっと着地。"),
+        JETPACK("jetpack", "§b§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
         ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(クールダウン10秒)"),
         FIREBALL("fireball", "§c§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
@@ -1048,7 +1048,7 @@ public class RelicFeature implements Listener {
         if (!jetpackActive.contains(player.getUniqueId())) return;
         long now = System.currentTimeMillis();
         Long last = lastJetpackBoost.get(player.getUniqueId());
-        if (last != null && now - last < 200L) return;
+        if (last != null && now - last < 800L) return;
         if (!player.getInventory().contains(Material.BLAZE_POWDER)) {
             player.sendMessage(ChatColor.RED + "ジェットパックの燃料(ブレイズパウダー)がありません！");
             jetpackActive.remove(player.getUniqueId());
@@ -1060,10 +1060,18 @@ public class RelicFeature implements Listener {
         player.getInventory().removeItem(new ItemStack(Material.BLAZE_POWDER, 1));
         lastJetpackBoost.put(player.getUniqueId(), now);
         double targetY = onGround ? 1.5 : climbY(vel.getY());
+        // Forward thrust: push along the look direction horizontally.
+        Vector facing = player.getLocation().getDirection();
+        facing.setY(0.0);
+        if (facing.lengthSquared() > 1.0E-9) {
+            facing.normalize().multiply(0.7);
+            vel.setX(vel.getX() + facing.getX());
+            vel.setZ(vel.getZ() + facing.getZ());
+        }
         player.setVelocity(new Vector(vel.getX(), targetY, vel.getZ()));
         player.setFallDistance(0.0f);
-        player.getWorld().spawnParticle(org.bukkit.Particle.FLAME, player.getLocation().add(0.0, 0.5, 0.0), 10, 0.3, 0.2, 0.3, 0.04);
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.7f, 0.9f);
+        player.getWorld().spawnParticle(org.bukkit.Particle.FLAME, player.getLocation().add(0.0, 0.5, 0.0), 16, 0.3, 0.2, 0.3, 0.05);
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.9f, 1.0f);
     }
 
     @EventHandler
