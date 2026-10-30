@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mc-common.sh"
+
 DEPLOY_USER="${DEPLOY_USER:-${SUDO_USER:-$USER}}"
 DEPLOY_HOME="$(getent passwd "$DEPLOY_USER" | cut -d: -f6 || true)"
 DEPLOY_HOME="${DEPLOY_HOME:-$HOME}"
@@ -90,12 +92,12 @@ health_check() {
   local started
   started="$(date +%s)"
   while true; do
-    if systemctl is-active --quiet "$SERVICE_NAME" && port_open; then
+    if supervisor_active && port_open; then
       if [ -n "$EXTRA_HEALTHCHECK_CMD" ]; then
         bash -lc "$EXTRA_HEALTHCHECK_CMD" || { sleep 2; continue; }
       fi
       sleep "$HEALTH_STABLE_SECONDS"
-      if systemctl is-active --quiet "$SERVICE_NAME" && port_open; then
+      if supervisor_active && port_open; then
         if [ -z "$EXTRA_HEALTHCHECK_CMD" ] || bash -lc "$EXTRA_HEALTHCHECK_CMD"; then
           return 0
         fi
@@ -121,7 +123,7 @@ rollback() {
   notify ROLLBACK "Health check failed for $deploy_remote; restoring previous JAR"
   cp -f "$rollback_file" "$target.new"
   mv -f "$target.new" "$target"
-  systemctl restart "$SERVICE_NAME"
+  bash "$(cd "$(dirname "$0")" && pwd)/mc-restart.sh"
   if health_check; then
     notify ROLLBACK_OK "Previous MifronPlugin restored successfully"
     return 0
@@ -201,7 +203,7 @@ shopt -u nullglob
 install -m 0644 "$jar" "$target.new"
 mv -f "$target.new" "$target"
 installed_new=1
-systemctl restart "$SERVICE_NAME"
+bash "$(dirname "$0")/mc-restart.sh"
 health_check
 
 emit_event SUCCESS "$deploy_remote" || true

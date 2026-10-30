@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVER_DIR="${SERVER_DIR:-$HOME/main-server}"
-REPO_DIR="${REPO_DIR:-$HOME/MifronPlugin}"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mc-common.sh"
 SOURCE="$REPO_DIR/server-config"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 FEATURE_DIR="$REPO_DIR/server-features"
@@ -77,7 +76,7 @@ done < <(find "$SOURCE" -type f ! -name README.md -print0)
 
 if [ "$changed" -eq 1 ]; then
   echo "Configuration changed; restarting $SERVICE_NAME"
-  sudo systemctl restart "$SERVICE_NAME"
+  bash "$(cd "$(dirname "$0")" && pwd)/mc-restart.sh"
 else
   echo "Repository updated, but no managed server configuration changed."
 fi
