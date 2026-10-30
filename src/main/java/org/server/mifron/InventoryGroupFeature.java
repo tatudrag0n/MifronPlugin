@@ -33,8 +33,9 @@ public final class InventoryGroupFeature implements Listener {
    private final Map<UUID, InventoryGroupFeature.Group> activeGroupByPlayer = new ConcurrentHashMap<>();
    private final Map<UUID, InventoryGroupFeature.Group> pendingTargetByPlayer = new ConcurrentHashMap<>();
    private final Set<UUID> restoreBlocked = ConcurrentHashMap.newKeySet();
+   private final Map<UUID, Group> joinRestorePending = new ConcurrentHashMap<>();
 
-   private InventoryGroupFeature(JavaPlugin var1) {
+   InventoryGroupFeature(JavaPlugin var1) {
       this.plugin = var1;
       this.storageDir = var1.getDataFolder().toPath().resolve("inventory-groups");
    }
@@ -59,10 +60,12 @@ public final class InventoryGroupFeature implements Listener {
       if (feature == null) return;
       for (Player player : Bukkit.getOnlinePlayers()) {
          UUID uuid = player.getUniqueId();
+         if (!feature.finishJoinRestore(player)) continue;
          if (feature.restoreBlocked.contains(uuid)) continue;
          Group active = feature.activeGroupByPlayer.get(uuid);
          if (active != null && active != Group.FFA) feature.save(player, active);
       }
+      feature.joinRestorePending.clear();
       feature.pendingTargetByPlayer.clear();
       feature.activeGroupByPlayer.clear();
       feature.restoreBlocked.clear();
@@ -76,30 +79,32 @@ public final class InventoryGroupFeature implements Listener {
 
    private void restoreAfterJoin(Player player) {
       UUID uuid = player.getUniqueId();
-      this.restoreBlocked.add(uuid);
+      this.joinRestorePending.put(uuid, this.groupOf(player.getWorld()));
       Bukkit.getScheduler().runTask(this.plugin, () -> {
-         if (!player.isOnline()) return;
-         Group target = this.groupOf(player.getWorld());
-         if (target == Group.FFA) {
-            this.activeGroupByPlayer.put(uuid, target);
-            this.pendingTargetByPlayer.remove(uuid);
-            this.restoreBlocked.remove(uuid);
-            return;
-         }
+         if (player.isOnline()) this.finishJoinRestore(player);
+      });
+   }
+
+   private boolean finishJoinRestore(Player player) {
+      UUID uuid = player.getUniqueId();
+      if (this.restoreBlocked.contains(uuid)) return false;
+      Group target = this.joinRestorePending.remove(uuid);
+      if (target == null) return true;
+      if (target != Group.FFA) {
          if (this.hasSave(uuid, target) && !this.load(player, target)) {
             this.blockForRecovery(player);
-            return;
+            return false;
          }
          this.ensureInitialItems(player, target);
-         this.activeGroupByPlayer.put(uuid, target);
-         this.pendingTargetByPlayer.remove(uuid);
-         this.restoreBlocked.remove(uuid);
-      });
+      }
+      this.activeGroupByPlayer.put(uuid, target);
+      return true;
    }
 
    private void blockForRecovery(Player player) {
       UUID uuid = player.getUniqueId();
       this.restoreBlocked.add(uuid);
+      this.joinRestorePending.remove(uuid);
       this.pendingTargetByPlayer.remove(uuid);
       this.plugin.getLogger().severe("Inventory recovery required for " + player.getName() + ". Restore the appropriate inventory-groups backup before allowing the player to reconnect.");
       Bukkit.getScheduler().runTask(this.plugin, () -> {
@@ -111,6 +116,7 @@ public final class InventoryGroupFeature implements Listener {
    public void onWorldChange(PlayerChangedWorldEvent var1) {
       Player var2 = var1.getPlayer();
       UUID var3 = var2.getUniqueId();
+      if (!this.finishJoinRestore(var2)) return;
       if (this.restoreBlocked.contains(var3)) {
          this.blockForRecovery(var2);
          return;
@@ -134,8 +140,8 @@ public final class InventoryGroupFeature implements Listener {
          this.restoreBlocked.remove(var3);
          return;
       }
-      long var6 = var4 == InventoryGroupFeature.Group.FFA ? 1L : 0L;
-      Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.applyTargetGroup(var2, var3, var5), var6);
+      // Complete the switch before another world-change or quit can run.
+      this.applyTargetGroup(var2, var3, var5);
    }
 
    private void applyTargetGroup(Player var1, UUID var2, InventoryGroupFeature.Group var3) {
@@ -160,9 +166,11 @@ public final class InventoryGroupFeature implements Listener {
       Player player = event.getPlayer();
       UUID uuid = player.getUniqueId();
       try {
+         if (!this.finishJoinRestore(player)) return;
          Group active = this.activeGroupByPlayer.get(uuid);
          if (!this.restoreBlocked.contains(uuid) && active != null && active != Group.FFA) this.save(player, active);
       } finally {
+         this.joinRestorePending.remove(uuid);
          this.pendingTargetByPlayer.remove(uuid);
          this.activeGroupByPlayer.remove(uuid);
          this.restoreBlocked.remove(uuid);
@@ -189,7 +197,8 @@ public final class InventoryGroupFeature implements Listener {
    }
 
    private boolean save(Player var1, InventoryGroupFeature.Group var2) {
-      if (this.restoreBlocked.contains(var1.getUniqueId())) {
+      if (this.restoreBlocked.contains(var1.getUniqueId())
+         || this.joinRestorePending.containsKey(var1.getUniqueId())) {
          this.plugin.getLogger().warning("Skipped inventory save for " + var1.getName() + ": inventory recovery is blocked.");
          return false;
       }
@@ -241,6 +250,9 @@ public final class InventoryGroupFeature implements Listener {
             int var12 = var4.readInt();
             float var13 = var4.readFloat();
             if (!isSnapshotShapeValid(var6.length, var7.length, var1.getInventory().getSize())) throw new IOException("Invalid snapshot shape");
+            if (!isSnapshotValuesValid(var9, var10, var11, var12, var13)) {
+               throw new IOException("Invalid snapshot player state");
+            }
             this.clearPlayerState(var1);
             var1.getInventory().setContents(var6);
             var1.getInventory().setArmorContents(var7);
@@ -263,6 +275,13 @@ public final class InventoryGroupFeature implements Listener {
 
    static boolean isSnapshotShapeValid(int inventoryLength, int armorLength, int expectedInventoryLength) {
       return inventoryLength == expectedInventoryLength && armorLength == 4;
+   }
+
+   static boolean isSnapshotValuesValid(int slot, int level, float exp, int food, float saturation) {
+      return slot >= 0 && slot <= 8 && level >= 0
+         && Float.isFinite(exp) && exp >= 0.0F && exp < 1.0F
+         && food >= 0 && food <= 20
+         && Float.isFinite(saturation) && saturation >= 0.0F;
    }
 
    private void clearPlayerState(Player var1) {
