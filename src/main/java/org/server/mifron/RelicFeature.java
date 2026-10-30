@@ -57,7 +57,12 @@ public class RelicFeature implements Listener {
         this.plugin = plugin;
         this.keyRelic = new NamespacedKey(plugin, "relic_id");
         this.ghostIceData = Bukkit.createBlockData(Material.BLUE_ICE);
-        this.magnetTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickMagnet, 20L, 4L);
+    }
+
+    /** Starts the background magnet pull task (called after plugin enable). */
+    public void startMagnetTask() {
+        if (this.magnetTask != null) return;
+        this.magnetTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickMagnet, 20L, 4L);
     }
 
     /** Cancels background tasks owned by this feature. */
