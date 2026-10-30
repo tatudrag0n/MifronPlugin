@@ -392,6 +392,11 @@ final class MenuFanFeature implements Listener {
       for (UUID owner : List.copyOf(this.sessions.keySet())) this.close(owner);
    }
 
+   /** True while the owner has any standing fan session (menu, tabs, …). */
+   boolean hasSession(UUID owner) {
+      return this.sessions.containsKey(owner);
+   }
+
    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = false)
    public void onAttack(PrePlayerAttackEntityEvent event) {
       if (!(event.getAttacked() instanceof Interaction hit)) return;

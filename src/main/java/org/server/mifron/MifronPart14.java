@@ -162,6 +162,13 @@ abstract class MifronPart14 extends MifronPart13x1 {
             String goalId = this.getUiTargetString(clicked);
             if (goalId != null) this.mifron().starterGoalsFeature.claim(player, goalId);
          }
+         // Tab selection lives on the standing fan session as well: the
+         // status tab fan poses its entries with the same status_tab_* ids.
+         case "status_tab_progress" -> this.mifron().openStatusUi(player, "progress:0");
+         case "status_tab_reincarnation" -> this.mifron().openStatusUi(player, "reincarnation");
+         case "status_tab_titles" -> this.mifron().openStatusUi(player, "titles:0");
+         case "status_tab_kills" -> this.mifron().openStatusUi(player, "kills:0");
+         case "status_tab_collection" -> this.mifron().openStatusUi(player, "collection");
          default -> {}
       }
    }

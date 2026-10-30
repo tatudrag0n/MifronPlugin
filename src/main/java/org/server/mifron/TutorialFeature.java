@@ -316,7 +316,7 @@ public final class TutorialFeature implements Listener {
       if (stage == 4) {
          org.bukkit.inventory.ItemStack scratch =
             this.plugin.relicFeature.createRelicItem(
-               org.server.mifron.RelicFeature.RelicType.SCRATCH);
+               org.server.mifron.RelicFeature.RelicType.DASHFOOT);
          if (scratch != null) {
             for (ItemStack leftover : player.getInventory().addItem(scratch).values()) {
                player.getWorld().dropItemNaturally(player.getLocation(), leftover);

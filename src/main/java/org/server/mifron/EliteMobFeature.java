@@ -132,9 +132,9 @@ public class EliteMobFeature implements Listener {
         }
         if (roll("god-apple", 0.01)) loc.getWorld().dropItemNaturally(loc, new ItemStack(Material.ENCHANTED_GOLDEN_APPLE));
         if (roll("netherite-scrap", 0.005)) loc.getWorld().dropItemNaturally(loc, new ItemStack(Material.NETHERITE_SCRAP));
-        if (roll("scratch", 0.02)) {
-            ItemStack scratch = plugin.relicFeature.createRelicItem(RelicFeature.RelicType.SCRATCH);
-            if (scratch != null) loc.getWorld().dropItemNaturally(loc, scratch);
+        if (roll("dashfoot", 0.02)) {
+            ItemStack dashfoot = plugin.relicFeature.createRelicItem(RelicFeature.RelicType.DASHFOOT);
+            if (dashfoot != null) loc.getWorld().dropItemNaturally(loc, dashfoot);
         }
     }
 

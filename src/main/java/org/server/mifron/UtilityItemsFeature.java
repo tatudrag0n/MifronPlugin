@@ -483,6 +483,13 @@ final class UtilityItemsFeature implements Listener {
 
       boolean clicked = event.getAction().isRightClick() || event.getAction().isLeftClick();
       if ("menu".equals(id) && clicked) {
+         // While a fan menu session is live, the swing IS the fan selection
+         // (entry clicks are attacks on the fan's interaction hitboxes).
+         // Opening the menu from the same left click would yank the player
+         // out of the fan mid-navigation, so stand down here.
+         if (event.getAction().isLeftClick() && this.plugin.menuFanFeature.hasSession(player.getUniqueId())) {
+            return;
+         }
          // Right-clicking a shelf shop transacts with the menu item as the
          // wallet (like the old emerald_bundle). Leave the event untouched so
          // the dedicated shop listeners (higher priority) run their trade.
