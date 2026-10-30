@@ -3,6 +3,7 @@ package org.server.mifron;
 import static org.junit.jupiter.api.Assertions.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -41,7 +42,7 @@ class InventoryGroupTransitionTest {
    void tearDown() { MockBukkit.unmock(); }
 
    private void join() {
-      feature.onJoin(new PlayerJoinEvent(player, ""));
+      feature.onJoin(new PlayerJoinEvent(player, Component.empty()));
    }
 
    private Path snapshot(String group) {
@@ -91,7 +92,7 @@ class InventoryGroupTransitionTest {
       player.getInventory().setItem(0, new ItemStack(Material.DIAMOND, 3));
       player.teleport(survival.getSpawnLocation());
       player.getInventory().setItem(0, new ItemStack(Material.IRON_INGOT, 5));
-      feature.onQuit(new PlayerQuitEvent(player, ""));
+      feature.onQuit(new PlayerQuitEvent(player, Component.empty(), PlayerQuitEvent.QuitReason.DISCONNECTED));
       player.getInventory().clear();
       join();
       server.getScheduler().performOneTick();
@@ -107,7 +108,7 @@ class InventoryGroupTransitionTest {
       Files.write(file, broken);
       join();
       server.getScheduler().performOneTick();
-      feature.onQuit(new PlayerQuitEvent(player, ""));
+      feature.onQuit(new PlayerQuitEvent(player, Component.empty(), PlayerQuitEvent.QuitReason.DISCONNECTED));
       assertArrayEquals(broken, Files.readAllBytes(file));
    }
 
