@@ -77,7 +77,7 @@ done < <(find "$SOURCE" -type f ! -name README.md -print0)
 
 if [ "$changed" -eq 1 ]; then
   echo "Configuration changed; restarting $SERVICE_NAME"
-  sudo systemctl restart "$SERVICE_NAME"
+  bash "$(cd "$(dirname "$0")" && pwd)/mc-restart.sh"
 else
   echo "Repository updated, but no managed server configuration changed."
 fi
