@@ -7,6 +7,9 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Fireball;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -14,6 +17,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -36,17 +40,20 @@ public class RelicFeature implements Listener {
     private final NamespacedKey keyRelic;
     private final Random random = new Random();
     private final Map<UUID, BukkitTask> visionTasks = new HashMap<>();
+    private final BlockData ghostIceData;
+    private final Map<UUID, GhostPatch> ghostIcePatches = new HashMap<>();
 
     public RelicFeature(Mifron plugin) {
         this.plugin = plugin;
         this.keyRelic = new NamespacedKey(plugin, "relic_id");
+        this.ghostIceData = Bukkit.createBlockData(Material.PACKED_ICE);
     }
 
     public enum RelicType {
         HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
         SCRATCH("scratch", "§e§lスクラッチ", Material.PAPER, 0.01, "§7右クリックで運試し！MPを獲得できる。"),
         JETPACK("jetpack", "§b§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に空を飛ぶ。後退(S)キーでふわっと着地。"),
-        ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7陸上を氷の上のように滑る。スニークでブレーキ。"),
+        ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7足元が氷ブロックのように滑る。スニークでブレーキ。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(使い捨て)"),
         FIREBALL("fireball", "§c§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(使い捨て)"),
         DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
@@ -324,8 +331,10 @@ public class RelicFeature implements Listener {
     public void onMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
         ItemStack boots = player.getInventory().getBoots();
-        if (boots != null && isRelicItem(boots) && "skates".equals(getRelicId(boots))) {
-            this.updateSkating(player, event);
+        if (boots != null && isRelicItem(boots) && "skates".equals(getRelicId(boots)) && !player.isSneaking()) {
+            this.refreshGhostIce(player);
+        } else {
+            this.clearGhostIce(player.getUniqueId());
         }
         ItemStack inUse = player.getItemInUse();
         if (inUse != null && isRelicItem(inUse) && "vision".equals(getRelicId(inUse))) {
@@ -347,68 +356,63 @@ public class RelicFeature implements Listener {
     }
 
     // ------------------------------------------------------------------
-    // Roller skates: emulate real ice-riding physics instead of a raw
-    // speed boost. Movement the client reports per tick is taken as the
-    // current momentum, ice friction keeps it, and small steering thrust
-    // curves the glide — so long slides and wide turns feel like ice.
+    // Roller skates: paint a client-side 3×3 packed-ice "ghost" patch under
+    // the player's feet (sendBlockChange only — the world itself is never
+    // touched), so vanilla ice friction and momentum happen for real while
+    // wearing them. Sneaking lifts the patch so the player stands on the
+    // real block again: vanilla friction brakes them instead.
     // ------------------------------------------------------------------
 
-    /** Fraction of horizontal momentum kept per tick (vanilla ice is 0.98). */
-    static final double SKATE_FRICTION = 0.982;
-    /** Strong momentum bleed used as a brake while sneaking. */
-    static final double SKATE_SNEAK_FRICTION = 0.70;
-    /** Per-tick thrust while sprinting on skates (blocks/tick). */
-    static final double SKATE_SPRINT_ACCEL = 0.05;
-    /** Per-tick steering/thrust below sprint (blocks/tick). */
-    static final double SKATE_WALK_ACCEL = 0.02;
-    /** Top glide speed (blocks/tick, ~12 blocks/s). */
-    static final double SKATE_MAX_SPEED = 0.62;
-    /** Below this speed the ice friction alone has already stopped the player. */
-    static final double SKATE_STOP_SPEED = 0.01;
+    /** One painted ghost patch, remembered so it can be un-painted later. */
+    private record GhostPatch(org.bukkit.World world, int x, int y, int z) { }
 
-    /** One ice-model step for the given momentum and wish direction. */
-    static org.bukkit.util.Vector iceStep(org.bukkit.util.Vector current, org.bukkit.util.Vector wish, boolean sprinting, boolean sneaking) {
-        double hx = current.getX() * (sneaking ? SKATE_SNEAK_FRICTION : SKATE_FRICTION);
-        double hz = current.getZ() * (sneaking ? SKATE_SNEAK_FRICTION : SKATE_FRICTION);
-        if (wish != null && wish.lengthSquared() > 1.0E-9) {
-            double accel = sprinting ? SKATE_SPRINT_ACCEL : SKATE_WALK_ACCEL;
-            org.bukkit.util.Vector dir = wish.clone().normalize();
-            hx += dir.getX() * accel;
-            hz += dir.getZ() * accel;
+    private void refreshGhostIce(Player player) {
+        UUID uuid = player.getUniqueId();
+        Block below = player.getLocation().getBlock().getRelative(BlockFace.DOWN);
+        if (below.getType().isAir()) {
+            // Mid-air: no ground to frost, and nobody can slide on nothing.
+            this.clearGhostIce(uuid);
+            return;
         }
-        double speed = Math.sqrt(hx * hx + hz * hz);
-        if (speed > SKATE_MAX_SPEED) {
-            double scale = SKATE_MAX_SPEED / speed;
-            hx *= scale;
-            hz *= scale;
+        GhostPatch want = new GhostPatch(below.getWorld(), below.getX(), below.getY(), below.getZ());
+        GhostPatch painted = ghostIcePatches.get(uuid);
+        if (want.equals(painted)) return;
+        this.clearGhostIce(uuid); // melt the previous patch before painting the next one
+        ghostIcePatches.put(uuid, want);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                player.sendBlockChange(below.getWorld().getBlockAt(want.x() + dx, want.y(), want.z() + dz).getLocation(), ghostIceData);
+            }
         }
-        if (speed < SKATE_STOP_SPEED) {
-            hx = 0.0;
-            hz = 0.0;
-        }
-        return new org.bukkit.util.Vector(hx, 0.0, hz);
+        player.getWorld().spawnParticle(org.bukkit.Particle.SNOWFLAKE,
+            player.getLocation().add(0.0, 0.9, 0.0), 3, 0.4, 0.05, 0.4, 0.01);
     }
 
-    private void updateSkating(Player player, PlayerMoveEvent event) {
-        if (!player.isOnGround()) return;
-        // Actual displacement since the last event is the true momentum —
-        // player.getVelocity() only mirrors the last server-set/knockback
-        // velocity, not what the client produced this tick.
-        double dx = event.getTo().getX() - event.getFrom().getX();
-        double dz = event.getTo().getZ() - event.getFrom().getZ();
-        org.bukkit.util.Vector momentum = new org.bukkit.util.Vector(dx, 0.0, dz);
-        boolean moving = momentum.lengthSquared() > 1.0E-6;
-        if (!moving && !player.isSprinting()) return;
-        org.bukkit.util.Vector facing = player.getLocation().getDirection();
-        facing.setY(0.0);
-        if (facing.lengthSquared() <= 1.0E-9) facing = null;
-        org.bukkit.util.Vector slid = iceStep(momentum, facing, player.isSprinting(), player.isSneaking());
-        double speed = Math.sqrt(slid.getX() * slid.getX() + slid.getZ() * slid.getZ());
-        if (speed <= 0.02) return;
-        player.setVelocity(new org.bukkit.util.Vector(slid.getX(), player.getVelocity().getY(), slid.getZ()));
-        int count = Math.max(1, Math.min(6, (int) Math.round(speed * 8)));
-        player.getWorld().spawnParticle(org.bukkit.Particle.SNOWFLAKE,
-            player.getLocation().add(0.0, 0.1, 0.0), count, 0.25, 0.05, 0.25, 0.01);
+    /**
+     * Un-paints the player's patch by re-sending the real block data. Other
+     * players never saw the ghost ice, and a relog or world switch re-syncs
+     * the client's chunks anyway, so only the online same-world owner needs
+     * the restore.
+     */
+    private void clearGhostIce(UUID uuid) {
+        GhostPatch patch = ghostIcePatches.remove(uuid);
+        if (patch == null) return;
+        Player player = Bukkit.getPlayer(uuid);
+        if (player == null || !player.isOnline()) return;
+        if (!player.getWorld().equals(patch.world())) return;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                Block block = patch.world().getBlockAt(patch.x() + dx, patch.y(), patch.z() + dz);
+                player.sendBlockChange(block.getLocation(), block.getBlockData());
+            }
+        }
+    }
+
+    /** Melts every patch — used from the plugin's own shutdown. */
+    public void clearAllGhostIce() {
+        for (UUID uuid : List.copyOf(this.ghostIcePatches.keySet())) {
+            this.clearGhostIce(uuid);
+        }
     }
 
     private void applyPassiveRelics(Player player) {
@@ -473,8 +477,15 @@ public class RelicFeature implements Listener {
     }
 
     @EventHandler
-    public void onVisionQuit(PlayerQuitEvent event) {
-        this.stopScopedVision(event.getPlayer().getUniqueId());
+    public void onQuit(PlayerQuitEvent event) {
+        UUID uuid = event.getPlayer().getUniqueId();
+        this.stopScopedVision(uuid);
+        this.clearGhostIce(uuid);
+    }
+
+    @EventHandler
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        this.clearGhostIce(event.getPlayer().getUniqueId());
     }
 
     @EventHandler
