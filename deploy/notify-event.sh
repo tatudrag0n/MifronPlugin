@@ -86,6 +86,7 @@ fi
 
 mkdir -p "$STATE_DIR"
 cat "$event_json_file" >> "$EVENT_FILE"
+echo >> "$EVENT_FILE"
 
 if [ "$skip_webhook" -ne 1 ]; then
   msg="$(python3 - "$event_json_file" <<'PY'

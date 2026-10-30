@@ -62,7 +62,11 @@ dry_gap() {
 # 1. branch starts exactly at origin/main
 dry_gap git fetch origin main --quiet
 dry_gap git fetch origin "$BRANCH" --quiet 2>/dev/null || true
-dry_gap git checkout -B "$BRANCH" origin/main >/dev/null
+if git rev-parse --verify "origin/$BRANCH" >/dev/null 2>&1; then
+  dry_gap git checkout -B "$BRANCH" "origin/$BRANCH" >/dev/null
+else
+  dry_gap git checkout -B "$BRANCH" origin/main >/dev/null
+fi
 
 mkdir -p "$UPDATES_DIR"
 if [ ! -s "$PAGE_FILE" ]; then
@@ -125,7 +129,12 @@ if ! git push origin "HEAD:$target_ref" --force 2>/tmp/publish-push-error; then
   cat /tmp/publish-push-error >&2 || true
   echo "branch push failed (remote moved?); refresh and retry once"
   git fetch origin main --quiet
-  git checkout -B "$BRANCH" origin/main >/dev/null
+  git fetch origin "$BRANCH" --quiet 2>/dev/null || true
+  if git rev-parse --verify "origin/$BRANCH" >/dev/null 2>&1; then
+    git checkout -B "$BRANCH" "origin/$BRANCH" >/dev/null
+  else
+    git checkout -B "$BRANCH" origin/main >/dev/null
+  fi
   git push origin "HEAD:$target_ref" --force
 fi
 
