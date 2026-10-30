@@ -1025,14 +1025,17 @@ public class RelicFeature implements Listener {
     }
 
     /** Gentle climb: only ever nudges upward speed to the hover cap. */
-    static final double JETPACK_CLIMB_SPEED = 0.80;
+    static final double JETPACK_CLIMB_SPEED = 1.00;
     /** Speed added per move tick while holding Space (grows to the cap). */
-    static final double JETPACK_CLIMB_ACCEL = 0.40;
+    static final double JETPACK_CLIMB_ACCEL = 0.50;
+    /** Minimum upward speed guaranteed while holding Space (overcomes gravity). */
+    static final double JETPACK_CLIMB_FLOOR = 0.50;
 
     /** Caps vertical speed to a gentle climb; existing rises are untouched. */
     static double climbY(double currentY) {
         if (currentY >= JETPACK_CLIMB_SPEED) return currentY;
-        return Math.min(currentY + JETPACK_CLIMB_ACCEL, JETPACK_CLIMB_SPEED);
+        // Never let fall speed cancel the thrust: floor the result upward.
+        return Math.min(Math.max(currentY + JETPACK_CLIMB_ACCEL, JETPACK_CLIMB_FLOOR), JETPACK_CLIMB_SPEED);
     }
 
     /**
@@ -1056,7 +1059,7 @@ public class RelicFeature implements Listener {
         if (!onGround && vel.getY() >= JETPACK_CLIMB_SPEED) return;
         player.getInventory().removeItem(new ItemStack(Material.BLAZE_POWDER, 1));
         lastJetpackBoost.put(player.getUniqueId(), now);
-        double targetY = onGround ? 1.2 : climbY(vel.getY());
+        double targetY = onGround ? 1.5 : climbY(vel.getY());
         player.setVelocity(new Vector(vel.getX(), targetY, vel.getZ()));
         player.setFallDistance(0.0f);
         player.getWorld().spawnParticle(org.bukkit.Particle.FLAME, player.getLocation().add(0.0, 0.5, 0.0), 10, 0.3, 0.2, 0.3, 0.04);

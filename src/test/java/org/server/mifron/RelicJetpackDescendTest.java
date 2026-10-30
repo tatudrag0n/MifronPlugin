@@ -30,8 +30,8 @@ class RelicJetpackDescendTest {
       assertEquals(RelicFeature.JETPACK_CLIMB_SPEED, RelicFeature.climbY(RelicFeature.JETPACK_CLIMB_SPEED), 1.0E-9);
       assertEquals(1.0, RelicFeature.climbY(1.0), 1.0E-9, "an existing fast rise is untouched");
       assertEquals(RelicFeature.JETPACK_CLIMB_ACCEL, RelicFeature.climbY(0.0), 1.0E-9);
-      assertEquals(-RelicFeature.JETPACK_CLIMB_SPEED + RelicFeature.JETPACK_CLIMB_ACCEL,
-         RelicFeature.climbY(-RelicFeature.JETPACK_CLIMB_SPEED), 1.0E-9, "falling gets the same gentle nudge");
+      assertEquals(RelicFeature.JETPACK_CLIMB_FLOOR,
+         RelicFeature.climbY(-RelicFeature.JETPACK_CLIMB_SPEED), 1.0E-9, "falling gets lifted to the floor");
       double y = -1.5;
       for (int i = 0; i < 100; i++) {
          y = RelicFeature.climbY(y); // hold-space under gravity grows to the cap
