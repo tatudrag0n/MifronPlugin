@@ -30,4 +30,13 @@ class MinoruBridgeFeatureTest {
    void acceptsLegacyRecordWithoutUuid() {
       assertTrue(MinoruBridgeFeature.transactionMatches("", false, 25, PLAYER, false, 25));
    }
+
+   @Test
+   void quarantinesOnlyStaleUnresolvedPending() {
+      long now = 100_000L;
+      assertTrue(MinoruBridgeFeature.shouldQuarantinePending(1L, now, false, false));
+      assertFalse(MinoruBridgeFeature.shouldQuarantinePending(now - 1_000L, now, false, false));
+      assertFalse(MinoruBridgeFeature.shouldQuarantinePending(1L, now, true, false));
+      assertFalse(MinoruBridgeFeature.shouldQuarantinePending(1L, now, false, true));
+   }
 }
