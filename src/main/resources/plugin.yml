@@ -1,5 +1,5 @@
 name: mifron
-version: 26.1.2-powerup2-20261030
+version: 26.1.2-grindchain-20261030
 
 main: org.server.mifron.Mifron
 api-version: '1.21'

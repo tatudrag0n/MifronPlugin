@@ -12,21 +12,27 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.GrindstoneInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.entity.Fireball;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Fireball;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.inventory.PrepareGrindstoneEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -48,6 +54,7 @@ import java.util.UUID;
 public class RelicFeature implements Listener {
     private final Mifron plugin;
     private final NamespacedKey keyRelic;
+    private final NamespacedKey relicGrindstoneKey;
     private final Random random = new Random();
     private final Map<UUID, BukkitTask> visionTasks = new HashMap<>();
     private final BlockData ghostIceData;
@@ -56,6 +63,7 @@ public class RelicFeature implements Listener {
     public RelicFeature(Mifron plugin) {
         this.plugin = plugin;
         this.keyRelic = new NamespacedKey(plugin, "relic_id");
+        this.relicGrindstoneKey = new NamespacedKey(plugin, "relic_grindstone");
         this.ghostIceData = Bukkit.createBlockData(Material.BLUE_ICE);
     }
 
@@ -230,6 +238,8 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, java.util.Set<java.util.UUID>> dragFollowers = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> reflectCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> magnetCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, ItemStack> lastGrindInput = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Set<org.bukkit.Location> relicGrindstoneLocations = new java.util.HashSet<>();
     private org.bukkit.scheduler.BukkitTask dragTask;
     private org.bukkit.scheduler.BukkitTask magnetTask;
 
@@ -267,9 +277,6 @@ public class RelicFeature implements Listener {
         if ("enchbook".equals(id) && rightClick) {
             event.setCancelled(true);
             this.openEnchantUi(player);
-        } else if ("enchgrind".equals(id) && rightClick) {
-            event.setCancelled(true);
-            this.tryGrind(player);
         } else if ("resonance".equals(id) && rightClick) {
             event.setCancelled(true);
             this.tryResonanceBeam(player);
@@ -515,25 +522,54 @@ public class RelicFeature implements Listener {
     // a book each, restoring plain gear and an economy of stored pops.
     // ------------------------------------------------------------------
 
-    private void tryGrind(Player player) {
-        ItemStack held = player.getInventory().getItemInMainHand();
-        if (held == null || held.getType().isAir()) {
-            player.sendMessage(ChatColor.RED + "錬りたいアイテムをメインハンドに持ってね。");
+    // ------------------------------------------------------------------
+    // Relic grindstone block: placed from the relic item, it returns the
+    // ground item's enchantments as books whenever it is used to disenchant.
+    // ------------------------------------------------------------------
+
+    @EventHandler
+    public void onPlaceRelicGrindstone(BlockPlaceEvent event) {
+        ItemStack item = event.getItemInHand();
+        if (!isRelicItem(item) || !"enchgrind".equals(getRelicId(item))) return;
+        if (event.getBlockPlaced().getType() != Material.GRINDSTONE) return;
+        relicGrindstoneLocations.add(event.getBlockPlaced().getLocation());
+        event.getPlayer().sendMessage(ChatColor.GREEN + "錬金の砥石を設置した。エンチャントを剥がすと本に戻る。");
+    }
+
+    @EventHandler
+    public void onBreakRelicGrindstone(BlockBreakEvent event) {
+        Block block = event.getBlock();
+        if (block.getType() != Material.GRINDSTONE) return;
+        if (!relicGrindstoneLocations.remove(block.getLocation())) return;
+        event.setDropItems(false);
+        RelicType type = null;
+        for (RelicType candidate : RelicType.values()) {
+            if (candidate.id.equals("enchgrind")) { type = candidate; break; }
+        }
+        if (type != null) {
+            block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), createRelicItem(type));
+        }
+    }
+
+    @EventHandler
+    public void onPrepareRelicGrindstone(PrepareGrindstoneEvent event) {
+        org.bukkit.Location loc = event.getInventory().getLocation();
+        if (loc == null) return;
+        Block block = loc.getBlock();
+        if (block.getType() != Material.GRINDSTONE) return;
+        if (!relicGrindstoneLocations.contains(block.getLocation())) return;
+        GrindstoneInventory inv = event.getInventory();
+        ItemStack input = inv.getItem(0);
+        if (input == null || input.getType().isAir() || input.getEnchantments().isEmpty()) {
+            if (!inv.getViewers().isEmpty()) lastGrindInput.remove(inv.getViewers().get(0).getUniqueId());
             return;
         }
-        if (isRelicItem(held)) {
-            player.sendMessage(ChatColor.RED + "レリックは錬れない。");
-            return;
-        }
-        Map<Enchantment, Integer> enchants = held.getEnchantments();
-        if (enchants.isEmpty()) {
-            player.sendMessage(ChatColor.YELLOW + "このアイテムには返還できるエンチャントがない。");
-            return;
-        }
-        ItemStack ground = held.clone();
-        ground.setAmount(1);
-        int stripped = 0;
-        for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
+        org.bukkit.entity.HumanEntity viewer = inv.getViewers().isEmpty() ? null : inv.getViewers().get(0);
+        if (viewer == null) return;
+        UUID viewerId = viewer.getUniqueId();
+        ItemStack last = lastGrindInput.get(viewerId);
+        if (last != null && last.isSimilar(input) && last.getEnchantments().equals(input.getEnchantments())) return;
+        for (Map.Entry<Enchantment, Integer> entry : input.getEnchantments().entrySet()) {
             ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
             ItemMeta bookMeta = book.getItemMeta();
             if (bookMeta instanceof EnchantmentStorageMeta storage) {
@@ -542,23 +578,17 @@ public class RelicFeature implements Listener {
             } else {
                 book.addUnsafeEnchantment(entry.getKey(), entry.getValue());
             }
-            for (ItemStack leftover : player.getInventory().addItem(book).values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+            if (viewer instanceof Player player) {
+                for (ItemStack leftover : player.getInventory().addItem(book).values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+                }
             }
-            ground.removeEnchantment(entry.getKey());
-            stripped++;
         }
-        for (ItemStack leftover : player.getInventory().addItem(ground).values()) {
-            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+        lastGrindInput.put(viewerId, input.clone());
+        if (viewer instanceof Player player) {
+            player.sendMessage(ChatColor.GREEN + "錬金の砥石がエンチャントを本に戻した！");
+            player.playSound(player.getLocation(), Sound.BLOCK_GRINDSTONE_USE, 1.0f, 1.0f);
         }
-        if (held.getAmount() > 1) {
-            held.setAmount(held.getAmount() - 1);
-            player.getInventory().setItemInMainHand(held);
-        } else {
-            player.getInventory().setItemInMainHand(null);
-        }
-        player.playSound(player.getLocation(), Sound.BLOCK_GRINDSTONE_USE, 1.0f, 1.0f);
-        player.sendMessage(ChatColor.GREEN + "エンチャントを本にして返還した！(×" + stripped + ")");
     }
 
     @EventHandler
@@ -567,6 +597,7 @@ public class RelicFeature implements Listener {
         ItemStack item = player.getInventory().getItemInMainHand();
         if (!isRelicItem(item)) item = player.getInventory().getItemInOffHand();
         if (!isRelicItem(item) || !"hookshot".equals(getRelicId(item))) return;
+
 
         PlayerFishEvent.State state = event.getState();
         if (state != PlayerFishEvent.State.IN_GROUND
@@ -585,16 +616,20 @@ public class RelicFeature implements Listener {
         player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, player.getLocation(), 12, 0.2, 0.2, 0.2, 0.1);
     }
 
-    @EventHandler
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGH, ignoreCancelled = false)
     public void onChainDamage(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player player)) return;
         ItemStack item = player.getInventory().getItemInMainHand();
-        if (!isRelicItem(item) || !"chain".equals(getRelicId(item))) return;
+        if (!isRelicItem(item) || !"chain".equals(getRelicId(item))) {
+            item = player.getInventory().getItemInOffHand();
+            if (!isRelicItem(item) || !"chain".equals(getRelicId(item))) return;
+        }
         if (!(event.getEntity() instanceof org.bukkit.entity.LivingEntity target)) return;
         event.setCancelled(true);
         java.util.Set<java.util.UUID> followers = dragFollowers.get(player.getUniqueId());
         boolean dragHeld = followers != null && followers.contains(target.getUniqueId());
-        if (target.getLeashHolder() == player || dragHeld) {
+        boolean leashed = target.getLeashHolder() == player;
+        if (leashed || dragHeld) {
             target.setLeashHolder(null);
             if (dragHeld && followers != null) {
                 followers.remove(target.getUniqueId());
@@ -604,14 +639,11 @@ public class RelicFeature implements Listener {
         } else if (target.setLeashHolder(player)) {
             player.sendMessage(ChatColor.GRAY + "鎖で拘束した。引っ張って移動できる。");
         } else {
-            // Leash-not-supporting entities (bosses, armor stands, …): bind
-            // them as drag followers instead — they are teleported back to
-            // the player's side whenever they stray too far.
             dragFollowers.computeIfAbsent(player.getUniqueId(), k -> new java.util.HashSet<>()).add(target.getUniqueId());
             this.startDragTask();
             player.sendMessage(ChatColor.GRAY + "鎖で無理やり拘束した。引っ張って移動できる。");
         }
-        player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, target.getLocation().add(0, target.getHeight() / 2.0, 0), 8, 0.2, 0.2, 0.2, 0.1);
+        player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, target.getLocation().add(0, target.getHeight() / 2.0, 0), 12, 0.25, 0.25, 0.25, 0.1);
         player.getWorld().playSound(target.getLocation(), Sound.BLOCK_CHAIN_PLACE, 1.0f, 1.0f);
     }
 
@@ -639,8 +671,8 @@ public class RelicFeature implements Listener {
                     if (distance > 12.0) {
                         follower.teleport(owner.getLocation().add(owner.getLocation().getDirection().multiply(0.6)));
                     } else {
-                        org.bukkit.util.Vector pull = owner.getLocation().toVector().subtract(follower.getLocation().toVector()).normalize().multiply(0.32);
-                        follower.setVelocity(new org.bukkit.util.Vector(pull.getX(), Math.max(0.0, pull.getY() + 0.1), pull.getZ()));
+                        org.bukkit.util.Vector pull = owner.getLocation().toVector().subtract(follower.getLocation().toVector()).normalize().multiply(0.55);
+                        follower.setVelocity(new org.bukkit.util.Vector(pull.getX(), Math.max(0.15, pull.getY() + 0.15), pull.getZ()));
                     }
                 }
                 if (entry.getValue().isEmpty()) dragFollowers.remove(entry.getKey());
