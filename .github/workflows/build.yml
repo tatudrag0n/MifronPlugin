@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -36,11 +36,32 @@ jobs:
         shell: bash
         run: bash -n deploy/install-auto-deploy.sh
 
-      - name: Build
-        run: mvn -B clean package
+      - name: Resolve project dependencies
+        timeout-minutes: 8
+        run: mvn -B -U -ntp dependency:resolve
+
+      - name: Compile and run tests
+        timeout-minutes: 8
+        run: mvn -B -ntp clean test
+
+      - name: Package verified code
+        run: mvn -B -ntp -DskipTests package
 
       - name: Verify build output
         shell: bash
         run: |
           set -euo pipefail
-          find target -maxdepth 1 -type f -name '*.jar' ! -name 'original-*.jar' -print -quit | grep -q .
+          find target -maxdepth 1 \
+            -type f \
+            -name '*.jar' \
+            ! -name 'original-*.jar' \
+            -print -quit | grep -q .
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 7

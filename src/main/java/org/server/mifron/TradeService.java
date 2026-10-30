@@ -257,14 +257,34 @@ public final class TradeService {
       this.plugin.queueDataSave();
    }
 
-   static boolean canSettleExchange(int balanceA, int balanceB, int payA, int payB) {
-      if (balanceA < 0 || balanceB < 0 || payA < 0 || payB < 0) return false;
-      if (payA > balanceA || payB > balanceB) return false;
+   static boolean canSettleExchange(
+      int balanceA,
+      int balanceB,
+      int payA,
+      int payB
+   ) {
+      int maxBalance = EconomyManager.MAX_EMERALDS;
+
+      if (balanceA < 0 || balanceA > maxBalance
+         || balanceB < 0 || balanceB > maxBalance) {
+         return false;
+      }
+
+      if (payA < 0 || payB < 0) {
+         return false;
+      }
+
+      if (payA > balanceA || payB > balanceB) {
+         return false;
+      }
+
       long afterA = (long) balanceA - payA + payB;
       long afterB = (long) balanceB - payB + payA;
-      return afterA >= 0L && afterB >= 0L
-         && afterA <= EconomyManager.MAX_EMERALDS
-         && afterB <= EconomyManager.MAX_EMERALDS;
+
+      return afterA >= 0L
+         && afterA <= maxBalance
+         && afterB >= 0L
+         && afterB <= maxBalance;
    }
 
    static boolean canAcceptRequest(UUID requester, UUID receiver, UUID actor) {
