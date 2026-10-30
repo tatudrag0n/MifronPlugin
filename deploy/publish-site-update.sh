@@ -16,7 +16,8 @@
 # ( --force-main bypasses the branch workflow when a ruleset allows it )
 set -euo pipefail
 
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mc-common.sh"
+DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$DEPLOY_DIR/mc-common.sh"
 
 event_file=""
 dry_run=0
@@ -60,11 +61,12 @@ dry_gap() {
 
 # 1. branch starts exactly at origin/main
 dry_gap git fetch origin main --quiet
+dry_gap git fetch origin "$BRANCH" --quiet 2>/dev/null || true
 dry_gap git checkout -B "$BRANCH" origin/main >/dev/null
 
 mkdir -p "$UPDATES_DIR"
 if [ ! -s "$PAGE_FILE" ]; then
-  bash "$(dirname "${BASH_SOURCE[0]}")/install-updates-page-layout.sh" "$SITE_REPO_DIR" >/dev/null
+  bash "$DEPLOY_DIR/install-updates-page-layout.sh" "$SITE_REPO_DIR" >/dev/null
 fi
 if [ ! -s "$JSON_FILE" ]; then
   printf '[]\n' > "$JSON_FILE"
@@ -119,12 +121,12 @@ target_ref="refs/heads/$BRANCH"
 if [ "$force_main" -eq 1 ]; then
   target_ref="refs/heads/main"
 fi
-if ! git push origin "HEAD:$target_ref" --force-with-lease 2>/tmp/publish-push-error; then
+if ! git push origin "HEAD:$target_ref" --force 2>/tmp/publish-push-error; then
   cat /tmp/publish-push-error >&2 || true
   echo "branch push failed (remote moved?); refresh and retry once"
   git fetch origin main --quiet
   git checkout -B "$BRANCH" origin/main >/dev/null
-  git push origin "HEAD:$target_ref" --force-with-lease
+  git push origin "HEAD:$target_ref" --force
 fi
 
 # 2. optional PR automation when a token is available
