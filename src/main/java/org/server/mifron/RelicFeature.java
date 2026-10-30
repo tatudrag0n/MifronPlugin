@@ -747,32 +747,41 @@ public class RelicFeature implements Listener {
         player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, player.getLocation(), 12, 0.2, 0.2, 0.2, 0.1);
     }
 
-    @EventHandler(priority = org.bukkit.event.EventPriority.HIGH, ignoreCancelled = false)
+    @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST, ignoreCancelled = false)
     public void onChainDamage(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player player)) return;
-        ItemStack item = player.getInventory().getItemInMainHand();
-        if (!isRelicItem(item) || !"chain".equals(getRelicId(item))) {
-            item = player.getInventory().getItemInOffHand();
-            if (!isRelicItem(item) || !"chain".equals(getRelicId(item))) return;
-        }
+        if (!this.holdsRelic(player, "chain")) return;
         if (!(event.getEntity() instanceof org.bukkit.entity.LivingEntity target)) return;
         event.setCancelled(true);
-        java.util.Set<java.util.UUID> followers = dragFollowers.get(player.getUniqueId());
-        boolean dragHeld = followers != null && followers.contains(target.getUniqueId());
-        boolean leashed = target.getLeashHolder() == player;
-        if (leashed || dragHeld) {
-            target.setLeashHolder(null);
-            if (dragHeld && followers != null) {
-                followers.remove(target.getUniqueId());
-                if (followers.isEmpty()) { this.stopDragTask(); }
-            }
+        this.toggleChain(player, target);
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST, ignoreCancelled = false)
+    public void onChainInteract(org.bukkit.event.player.PlayerInteractEntityEvent event) {
+        Player player = event.getPlayer();
+        if (!this.holdsRelic(player, "chain")) return;
+        if (!(event.getRightClicked() instanceof org.bukkit.entity.LivingEntity target)) return;
+        event.setCancelled(true);
+        this.toggleChain(player, target);
+    }
+
+    /** Binds or releases a mob; tracked for the drag-follow task either way. */
+    private void toggleChain(Player player, org.bukkit.entity.LivingEntity target) {
+        UUID pid = player.getUniqueId();
+        java.util.Set<UUID> followers = dragFollowers.computeIfAbsent(pid, k -> new java.util.HashSet<>());
+        boolean held = followers.contains(target.getUniqueId()) || target.getLeashHolder() == player;
+        if (held) {
+            followers.remove(target.getUniqueId());
+            if (target.getLeashHolder() == player) target.setLeashHolder(null);
+            if (followers.isEmpty()) { dragFollowers.remove(pid); this.stopDragTask(); }
             player.sendMessage(ChatColor.GRAY + "鎖を解いた。");
-        } else if (target.setLeashHolder(player)) {
-            player.sendMessage(ChatColor.GRAY + "鎖で拘束した。引っ張って移動できる。");
         } else {
-            dragFollowers.computeIfAbsent(player.getUniqueId(), k -> new java.util.HashSet<>()).add(target.getUniqueId());
+            boolean leashed = target.setLeashHolder(player);
+            // Track it regardless: the drag task guarantees the mob actually
+            // follows even when the vanilla leash refuses or gets ignored.
+            followers.add(target.getUniqueId());
             this.startDragTask();
-            player.sendMessage(ChatColor.GRAY + "鎖で無理やり拘束した。引っ張って移動できる。");
+            player.sendMessage(ChatColor.GRAY + (leashed ? "鎖で拘束した。" : "鎖で拘束した(追尾)。") + "引っ張って移動できる。");
         }
         player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, target.getLocation().add(0, target.getHeight() / 2.0, 0), 12, 0.25, 0.25, 0.25, 0.1);
         player.getWorld().playSound(target.getLocation(), Sound.BLOCK_CHAIN_PLACE, 1.0f, 1.0f);
@@ -798,18 +807,18 @@ public class RelicFeature implements Listener {
                         continue;
                     }
                     double distance = follower.getLocation().distance(owner.getLocation());
-                    if (distance < 3.0) continue;
-                    if (distance > 12.0) {
-                        follower.teleport(owner.getLocation().add(owner.getLocation().getDirection().multiply(0.6)));
+                    if (distance < 2.5) continue;
+                    if (distance > 8.0) {
+                        follower.teleport(owner.getLocation().add(owner.getLocation().getDirection().multiply(2.0)));
                     } else {
-                        org.bukkit.util.Vector pull = owner.getLocation().toVector().subtract(follower.getLocation().toVector()).normalize().multiply(0.55);
-                        follower.setVelocity(new org.bukkit.util.Vector(pull.getX(), Math.max(0.15, pull.getY() + 0.15), pull.getZ()));
+                        org.bukkit.util.Vector pull = owner.getLocation().toVector().subtract(follower.getLocation().toVector()).normalize().multiply(0.7);
+                        follower.setVelocity(new org.bukkit.util.Vector(pull.getX(), Math.max(0.2, pull.getY() + 0.2), pull.getZ()));
                     }
                 }
                 if (entry.getValue().isEmpty()) dragFollowers.remove(entry.getKey());
             }
             if (dragFollowers.isEmpty()) this.stopDragTask();
-        }, 10L, 10L);
+        }, 5L, 5L);
     }
 
     private void stopDragTask() {
@@ -1212,17 +1221,22 @@ public class RelicFeature implements Listener {
         return Math.min(Math.max(currentY + JETPACK_CLIMB_ACCEL, JETPACK_CLIMB_FLOOR), JETPACK_CLIMB_SPEED);
     }
 
+    /** Forward speed cap while the jetpack pushes (blocks/tick). */
+    static final double JETPACK_FORWARD_SPEED = 0.85;
+    /** Forward acceleration per tick (blocks/tick). */
+    static final double JETPACK_FORWARD_ACCEL = 0.14;
+    /** Fuel burn cadence while thrusting (ms). Thrust runs every tick. */
+    static final long JETPACK_FUEL_MILLIS = 1000L;
+
     /**
-     * Hold-Space thrust: instead of discrete jolt bursts the jetpack burns
-     * fuel steadily and climbs slowly at the cap while the key is held.
+     * Hold-Space thrust: applied every tick so gravity never has a gap to
+     * pull the player back down (the old 800ms throttle made it bounce).
+     * Fuel is only burned once per second.
      */
     private void tryHoverJetpack(Player player) {
         ItemStack chest = player.getInventory().getChestplate();
         if (chest == null || !isRelicItem(chest) || !"jetpack".equals(getRelicId(chest))) return;
         if (!jetpackActive.contains(player.getUniqueId())) return;
-        long now = System.currentTimeMillis();
-        Long last = lastJetpackBoost.get(player.getUniqueId());
-        if (last != null && now - last < 800L) return;
         if (!player.getInventory().contains(Material.BLAZE_POWDER)) {
             player.sendMessage(ChatColor.RED + "ジェットパックの燃料(ブレイズパウダー)がありません！");
             jetpackActive.remove(player.getUniqueId());
@@ -1230,22 +1244,31 @@ public class RelicFeature implements Listener {
         }
         Vector vel = player.getVelocity();
         boolean onGround = player.isOnGround();
-        if (!onGround && vel.getY() >= JETPACK_CLIMB_SPEED) return;
-        player.getInventory().removeItem(new ItemStack(Material.BLAZE_POWDER, 1));
-        lastJetpackBoost.put(player.getUniqueId(), now);
-        double targetY = onGround ? 1.5 : climbY(vel.getY());
-        // Forward thrust: push along the look direction horizontally.
-        Vector facing = player.getLocation().getDirection();
-        facing.setY(0.0);
-        if (facing.lengthSquared() > 1.0E-9) {
-            facing.normalize().multiply(0.7);
-            vel.setX(vel.getX() + facing.getX());
-            vel.setZ(vel.getZ() + facing.getZ());
+        // Vertical: smooth sustained climb every tick.
+        double targetY = onGround ? 0.9 : climbY(vel.getY());
+        // Forward: accelerate along the look direction up to the cap.
+        Vector wish = player.getLocation().getDirection();
+        wish.setY(0.0);
+        if (wish.lengthSquared() > 1.0E-9) {
+            wish.normalize();
+            double along = vel.getX() * wish.getX() + vel.getZ() * wish.getZ();
+            if (along < JETPACK_FORWARD_SPEED) {
+                double add = Math.min(JETPACK_FORWARD_ACCEL, JETPACK_FORWARD_SPEED - along);
+                vel.setX(vel.getX() + wish.getX() * add);
+                vel.setZ(vel.getZ() + wish.getZ() * add);
+            }
         }
         player.setVelocity(new Vector(vel.getX(), targetY, vel.getZ()));
         player.setFallDistance(0.0f);
-        player.getWorld().spawnParticle(org.bukkit.Particle.FLAME, player.getLocation().add(0.0, 0.5, 0.0), 16, 0.3, 0.2, 0.3, 0.05);
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.9f, 1.0f);
+        // Fuel + effects throttled to once a second while thrusting.
+        long now = System.currentTimeMillis();
+        Long last = lastJetpackBoost.get(player.getUniqueId());
+        if (last == null || now - last >= JETPACK_FUEL_MILLIS) {
+            player.getInventory().removeItem(new ItemStack(Material.BLAZE_POWDER, 1));
+            lastJetpackBoost.put(player.getUniqueId(), now);
+            player.getWorld().spawnParticle(org.bukkit.Particle.FLAME, player.getLocation().add(0.0, 0.5, 0.0), 10, 0.3, 0.2, 0.3, 0.04);
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.6f, 1.0f);
+        }
     }
 
     @EventHandler

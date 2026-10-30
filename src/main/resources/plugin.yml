@@ -1,5 +1,5 @@
 name: mifron
-version: 26.1.2-morerelics-20261030
+version: 26.1.2-jetchain-20261030
 
 main: org.server.mifron.Mifron
 api-version: '1.21'
