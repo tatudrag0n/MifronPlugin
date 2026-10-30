@@ -96,13 +96,19 @@ lines+=("version: ${built_version:-unknown} / tests: ${test_summary:-0} passed")
 lines+=("jar sha256: ${jar_sha:0:16}… → staging directory")
 lines+=("反映は deploy/promote-jar.sh --confirm で実行します")
 
-bash "$(dirname "${BASH_SOURCE[0]}")/notify-event.sh" \
-  --type build \
-  --title "新ビルド検出: $(git rev-parse --short origin/main) をstagingに保存中" \
-  --commit "$(git rev-parse --short origin/main)" \
-  --version "$built_version" \
-  --source build-check \
-  ${lines[@]+"${lines[@]}"} \
-  --site --skip-webhook >/dev/null 2>&1 || true
+notify_args=(
+  --type build
+  --title "新ビルド検出: $(git rev-parse --short origin/main) をstagingに保存中"
+  --commit "$(git rev-parse --short origin/main)"
+  --version "$built_version"
+  --source build-check
+  --site --skip-webhook
+)
+if [ ${#lines[@]} -gt 0 ]; then
+  for note in "${lines[@]}"; do
+    notify_args+=(--body "$note")
+  done
+fi
+bash "$(dirname "${BASH_SOURCE[0]}")/notify-event.sh" "${notify_args[@]}" >/dev/null 2>&1 || true
 
 log "staged $JAR_NAME (version=${built_version:-unknown}, sha=${jar_sha:0:12})"
