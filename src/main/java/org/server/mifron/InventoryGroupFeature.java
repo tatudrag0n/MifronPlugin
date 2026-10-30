@@ -43,35 +43,30 @@ public final class InventoryGroupFeature implements Listener {
       if (instance == null) {
          InventoryGroupFeature var1 = new InventoryGroupFeature(var0);
          instance = var1;
-
          try {
             Files.createDirectories(var1.storageDir);
          } catch (IOException var4) {
             var0.getLogger().severe("Failed to create inventory group storage: " + var4.getMessage());
          }
-
          var0.getServer().getPluginManager().registerEvents(var1, var0);
-
-         for (Player var3 : Bukkit.getOnlinePlayers()) {
-            var1.restoreAfterJoin(var3);
-         }
-
+         for (Player var3 : Bukkit.getOnlinePlayers()) var1.restoreAfterJoin(var3);
          var0.getLogger().info("Inventory groups enabled: survival / normal.");
       }
    }
 
-   public static void shutdown(JavaPlugin var0) {
-      InventoryGroupFeature var1 = instance;
-      if (var1 != null) {
-         for (Player var3 : Bukkit.getOnlinePlayers()) {
-            InventoryGroupFeature.Group var4 = var1.groupOf(var3.getWorld());
-            if (var4 != InventoryGroupFeature.Group.FFA) {
-               var1.save(var3, var4);
-            }
-         }
-
-         instance = null;
+   public static void shutdown(JavaPlugin plugin) {
+      InventoryGroupFeature feature = instance;
+      if (feature == null) return;
+      for (Player player : Bukkit.getOnlinePlayers()) {
+         UUID uuid = player.getUniqueId();
+         if (feature.restoreBlocked.contains(uuid)) continue;
+         Group active = feature.activeGroupByPlayer.get(uuid);
+         if (active != null && active != Group.FFA) feature.save(player, active);
       }
+      feature.pendingTargetByPlayer.clear();
+      feature.activeGroupByPlayer.clear();
+      feature.restoreBlocked.clear();
+      instance = null;
    }
 
    @EventHandler(priority = EventPriority.MONITOR)
@@ -79,28 +74,36 @@ public final class InventoryGroupFeature implements Listener {
       this.restoreAfterJoin(var1.getPlayer());
    }
 
-   private void restoreAfterJoin(Player var1) {
+   private void restoreAfterJoin(Player player) {
+      UUID uuid = player.getUniqueId();
+      this.restoreBlocked.add(uuid);
       Bukkit.getScheduler().runTask(this.plugin, () -> {
-         if (var1.isOnline()) {
-            InventoryGroupFeature.Group var2 = this.groupOf(var1.getWorld());
-            if (var2 != InventoryGroupFeature.Group.FFA) {
-               // Joining is not a group transition. If we have a Mifron snapshot, restore it;
-               // otherwise preserve Bukkit's already-restored inventory. Clearing here can destroy
-               // a legitimate survival inventory when a player reconnects inside the Nether/End.
-               if (this.hasSave(var1.getUniqueId(), var2)) {
-                  if (!this.load(var1, var2)) {
-                     this.plugin.getLogger().warning("Inventory restore failed for " + var1.getName()
-                        + " in " + var2.name().toLowerCase(Locale.ROOT)
-                        + ". Keep existing inventory and restore a valid .dat backup if needed.");
-                  }
-               }
-
-               this.ensureInitialItems(var1, var2);
-               this.activeGroupByPlayer.put(var1.getUniqueId(), var2);
-               this.pendingTargetByPlayer.remove(var1.getUniqueId());
-               this.restoreBlocked.remove(var1.getUniqueId());
-            }
+         if (!player.isOnline()) return;
+         Group target = this.groupOf(player.getWorld());
+         if (target == Group.FFA) {
+            this.activeGroupByPlayer.put(uuid, target);
+            this.pendingTargetByPlayer.remove(uuid);
+            this.restoreBlocked.remove(uuid);
+            return;
          }
+         if (this.hasSave(uuid, target) && !this.load(player, target)) {
+            this.blockForRecovery(player);
+            return;
+         }
+         this.ensureInitialItems(player, target);
+         this.activeGroupByPlayer.put(uuid, target);
+         this.pendingTargetByPlayer.remove(uuid);
+         this.restoreBlocked.remove(uuid);
+      });
+   }
+
+   private void blockForRecovery(Player player) {
+      UUID uuid = player.getUniqueId();
+      this.restoreBlocked.add(uuid);
+      this.pendingTargetByPlayer.remove(uuid);
+      this.plugin.getLogger().severe("Inventory recovery required for " + player.getName() + ". Restore the appropriate inventory-groups backup before allowing the player to reconnect.");
+      Bukkit.getScheduler().runTask(this.plugin, () -> {
+         if (player.isOnline()) player.kickPlayer("インベントリの保存・復元に失敗しました。管理者によるデータ確認後に再接続してください。");
       });
    }
 
@@ -108,6 +111,10 @@ public final class InventoryGroupFeature implements Listener {
    public void onWorldChange(PlayerChangedWorldEvent var1) {
       Player var2 = var1.getPlayer();
       UUID var3 = var2.getUniqueId();
+      if (this.restoreBlocked.contains(var3)) {
+         this.blockForRecovery(var2);
+         return;
+      }
       InventoryGroupFeature.Group var4 = this.activeGroupByPlayer.getOrDefault(var3, this.groupOf(var1.getFrom()));
       InventoryGroupFeature.Group var5 = this.groupOf(var2.getWorld());
       this.pendingTargetByPlayer.put(var3, var5);
@@ -118,9 +125,7 @@ public final class InventoryGroupFeature implements Listener {
          return;
       }
       if (var4 != InventoryGroupFeature.Group.FFA && !this.save(var2, var4)) {
-         this.pendingTargetByPlayer.put(var3, var4);
-         this.restoreBlocked.add(var3);
-         var2.sendMessage("§cインベントリ保存に失敗したため、切替を中断しました。再接続後に再試行してください。");
+         this.blockForRecovery(var2);
          return;
       }
       if (var5 == InventoryGroupFeature.Group.FFA) {
@@ -134,22 +139,14 @@ public final class InventoryGroupFeature implements Listener {
    }
 
    private void applyTargetGroup(Player var1, UUID var2, InventoryGroupFeature.Group var3) {
-      if (!var1.isOnline() || this.pendingTargetByPlayer.get(var2) != var3 || this.groupOf(var1.getWorld()) != var3) {
-         return;
-      }
+      if (this.restoreBlocked.contains(var2)) return;
+      if (!var1.isOnline() || this.pendingTargetByPlayer.get(var2) != var3 || this.groupOf(var1.getWorld()) != var3) return;
       if (this.hasSave(var2, var3)) {
          if (!this.load(var1, var3)) {
-            this.clearPlayerState(var1);
-            this.restoreBlocked.add(var2);
-            this.plugin.getLogger().severe("Failed to restore inventory group for " + var1.getName()
-               + " (" + var3.name().toLowerCase(Locale.ROOT) + "). Inventory was cleared to prevent cross-group carry.");
-            this.plugin.getLogger().severe("Recovery: restore " + this.file(var2, var3).getFileName() + " from backup, then have the player rejoin.");
-            var1.sendMessage("§c対象ワールドのインベントリ復元に失敗しました。管理者に連絡してください。");
+            this.blockForRecovery(var1);
             return;
          }
       } else {
-         // This is a real cross-group transition (for example hub -> survival),
-         // so an empty target inventory is intentional when no snapshot exists.
          this.clearPlayerState(var1);
       }
       this.ensureInitialItems(var1, var3);
@@ -159,43 +156,27 @@ public final class InventoryGroupFeature implements Listener {
    }
 
    @EventHandler(priority = EventPriority.MONITOR)
-   public void onQuit(PlayerQuitEvent var1) {
-      Player var2 = var1.getPlayer();
-      UUID var3 = var2.getUniqueId();
-      InventoryGroupFeature.Group var4 = this.activeGroupByPlayer.getOrDefault(var3, this.groupOf(var2.getWorld()));
-      if (!this.restoreBlocked.remove(var3) && var4 != InventoryGroupFeature.Group.FFA) {
-         this.save(var2, var4);
+   public void onQuit(PlayerQuitEvent event) {
+      Player player = event.getPlayer();
+      UUID uuid = player.getUniqueId();
+      try {
+         Group active = this.activeGroupByPlayer.get(uuid);
+         if (!this.restoreBlocked.contains(uuid) && active != null && active != Group.FFA) this.save(player, active);
+      } finally {
+         this.pendingTargetByPlayer.remove(uuid);
+         this.activeGroupByPlayer.remove(uuid);
+         this.restoreBlocked.remove(uuid);
       }
-      this.pendingTargetByPlayer.remove(var3);
-      this.activeGroupByPlayer.remove(var3);
    }
 
    private void ensureInitialItems(Player player, InventoryGroupFeature.Group group) {
-      if (group != InventoryGroupFeature.Group.FFA && this.plugin instanceof Mifron mifron) {
-         mifron.giveInitialItemsAfterInventoryRestore(player);
-      }
+      if (group != InventoryGroupFeature.Group.FFA && this.plugin instanceof Mifron mifron) mifron.giveInitialItemsAfterInventoryRestore(player);
    }
 
    private InventoryGroupFeature.Group groupOf(World world) {
-      if (world == null) {
-         return InventoryGroupFeature.Group.NORMAL;
-      }
-
+      if (world == null) return InventoryGroupFeature.Group.NORMAL;
       String name = world.getName().toLowerCase(Locale.ROOT);
-      // Prefer explicit survival names, but do not depend on Multiverse/Paper's exact
-      // dimension naming convention. A survival Nether may be named survival_nether,
-      // world_nether, or something else entirely. In this server, Nether and End are
-      // survival dimensions and therefore share the same inventory domain.
-      if (name.equals("survival")
-         || name.startsWith("survival_")
-         || name.startsWith("survival-")
-         || name.equals("survivalnether")
-         || name.equals("survivalend")
-         || world.getEnvironment() == World.Environment.NETHER
-         || world.getEnvironment() == World.Environment.THE_END) {
-         return InventoryGroupFeature.Group.SURVIVAL;
-      }
-
+      if (name.equals("survival") || name.startsWith("survival_") || name.startsWith("survival-") || name.equals("survivalnether") || name.equals("survivalend") || world.getEnvironment() == World.Environment.NETHER || world.getEnvironment() == World.Environment.THE_END) return InventoryGroupFeature.Group.SURVIVAL;
       return InventoryGroupFeature.Group.NORMAL;
    }
 
@@ -208,13 +189,15 @@ public final class InventoryGroupFeature implements Listener {
    }
 
    private boolean save(Player var1, InventoryGroupFeature.Group var2) {
+      if (this.restoreBlocked.contains(var1.getUniqueId())) {
+         this.plugin.getLogger().warning("Skipped inventory save for " + var1.getName() + ": inventory recovery is blocked.");
+         return false;
+      }
       if (var2 != InventoryGroupFeature.Group.FFA) {
          Path var3 = this.file(var1.getUniqueId(), var2);
          Path var4 = var3.resolveSibling(var3.getFileName() + ".tmp");
-
          try {
             Files.createDirectories(this.storageDir);
-
             try (DataOutputStream var5 = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(var4)))) {
                var5.writeInt(1);
                writeItems(var5, var1.getInventory().getContents());
@@ -226,7 +209,6 @@ public final class InventoryGroupFeature implements Listener {
                var5.writeInt(var1.getFoodLevel());
                var5.writeFloat(var1.getSaturation());
             }
-
             try {
                Files.move(var4, var3, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } catch (IOException var10) {
@@ -234,7 +216,6 @@ public final class InventoryGroupFeature implements Listener {
             }
          } catch (IOException var12) {
             this.plugin.getLogger().severe("Failed to save inventory group for " + var1.getName() + ": " + var12.getMessage());
-
             try {
                Files.deleteIfExists(var4);
             } catch (IOException var8) {
@@ -250,10 +231,7 @@ public final class InventoryGroupFeature implements Listener {
       if (Files.isRegularFile(var3)) {
          try (DataInputStream var4 = new DataInputStream(new BufferedInputStream(Files.newInputStream(var3)))) {
             int var5 = var4.readInt();
-            if (var5 != 1) {
-               throw new IOException("Unsupported inventory data version: " + var5);
-            }
-
+            if (var5 != 1) throw new IOException("Unsupported inventory data version: " + var5);
             ItemStack[] var6 = readItems(var4);
             ItemStack[] var7 = readItems(var4);
             ItemStack var8 = readItem(var4);
@@ -262,9 +240,7 @@ public final class InventoryGroupFeature implements Listener {
             float var11 = var4.readFloat();
             int var12 = var4.readInt();
             float var13 = var4.readFloat();
-            if (!isSnapshotShapeValid(var6.length, var7.length, var1.getInventory().getSize())) {
-               throw new IOException("Invalid snapshot shape");
-            }
+            if (!isSnapshotShapeValid(var6.length, var7.length, var1.getInventory().getSize())) throw new IOException("Invalid snapshot shape");
             this.clearPlayerState(var1);
             var1.getInventory().setContents(var6);
             var1.getInventory().setArmorContents(var7);
@@ -303,26 +279,17 @@ public final class InventoryGroupFeature implements Listener {
 
    private static void writeItems(DataOutputStream var0, ItemStack[] var1) throws IOException {
       var0.writeInt(var1 == null ? 0 : var1.length);
-      if (var1 != null) {
-         for (ItemStack var5 : var1) {
-            writeItem(var0, var5);
-         }
-      }
+      if (var1 != null) for (ItemStack var5 : var1) writeItem(var0, var5);
    }
 
    private static ItemStack[] readItems(DataInputStream var0) throws IOException {
       int var1 = var0.readInt();
       if (var1 >= 0 && var1 <= 1000) {
          ItemStack[] var2 = new ItemStack[var1];
-
-         for (int var3 = 0; var3 < var1; var3++) {
-            var2[var3] = readItem(var0);
-         }
-
+         for (int var3 = 0; var3 < var1; var3++) var2[var3] = readItem(var0);
          return var2;
-      } else {
-         throw new IOException("Invalid inventory length: " + var1);
       }
+      throw new IOException("Invalid inventory length: " + var1);
    }
 
    private static void writeItem(DataOutputStream var0, ItemStack var1) throws IOException {
@@ -337,18 +304,11 @@ public final class InventoryGroupFeature implements Listener {
 
    private static ItemStack readItem(DataInputStream var0) throws IOException {
       int var1 = var0.readInt();
-      if (var1 < 0) {
-         return null;
-      } else if (var1 > 16777216) {
-         throw new IOException("Item data is too large");
-      } else {
-         byte[] var2 = var0.readNBytes(var1);
-         if (var2.length != var1) {
-            throw new EOFException("Truncated item data");
-         } else {
-            return ItemStack.deserializeBytes(var2);
-         }
-      }
+      if (var1 < 0) return null;
+      if (var1 > 16777216) throw new IOException("Item data is too large");
+      byte[] var2 = var0.readNBytes(var1);
+      if (var2.length != var1) throw new EOFException("Truncated item data");
+      return ItemStack.deserializeBytes(var2);
    }
 
    private enum Group {

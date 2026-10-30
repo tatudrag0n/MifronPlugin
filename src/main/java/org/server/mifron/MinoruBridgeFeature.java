@@ -62,10 +62,7 @@ final class MinoruBridgeFeature {
          this.plugin.getLogger().info("Minoru bridge API is disabled by config.");
          return;
       }
-      this.secret = firstNonBlank(
-         this.plugin.getConfig().getString("minoru-bridge.secret"),
-         this.plugin.getConfig().getString("serverSecret")
-      );
+      this.secret = firstNonBlank(this.plugin.getConfig().getString("minoru-bridge.secret"), this.plugin.getConfig().getString("serverSecret"));
       this.analyticsEndpoint = this.plugin.getConfig().getString("analytics.endpoint", "http://127.0.0.1:8124/v1/analytics/events");
       this.analyticsSecret = firstNonBlank(this.plugin.getConfig().getString("analytics.secret"));
       synchronized (this.state) {
@@ -106,7 +103,6 @@ final class MinoruBridgeFeature {
       }
    }
 
-
    void sendEconomyAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, int amount, int balanceAfter, String reason) {
       if (player == null) return;
       this.sendEconomyAnalyticsEvent(player.getUniqueId(), player.getWorld().getName(), eventName, sessionId, dedupeKey, amount, balanceAfter, reason);
@@ -121,8 +117,7 @@ final class MinoruBridgeFeature {
       int safeBalance = Math.max(0, balanceAfter);
       String safeReason = reason == null ? "unclassified" : reason.replaceAll("[^A-Za-z0-9_.:-]", "_");
       safeReason = safeReason.substring(0, Math.min(48, safeReason.length()));
-      this.sendAnalyticsEvent(uuid, world, eventName, sessionId, dedupeKey,
-         ",\"amount\":" + safeAmount + ",\"balanceAfter\":" + safeBalance + ",\"reason\":\"" + escape(safeReason) + "\"");
+      this.sendAnalyticsEvent(uuid, world, eventName, sessionId, dedupeKey, ",\"amount\":" + safeAmount + ",\"balanceAfter\":" + safeBalance + ",\"reason\":\"" + escape(safeReason) + "\"");
    }
 
    private void sendAnalyticsEvent(Player player, String eventName, String sessionId, String dedupeKey, String extraMetadata) {
@@ -169,9 +164,7 @@ final class MinoruBridgeFeature {
       if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) { send(exchange, 405, jsonError("method_not_allowed")); return; }
       Map<String, String> body = parseJson(readBody(exchange));
       String code = body.getOrDefault("code", "");
-      // The optional bridge endpoint accepts a code already bound to the
-      // Minecraft UUID and name. The public flow is MifronAuth's kick screen;
-      // Minoru's default legacy integration does not use this endpoint.
+      // The optional bridge endpoint accepts a code already bound to the Minecraft UUID and name.
       String username = body.getOrDefault("username", "");
       if (!code.matches("\\d{6}")) { send(exchange, 400, jsonError("invalid_code")); return; }
       LinkCode link = this.linkCodes.get(code);
@@ -227,34 +220,24 @@ final class MinoruBridgeFeature {
             boolean replay;
             String transactionError = null;
             synchronized (this.state) {
-               if (this.state.contains("transactions." + key + ".balance")) {
+               if (this.state.contains("transactions." + key)) {
                   int balance = this.state.getInt("transactions." + key + ".balance");
                   int applied = this.state.getInt("transactions." + key + ".applied");
                   int before = this.state.getInt("transactions." + key + ".before", Math.max(0, balance - applied));
                   int storedRequested = this.state.getInt("transactions." + key + ".requested", requested);
                   boolean storedSetMode = this.state.getBoolean("transactions." + key + ".setMode", setMode);
                   String storedUuid = this.state.getString("transactions." + key + ".uuid", "");
-                  if (!transactionMatches(storedUuid, storedSetMode, storedRequested, uuid, setMode, requested)) {
+                  String existingError = existingTransactionError(this.state.getConfigurationSection("transactions." + key), uuid, setMode, requested);
+                  if (existingError != null) {
                      result = null;
                      replay = false;
-                     transactionError = "transaction_id_reused";
-                  } else if (this.state.getBoolean("transactions." + key + ".pending", false)) {
-                     result = null;
-                     replay = false;
-                     transactionError = this.state.getBoolean("transactions." + key + ".uncertain", false)
-                        ? "transaction_state_uncertain"
-                        : "transaction_still_processing";
+                     transactionError = existingError;
                   } else {
                      result = new Result(balance, applied, before, storedRequested, storedSetMode);
                      replay = true;
                   }
                } else {
-                  // Keep the idempotency check, MP mutation, and durable record
-                  // under one lock. Without this, two concurrent retries with
-                  // the same transactionId could both change the balance.
-                  // If onMain times out the queued task may still apply the MP
-                  // change later, so record a pending marker first to keep the
-                  // transaction idempotent across a client retry.
+                  // Persist the pending marker before scheduling the MP mutation.
                   this.state.set("transactions." + key + ".uuid", uuid.toString());
                   this.state.set("transactions." + key + ".requested", requested);
                   this.state.set("transactions." + key + ".setMode", setMode);
@@ -268,8 +251,8 @@ final class MinoruBridgeFeature {
                      this.state.set("transactions." + key, null);
                      throw persistFailure;
                   }
-                   java.util.concurrent.Future<Result> applyFuture = null;
-                   try {
+                  java.util.concurrent.Future<Result> applyFuture = null;
+                  try {
                      if (Bukkit.isPrimaryThread()) {
                         result = applyMp(uuid, requested, setMode);
                      } else {
@@ -277,13 +260,7 @@ final class MinoruBridgeFeature {
                         result = applyFuture.get(5, TimeUnit.SECONDS);
                      }
                   } catch (Exception timeout) {
-                     // The main-thread task is still queued and may apply the
-                     // MP change AFTER this timeout. Clearing `pending` here
-                     // would let a retry double-apply, while keeping it
-                     // forever would wedge the transaction. Reconcile instead:
-                     // wait for the task's real outcome off the HTTP thread,
-                     // then write the idempotency record (retry replays it) or
-                     // release the marker (retry starts over) exactly once.
+                     // A timed-out task may still run. Never release its transaction ID.
                      reconcileTimedOutTransaction(key, uuid, requested, setMode, applyFuture);
                      throw timeout;
                   }
@@ -300,8 +277,6 @@ final class MinoruBridgeFeature {
                   try {
                      this.saveState();
                   } catch (IOException error) {
-                     // The MP mutation already happened. Keep this transaction
-                     // blocked for retries until state persistence is repaired.
                      this.state.set("transactions." + key + ".pending", true);
                      this.state.set("transactions." + key + ".uncertain", true);
                      this.state.set("transactions." + key + ".failed-at", System.currentTimeMillis());
@@ -321,6 +296,16 @@ final class MinoruBridgeFeature {
          this.plugin.getLogger().warning("Minoru bridge request failed: " + error.getMessage());
          send(exchange, 500, jsonError("internal_error"));
       }
+   }
+
+   static String existingTransactionError(org.bukkit.configuration.ConfigurationSection record, UUID uuid, boolean setMode, int requested) {
+      if (record == null || !record.isInt("requested") || !record.isBoolean("setMode")) return "transaction_state_uncertain";
+      String storedUuid = record.getString("uuid", "");
+      if (!transactionMatches(storedUuid, record.getBoolean("setMode"), record.getInt("requested"), uuid, setMode, requested)) return "transaction_id_reused";
+      if (record.getBoolean("uncertain", false)) return "transaction_state_uncertain";
+      if (record.getBoolean("pending", false)) return "transaction_still_processing";
+      if (!record.isInt("balance") || !record.isInt("applied")) return "transaction_state_uncertain";
+      return null;
    }
 
    private Result applyMp(UUID uuid, int value, boolean setMode) {
@@ -362,20 +347,13 @@ final class MinoruBridgeFeature {
    }
 
    private void trimTransactions() {
-      org.bukkit.configuration.ConfigurationSection section = this.state.getConfigurationSection("transactions");
-      if (section == null || section.getKeys(false).size() <= MAX_TRANSACTIONS) return;
-      List<String> keys = new ArrayList<>(section.getKeys(false));
-      keys.sort(Comparator.comparingLong(k -> section.getLong(k + ".at", 0L)));
-      for (int i = 0; i < keys.size() - MAX_TRANSACTIONS; i++) this.state.set("transactions." + keys.get(i), null);
+      // Retain idempotency records until a replay-retention policy is defined.
    }
 
    private void saveState() throws IOException {
-      java.io.File tempFile = null;
       java.io.File parent = this.stateFile.getParentFile();
-      if (parent != null && !parent.exists() && !parent.mkdirs()) {
-         throw new IOException("Could not create bridge state directory");
-      }
-      tempFile = new java.io.File(parent == null ? new java.io.File(".") : parent, this.stateFile.getName() + ".tmp");
+      if (parent != null && !parent.exists() && !parent.mkdirs()) throw new IOException("Could not create bridge state directory");
+      java.io.File tempFile = new java.io.File(parent == null ? new java.io.File(".") : parent, this.stateFile.getName() + ".tmp");
       try {
          this.state.save(tempFile);
          try {
@@ -384,41 +362,31 @@ final class MinoruBridgeFeature {
             Files.move(tempFile.toPath(), this.stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
          }
       } catch (IOException error) {
-         if (tempFile.exists() && !tempFile.delete()) {
-            this.plugin.getLogger().warning("Failed to remove temporary Minoru bridge state file.");
-         }
+         if (tempFile.exists() && !tempFile.delete()) this.plugin.getLogger().warning("Failed to remove temporary Minoru bridge state file.");
          throw error;
       }
    }
 
    private void recoverPendingTransactions() {
-      org.bukkit.configuration.ConfigurationSection section = this.state.getConfigurationSection("transactions");
-      if (section == null) return;
+      org.bukkit.configuration.ConfigurationSection transactions = this.state.getConfigurationSection("transactions");
+      if (transactions == null) return;
       boolean changed = false;
       long now = System.currentTimeMillis();
-      for (String key : section.getKeys(false)) {
+      for (String key : transactions.getKeys(false)) {
          String base = "transactions." + key;
-         if (!this.state.getBoolean(base + ".pending", false)) continue;
-         if (this.state.contains(base + ".balance") && this.state.contains(base + ".applied")) {
-            this.state.set(base + ".pending", null);
-            this.state.set(base + ".uncertain", null);
-            changed = true;
-            continue;
-         }
-         long at = this.state.getLong(base + ".at", 0L);
-         if (shouldQuarantinePending(at, now, this.state.contains(base + ".balance"), this.state.contains(base + ".applied"))) {
-            this.state.set(base + ".uncertain", true);
-            this.state.set(base + ".failed-at", now);
-            changed = true;
-         }
+         if (!this.state.getBoolean(base + ".pending", false) && !this.state.getBoolean(base + ".uncertain", false)) continue;
+         this.state.set(base + ".pending", true);
+         this.state.set(base + ".uncertain", true);
+         this.state.set(base + ".failed-at", now);
+         changed = true;
       }
-      if (changed) {
-         try {
-            this.saveState();
-         } catch (IOException error) {
-            this.plugin.getLogger().warning("Failed to persist pending transaction recovery: " + error.getMessage());
-         }
+      if (!changed) return;
+      try {
+         this.saveState();
+      } catch (IOException error) {
+         this.plugin.getLogger().severe("Failed to persist transaction quarantine: " + error.getMessage());
       }
+      this.plugin.getLogger().warning("Unfinished bridge transactions were quarantined. Reconcile them against MP data and external records; do not retry them with new transaction IDs.");
    }
 
    private static String readBody(HttpExchange exchange) throws IOException {
@@ -441,9 +409,7 @@ final class MinoruBridgeFeature {
       return !hasBalance && !hasApplied && at > 0L && now - at >= PENDING_RECONCILE_TIMEOUT_MILLIS;
    }
    static boolean transactionMatches(String storedUuid, boolean storedSetMode, int storedRequested, UUID requestedUuid, boolean requestedSetMode, int requested) {
-      return (storedUuid == null || storedUuid.isBlank() || storedUuid.equals(requestedUuid.toString()))
-         && storedSetMode == requestedSetMode
-         && storedRequested == requested;
+      return (storedUuid == null || storedUuid.isBlank() || storedUuid.equals(requestedUuid.toString())) && storedSetMode == requestedSetMode && storedRequested == requested;
    }
    private static String response(int balance, int applied, boolean duplicate) { return "{\"ok\":true,\"balance\":" + balance + ",\"applied\":" + applied + ",\"duplicate\":" + duplicate + "}"; }
    private static String jsonError(String code) { return "{\"ok\":false,\"error\":\"" + escape(code) + "\"}"; }
@@ -466,21 +432,13 @@ final class MinoruBridgeFeature {
    private record LinkCode(UUID uuid, String name, long expiresAt) {}
    private record Result(int balance, int applied, int before, int requested, boolean setMode) {}
 
-   /**
-    * Reconciles a main-thread MP task that outlived the 5s HTTP wait. Runs
-    * off the HTTP thread: if the task eventually applies, its outcome is
-    * recorded so a client retry replays instead of double-paying; if the task
-    * outcome remains unknown, the transaction stays blocked for manual recovery.
-    */
-   private void reconcileTimedOutTransaction(String key, UUID uuid, int requested, boolean setMode,
-      java.util.concurrent.Future<Result> applyFuture) {
+   /** Reconcile late results without releasing an unresolved transaction ID. */
+   private void reconcileTimedOutTransaction(String key, UUID uuid, int requested, boolean setMode, java.util.concurrent.Future<Result> applyFuture) {
       Thread reconcile = new Thread(() -> {
          try {
             Result late = applyFuture == null ? null : applyFuture.get(60, TimeUnit.SECONDS);
             synchronized (this.state) {
-               if (late != null
-                  && this.state.getBoolean("transactions." + key + ".pending", false)
-                  && uuid.toString().equals(this.state.getString("transactions." + key + ".uuid", ""))) {
+               if (late != null && this.state.getBoolean("transactions." + key + ".pending", false) && uuid.toString().equals(this.state.getString("transactions." + key + ".uuid", ""))) {
                   this.state.set("transactions." + key + ".before", late.before());
                   this.state.set("transactions." + key + ".requested", late.requested());
                   this.state.set("transactions." + key + ".setMode", late.setMode());
@@ -499,12 +457,13 @@ final class MinoruBridgeFeature {
             }
          } catch (Exception lateFailure) {
             synchronized (this.state) {
+               this.state.set("transactions." + key + ".pending", true);
                this.state.set("transactions." + key + ".uncertain", true);
                this.state.set("transactions." + key + ".failed-at", System.currentTimeMillis());
                try {
                   this.saveState();
                } catch (IOException persistFailure) {
-                  this.plugin.getLogger().warning("Failed to persist timed out transaction state: " + persistFailure.getMessage());
+                  this.plugin.getLogger().severe("Failed to persist timed out transaction state: " + persistFailure.getMessage());
                }
             }
          }
