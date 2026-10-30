@@ -6,6 +6,7 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
@@ -447,39 +448,61 @@ public class RelicFeature implements Listener {
     // ------------------------------------------------------------------
 
     private static final String ENCH_UI_TITLE = "\u00a75Mifron Enchant";
+    /** Cards per page in the enchant GUI. */
+    private static final int ENCH_PAGE_SIZE = 45;
 
-    /** One preset card: display, enchantment to apply, and its level. */
-    private record EnchCard(String label, Enchantment enchant, int level) { }
-
-    private static final List<EnchCard> ENCH_CARDS = List.of(
-        new EnchCard("\u00a7c鋭さ V", Enchantment.SHARPNESS, 5),
-        new EnchCard("\u00a7e力 V", Enchantment.POWER, 5),
-        new EnchCard("\u00a7f効率強化 V", Enchantment.EFFICIENCY, 5),
-        new EnchCard("\u00a7a耐久力 III", Enchantment.UNBREAKING, 3),
-        new EnchCard("\u00a7d修繕", Enchantment.MENDING, 1),
-        new EnchCard("\u00a7bダメージ軽減 IV", Enchantment.PROTECTION, 4),
-        new EnchCard("\u00a7f落下緩和 IV", Enchantment.FEATHER_FALLING, 4),
-        new EnchCard("\u00a73水中歩行 III", Enchantment.DEPTH_STRIDER, 3),
-        new EnchCard("\u00a78ソウルスピード III", Enchantment.SOUL_SPEED, 3),
-        new EnchCard("\u00a7e幸運 III", Enchantment.FORTUNE, 3),
-        new EnchCard("\u00a7bシルクタッチ", Enchantment.SILK_TOUCH, 1),
-        new EnchCard("\u00a7c略奪 III", Enchantment.LOOTING, 3),
-        new EnchCard("\u00a77忍足 III", Enchantment.SWIFT_SNEAK, 3),
-        new EnchCard("\u00a7b水中作業 I", Enchantment.AQUA_AFFINITY, 1),
-        new EnchCard("\u00a73水中呼吸 III", Enchantment.RESPIRATION, 3));
+    /** Pretty-prints an enchantment key for the GUI card. */
+    private static String prettyEnchantName(Enchantment enchant) {
+        String raw = enchant.getKey().getKey().replace('_', ' ');
+        if (raw.isEmpty()) return "enchant";
+        StringBuilder sb = new StringBuilder();
+        for (String part : raw.split(" ")) {
+            if (part.isEmpty()) continue;
+            sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1)).append(' ');
+        }
+        return sb.toString().trim();
+    }
 
     private void openEnchantUi(Player player) {
+        this.openEnchantUi(player, 0);
+    }
+
+    private void openEnchantUi(Player player, int page) {
+        List<Enchantment> all = new ArrayList<>();
+        for (Enchantment e : Registry.ENCHANTMENT) all.add(e);
+        all.sort((a, b) -> a.getKey().toString().compareTo(b.getKey().toString()));
+        int totalPages = Math.max(1, (all.size() + ENCH_PAGE_SIZE - 1) / ENCH_PAGE_SIZE);
+        if (page < 0) page = 0;
+        if (page >= totalPages) page = totalPages - 1;
         Inventory ui = Bukkit.createInventory(player, 54, ENCH_UI_TITLE);
-        for (int slot = 0; slot <= 8; slot++) ui.setItem(slot, this.framePane());
-        for (int slot = 45; slot <= 53; slot++) ui.setItem(slot, this.framePane());
-        for (int slot = 37; slot <= 43; slot++) ui.setItem(slot, this.framePane());
-        int[] slots = new int[]{10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31};
-        for (int i = 0; i < slots.length && i < ENCH_CARDS.size(); i++) {
-            EnchCard card = ENCH_CARDS.get(i);
-            ui.setItem(slots[i], plugin.actionItem(Material.ENCHANTED_BOOK, card.label(), List.of("\u00a7eクリック", "\u00a77オフハンドのアイテムに付与"), "ench_apply", String.valueOf(i)));
+        int start = page * ENCH_PAGE_SIZE;
+        int end = Math.min(start + ENCH_PAGE_SIZE, all.size());
+        int slot = 0;
+        for (int i = start; i < end; i++) {
+            Enchantment ench = all.get(i);
+            int level = Math.max(1, ench.getMaxLevel());
+            String label = "\u00a7b" + prettyEnchantName(ench) + " \u00a77Lv." + level;
+            ui.setItem(slot++, plugin.actionItem(Material.ENCHANTED_BOOK, label,
+                List.of("\u00a7eクリック", "\u00a77オフハンドのアイテムに付与"), "ench_apply",
+                ench.getKey().toString() + ":" + level));
         }
-        ui.setItem(40, plugin.actionItem(Material.PAPER, "\u00a7f使い方", List.of(
-            "\u00a771. エンチャントしたいアイテムを", "\u00a77   オフハンドに持つ", "\u00a772. 好みのエンチャントをクリック"), "ench_hint", null));
+        while (slot < ENCH_PAGE_SIZE) {
+            ui.setItem(slot++, this.framePane());
+        }
+        // Navigation row (slots 45..53).
+        for (int s = 45; s <= 53; s++) ui.setItem(s, this.framePane());
+        if (page > 0) {
+            ui.setItem(45, plugin.actionItem(Material.ARROW, "\u00a77◀ 前のページ",
+                List.of("\u00a77ページ " + page + " / " + totalPages), "ench_page", String.valueOf(page - 1)));
+        }
+        ui.setItem(49, plugin.actionItem(Material.PAPER, "\u00a7f使い方",
+            List.of("\u00a771. エンチャントしたいアイテムを", "\u00a77   オフハンドに持つ",
+                "\u00a772. 好みのエンチャントをクリック",
+                "\u00a77ページ " + (page + 1) + " / " + totalPages), "ench_hint", null));
+        if (page + 1 < totalPages) {
+            ui.setItem(53, plugin.actionItem(Material.ARROW, "\u00a77次のページ ▶",
+                List.of("\u00a77ページ " + (page + 2) + " / " + totalPages), "ench_page", String.valueOf(page + 1)));
+        }
         player.openInventory(ui);
     }
 
@@ -498,10 +521,22 @@ public class RelicFeature implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || !clicked.hasItemMeta()) return;
         String action = plugin.getUiAction(clicked);
+        if ("ench_page".equals(action)) {
+            int page = plugin.parsePositiveInt(plugin.getUiTargetString(clicked), 0);
+            this.openEnchantUi(player, page);
+            return;
+        }
         if (!"ench_apply".equals(action)) return;
-        int index = plugin.parsePositiveInt(plugin.getUiTargetString(clicked), -1);
-        if (index < 0 || index >= ENCH_CARDS.size()) return;
-        EnchCard card = ENCH_CARDS.get(index);
+        String target = plugin.getUiTargetString(clicked);
+        if (target == null) return;
+        int split = target.lastIndexOf(':');
+        if (split < 0) return;
+        String keyStr = target.substring(0, split);
+        int level = plugin.parsePositiveInt(target.substring(split + 1), 1);
+        org.bukkit.NamespacedKey key = org.bukkit.NamespacedKey.fromString(keyStr);
+        if (key == null) return;
+        Enchantment ench = Registry.ENCHANTMENT.get(key);
+        if (ench == null) return;
         ItemStack off = player.getInventory().getItemInOffHand();
         if (off == null || off.getType().isAir()) {
             player.sendMessage(ChatColor.RED + "エンチャントしたいアイテムをオフハンドに持ってね。");
@@ -511,21 +546,18 @@ public class RelicFeature implements Listener {
             player.sendMessage(ChatColor.RED + "レリックには重ねて付与できない。");
             return;
         }
-        off.addUnsafeEnchantment(card.enchant(), card.level());
+        off.addUnsafeEnchantment(ench, Math.max(1, level));
         player.getInventory().setItemInOffHand(off);
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.2f);
-        player.sendMessage(ChatColor.GOLD + card.label() + ChatColor.GOLD + " を付与した！");
+        player.sendMessage(ChatColor.GOLD + prettyEnchantName(ench) + " Lv." + level + " を付与した！");
     }
-
-    // ------------------------------------------------------------------
-    // The alchemy grindstone: turns the main-hand item's enchantments into
-    // a book each, restoring plain gear and an economy of stored pops.
-    // ------------------------------------------------------------------
 
     // ------------------------------------------------------------------
     // Relic grindstone block: placed from the relic item, it returns the
     // ground item's enchantments as books whenever it is used to disenchant.
     // ------------------------------------------------------------------
+
+
 
     @EventHandler
     public void onPlaceRelicGrindstone(BlockPlaceEvent event) {
@@ -993,9 +1025,9 @@ public class RelicFeature implements Listener {
     }
 
     /** Gentle climb: only ever nudges upward speed to the hover cap. */
-    static final double JETPACK_CLIMB_SPEED = 0.40;
+    static final double JETPACK_CLIMB_SPEED = 0.80;
     /** Speed added per move tick while holding Space (grows to the cap). */
-    static final double JETPACK_CLIMB_ACCEL = 0.20;
+    static final double JETPACK_CLIMB_ACCEL = 0.40;
 
     /** Caps vertical speed to a gentle climb; existing rises are untouched. */
     static double climbY(double currentY) {
@@ -1013,7 +1045,7 @@ public class RelicFeature implements Listener {
         if (!jetpackActive.contains(player.getUniqueId())) return;
         long now = System.currentTimeMillis();
         Long last = lastJetpackBoost.get(player.getUniqueId());
-        if (last != null && now - last < 350L) return;
+        if (last != null && now - last < 200L) return;
         if (!player.getInventory().contains(Material.BLAZE_POWDER)) {
             player.sendMessage(ChatColor.RED + "ジェットパックの燃料(ブレイズパウダー)がありません！");
             jetpackActive.remove(player.getUniqueId());
@@ -1024,7 +1056,7 @@ public class RelicFeature implements Listener {
         if (!onGround && vel.getY() >= JETPACK_CLIMB_SPEED) return;
         player.getInventory().removeItem(new ItemStack(Material.BLAZE_POWDER, 1));
         lastJetpackBoost.put(player.getUniqueId(), now);
-        double targetY = onGround ? 0.60 : climbY(vel.getY());
+        double targetY = onGround ? 1.2 : climbY(vel.getY());
         player.setVelocity(new Vector(vel.getX(), targetY, vel.getZ()));
         player.setFallDistance(0.0f);
         player.getWorld().spawnParticle(org.bukkit.Particle.FLAME, player.getLocation().add(0.0, 0.5, 0.0), 10, 0.3, 0.2, 0.3, 0.04);
