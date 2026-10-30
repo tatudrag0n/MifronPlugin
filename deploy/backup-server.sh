@@ -96,6 +96,6 @@ bash "$DEPLOY_DIR/notify-event.sh" \
   --source backup \
   --body "サイズ: $(du -h "$OUT_FILE" | cut -f1) / SHA-256: $(sha256_of "$OUT_FILE" | cut -c1-16)…" \
   --body "保存先: $(basename "$OUT_DIR") (保持${KEEP_GENERATIONS}世代)" \
-  --skip-webhook >/dev/null 2>&1 || true
+  --site --skip-webhook >/dev/null 2>&1 || true
 
 log "backup finished: $OUT_FILE"

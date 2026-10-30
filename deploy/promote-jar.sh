@@ -88,7 +88,7 @@ if [ "$restart_ok" -ne 1 ]; then
     --type deploy --title "デプロイ失敗 — ロールバック済み (${staged_commit:-unknown?})" \
     --commit "${staged_commit:-}" --version "${staged_version:-}" --source promote \
     --body "port/check失敗のため preview jar へ戻しました。調査: $(hostname):$STATE_DIR/backups" \
-    --skip-webhook >/dev/null 2>&1 || true
+    --site --skip-webhook >/dev/null 2>&1 || true
   exit 1
 fi
 
@@ -107,7 +107,7 @@ if [ "$install_success" -ne 1 ]; then
     --type deploy --title "デプロイ失敗 — ロールバック済み (${staged_commit:-unknown?})" \
     --commit "${staged_commit:-}" --version "${staged_version:-}" --source promote \
     --body "healthしきい値に到達しました。rollback jarに戻しています。" \
-    --skip-webhook >/dev/null 2>&1 || true
+    --site --skip-webhook >/dev/null 2>&1 || true
   exit 1
 fi
 set -e
@@ -136,6 +136,6 @@ bash "$(dirname "$0")/notify-event.sh" \
   --body "MifronPlugin provenance: origin/main" \
   --body "テスト: ${staged_tests:-?} passed" \
   --body "ロールバック保管: $(basename "$backup_file")" \
-  --skip-webhook >/dev/null 2>&1 || true
+  --site --skip-webhook >/dev/null 2>&1 || true
 
 echo "promoted: version=${staged_version:-unknown} commit=${staged_commit:-unknown}"

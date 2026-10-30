@@ -163,7 +163,7 @@ if [ "$restart_ok" -ne 1 ]; then
     --type geyser --title "Geyser更新失敗 — ロールバック済み" \
     --version "$latest_version" --source geyser-update \
     --body "再起動後のhealthに失敗して known-good に戻しました" \
-    --skip-webhook >/dev/null 2>&1 || true
+    --site --skip-webhook >/dev/null 2>&1 || true
   exit 1
 fi
 
@@ -191,7 +191,7 @@ if [ "$healthy" -ne 1 ]; then
     --type geyser --title "Geyser更新失敗 — ロールバック済み ($latest_version)" \
     --version "$latest_version" --source geyser-update \
     --body "healthに失敗しました: known-goodに戻しました" \
-    --skip-webhook >/dev/null 2>&1 || true
+    --site --skip-webhook >/dev/null 2>&1 || true
   exit 1
 fi
 
@@ -208,6 +208,6 @@ bash "$(dirname "$0")/notify-event.sh" \
   --source geyser-update \
   --body "旧: ${active_version:-unknown} → 新: $latest_version" \
   --body "${backup_name:-} として退避済み(既知良好バージョン)" \
-  --skip-webhook >/dev/null 2>&1 || true
+  --site --skip-webhook >/dev/null 2>&1 || true
 
 log "geyser updated: $latest_version"

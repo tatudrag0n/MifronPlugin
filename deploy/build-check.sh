@@ -103,6 +103,6 @@ bash "$(dirname "${BASH_SOURCE[0]}")/notify-event.sh" \
   --version "$built_version" \
   --source build-check \
   ${lines[@]+"${lines[@]}"} \
-  --skip-webhook >/dev/null 2>&1 || true
+  --site --skip-webhook >/dev/null 2>&1 || true
 
 log "staged $JAR_NAME (version=${built_version:-unknown}, sha=${jar_sha:0:12})"

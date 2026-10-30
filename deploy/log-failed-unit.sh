@@ -11,4 +11,4 @@ exec bash "$(dirname "${BASH_SOURCE[0]}")/notify-event.sh" \
   --title "パイプライン単位の失敗: ${UNIT:-unknown}" \
   --source systemd \
   --body "systemd unit ${UNIT:-unknown} failed (${JOB_UNIT:-})" \
-  --skip-webhook
+  --site --skip-webhook
