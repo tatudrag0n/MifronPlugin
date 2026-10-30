@@ -50,6 +50,7 @@ MINECRAFT_PORT="${MINECRAFT_PORT:-25565}"
 MINECRAFT_HOST="${MINECRAFT_HOST:-127.0.0.1}"
 JAR_NAME="${JAR_NAME:-mifronplugin-26.1.2.jar}"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
+REPO_FETCH_RETRIES="${REPO_FETCH_RETRIES:-3}"
 
 now_utc() { date -u +%Y%m%dT%H%M%SZ; }
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
