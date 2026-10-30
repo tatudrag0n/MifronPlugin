@@ -128,22 +128,24 @@ public final class TradeService {
          this.finish(session, TradeSession.State.CANCELLED, "§c申込の期限が切れました。");
          return;
       }
-      if (session.b.equals(player.getUniqueId()) || session.a.equals(player.getUniqueId())) {
-         Player a = this.player(session.a);
-         Player b = this.player(session.b);
-         if (a == null || b == null) {
-            this.finish(session, TradeSession.State.CANCELLED, "§c相手がオフラインのため中止しました。");
-            return;
-         }
-         session.state = TradeSession.State.OPEN;
-         session.expiresAt = System.currentTimeMillis() + TradeRules.SESSION_TIMEOUT_MILLIS;
-         session.view = this.createView(session);
-         this.views.put(session.view, session);
-         a.openInventory(session.view);
-         b.openInventory(session.view);
-         a.sendMessage("§a取引を開始しました。提示を変更すると双方の確定がリセットされます。");
-         b.sendMessage("§a取引を開始しました。提示を変更すると双方の確定がリセットされます。");
+      if (!canAcceptRequest(session.a, session.b, player.getUniqueId())) {
+         player.sendMessage("§c申込を承諾できるのは受信者のみです。");
+         return;
       }
+      Player a = this.player(session.a);
+      Player b = this.player(session.b);
+      if (a == null || b == null) {
+         this.finish(session, TradeSession.State.CANCELLED, "§c相手がオフラインのため中止しました。");
+         return;
+      }
+      session.state = TradeSession.State.OPEN;
+      session.expiresAt = System.currentTimeMillis() + TradeRules.SESSION_TIMEOUT_MILLIS;
+      session.view = this.createView(session);
+      this.views.put(session.view, session);
+      a.openInventory(session.view);
+      b.openInventory(session.view);
+      a.sendMessage("§a取引を開始しました。提示を変更すると双方の確定がリセットされます。");
+      b.sendMessage("§a取引を開始しました。提示を変更すると双方の確定がリセットされます。");
    }
 
    /** /trade deny: refuse a request. */
@@ -222,19 +224,29 @@ public final class TradeService {
          this.finish(session, TradeSession.State.CANCELLED, "§c相手がオフラインのため中止しました。");
          return;
       }
-      int balanceA = this.plugin.getEmeralds(session.a);
-      int balanceB = this.plugin.getEmeralds(session.b);
-      if (!EconomyManager.canTransferExact(balanceA, balanceB, session.moneyA)
-         || !EconomyManager.canTransferExact(balanceB, balanceA, session.moneyB)) {
+      final boolean[] settled = {false};
+      this.plugin.economyManager.withLocks(session.a, session.b, () -> {
+         int balanceA = this.plugin.getEmeralds(session.a);
+         int balanceB = this.plugin.getEmeralds(session.b);
+         if (!canSettleExchange(balanceA, balanceB, session.moneyA, session.moneyB)) return;
+         if (session.moneyA > 0 && !this.plugin.economyManager.withdraw(session.a, session.moneyA, false)) return;
+         if (session.moneyB > 0 && !this.plugin.economyManager.withdraw(session.b, session.moneyB, false)) {
+            if (session.moneyA > 0) this.plugin.economyManager.deposit(session.a, session.moneyA, false);
+            return;
+         }
+         if (session.moneyB > 0) this.plugin.economyManager.deposit(session.a, session.moneyB, false);
+         if (session.moneyA > 0) this.plugin.economyManager.deposit(session.b, session.moneyA, false);
+         settled[0] = true;
+      });
+      if (!settled[0]) {
          session.resetConfirms();
          this.refresh(session);
          a.sendMessage("§cMP残高が不足しているため成立しませんでした。");
          b.sendMessage("§cMP残高が不足しているため成立しませんでした。");
          return;
       }
-      // Move MP first so any failure below still leaves consistent balances.
-      if (session.moneyA > 0) this.plugin.economyManager.transfer(session.a, session.b, session.moneyA);
-      if (session.moneyB > 0) this.plugin.economyManager.transfer(session.b, session.a, session.moneyB);
+      if (session.moneyA > 0) this.plugin.recordQuestProgress(b, "mp_gained", session.moneyA);
+      if (session.moneyB > 0) this.plugin.recordQuestProgress(a, "mp_gained", session.moneyB);
       this.moveOffers(session, true);
       this.moveOffers(session, false);
       session.state = TradeSession.State.DONE;
@@ -243,6 +255,20 @@ public final class TradeService {
       a.sendMessage(summary);
       b.sendMessage(summary);
       this.plugin.queueDataSave();
+   }
+
+   static boolean canSettleExchange(int balanceA, int balanceB, int payA, int payB) {
+      if (balanceA < 0 || balanceB < 0 || payA < 0 || payB < 0) return false;
+      if (payA > balanceA || payB > balanceB) return false;
+      long afterA = (long) balanceA - payA + payB;
+      long afterB = (long) balanceB - payB + payA;
+      return afterA >= 0L && afterB >= 0L
+         && afterA <= EconomyManager.MAX_EMERALDS
+         && afterB <= EconomyManager.MAX_EMERALDS;
+   }
+
+   static boolean canAcceptRequest(UUID requester, UUID receiver, UUID actor) {
+      return requester != null && receiver != null && actor != null && receiver.equals(actor) && !requester.equals(actor);
    }
 
    /** Moves A's offered items to B (first=true) or B's to A. */

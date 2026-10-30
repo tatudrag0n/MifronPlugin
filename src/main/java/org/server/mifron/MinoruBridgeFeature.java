@@ -38,6 +38,7 @@ final class MinoruBridgeFeature {
    private static final Pattern JSON_NUMBER = Pattern.compile("\\\"([A-Za-z0-9_]+)\\\"\\s*:\\s*(-?\\d+)");
    private static final long CODE_TTL_MILLIS = TimeUnit.MINUTES.toMillis(10);
    private static final int MAX_TRANSACTIONS = 5000;
+   private static final long PENDING_RECONCILE_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(65);
 
    private final Mifron plugin;
    private final SecureRandom random = new SecureRandom();
@@ -67,6 +68,9 @@ final class MinoruBridgeFeature {
       );
       this.analyticsEndpoint = this.plugin.getConfig().getString("analytics.endpoint", "http://127.0.0.1:8124/v1/analytics/events");
       this.analyticsSecret = firstNonBlank(this.plugin.getConfig().getString("analytics.secret"));
+      synchronized (this.state) {
+         this.recoverPendingTransactions();
+      }
       if (this.secret == null || this.secret.isBlank() || "change-this".equalsIgnoreCase(this.secret) || "CHANGE_ME".equalsIgnoreCase(this.secret)) {
          this.plugin.getLogger().warning("Minoru bridge API disabled: configure minoru-bridge.secret (or serverSecret) with a strong shared secret.");
          return;
@@ -147,7 +151,11 @@ final class MinoruBridgeFeature {
          this.server = null;
       }
       synchronized (this.state) {
-         this.saveState();
+         try {
+            this.saveState();
+         } catch (IOException error) {
+            this.plugin.getLogger().warning("Failed to save Minoru bridge state on stop: " + error.getMessage());
+         }
       }
    }
 
@@ -233,7 +241,9 @@ final class MinoruBridgeFeature {
                   } else if (this.state.getBoolean("transactions." + key + ".pending", false)) {
                      result = null;
                      replay = false;
-                     transactionError = "transaction_still_processing";
+                     transactionError = this.state.getBoolean("transactions." + key + ".uncertain", false)
+                        ? "transaction_state_uncertain"
+                        : "transaction_still_processing";
                   } else {
                      result = new Result(balance, applied, before, storedRequested, storedSetMode);
                      replay = true;
@@ -249,8 +259,15 @@ final class MinoruBridgeFeature {
                   this.state.set("transactions." + key + ".requested", requested);
                   this.state.set("transactions." + key + ".setMode", setMode);
                   this.state.set("transactions." + key + ".pending", true);
+                  this.state.set("transactions." + key + ".uncertain", null);
+                  this.state.set("transactions." + key + ".failed-at", null);
                   this.state.set("transactions." + key + ".at", System.currentTimeMillis());
-                  saveState();
+                  try {
+                     this.saveState();
+                  } catch (IOException persistFailure) {
+                     this.state.set("transactions." + key, null);
+                     throw persistFailure;
+                  }
                    java.util.concurrent.Future<Result> applyFuture = null;
                    try {
                      if (Bukkit.isPrimaryThread()) {
@@ -276,10 +293,20 @@ final class MinoruBridgeFeature {
                   this.state.set("transactions." + key + ".balance", result.balance);
                   this.state.set("transactions." + key + ".applied", result.applied);
                   this.state.set("transactions." + key + ".pending", null);
+                  this.state.set("transactions." + key + ".uncertain", null);
                   this.state.set("transactions." + key + ".source", "minoru-bridge");
                   this.state.set("transactions." + key + ".at", System.currentTimeMillis());
                   trimTransactions();
-                  saveState();
+                  try {
+                     this.saveState();
+                  } catch (IOException error) {
+                     // The MP mutation already happened. Keep this transaction
+                     // blocked for retries until state persistence is repaired.
+                     this.state.set("transactions." + key + ".pending", true);
+                     this.state.set("transactions." + key + ".uncertain", true);
+                     this.state.set("transactions." + key + ".failed-at", System.currentTimeMillis());
+                     throw error;
+                  }
                   replay = false;
                }
             }
@@ -342,14 +369,14 @@ final class MinoruBridgeFeature {
       for (int i = 0; i < keys.size() - MAX_TRANSACTIONS; i++) this.state.set("transactions." + keys.get(i), null);
    }
 
-   private void saveState() {
+   private void saveState() throws IOException {
       java.io.File tempFile = null;
+      java.io.File parent = this.stateFile.getParentFile();
+      if (parent != null && !parent.exists() && !parent.mkdirs()) {
+         throw new IOException("Could not create bridge state directory");
+      }
+      tempFile = new java.io.File(parent == null ? new java.io.File(".") : parent, this.stateFile.getName() + ".tmp");
       try {
-         java.io.File parent = this.stateFile.getParentFile();
-         if (parent != null && !parent.exists() && !parent.mkdirs()) {
-            throw new IOException("Could not create bridge state directory");
-         }
-         tempFile = new java.io.File(parent == null ? new java.io.File(".") : parent, this.stateFile.getName() + ".tmp");
          this.state.save(tempFile);
          try {
             Files.move(tempFile.toPath(), this.stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -357,9 +384,39 @@ final class MinoruBridgeFeature {
             Files.move(tempFile.toPath(), this.stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
          }
       } catch (IOException error) {
-         this.plugin.getLogger().warning("Failed to save Minoru bridge state: " + error.getMessage());
-         if (tempFile != null && tempFile.exists() && !tempFile.delete()) {
+         if (tempFile.exists() && !tempFile.delete()) {
             this.plugin.getLogger().warning("Failed to remove temporary Minoru bridge state file.");
+         }
+         throw error;
+      }
+   }
+
+   private void recoverPendingTransactions() {
+      org.bukkit.configuration.ConfigurationSection section = this.state.getConfigurationSection("transactions");
+      if (section == null) return;
+      boolean changed = false;
+      long now = System.currentTimeMillis();
+      for (String key : section.getKeys(false)) {
+         String base = "transactions." + key;
+         if (!this.state.getBoolean(base + ".pending", false)) continue;
+         if (this.state.contains(base + ".balance") && this.state.contains(base + ".applied")) {
+            this.state.set(base + ".pending", null);
+            this.state.set(base + ".uncertain", null);
+            changed = true;
+            continue;
+         }
+         long at = this.state.getLong(base + ".at", 0L);
+         if (shouldQuarantinePending(at, now, this.state.contains(base + ".balance"), this.state.contains(base + ".applied"))) {
+            this.state.set(base + ".uncertain", true);
+            this.state.set(base + ".failed-at", now);
+            changed = true;
+         }
+      }
+      if (changed) {
+         try {
+            this.saveState();
+         } catch (IOException error) {
+            this.plugin.getLogger().warning("Failed to persist pending transaction recovery: " + error.getMessage());
          }
       }
    }
@@ -380,6 +437,9 @@ final class MinoruBridgeFeature {
 
    private static String stringsafe(String s) { return s; }
    private static int number(Map<String, String> body, String key) { return Integer.parseInt(body.getOrDefault(key, "0")); }
+   static boolean shouldQuarantinePending(long at, long now, boolean hasBalance, boolean hasApplied) {
+      return !hasBalance && !hasApplied && at > 0L && now - at >= PENDING_RECONCILE_TIMEOUT_MILLIS;
+   }
    static boolean transactionMatches(String storedUuid, boolean storedSetMode, int storedRequested, UUID requestedUuid, boolean requestedSetMode, int requested) {
       return (storedUuid == null || storedUuid.isBlank() || storedUuid.equals(requestedUuid.toString()))
          && storedSetMode == requestedSetMode
@@ -410,7 +470,7 @@ final class MinoruBridgeFeature {
     * Reconciles a main-thread MP task that outlived the 5s HTTP wait. Runs
     * off the HTTP thread: if the task eventually applies, its outcome is
     * recorded so a client retry replays instead of double-paying; if the task
-    * never runs, the pending marker is released so a retry starts over.
+    * outcome remains unknown, the transaction stays blocked for manual recovery.
     */
    private void reconcileTimedOutTransaction(String key, UUID uuid, int requested, boolean setMode,
       java.util.concurrent.Future<Result> applyFuture) {
@@ -427,19 +487,25 @@ final class MinoruBridgeFeature {
                   this.state.set("transactions." + key + ".balance", late.balance());
                   this.state.set("transactions." + key + ".applied", late.applied());
                   this.state.set("transactions." + key + ".pending", null);
+                  this.state.set("transactions." + key + ".uncertain", null);
                   this.state.set("transactions." + key + ".source", "minoru-bridge");
                   this.state.set("transactions." + key + ".at", System.currentTimeMillis());
                   trimTransactions();
                } else if (late == null) {
-                  this.state.set("transactions." + key + ".pending", null);
+                  this.state.set("transactions." + key + ".uncertain", true);
+                  this.state.set("transactions." + key + ".failed-at", System.currentTimeMillis());
                }
-               saveState();
+               this.saveState();
             }
          } catch (Exception lateFailure) {
             synchronized (this.state) {
-               this.state.set("transactions." + key + ".pending", null);
+               this.state.set("transactions." + key + ".uncertain", true);
                this.state.set("transactions." + key + ".failed-at", System.currentTimeMillis());
-               saveState();
+               try {
+                  this.saveState();
+               } catch (IOException persistFailure) {
+                  this.plugin.getLogger().warning("Failed to persist timed out transaction state: " + persistFailure.getMessage());
+               }
             }
          }
       }, "minoru-bridge-reconcile");
