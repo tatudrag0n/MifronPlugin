@@ -97,6 +97,12 @@ public class RelicFeature implements Listener {
         NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, 0.0006, "§7右クリックで夜をそのまま朝へスキップする。"),
         MAGNET("magnet", "§e§l磁力の石", Material.LODESTONE, 0.0004, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
         SHRINKSTAR("shrinkstar", "§a§l微粒のネザースター", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
+        LIGHTNING("lightning", "§e§l雷鳴のロッド", Material.LIGHTNING_ROD, 0.0005, "§7右クリックで視線先に落雷を落とす。(クールダウン5秒)"),
+        BLINK("blink", "§5§l次元の眼", Material.ENDER_EYE, 0.0005, "§7右クリックで前方へ瞬間移動する。(クールダウン3秒)"),
+        TOTEM("totem", "§6§l不死のトーテム", Material.TOTEM_OF_UNDYING, 0.0003, "§7致命ダメージを受けた時、自動で復活する。(クールダウン5分)"),
+        WITHER("wither", "§8§lウィザー頭骨", Material.WITHER_SKELETON_SKULL, 0.0004, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
+        BELL("bell", "§a§l癒やしの鐘", Material.BELL, 0.0005, "§7右クリックで自分と周囲の味方を回復する。(クールダウン8秒)"),
+        DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, 0.0004, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
         VISION("vision", "§8§l暗視スコープ", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
 
         public final String id;
@@ -239,6 +245,12 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, java.util.Set<java.util.UUID>> dragFollowers = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> reflectCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> magnetCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, Long> lightningCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, Long> blinkCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, Long> totemCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, Long> witherCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, Long> bellCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, Long> breathCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, ItemStack> lastGrindInput = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<org.bukkit.Location> relicGrindstoneLocations = new java.util.HashSet<>();
     private org.bukkit.scheduler.BukkitTask dragTask;
@@ -297,7 +309,94 @@ public class RelicFeature implements Listener {
             player.getWorld().spawnParticle(org.bukkit.Particle.ENCHANT, player.getLocation().add(0.0, 1.0, 0.0), 40, 1.5, 1.5, 1.5, 0.5);
             player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 1.6f);
             player.sendMessage(ChatColor.YELLOW + "磁力バースト！周囲のアイテムを一気に引き寄せた。");
+        } else if ("lightning".equals(id) && rightClick) {
+            event.setCancelled(true);
+            if (!this.rollingCooldown(player, lightningCooldown, 5000L, "雷鳴")) return;
+            this.tryLightning(player);
+        } else if ("blink".equals(id) && rightClick) {
+            event.setCancelled(true);
+            if (!this.rollingCooldown(player, blinkCooldown, 3000L, "ブリンク")) return;
+            this.tryBlink(player);
+        } else if ("wither".equals(id) && rightClick) {
+            event.setCancelled(true);
+            if (!this.rollingCooldown(player, witherCooldown, 4000L, "ウィザースクロウ")) return;
+            org.bukkit.entity.WitherSkull skull = player.launchProjectile(org.bukkit.entity.WitherSkull.class,
+                player.getEyeLocation().getDirection().multiply(1.8));
+            skull.setCharged(true);
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WITHER_SHOOT, 1.0f, 1.0f);
+        } else if ("bell".equals(id) && rightClick) {
+            event.setCancelled(true);
+            if (!this.rollingCooldown(player, bellCooldown, 8000L, "癒やしの鐘")) return;
+            this.tryBell(player);
+        } else if ("dragonbreath".equals(id) && rightClick) {
+            event.setCancelled(true);
+            if (!this.rollingCooldown(player, breathCooldown, 6000L, "竜の吐息")) return;
+            this.tryDragonBreath(player);
         }
+    }
+
+    /** Lightning rod: a damaging strike lands where the player looks. */
+    private void tryLightning(Player player) {
+        org.bukkit.block.Block target = player.getTargetBlockExact(30);
+        org.bukkit.Location loc = target != null
+            ? target.getLocation().add(0.5, 1.0, 0.5)
+            : player.getEyeLocation().add(player.getEyeLocation().getDirection().multiply(10));
+        player.getWorld().strikeLightningEffect(loc);
+        player.getWorld().playSound(loc, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 3.0f, 1.0f);
+        java.util.Set<java.util.UUID> hit = new java.util.HashSet<>();
+        for (org.bukkit.entity.Entity e : loc.getWorld().getNearbyEntities(loc, 4, 4, 4)) {
+            if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
+            if (hit.add(living.getUniqueId())) living.damage(14.0, player);
+        }
+        player.sendMessage(ChatColor.YELLOW + "雷鳴が落ちた！");
+    }
+
+    /** Ender eye: blink forward up to 20 blocks along the look direction. */
+    private void tryBlink(Player player) {
+        org.bukkit.util.Vector dir = player.getLocation().getDirection().normalize();
+        org.bukkit.Location dest = player.getLocation().clone();
+        org.bukkit.Location base = player.getLocation().clone();
+        for (int i = 1; i <= 20; i++) {
+            org.bukkit.Location check = base.clone().add(dir.clone().multiply(i));
+            if (!check.getBlock().isPassable() || !check.clone().add(0.0, 1.0, 0.0).getBlock().isPassable()) break;
+            dest = check;
+        }
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.3f);
+        player.teleport(dest);
+        player.getWorld().spawnParticle(org.bukkit.Particle.PORTAL, dest, 30, 0.4, 0.6, 0.4, 0.1);
+        player.getWorld().playSound(dest, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+    }
+
+    /** Healing bell: heals the user and nearby players, granting regen. */
+    private void tryBell(Player player) {
+        this.healWithBell(player);
+        for (org.bukkit.entity.Entity e : player.getNearbyEntities(8, 8, 8)) {
+            if (e instanceof Player other && other != player) this.healWithBell(other);
+        }
+        player.getWorld().playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.2f, 1.4f);
+        player.getWorld().spawnParticle(org.bukkit.Particle.HEART, player.getLocation().add(0.0, 1.5, 0.0), 10, 0.5, 0.5, 0.5, 0.0);
+    }
+
+    private void healWithBell(Player target) {
+        target.setHealth(Math.min(target.getMaxHealth(), target.getHealth() + 8.0));
+        target.addPotionEffect(new org.bukkit.potion.PotionEffect(
+            org.bukkit.potion.PotionEffectType.REGENERATION, 80, 1, true, false));
+    }
+
+    /** Dragon breath: a cone of damaging breath particles. */
+    private void tryDragonBreath(Player player) {
+        org.bukkit.Location eye = player.getEyeLocation();
+        org.bukkit.util.Vector dir = eye.getDirection().normalize();
+        java.util.Set<java.util.UUID> hit = new java.util.HashSet<>();
+        for (double d = 1.0; d <= 12.0; d += 0.7) {
+            org.bukkit.Location p = eye.clone().add(dir.clone().multiply(d));
+            p.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, p, 4, 0.25, 0.25, 0.25, 0.02);
+            for (org.bukkit.entity.Entity e : p.getWorld().getNearbyEntities(p, 1.8, 1.8, 1.8)) {
+                if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
+                if (hit.add(living.getUniqueId())) living.damage(6.0, player);
+            }
+        }
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.2f, 1.5f);
     }
 
     // ------------------------------------------------------------------
@@ -934,6 +1033,81 @@ public class RelicFeature implements Listener {
             double pull = strength * (1.0 - dist / (radius + 1.0)) + 0.12;
             e.setVelocity(to.normalize().multiply(Math.min(strength, pull)));
         }
+    }
+
+    /** True if either hand holds the given relic id. */
+    private boolean holdsRelic(Player player, String id) {
+        for (ItemStack hand : new ItemStack[]{player.getInventory().getItemInMainHand(), player.getInventory().getItemInOffHand()}) {
+            if (hand != null && isRelicItem(hand) && id.equals(getRelicId(hand))) return true;
+        }
+        return false;
+    }
+
+    /** Totem relic: cancels a lethal hit and revives at full health. */
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)
+    public void onTotemDeath(org.bukkit.event.entity.EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (!this.holdsRelic(player, "totem")) return;
+        if (player.getHealth() - event.getFinalDamage() > 0) return;
+        long now = System.currentTimeMillis();
+        Long last = totemCooldown.get(player.getUniqueId());
+        if (last != null && now - last < 300000L) return;
+        event.setCancelled(true);
+        player.setHealth(player.getMaxHealth());
+        player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+            org.bukkit.potion.PotionEffectType.RESISTANCE, 100, 4, true, false));
+        player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+            org.bukkit.potion.PotionEffectType.REGENERATION, 100, 2, true, false));
+        totemCooldown.put(player.getUniqueId(), now);
+        player.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, player.getLocation().add(0.0, 1.0, 0.0), 40, 0.6, 1.0, 0.6, 0.2);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TOTEM_USE, 1.0f, 1.0f);
+        player.sendMessage(ChatColor.GOLD + "不死のトーテムがあなたを救った！(5分間クールダウン)");
+    }
+
+    /** Creative-inventory picks roll the same chance as a normal pickup. */
+    @EventHandler
+    public void onCreativePickup(org.bukkit.event.inventory.InventoryClickEvent event) {
+        if (event.getView().getType() != org.bukkit.event.inventory.InventoryType.CREATIVE) return;
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        Bukkit.getScheduler().runTask(this.plugin, () -> {
+            ItemStack cursor = player.getItemOnCursor();
+            if (cursor == null || cursor.getType().isAir()) return;
+            ItemStack before = cursor.clone();
+            this.tryTransform(cursor, player);
+            if (!cursor.equals(before)) player.setItemOnCursor(cursor);
+        });
+    }
+
+    /** /give grants roll the same chance as a normal pickup. */
+    @EventHandler
+    public void onGiveCommand(org.bukkit.event.player.PlayerCommandPreprocessEvent event) {
+        String msg = event.getMessage();
+        if (!msg.startsWith("/give ") && !msg.startsWith("/minecraft:give ")) return;
+        String[] parts = msg.split("\\s+");
+        if (parts.length < 3) return;
+        Material mat = Material.matchMaterial(parts[2]);
+        if (mat == null) return;
+        boolean matches = false;
+        for (RelicType type : RelicType.values()) {
+            if (type.baseMaterial == mat) { matches = true; break; }
+        }
+        if (!matches) return;
+        Player target = event.getPlayer();
+        if (parts.length >= 2) {
+            Player named = Bukkit.getPlayerExact(parts[1]);
+            if (named != null) target = named;
+        }
+        final Player finalTarget = target;
+        Bukkit.getScheduler().runTask(this.plugin, () -> {
+            org.bukkit.inventory.Inventory inv = finalTarget.getInventory();
+            for (int i = 0; i < inv.getSize(); i++) {
+                ItemStack stack = inv.getItem(i);
+                if (stack == null || stack.getType() != mat) continue;
+                this.tryTransform(stack, finalTarget);
+                if (stack != null) inv.setItem(i, stack);
+                break;
+            }
+        });
     }
 
     @EventHandler
