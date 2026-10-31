@@ -252,6 +252,7 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, Long> scaleExpiry = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<java.util.UUID> seaswimRising = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Set<java.util.UUID> seaswimActive = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<java.util.UUID> seaswimAirborne = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Map<java.util.UUID, java.util.Set<java.util.UUID>> dragFollowers = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> reflectCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> magnetCooldown = new java.util.concurrent.ConcurrentHashMap<>();
@@ -1107,28 +1108,47 @@ public class RelicFeature implements Listener {
     private void tickSeaswim(Player p) {
         UUID uuid = p.getUniqueId();
         if (!this.hasSeaswim(p)) {
-            if (this.seaswimActive.remove(uuid)) {
-                p.setSwimming(false);
+            if (this.seaswimAirborne.remove(uuid) | this.seaswimActive.remove(uuid)) {
+                p.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
+                p.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
+                if (p.isSwimming()) p.setSwimming(false);
                 if (p.getPose() == org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.STANDING);
             }
             this.seaswimRising.remove(uuid);
             return;
         }
-        // Keep the swim state continuously (never toggle it with ground checks).
-        if (!p.isSwimming()) p.setSwimming(true);
-        if (p.getPose() != org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.SWIMMING);
-        if (p.isOnGround()) return; // no vertical thrust while standing
-        org.bukkit.util.Vector v = p.getVelocity();
-        double y;
-        if (this.seaswimRising.contains(uuid)) {
-            y = Math.min(v.getY() + 0.12, 0.30);
-        } else if (p.isSneaking()) {
-            y = Math.max(v.getY() - 0.15, -0.45);
-        } else {
-            y = Math.max(v.getY() * 0.85, -0.30);
+        boolean airborne = !p.isOnGround();
+        if (!airborne) {
+            if (this.seaswimAirborne.remove(uuid) | this.seaswimActive.remove(uuid)) {
+                p.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
+                if (p.isSwimming()) p.setSwimming(false);
+                if (p.getPose() == org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.STANDING);
+            }
+            return;
         }
-        p.setVelocity(new org.bukkit.util.Vector(v.getX(), y, v.getZ()));
-        p.setFallDistance(0.0f);
+        // Entering the air: try the swim pose ONCE (never re-assert it every
+        // tick — fighting the server's pose update was what caused shaking).
+        if (this.seaswimAirborne.add(uuid) && this.seaswimActive.add(uuid)) {
+            p.setSwimming(true);
+            p.setPose(org.bukkit.entity.Pose.SWIMMING);
+        }
+        boolean rising = this.seaswimRising.contains(uuid);
+        if (rising) {
+            p.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
+            org.bukkit.potion.PotionEffect levitation = p.getPotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
+            if (levitation == null || levitation.getDuration() <= 20) {
+                p.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                    org.bukkit.potion.PotionEffectType.LEVITATION, 40, 0, true, false));
+            }
+        } else {
+            p.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
+            org.bukkit.potion.PotionEffect slow = p.getPotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
+            if (slow == null || slow.getDuration() <= 20) {
+                p.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                    org.bukkit.potion.PotionEffectType.SLOW_FALLING, 40, 0, true, false));
+            }
+            p.setFallDistance(0.0f);
+        }
     }
 
     /** True while the sea heart sits in either hand. */
@@ -1263,6 +1283,7 @@ public class RelicFeature implements Listener {
             event.getPlayer().setPose(org.bukkit.entity.Pose.STANDING);
         }
         seaswimActive.remove(uuid);
+        seaswimAirborne.remove(uuid);
         seaswimRising.remove(uuid);
         AttributeInstance attr = this.scaleAttribute(event.getPlayer());
         if (attr != null && scaleExpiry.remove(uuid) != null) attr.setBaseValue(1.0);
