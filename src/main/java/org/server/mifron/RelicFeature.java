@@ -340,6 +340,9 @@ public class RelicFeature implements Listener {
             event.setCancelled(true);
             if (!this.rollingCooldown(player, breathCooldown, 6000L, "竜の吐息")) return;
             this.tryDragonBreath(player);
+        } else if (("giantcore".equals(id) || "shrinkstar".equals(id)) && rightClick) {
+            event.setCancelled(true);
+            this.tryResize(player, "giantcore".equals(id));
         }
     }
 
@@ -545,12 +548,26 @@ public class RelicFeature implements Listener {
         player.sendMessage(ChatColor.AQUA + "時計を回して夜はスキップした！");
     }
 
+    /** Resolves the player's scale attribute regardless of key naming. */
+    private AttributeInstance scaleAttribute(Player player) {
+        for (String keyName : new String[]{"scale", "generic.scale", "player.scale"}) {
+            Attribute attr = Registry.ATTRIBUTE.get(NamespacedKey.minecraft(keyName));
+            if (attr == null) continue;
+            AttributeInstance inst = player.getAttribute(attr);
+            if (inst != null) return inst;
+        }
+        return null;
+    }
+
     /** Giant/tiny transform: scale comes back on its own after 25s. */
     private void tryResize(Player player, boolean giant) {
         double scale = giant ? 3.0 : 0.45;
         String label = giant ? "巨大化" : "縮小";
-        AttributeInstance attr = player.getAttribute(Attribute.SCALE);
-        if (attr == null) return;
+        AttributeInstance attr = this.scaleAttribute(player);
+        if (attr == null) {
+            player.sendMessage(ChatColor.RED + "このサーバーはサイズ変更に対応していません。");
+            return;
+        }
         long now = System.currentTimeMillis();
         java.util.UUID uuid = player.getUniqueId();
         Long expiry = scaleExpiry.get(uuid);
@@ -564,7 +581,7 @@ public class RelicFeature implements Listener {
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_RAVAGER_ROAR, giant ? 1.0f : 0.7f, giant ? 0.7f : 1.6f);
         player.sendMessage(ChatColor.GOLD + label + "した！(25秒)");
         Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-            AttributeInstance current = player.getAttribute(Attribute.SCALE);
+            AttributeInstance current = this.scaleAttribute(player);
             Long end = scaleExpiry.get(uuid);
             if (current == null || end == null) return;
             if (end > System.currentTimeMillis()) return; // re-used before expiry
@@ -1027,9 +1044,15 @@ public class RelicFeature implements Listener {
             this.seaswimRising.remove(player.getUniqueId());
             player.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
             player.setSwimming(false);
+            if (player.getPose() == org.bukkit.entity.Pose.SWIMMING) {
+                player.setPose(org.bukkit.entity.Pose.STANDING);
+            }
             return;
         }
         player.setSwimming(true);
+        if (player.getPose() != org.bukkit.entity.Pose.SWIMMING) {
+            player.setPose(org.bukkit.entity.Pose.SWIMMING);
+        }
         boolean rising = this.seaswimRising.contains(player.getUniqueId());
         if (rising) {
             player.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
@@ -1192,7 +1215,10 @@ public class RelicFeature implements Listener {
         this.stopScopedVision(uuid);
         this.clearGhostIce(uuid);
         event.getPlayer().setSwimming(false);
-        AttributeInstance attr = event.getPlayer().getAttribute(Attribute.SCALE);
+        if (event.getPlayer().getPose() == org.bukkit.entity.Pose.SWIMMING) {
+            event.getPlayer().setPose(org.bukkit.entity.Pose.STANDING);
+        }
+        AttributeInstance attr = this.scaleAttribute(event.getPlayer());
         if (attr != null && scaleExpiry.remove(uuid) != null) attr.setBaseValue(1.0);
         dragFollowers.remove(uuid);
         if (dragFollowers.isEmpty()) this.stopDragTask();
