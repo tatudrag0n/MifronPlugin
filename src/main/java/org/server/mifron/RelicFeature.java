@@ -72,34 +72,36 @@ public class RelicFeature implements Listener {
     public void startMagnetTask() {
         if (this.magnetTask != null) return;
         this.magnetTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickMagnet, 20L, 4L);
+        this.passiveTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickPassive, 20L, 2L);
     }
 
     /** Cancels background tasks owned by this feature. */
     public void shutdown() {
         if (this.magnetTask != null) { this.magnetTask.cancel(); this.magnetTask = null; }
+        if (this.passiveTask != null) { this.passiveTask.cancel(); this.passiveTask = null; }
         this.stopDragTask();
     }
 
     public enum RelicType {
-        HOOKSHOT("hookshot", "§6§l鉤縄", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
+        HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
         ENCHBOOK("enchbook", "§6§l全適用の魔導書", Material.ENCHANTED_BOOK, 0.0008, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
-        JETPACK("jetpack", "§3§l飛翔の外套", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
-        ROLLER_SKATES("skates", "§7§l滑走靴", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
+        JETPACK("jetpack", "§3§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
+        ROLLER_SKATES("skates", "§7§lスケートブーツ", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(クールダウン8秒)"),
-        FIREBALL("fireball", "§4§l火球", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
+        FIREBALL("fireball", "§4§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
         DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
         ENCHGRIND("enchgrind", "§d§l錬金の砥石", Material.GRINDSTONE, 0.0015, "§7右クリックで手元のエンチャントを本にして返還する。"),
         CHAIN("chain", "§8§l拘束の鎖", Material.IRON_CHAIN, 0.0002, "§7左クリックで鎖を伸ばして拘束。右クリックで延長モード切替。"),
-        GIANTCORE("giantcore", "§2§l巨神の核", Material.HEAVY_CORE, 0.0006, "§7右クリックで25秒間、巨神サイズに巨大化。"),
-        SEASWIM("seaswim", "§3§l海洋の心", Material.HEART_OF_THE_SEA, 0.0008, "§7持っている間、空中を泳げる。スペースで上昇、離すとゆっくり降下。"),
-        DASHFOOT("dashfoot", "§7§l疾風の兎の足", Material.RABBIT_FOOT, 0.001, "§7右クリックで前方へ強くダッシュする。"),
+        GIANTCORE("giantcore", "§2§l巨人の心臓", Material.HEAVY_CORE, 0.0006, "§7右クリックで25秒間、巨神サイズに巨大化。"),
+        SEASWIM("seaswim", "§3§l空に海写す蒼球", Material.HEART_OF_THE_SEA, 0.0008, "§7持っている間、空中を泳げる。スペースで上昇、離すとゆっくり降下。"),
+        DASHFOOT("dashfoot", "§7§lバニーホップ", Material.RABBIT_FOOT, 0.001, "§7右クリックで前方へ強くダッシュする。"),
         REFLECT("reflect", "§1§l反射の守護盾", Material.SHIELD, 0.0005, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
         NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, 0.0006, "§7右クリックで夜をそのまま朝へスキップする。"),
         MAGNET("magnet", "§6§l磁力の石", Material.LODESTONE, 0.0004, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
-        SHRINKSTAR("shrinkstar", "§2§l微粒の星", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
+        SHRINKSTAR("shrinkstar", "§2§l剝蝕矮星", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
         LIGHTNING("lightning", "§6§l雷鳴の杖", Material.LIGHTNING_ROD, 0.0005, "§7右クリックで視線先に落雷を落とす。(クールダウン4秒)"),
         BLINK("blink", "§5§l次元の眼", Material.ENDER_EYE, 0.0005, "§7右クリックで前方へ瞬間移動する。(クールダウン3秒)"),
-        TOTEM("totem", "§6§l不死の護符", Material.TOTEM_OF_UNDYING, 0.0003, "§7致命ダメージを受けた時、自動で復活する。(クールダウン5分)"),
+        TOTEM("totem", "§6§l死不知のトーテム", Material.TOTEM_OF_UNDYING, 0.0003, "§7持っている間、耐性と再生を得る。"),
         WITHER("wither", "§8§l凋零の頭骨", Material.WITHER_SKELETON_SKULL, 0.0004, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
         BELL("bell", "§2§l癒やしの鐘", Material.BELL, 0.0005, "§7右クリックで自分と周囲の味方を回復する。(クールダウン6秒)"),
         DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, 0.0004, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
@@ -249,12 +251,12 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, Long> fireballCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> scaleExpiry = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<java.util.UUID> seaswimRising = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<java.util.UUID> seaswimActive = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Map<java.util.UUID, java.util.Set<java.util.UUID>> dragFollowers = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> reflectCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> magnetCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> lightningCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> blinkCooldown = new java.util.concurrent.ConcurrentHashMap<>();
-    private final java.util.Map<java.util.UUID, Long> totemCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> witherCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> bellCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> breathCooldown = new java.util.concurrent.ConcurrentHashMap<>();
@@ -265,6 +267,7 @@ public class RelicFeature implements Listener {
     private final java.util.Set<org.bukkit.Location> relicGrindstoneLocations = new java.util.HashSet<>();
     private org.bukkit.scheduler.BukkitTask dragTask;
     private org.bukkit.scheduler.BukkitTask magnetTask;
+    private org.bukkit.scheduler.BukkitTask passiveTask;
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
@@ -1012,7 +1015,6 @@ public class RelicFeature implements Listener {
                 tryGentleDescent(player);
             }
         }
-        this.refreshAirSwim(player);
     }
 
     // ------------------------------------------------------------------
@@ -1082,32 +1084,50 @@ public class RelicFeature implements Listener {
     // glides back down (slow falling), sneaking drops faster.
     // ------------------------------------------------------------------
 
-    /** Refreshes the air-swim state from what the player is holding. */
-    private void refreshAirSwim(Player player) {
-        if (!this.hasSeaswim(player)) {
-            this.seaswimRising.remove(player.getUniqueId());
-            player.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
-            player.setSwimming(false);
-            if (player.getPose() == org.bukkit.entity.Pose.SWIMMING) {
-                player.setPose(org.bukkit.entity.Pose.STANDING);
+    /** Background upkeep: totem buffs and stable air-swim control. */
+    private void tickPassive() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (this.holdsRelic(p, "totem")) {
+                p.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                    org.bukkit.potion.PotionEffectType.RESISTANCE, 40, 1, true, false));
+                p.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                    org.bukkit.potion.PotionEffectType.REGENERATION, 40, 0, true, false));
+            }
+            this.tickSeaswim(p);
+        }
+    }
+
+    /** Stable air swim: velocity clamp instead of flickering potion swaps. */
+    private void tickSeaswim(Player p) {
+        UUID uuid = p.getUniqueId();
+        if (!this.hasSeaswim(p)) {
+            if (this.seaswimActive.remove(uuid)) {
+                p.setSwimming(false);
+                if (p.getPose() == org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.STANDING);
+            }
+            this.seaswimRising.remove(uuid);
+            return;
+        }
+        if (p.isOnGround()) {
+            if (this.seaswimActive.remove(uuid)) {
+                p.setSwimming(false);
+                if (p.getPose() == org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.STANDING);
             }
             return;
         }
-        player.setSwimming(true);
-        if (player.getPose() != org.bukkit.entity.Pose.SWIMMING) {
-            player.setPose(org.bukkit.entity.Pose.SWIMMING);
-        }
-        boolean rising = this.seaswimRising.contains(player.getUniqueId());
-        if (rising) {
-            player.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
-            player.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                org.bukkit.potion.PotionEffectType.LEVITATION, 45, 0, true, false));
+        if (this.seaswimActive.add(uuid)) p.setSwimming(true);
+        if (p.getPose() != org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.SWIMMING);
+        org.bukkit.util.Vector v = p.getVelocity();
+        double y;
+        if (this.seaswimRising.contains(uuid)) {
+            y = Math.min(v.getY() + 0.12, 0.30);
+        } else if (p.isSneaking()) {
+            y = Math.max(v.getY() - 0.15, -0.45);
         } else {
-            player.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
-            player.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                org.bukkit.potion.PotionEffectType.SLOW_FALLING, 45, 0, true, false));
-            player.setFallDistance(0.0f);
+            y = Math.max(v.getY() * 0.85, -0.30);
         }
+        p.setVelocity(new org.bukkit.util.Vector(v.getX(), y, v.getZ()));
+        p.setFallDistance(0.0f);
     }
 
     /** True while the sea heart sits in either hand. */
@@ -1186,27 +1206,6 @@ public class RelicFeature implements Listener {
         return false;
     }
 
-    /** Totem relic: cancels a lethal hit and revives at full health. */
-    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)
-    public void onTotemDeath(org.bukkit.event.entity.EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-        if (!this.holdsRelic(player, "totem")) return;
-        if (player.getHealth() - event.getFinalDamage() > 0) return;
-        long now = System.currentTimeMillis();
-        Long last = totemCooldown.get(player.getUniqueId());
-        if (last != null && now - last < 300000L) return;
-        event.setCancelled(true);
-        player.setHealth(player.getMaxHealth());
-        player.addPotionEffect(new org.bukkit.potion.PotionEffect(
-            org.bukkit.potion.PotionEffectType.RESISTANCE, 100, 4, true, false));
-        player.addPotionEffect(new org.bukkit.potion.PotionEffect(
-            org.bukkit.potion.PotionEffectType.REGENERATION, 100, 2, true, false));
-        totemCooldown.put(player.getUniqueId(), now);
-        player.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, player.getLocation().add(0.0, 1.0, 0.0), 40, 0.6, 1.0, 0.6, 0.2);
-        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TOTEM_USE, 1.0f, 1.0f);
-        player.sendMessage(ChatColor.GOLD + "不死のトーテムがあなたを救った！(5分間クールダウン)");
-    }
-
     /** Creative-inventory picks roll the same chance as a normal pickup. */
     @EventHandler
     public void onCreativePickup(org.bukkit.event.inventory.InventoryClickEvent event) {
@@ -1262,6 +1261,8 @@ public class RelicFeature implements Listener {
         if (event.getPlayer().getPose() == org.bukkit.entity.Pose.SWIMMING) {
             event.getPlayer().setPose(org.bukkit.entity.Pose.STANDING);
         }
+        seaswimActive.remove(uuid);
+        seaswimRising.remove(uuid);
         AttributeInstance attr = this.scaleAttribute(event.getPlayer());
         if (attr != null && scaleExpiry.remove(uuid) != null) attr.setBaseValue(1.0);
         java.util.Set<UUID> chained = dragFollowers.remove(uuid);
