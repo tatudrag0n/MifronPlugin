@@ -255,6 +255,7 @@ public class RelicFeature implements Listener {
     private final java.util.Set<java.util.UUID> seaswimActive = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Set<java.util.UUID> seaswimAirborne = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Set<java.util.UUID> poseInjected = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Map<java.util.UUID, org.bukkit.entity.Pose> lastServerPose = new java.util.concurrent.ConcurrentHashMap<>();
     private boolean poseReflectInit;
     private boolean poseReflectOk;
     private boolean poseReflectWarned;
@@ -1126,6 +1127,7 @@ public class RelicFeature implements Listener {
                 p.setFallDistance(0.0f);
             }
             if (this.poseInjected.remove(uuid)) this.sendPose(p, "STANDING");
+            this.lastServerPose.remove(uuid);
             return;
         }
         this.seaswimActive.add(uuid);
@@ -1146,9 +1148,14 @@ public class RelicFeature implements Listener {
             }
             p.setFallDistance(0.0f);
         }
-        // Client-only swim pose: the server never toggles it, so it holds.
-        this.poseInjected.add(uuid);
-        if (p.getTicksLived() % 4 == 0) this.sendPose(p, "SWIMMING");
+        // Client-only swim pose. Send once (and again only when the server's
+        // own pose changes), otherwise re-sending restarts the animation.
+        org.bukkit.entity.Pose serverPose = p.getPose();
+        org.bukkit.entity.Pose previousPose = this.lastServerPose.put(uuid, serverPose);
+        if (!this.poseInjected.contains(uuid) || (previousPose != null && previousPose != serverPose)) {
+            this.sendPose(p, "SWIMMING");
+            this.poseInjected.add(uuid);
+        }
         p.getWorld().spawnParticle(org.bukkit.Particle.BUBBLE, p.getLocation().add(0.0, 1.0, 0.0),
             2, 0.35, 0.45, 0.35, 0.0);
     }
