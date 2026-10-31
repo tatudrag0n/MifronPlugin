@@ -1107,31 +1107,17 @@ public class RelicFeature implements Listener {
     /** Stable air swim: keep one pose while held; only clamp while airborne. */
     private void tickSeaswim(Player p) {
         UUID uuid = p.getUniqueId();
-        if (!this.hasSeaswim(p)) {
-            if (this.seaswimAirborne.remove(uuid) | this.seaswimActive.remove(uuid)) {
+        boolean held = this.hasSeaswim(p);
+        if (!held || p.isOnGround()) {
+            this.seaswimRising.remove(uuid);
+            if (this.seaswimActive.remove(uuid)) {
                 p.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
                 p.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
-                if (p.isSwimming()) p.setSwimming(false);
-                if (p.getPose() == org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.STANDING);
-            }
-            this.seaswimRising.remove(uuid);
-            return;
-        }
-        boolean airborne = !p.isOnGround();
-        if (!airborne) {
-            if (this.seaswimAirborne.remove(uuid) | this.seaswimActive.remove(uuid)) {
-                p.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
-                if (p.isSwimming()) p.setSwimming(false);
-                if (p.getPose() == org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.STANDING);
+                p.setFallDistance(0.0f);
             }
             return;
         }
-        // Entering the air: try the swim pose ONCE (never re-assert it every
-        // tick — fighting the server's pose update was what caused shaking).
-        if (this.seaswimAirborne.add(uuid) && this.seaswimActive.add(uuid)) {
-            p.setSwimming(true);
-            p.setPose(org.bukkit.entity.Pose.SWIMMING);
-        }
+        this.seaswimActive.add(uuid);
         boolean rising = this.seaswimRising.contains(uuid);
         if (rising) {
             p.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
@@ -1149,6 +1135,10 @@ public class RelicFeature implements Listener {
             }
             p.setFallDistance(0.0f);
         }
+        // Swim feel without touching the pose (the server recomputes pose each
+        // tick, so forcing it only caused a one-frame jolt).
+        p.getWorld().spawnParticle(org.bukkit.Particle.BUBBLE, p.getLocation().add(0.0, 1.0, 0.0),
+            3, 0.4, 0.5, 0.4, 0.0);
     }
 
     /** True while the sea heart sits in either hand. */
