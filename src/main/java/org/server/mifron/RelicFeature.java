@@ -82,26 +82,26 @@ public class RelicFeature implements Listener {
 
     public enum RelicType {
         HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
-        ENCHBOOK("enchbook", "§e§l全適用の魔導書", Material.ENCHANTED_BOOK, 0.0008, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
-        JETPACK("jetpack", "§b§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
-        ROLLER_SKATES("skates", "§f§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
+        ENCHBOOK("enchbook", "§6§l全適用の魔導書", Material.ENCHANTED_BOOK, 0.0008, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
+        JETPACK("jetpack", "§3§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
+        ROLLER_SKATES("skates", "§7§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(クールダウン10秒)"),
-        FIREBALL("fireball", "§c§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
+        FIREBALL("fireball", "§4§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
         DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
         ENCHGRIND("enchgrind", "§d§l錬金の砥石", Material.GRINDSTONE, 0.0015, "§7右クリックで手元のエンチャントを本にして返還する。"),
-        CHAIN("chain", "§7§lチェーン", Material.IRON_CHAIN, 0.0002, "§7エンティティに左クリックで鎖を伸ばし、拘束・引っ張りができる。モブなら基本すべて。"),
+        CHAIN("chain", "§8§lチェーン", Material.IRON_CHAIN, 0.0002, "§7エンティティに左クリックで鎖を伸ばし、拘束・引っ張りができる。モブなら基本すべて。"),
         GIANTCORE("giantcore", "§2§l巨神のヘビーコア", Material.HEAVY_CORE, 0.0006, "§7右クリックで25秒間、巨神サイズに巨大化。"),
-        SEASWIM("seaswim", "§b§l海洋の心", Material.HEART_OF_THE_SEA, 0.0008, "§7持っている間、空中を泳げる。スペースで上昇、離すとゆっくり降下。"),
-        DASHFOOT("dashfoot", "§f§l疾風のウサギの足", Material.RABBIT_FOOT, 0.001, "§7右クリックで前方へ強くダッシュする。"),
-        REFLECT("reflect", "§9§l反射の守護盾", Material.SHIELD, 0.0005, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
+        SEASWIM("seaswim", "§3§l海洋の心", Material.HEART_OF_THE_SEA, 0.0008, "§7持っている間、空中を泳げる。スペースで上昇、離すとゆっくり降下。"),
+        DASHFOOT("dashfoot", "§7§l疾風のウサギの足", Material.RABBIT_FOOT, 0.001, "§7右クリックで前方へ強くダッシュする。"),
+        REFLECT("reflect", "§1§l反射の守護盾", Material.SHIELD, 0.0005, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
         NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, 0.0006, "§7右クリックで夜をそのまま朝へスキップする。"),
-        MAGNET("magnet", "§e§l磁力の石", Material.LODESTONE, 0.0004, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
-        SHRINKSTAR("shrinkstar", "§a§l微粒のネザースター", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
-        LIGHTNING("lightning", "§e§l雷鳴のロッド", Material.LIGHTNING_ROD, 0.0005, "§7右クリックで視線先に落雷を落とす。(クールダウン5秒)"),
+        MAGNET("magnet", "§6§l磁力の石", Material.LODESTONE, 0.0004, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
+        SHRINKSTAR("shrinkstar", "§2§l微粒のネザースター", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
+        LIGHTNING("lightning", "§6§l雷鳴のロッド", Material.LIGHTNING_ROD, 0.0005, "§7右クリックで視線先に落雷を落とす。(クールダウン5秒)"),
         BLINK("blink", "§5§l次元の眼", Material.ENDER_EYE, 0.0005, "§7右クリックで前方へ瞬間移動する。(クールダウン3秒)"),
         TOTEM("totem", "§6§l不死のトーテム", Material.TOTEM_OF_UNDYING, 0.0003, "§7致命ダメージを受けた時、自動で復活する。(クールダウン5分)"),
         WITHER("wither", "§8§lウィザー頭骨", Material.WITHER_SKELETON_SKULL, 0.0004, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
-        BELL("bell", "§a§l癒やしの鐘", Material.BELL, 0.0005, "§7右クリックで自分と周囲の味方を回復する。(クールダウン8秒)"),
+        BELL("bell", "§2§l癒やしの鐘", Material.BELL, 0.0005, "§7右クリックで自分と周囲の味方を回復する。(クールダウン8秒)"),
         DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, 0.0004, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
         VISION("vision", "§8§l暗視スコープ", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
 
@@ -124,14 +124,14 @@ public class RelicFeature implements Listener {
         ItemStack item = new ItemStack(type.baseMaterial);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            String plainName = org.bukkit.ChatColor.stripColor(type.displayName);
-            net.kyori.adventure.text.Component fancyName = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<gradient:#ffd700:#ff4500:#c0392b><bold>" + plainName + "</bold></gradient>");
-            meta.displayName(fancyName);
+            // Per-item muted colour from the enum, rendered as plain text:
+            // no gradient/effects, just one dignified title colour.
+            meta.displayName(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                .legacySection().deserialize(type.displayName));
             meta.setUnbreakable(true);
             List<String> lore = new ArrayList<>();
             lore.add(type.description);
-            lore.add("§8[レリック / 売買不可]");
+            lore.add("§8レリック");
             meta.setLore(lore);
             meta.setEnchantmentGlintOverride(true);
             meta.getPersistentDataContainer().set(keyRelic, PersistentDataType.STRING, type.id);

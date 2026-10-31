@@ -1,5 +1,5 @@
 name: mifron
-version: 26.1.2-magnetfix-20261030
+version: 26.1.2-relicstyle-20261031
 
 main: org.server.mifron.Mifron
 api-version: '1.21'
