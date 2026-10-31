@@ -24,6 +24,17 @@ for rel in bukkit.yml commands.yml help.yml permissions.yml spigot.yml wepif.yml
   fi
 done
 
+# Plugin content/config (never player data: data.yml, inventory-groups,
+# minoru-bridge.yml and proposals.yml stay test-side).
+mkdir -p "$TEST_DIR/plugins/mifron"
+for rel in plugins/mifron/config.yml plugins/mifron/quests.yml \
+           plugins/mifron/economy-price-table.yml; do
+  if [ -f "$PROD_DIR/$rel" ]; then
+    cp -f "$PROD_DIR/$rel" "$TEST_DIR/$rel"
+    echo "SYNC $rel"
+  fi
+done
+
 # Plugin jars only (never *.disabled-test handling, never test->prod).
 mkdir -p "$TEST_DIR/plugins"
 for jar in "$PROD_DIR"/plugins/*.jar; do

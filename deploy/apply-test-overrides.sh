@@ -98,10 +98,41 @@ def setkey(t, k, v):
     if re.search(r"(?m)^" + k + r"\s*:", t):
         return re.sub(r"(?m)^" + k + r"\s*:.*$", k + ": " + v, t)
     return t + "\n" + k + ": " + v + "\n"
+def set_nested(t, section, key, v):
+    """Set `section.key` inside a top-level YAML block, preserving indentation."""
+    lines = t.split("\n")
+    inside = False
+    indent = "  "
+    for i, line in enumerate(lines):
+        if line.startswith(section + ":"):
+            inside = True
+            continue
+        if inside:
+            if line and not line.startswith((" ", "\t")):
+                break
+            stripped = line.strip()
+            if stripped.startswith(key + ":"):
+                lead = line[: len(line) - len(line.lstrip())]
+                lines[i] = f"{lead}{key}: {v}"
+                return "\n".join(lines)
+            if stripped and not stripped.startswith("#"):
+                lead = line[: len(line) - len(line.lstrip())]
+                indent = lead
+    # Key missing: append it at the end of the section.
+    for i, line in enumerate(lines):
+        if line.startswith(section + ":"):
+            lines.insert(i + 1, f"{indent}{key}: {v}")
+            return "\n".join(lines)
+    return t + "\n" + section + ":\n" + indent + key + ": " + v + "\n"
 for k, v in [("test-server.enabled", "true"),
               ("test-server.enforce-whitelist", "true"),
               ("test-server.auto-restart", "true")]:
     text = setkey(text, k, v)
+# A local test server must never stop the host VM when it empties out.
+text = set_nested(text, "auto-shutdown", "enabled", "false")
+# Never leak test analytics into the production Minoru endpoint.
+text = set_nested(text, "analytics", "endpoint", "''")
+text = set_nested(text, "analytics", "secret", "''")
 open(path, "w", encoding="utf-8").write(text)
 PY
 fi

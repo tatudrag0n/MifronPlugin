@@ -50,6 +50,35 @@ production and diverges afterwards; production is never written from test.
    `save-all` first).
 5. Never deploy without explicit approval.
 
+## E2E bot
+
+`../mifron-bot` is a Mineflayer bot that logs in and drives real gameplay
+(tutorial, fan menu, shop, travel, inventory separation, MP, persistence).
+It defaults to `:25566` and refuses `:25565` unless explicitly overridden.
+
+```bash
+# stop the test server, reset only the test player, restart, then run
+cd ~/mifron-bot
+node scripts/reset-test-player.js MifronTestBot --data ~/test-server/plugins/mifron/data.yml
+npm test                       # writes reports/e2e-<timestamp>.json
+```
+
+The bot needs `op MifronTestBot` on the **test** server for the admin legs.
+
+## Test-server safety overrides
+
+`apply-test-overrides.sh` also:
+
+- forces `auto-shutdown.enabled: false` — an empty local test server must never
+  stop the host VM;
+- clears `analytics.endpoint` / `analytics.secret` — test events must not reach
+  the production Minoru endpoint.
+
+`sync-test-server.sh` also copies `plugins/mifron/config.yml`,
+`quests.yml` and `economy-price-table.yml`. A stale plugin config (for example
+`tutorial.spawn.y=65` while the world moved to `y=-60`) produces misleading
+test failures, so refresh before a release run.
+
 ## Notes
 
 - `test-server.*` config defaults are all **off**, so production behavior is

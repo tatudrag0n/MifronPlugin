@@ -2,6 +2,8 @@
 
 Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に基づく詳細仕様は [`docs/non-ffa-code-spec.md`](docs/non-ffa-code-spec.md) と [`docs/SPECIFICATION.md`](docs/SPECIFICATION.md) を参照してください。
 
+新規参加からチュートリアル・メニュー・SHOP・移動・インベントリ分離・MP永続化までのE2Eテストは `../mifron-bot` (Mineflayer) で自動化しています。直近の実機結果と未対応範囲は [`docs/E2E_TEST_REPORT.md`](docs/E2E_TEST_REPORT.md) を参照してください。
+
 ## ハイライト
 
 - **SHOP・棚/樽ショップ** — カテゴリ別SHOP、全棚で在庫を共有する棚ショップ、樽を使った販売・買取ショップ、通常商人と秘宝商人を提供。購入・売却はMPで決済されます。
