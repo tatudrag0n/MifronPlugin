@@ -258,6 +258,7 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, Long> witherCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> bellCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> breathCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, Long> chainToggleMs = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, ItemStack> lastGrindInput = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<org.bukkit.Location> relicGrindstoneLocations = new java.util.HashSet<>();
     private org.bukkit.scheduler.BukkitTask dragTask;
@@ -762,6 +763,16 @@ public class RelicFeature implements Listener {
         this.toggleChain(player, target);
     }
 
+    /** Left-click attack hook: fires even where damage events are suppressed. */
+    @EventHandler
+    public void onChainAttack(io.papermc.paper.event.player.PrePlayerAttackEntityEvent event) {
+        Player player = event.getPlayer();
+        if (!this.holdsRelic(player, "chain")) return;
+        if (!(event.getAttacked() instanceof org.bukkit.entity.LivingEntity target)) return;
+        event.setCancelled(true);
+        this.toggleChain(player, target);
+    }
+
     @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST, ignoreCancelled = false)
     public void onChainInteract(org.bukkit.event.player.PlayerInteractEntityEvent event) {
         Player player = event.getPlayer();
@@ -773,20 +784,28 @@ public class RelicFeature implements Listener {
 
     /** Binds or releases a mob; tracked for the drag-follow task either way. */
     private void toggleChain(Player player, org.bukkit.entity.LivingEntity target) {
+        long now = System.currentTimeMillis();
+        Long lastToggle = chainToggleMs.get(player.getUniqueId());
+        if (lastToggle != null && now - lastToggle < 400L) return; // two events, one click
+        chainToggleMs.put(player.getUniqueId(), now);
         UUID pid = player.getUniqueId();
         java.util.Set<UUID> followers = dragFollowers.computeIfAbsent(pid, k -> new java.util.HashSet<>());
         boolean held = followers.contains(target.getUniqueId()) || target.getLeashHolder() == player;
         if (held) {
             followers.remove(target.getUniqueId());
-            if (target.getLeashHolder() == player) target.setLeashHolder(null);
+            try { if (target.getLeashHolder() == player) target.setLeashHolder(null); } catch (Exception ignored) { }
             if (followers.isEmpty()) { dragFollowers.remove(pid); this.stopDragTask(); }
             player.sendMessage(ChatColor.GRAY + "鎖を解いた。");
         } else {
-            boolean leashed = target.setLeashHolder(player);
+            boolean leashed = false;
+            try { leashed = target.setLeashHolder(player); } catch (Exception ignored) { }
             // Track it regardless: the drag task guarantees the mob actually
             // follows even when the vanilla leash refuses or gets ignored.
             followers.add(target.getUniqueId());
             this.startDragTask();
+            // Immediate visible tug toward the player.
+            org.bukkit.util.Vector tug = player.getLocation().toVector().subtract(target.getLocation().toVector());
+            if (tug.lengthSquared() > 0.01) target.setVelocity(tug.normalize().multiply(0.45));
             player.sendMessage(ChatColor.GRAY + (leashed ? "鎖で拘束した。" : "鎖で拘束した(追尾)。") + "引っ張って移動できる。");
         }
         player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, target.getLocation().add(0, target.getHeight() / 2.0, 0), 12, 0.25, 0.25, 0.25, 0.1);
@@ -811,6 +830,18 @@ public class RelicFeature implements Listener {
                     if (!follower.getWorld().equals(owner.getWorld())) {
                         follower.teleport(owner.getLocation().add(0.0, 0.5, 0.0));
                         continue;
+                    }
+                    // Visible chain: sparks along the line to the bound mob.
+                    org.bukkit.Location from = owner.getLocation().add(0.0, 1.0, 0.0);
+                    org.bukkit.Location to = follower.getLocation().add(0.0, follower.getHeight() / 2.0, 0.0);
+                    org.bukkit.util.Vector line = to.toVector().subtract(from.toVector());
+                    double lineLength = line.length();
+                    if (lineLength > 0.1) {
+                        org.bukkit.util.Vector step = line.clone().normalize();
+                        for (double d = 0.3; d < lineLength; d += 0.5) {
+                            owner.getWorld().spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK,
+                                from.clone().add(step.clone().multiply(d)), 1, 0.0, 0.0, 0.0, 0.0);
+                        }
                     }
                     double distance = follower.getLocation().distance(owner.getLocation());
                     if (distance < 2.5) continue;
