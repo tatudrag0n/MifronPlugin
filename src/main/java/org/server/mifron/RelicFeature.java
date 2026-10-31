@@ -85,7 +85,7 @@ public class RelicFeature implements Listener {
         ENCHBOOK("enchbook", "§6§l全適用の魔導書", Material.ENCHANTED_BOOK, 0.0008, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
         JETPACK("jetpack", "§3§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
         ROLLER_SKATES("skates", "§7§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
-        RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(クールダウン10秒)"),
+        RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(クールダウン8秒)"),
         FIREBALL("fireball", "§4§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
         DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
         ENCHGRIND("enchgrind", "§d§l錬金の砥石", Material.GRINDSTONE, 0.0015, "§7右クリックで手元のエンチャントを本にして返還する。"),
@@ -97,11 +97,11 @@ public class RelicFeature implements Listener {
         NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, 0.0006, "§7右クリックで夜をそのまま朝へスキップする。"),
         MAGNET("magnet", "§6§l磁力の石", Material.LODESTONE, 0.0004, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
         SHRINKSTAR("shrinkstar", "§2§l微粒のネザースター", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
-        LIGHTNING("lightning", "§6§l雷鳴のロッド", Material.LIGHTNING_ROD, 0.0005, "§7右クリックで視線先に落雷を落とす。(クールダウン5秒)"),
+        LIGHTNING("lightning", "§6§l雷鳴のロッド", Material.LIGHTNING_ROD, 0.0005, "§7右クリックで視線先に落雷を落とす。(クールダウン4秒)"),
         BLINK("blink", "§5§l次元の眼", Material.ENDER_EYE, 0.0005, "§7右クリックで前方へ瞬間移動する。(クールダウン3秒)"),
         TOTEM("totem", "§6§l不死のトーテム", Material.TOTEM_OF_UNDYING, 0.0003, "§7致命ダメージを受けた時、自動で復活する。(クールダウン5分)"),
         WITHER("wither", "§8§lウィザー頭骨", Material.WITHER_SKELETON_SKULL, 0.0004, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
-        BELL("bell", "§2§l癒やしの鐘", Material.BELL, 0.0005, "§7右クリックで自分と周囲の味方を回復する。(クールダウン8秒)"),
+        BELL("bell", "§2§l癒やしの鐘", Material.BELL, 0.0005, "§7右クリックで自分と周囲の味方を回復する。(クールダウン6秒)"),
         DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, 0.0004, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
         VISION("vision", "§8§l暗視スコープ", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
 
@@ -319,7 +319,7 @@ public class RelicFeature implements Listener {
             player.sendMessage(ChatColor.YELLOW + "磁力バースト！周囲のアイテムを一気に引き寄せた。");
         } else if ("lightning".equals(id) && rightClick) {
             event.setCancelled(true);
-            if (!this.rollingCooldown(player, lightningCooldown, 5000L, "雷鳴")) return;
+            if (!this.rollingCooldown(player, lightningCooldown, 4000L, "雷鳴")) return;
             this.tryLightning(player);
         } else if ("blink".equals(id) && rightClick) {
             event.setCancelled(true);
@@ -329,12 +329,12 @@ public class RelicFeature implements Listener {
             event.setCancelled(true);
             if (!this.rollingCooldown(player, witherCooldown, 4000L, "ウィザースクロウ")) return;
             org.bukkit.entity.WitherSkull skull = player.launchProjectile(org.bukkit.entity.WitherSkull.class,
-                player.getEyeLocation().getDirection().multiply(1.8));
+                player.getEyeLocation().getDirection().multiply(2.4));
             skull.setCharged(true);
             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WITHER_SHOOT, 1.0f, 1.0f);
         } else if ("bell".equals(id) && rightClick) {
             event.setCancelled(true);
-            if (!this.rollingCooldown(player, bellCooldown, 8000L, "癒やしの鐘")) return;
+            if (!this.rollingCooldown(player, bellCooldown, 6000L, "癒やしの鐘")) return;
             this.tryBell(player);
         } else if ("dragonbreath".equals(id) && rightClick) {
             event.setCancelled(true);
@@ -355,9 +355,9 @@ public class RelicFeature implements Listener {
         player.getWorld().strikeLightningEffect(loc);
         player.getWorld().playSound(loc, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 3.0f, 1.0f);
         java.util.Set<java.util.UUID> hit = new java.util.HashSet<>();
-        for (org.bukkit.entity.Entity e : loc.getWorld().getNearbyEntities(loc, 4, 4, 4)) {
+        for (org.bukkit.entity.Entity e : loc.getWorld().getNearbyEntities(loc, 5, 5, 5)) {
             if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
-            if (hit.add(living.getUniqueId())) living.damage(14.0, player);
+            if (hit.add(living.getUniqueId())) living.damage(22.0, player);
         }
         player.sendMessage(ChatColor.YELLOW + "雷鳴が落ちた！");
     }
@@ -381,7 +381,7 @@ public class RelicFeature implements Listener {
     /** Healing bell: heals the user and nearby players, granting regen. */
     private void tryBell(Player player) {
         this.healWithBell(player);
-        for (org.bukkit.entity.Entity e : player.getNearbyEntities(8, 8, 8)) {
+        for (org.bukkit.entity.Entity e : player.getNearbyEntities(10, 10, 10)) {
             if (e instanceof Player other && other != player) this.healWithBell(other);
         }
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.2f, 1.4f);
@@ -389,16 +389,16 @@ public class RelicFeature implements Listener {
     }
 
     private void healWithBell(Player target) {
-        target.setHealth(Math.min(target.getMaxHealth(), target.getHealth() + 8.0));
+        target.setHealth(Math.min(target.getMaxHealth(), target.getHealth() + 14.0));
         target.addPotionEffect(new org.bukkit.potion.PotionEffect(
-            org.bukkit.potion.PotionEffectType.REGENERATION, 80, 1, true, false));
+            org.bukkit.potion.PotionEffectType.REGENERATION, 120, 2, true, false));
     }
 
     /** Dragon breath: a cone of damaging breath particles. */
     private void tryDragonBreath(Player player) {
         org.bukkit.Location eye = player.getEyeLocation();
         org.bukkit.util.Vector dir = eye.getDirection().normalize();
-        double range = 14.0;
+        double range = 18.0;
         java.util.Set<java.util.UUID> hit = new java.util.HashSet<>();
         int hits = 0;
         // Cone damage: everything within range and inside the look cone.
@@ -408,31 +408,36 @@ public class RelicFeature implements Listener {
             org.bukkit.util.Vector to = center.toVector().subtract(eye.toVector());
             double dist = to.length();
             if (dist < 0.5 || dist > range) continue;
-            if (to.normalize().dot(dir) < 0.5) continue; // ~60° half-angle cone
+            if (to.normalize().dot(dir) < 0.35) continue; // wide ~70° half-angle cone
             if (hit.add(living.getUniqueId())) {
-                living.damage(8.0, player);
-                living.setVelocity(living.getVelocity().add(dir.clone().multiply(0.45)));
-                living.getWorld().spawnParticle(org.bukkit.Particle.CRIT, center, 10, 0.25, 0.25, 0.25, 0.1);
+                living.damage(20.0, player);
+                living.setFireTicks(Math.max(living.getFireTicks(), 80));
+                living.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                    org.bukkit.potion.PotionEffectType.SLOWNESS, 100, 1, true, false));
+                org.bukkit.util.Vector push = dir.clone().multiply(0.9);
+                living.setVelocity(new org.bukkit.util.Vector(push.getX(), 0.45, push.getZ()));
+                living.getWorld().spawnParticle(org.bukkit.Particle.CRIT, center, 14, 0.3, 0.3, 0.3, 0.15);
                 hits++;
             }
         }
         // Breath ray visuals.
-        for (double d = 1.0; d <= range; d += 0.6) {
+        for (double d = 1.0; d <= range; d += 0.5) {
             org.bukkit.Location p = eye.clone().add(dir.clone().multiply(d));
-            p.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, p, 3, 0.2, 0.2, 0.2, 0.02, 0.05f);
+            p.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, p, 4, 0.25, 0.25, 0.25, 0.02, 0.05f);
         }
         // Area burst at the endpoint so the AoE is unmistakable.
         org.bukkit.Location end = eye.clone().add(dir.clone().multiply(range));
-        end.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, end, 25, 1.2, 1.2, 1.2, 0.02, 0.05f);
-        end.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION, end, 2, 0.5, 0.5, 0.5, 0.0);
-        for (org.bukkit.entity.Entity e : end.getWorld().getNearbyEntities(end, 3.0, 3.0, 3.0)) {
+        end.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, end, 40, 1.6, 1.6, 1.6, 0.02, 0.06f);
+        end.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, end, 1);
+        for (org.bukkit.entity.Entity e : end.getWorld().getNearbyEntities(end, 4.0, 4.0, 4.0)) {
             if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
             if (hit.add(living.getUniqueId())) {
-                living.damage(6.0, player);
+                living.damage(14.0, player);
+                living.setFireTicks(Math.max(living.getFireTicks(), 60));
                 hits++;
             }
         }
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.2f, 1.5f);
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.4f, 1.4f);
         player.sendActionBar("§5竜の吐息: " + hits + "体に命中");
     }
 
@@ -480,10 +485,10 @@ public class RelicFeature implements Listener {
 
     /** Warden sonic beam on a 10s cooldown instead of shattering the shard. */
     private void tryResonanceBeam(Player player) {
-        if (!this.rollingCooldown(player, beamCooldown, 10000L, "ソニックビーム")) return;
+        if (!this.rollingCooldown(player, beamCooldown, 8000L, "ソニックビーム")) return;
         Location eye = player.getEyeLocation();
         Vector dir = eye.getDirection().normalize();
-        double range = 18.0;
+        double range = 22.0;
         player.getWorld().playSound(eye, Sound.ENTITY_WARDEN_SONIC_BOOM, 3.0f, 1.0f);
         for (double d = 1.0; d <= range; d += 0.5) {
             Location p = eye.clone().add(dir.clone().multiply(d));
@@ -496,9 +501,9 @@ public class RelicFeature implements Listener {
             double dist = to.length();
             if (dist < 0.5 || dist > range) continue;
             if (to.normalize().dot(dir) < 0.85) continue;
-            living.damage(20.0, player);
+            living.damage(30.0, player);
         }
-        player.sendMessage(ChatColor.DARK_AQUA + "ソニックビームを放った！(次まで10秒)");
+        player.sendMessage(ChatColor.DARK_AQUA + "ソニックビームを放った！(次まで8秒)");
     }
 
     /** Gust fireball on a 3s cooldown instead of eating the charge. */
@@ -506,7 +511,7 @@ public class RelicFeature implements Listener {
         if (!this.rollingCooldown(player, fireballCooldown, 3000L, "ファイアーボール")) return;
         Location eye = player.getEyeLocation();
         Fireball fireball = player.launchProjectile(Fireball.class, eye.getDirection().multiply(2.0));
-        fireball.setYield(2.5f);
+        fireball.setYield(4.0f);
         fireball.setIsIncendiary(true);
         player.getWorld().playSound(eye, Sound.ENTITY_GHAST_SHOOT, 1.0f, 1.0f);
     }
@@ -530,8 +535,8 @@ public class RelicFeature implements Listener {
         Vector facing = player.getLocation().getDirection();
         facing.setY(0.0);
         if (facing.lengthSquared() < 1.0E-9) facing = new Vector(1.0, 0.0, 0.0);
-        facing.normalize().multiply(1.15);
-        player.setVelocity(new Vector(facing.getX(), 0.28, facing.getZ()));
+        facing.normalize().multiply(1.45);
+        player.setVelocity(new Vector(facing.getX(), 0.32, facing.getZ()));
         player.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, player.getLocation().add(0.0, 0.4, 0.0), 14, 0.3, 0.1, 0.3, 0.05);
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_RABBIT_JUMP, 1.0f, 1.0f);
     }
