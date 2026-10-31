@@ -72,7 +72,7 @@ public class RelicFeature implements Listener {
     public void startMagnetTask() {
         if (this.magnetTask != null) return;
         this.magnetTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickMagnet, 20L, 4L);
-        this.passiveTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickPassive, 20L, 2L);
+        this.passiveTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickPassive, 20L, 1L);
     }
 
     /** Cancels background tasks owned by this feature. */
@@ -1088,16 +1088,22 @@ public class RelicFeature implements Listener {
     private void tickPassive() {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (this.holdsRelic(p, "totem")) {
-                p.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                    org.bukkit.potion.PotionEffectType.RESISTANCE, 40, 1, true, false));
-                p.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                    org.bukkit.potion.PotionEffectType.REGENERATION, 40, 0, true, false));
+                org.bukkit.potion.PotionEffect resist = p.getPotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE);
+                if (resist == null || resist.getDuration() <= 20) {
+                    p.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                        org.bukkit.potion.PotionEffectType.RESISTANCE, 60, 1, true, false));
+                }
+                org.bukkit.potion.PotionEffect regen = p.getPotionEffect(org.bukkit.potion.PotionEffectType.REGENERATION);
+                if (regen == null || regen.getDuration() <= 20) {
+                    p.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                        org.bukkit.potion.PotionEffectType.REGENERATION, 60, 0, true, false));
+                }
             }
             this.tickSeaswim(p);
         }
     }
 
-    /** Stable air swim: velocity clamp instead of flickering potion swaps. */
+    /** Stable air swim: keep one pose while held; only clamp while airborne. */
     private void tickSeaswim(Player p) {
         UUID uuid = p.getUniqueId();
         if (!this.hasSeaswim(p)) {
@@ -1108,15 +1114,10 @@ public class RelicFeature implements Listener {
             this.seaswimRising.remove(uuid);
             return;
         }
-        if (p.isOnGround()) {
-            if (this.seaswimActive.remove(uuid)) {
-                p.setSwimming(false);
-                if (p.getPose() == org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.STANDING);
-            }
-            return;
-        }
-        if (this.seaswimActive.add(uuid)) p.setSwimming(true);
+        // Keep the swim state continuously (never toggle it with ground checks).
+        if (!p.isSwimming()) p.setSwimming(true);
         if (p.getPose() != org.bukkit.entity.Pose.SWIMMING) p.setPose(org.bukkit.entity.Pose.SWIMMING);
+        if (p.isOnGround()) return; // no vertical thrust while standing
         org.bukkit.util.Vector v = p.getVelocity();
         double y;
         if (this.seaswimRising.contains(uuid)) {

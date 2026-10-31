@@ -1,5 +1,5 @@
 name: mifron
-version: 26.1.2-relicname2-20261031
+version: 26.1.2-swimfix-20261031
 
 main: org.server.mifron.Mifron
 api-version: '1.21'
