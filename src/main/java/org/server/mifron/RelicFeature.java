@@ -395,16 +395,42 @@ public class RelicFeature implements Listener {
     private void tryDragonBreath(Player player) {
         org.bukkit.Location eye = player.getEyeLocation();
         org.bukkit.util.Vector dir = eye.getDirection().normalize();
+        double range = 14.0;
         java.util.Set<java.util.UUID> hit = new java.util.HashSet<>();
-        for (double d = 1.0; d <= 12.0; d += 0.7) {
+        int hits = 0;
+        // Cone damage: everything within range and inside the look cone.
+        for (org.bukkit.entity.Entity e : player.getWorld().getNearbyEntities(player.getLocation(), range, range, range)) {
+            if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
+            org.bukkit.Location center = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
+            org.bukkit.util.Vector to = center.toVector().subtract(eye.toVector());
+            double dist = to.length();
+            if (dist < 0.5 || dist > range) continue;
+            if (to.normalize().dot(dir) < 0.5) continue; // ~60° half-angle cone
+            if (hit.add(living.getUniqueId())) {
+                living.damage(8.0, player);
+                living.setVelocity(living.getVelocity().add(dir.clone().multiply(0.45)));
+                living.getWorld().spawnParticle(org.bukkit.Particle.CRIT, center, 10, 0.25, 0.25, 0.25, 0.1);
+                hits++;
+            }
+        }
+        // Breath ray visuals.
+        for (double d = 1.0; d <= range; d += 0.6) {
             org.bukkit.Location p = eye.clone().add(dir.clone().multiply(d));
-            p.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, p, 4, 0.25, 0.25, 0.25, 0.02, 0.05f);
-            for (org.bukkit.entity.Entity e : p.getWorld().getNearbyEntities(p, 1.8, 1.8, 1.8)) {
-                if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
-                if (hit.add(living.getUniqueId())) living.damage(6.0, player);
+            p.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, p, 3, 0.2, 0.2, 0.2, 0.02, 0.05f);
+        }
+        // Area burst at the endpoint so the AoE is unmistakable.
+        org.bukkit.Location end = eye.clone().add(dir.clone().multiply(range));
+        end.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, end, 25, 1.2, 1.2, 1.2, 0.02, 0.05f);
+        end.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION, end, 2, 0.5, 0.5, 0.5, 0.0);
+        for (org.bukkit.entity.Entity e : end.getWorld().getNearbyEntities(end, 3.0, 3.0, 3.0)) {
+            if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
+            if (hit.add(living.getUniqueId())) {
+                living.damage(6.0, player);
+                hits++;
             }
         }
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.2f, 1.5f);
+        player.sendActionBar("§5竜の吐息: " + hits + "体に命中");
     }
 
     // ------------------------------------------------------------------
@@ -790,10 +816,14 @@ public class RelicFeature implements Listener {
         chainToggleMs.put(player.getUniqueId(), now);
         UUID pid = player.getUniqueId();
         java.util.Set<UUID> followers = dragFollowers.computeIfAbsent(pid, k -> new java.util.HashSet<>());
-        boolean held = followers.contains(target.getUniqueId()) || target.getLeashHolder() == player;
+        boolean leashedToPlayer = false;
+        if (target.isLeashed()) {
+            try { leashedToPlayer = target.getLeashHolder() == player; } catch (Exception ignored) { }
+        }
+        boolean held = followers.contains(target.getUniqueId()) || leashedToPlayer;
         if (held) {
             followers.remove(target.getUniqueId());
-            try { if (target.getLeashHolder() == player) target.setLeashHolder(null); } catch (Exception ignored) { }
+            if (target.isLeashed()) { try { target.setLeashHolder(null); } catch (Exception ignored) { } }
             if (followers.isEmpty()) { dragFollowers.remove(pid); this.stopDragTask(); }
             player.sendMessage(ChatColor.GRAY + "鎖を解いた。");
         } else {
