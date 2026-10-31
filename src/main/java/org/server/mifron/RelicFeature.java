@@ -1159,7 +1159,9 @@ public class RelicFeature implements Listener {
         this.poseReflectInit = true;
         try {
             Class<?> entityClass = Class.forName("net.minecraft.world.entity.Entity");
-            this.poseAccessor = entityClass.getField("DATA_POSE").get(null);
+            java.lang.reflect.Field poseField = entityClass.getDeclaredField("DATA_POSE");
+            poseField.setAccessible(true);
+            this.poseAccessor = poseField.get(null);
             this.poseClass = Class.forName("net.minecraft.world.entity.Pose");
             Class<?> dataValueClass = Class.forName("net.minecraft.network.syncher.SynchedEntityData$DataValue");
             this.dataValueCtor = dataValueClass.getConstructor(int.class,
@@ -1200,7 +1202,14 @@ public class RelicFeature implements Listener {
             }
             Object dataValue = this.dataValueCtor.newInstance(accessorId, serializer, pose);
             Object packet = this.packetCtor.newInstance(entityId, java.util.List.of(dataValue));
-            Object connection = handle.getClass().getField("connection").get(handle);
+            Object connection;
+            try {
+                java.lang.reflect.Field connField = handle.getClass().getDeclaredField("connection");
+                connField.setAccessible(true);
+                connection = connField.get(handle);
+            } catch (NoSuchFieldException e) {
+                connection = handle.getClass().getField("connection").get(handle);
+            }
             connection.getClass().getMethod("send", this.packetBaseClass).invoke(connection, packet);
         } catch (Throwable t) {
             this.poseReflectOk = false;
