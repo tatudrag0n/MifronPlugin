@@ -398,7 +398,7 @@ public class RelicFeature implements Listener {
         java.util.Set<java.util.UUID> hit = new java.util.HashSet<>();
         for (double d = 1.0; d <= 12.0; d += 0.7) {
             org.bukkit.Location p = eye.clone().add(dir.clone().multiply(d));
-            p.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, p, 4, 0.25, 0.25, 0.25, 0.02);
+            p.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, p, 4, 0.25, 0.25, 0.25, 0.02, 0.05f);
             for (org.bukkit.entity.Entity e : p.getWorld().getNearbyEntities(p, 1.8, 1.8, 1.8)) {
                 if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
                 if (hit.add(living.getUniqueId())) living.damage(6.0, player);
