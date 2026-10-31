@@ -81,29 +81,29 @@ public class RelicFeature implements Listener {
     }
 
     public enum RelicType {
-        HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
+        HOOKSHOT("hookshot", "§6§l鉤縄", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
         ENCHBOOK("enchbook", "§6§l全適用の魔導書", Material.ENCHANTED_BOOK, 0.0008, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
-        JETPACK("jetpack", "§3§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
-        ROLLER_SKATES("skates", "§7§lローラースケート", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
+        JETPACK("jetpack", "§3§l飛翔の外套", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
+        ROLLER_SKATES("skates", "§7§l滑走靴", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(クールダウン8秒)"),
-        FIREBALL("fireball", "§4§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
+        FIREBALL("fireball", "§4§l火球", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
         DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
         ENCHGRIND("enchgrind", "§d§l錬金の砥石", Material.GRINDSTONE, 0.0015, "§7右クリックで手元のエンチャントを本にして返還する。"),
-        CHAIN("chain", "§8§lチェーン", Material.IRON_CHAIN, 0.0002, "§7エンティティに左クリックで鎖を伸ばし、拘束・引っ張りができる。モブなら基本すべて。"),
-        GIANTCORE("giantcore", "§2§l巨神のヘビーコア", Material.HEAVY_CORE, 0.0006, "§7右クリックで25秒間、巨神サイズに巨大化。"),
+        CHAIN("chain", "§8§l拘束の鎖", Material.IRON_CHAIN, 0.0002, "§7左クリックで鎖を伸ばして拘束。右クリックで延長モード切替。"),
+        GIANTCORE("giantcore", "§2§l巨神の核", Material.HEAVY_CORE, 0.0006, "§7右クリックで25秒間、巨神サイズに巨大化。"),
         SEASWIM("seaswim", "§3§l海洋の心", Material.HEART_OF_THE_SEA, 0.0008, "§7持っている間、空中を泳げる。スペースで上昇、離すとゆっくり降下。"),
-        DASHFOOT("dashfoot", "§7§l疾風のウサギの足", Material.RABBIT_FOOT, 0.001, "§7右クリックで前方へ強くダッシュする。"),
+        DASHFOOT("dashfoot", "§7§l疾風の兎の足", Material.RABBIT_FOOT, 0.001, "§7右クリックで前方へ強くダッシュする。"),
         REFLECT("reflect", "§1§l反射の守護盾", Material.SHIELD, 0.0005, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
         NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, 0.0006, "§7右クリックで夜をそのまま朝へスキップする。"),
         MAGNET("magnet", "§6§l磁力の石", Material.LODESTONE, 0.0004, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
-        SHRINKSTAR("shrinkstar", "§2§l微粒のネザースター", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
-        LIGHTNING("lightning", "§6§l雷鳴のロッド", Material.LIGHTNING_ROD, 0.0005, "§7右クリックで視線先に落雷を落とす。(クールダウン4秒)"),
+        SHRINKSTAR("shrinkstar", "§2§l微粒の星", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
+        LIGHTNING("lightning", "§6§l雷鳴の杖", Material.LIGHTNING_ROD, 0.0005, "§7右クリックで視線先に落雷を落とす。(クールダウン4秒)"),
         BLINK("blink", "§5§l次元の眼", Material.ENDER_EYE, 0.0005, "§7右クリックで前方へ瞬間移動する。(クールダウン3秒)"),
-        TOTEM("totem", "§6§l不死のトーテム", Material.TOTEM_OF_UNDYING, 0.0003, "§7致命ダメージを受けた時、自動で復活する。(クールダウン5分)"),
-        WITHER("wither", "§8§lウィザー頭骨", Material.WITHER_SKELETON_SKULL, 0.0004, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
+        TOTEM("totem", "§6§l不死の護符", Material.TOTEM_OF_UNDYING, 0.0003, "§7致命ダメージを受けた時、自動で復活する。(クールダウン5分)"),
+        WITHER("wither", "§8§l凋零の頭骨", Material.WITHER_SKELETON_SKULL, 0.0004, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
         BELL("bell", "§2§l癒やしの鐘", Material.BELL, 0.0005, "§7右クリックで自分と周囲の味方を回復する。(クールダウン6秒)"),
         DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, 0.0004, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
-        VISION("vision", "§8§l暗視スコープ", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
+        VISION("vision", "§8§l暗視鏡", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
 
         public final String id;
         public final String displayName;
@@ -259,6 +259,8 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, Long> bellCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> breathCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> chainToggleMs = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Set<java.util.UUID> chainExtendMode = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Map<java.util.UUID, Boolean> chainHadAI = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, ItemStack> lastGrindInput = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<org.bukkit.Location> relicGrindstoneLocations = new java.util.HashSet<>();
     private org.bukkit.scheduler.BukkitTask dragTask;
@@ -340,6 +342,15 @@ public class RelicFeature implements Listener {
             event.setCancelled(true);
             if (!this.rollingCooldown(player, breathCooldown, 6000L, "竜の吐息")) return;
             this.tryDragonBreath(player);
+        } else if ("chain".equals(id) && rightClick && event.getAction() == Action.RIGHT_CLICK_AIR) {
+            event.setCancelled(true);
+            java.util.UUID chainUuid = player.getUniqueId();
+            if (this.chainExtendMode.remove(chainUuid)) {
+                player.sendMessage(ChatColor.GRAY + "延長モード OFF。移動すると引っ張られます。");
+            } else {
+                this.chainExtendMode.add(chainUuid);
+                player.sendMessage(ChatColor.GRAY + "延長モード ON。移動しても引っ張られず、鎖が伸びます。");
+            }
         } else if (("giantcore".equals(id) || "shrinkstar".equals(id)) && rightClick) {
             event.setCancelled(true);
             this.tryResize(player, "giantcore".equals(id));
@@ -396,49 +407,45 @@ public class RelicFeature implements Listener {
 
     /** Dragon breath: a cone of damaging breath particles. */
     private void tryDragonBreath(Player player) {
-        org.bukkit.Location eye = player.getEyeLocation();
-        org.bukkit.util.Vector dir = eye.getDirection().normalize();
-        double range = 18.0;
-        java.util.Set<java.util.UUID> hit = new java.util.HashSet<>();
-        int hits = 0;
-        // Cone damage: everything within range and inside the look cone.
-        for (org.bukkit.entity.Entity e : player.getWorld().getNearbyEntities(player.getLocation(), range, range, range)) {
-            if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
-            org.bukkit.Location center = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
-            org.bukkit.util.Vector to = center.toVector().subtract(eye.toVector());
-            double dist = to.length();
-            if (dist < 0.5 || dist > range) continue;
-            if (to.normalize().dot(dir) < 0.35) continue; // wide ~70° half-angle cone
-            if (hit.add(living.getUniqueId())) {
-                living.damage(20.0, player);
-                living.setFireTicks(Math.max(living.getFireTicks(), 80));
-                living.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                    org.bukkit.potion.PotionEffectType.SLOWNESS, 100, 1, true, false));
-                org.bukkit.util.Vector push = dir.clone().multiply(0.9);
-                living.setVelocity(new org.bukkit.util.Vector(push.getX(), 0.45, push.getZ()));
-                living.getWorld().spawnParticle(org.bukkit.Particle.CRIT, center, 14, 0.3, 0.3, 0.3, 0.15);
-                hits++;
-            }
-        }
-        // Breath ray visuals.
-        for (double d = 1.0; d <= range; d += 0.5) {
-            org.bukkit.Location p = eye.clone().add(dir.clone().multiply(d));
-            p.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, p, 4, 0.25, 0.25, 0.25, 0.02, 0.05f);
-        }
-        // Area burst at the endpoint so the AoE is unmistakable.
-        org.bukkit.Location end = eye.clone().add(dir.clone().multiply(range));
-        end.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, end, 40, 1.6, 1.6, 1.6, 0.02, 0.06f);
-        end.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, end, 1);
-        for (org.bukkit.entity.Entity e : end.getWorld().getNearbyEntities(end, 4.0, 4.0, 4.0)) {
-            if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
-            if (hit.add(living.getUniqueId())) {
-                living.damage(14.0, player);
-                living.setFireTicks(Math.max(living.getFireTicks(), 60));
-                hits++;
-            }
-        }
+        final org.bukkit.Location start = player.getEyeLocation().clone();
+        final org.bukkit.util.Vector dir = start.getDirection().normalize();
+        final double maxRange = 18.0;
+        final java.util.Set<java.util.UUID> hit = new java.util.HashSet<>();
+        final double[] traveled = {0.0};
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.4f, 1.4f);
-        player.sendActionBar("§5竜の吐息: " + hits + "体に命中");
+        // Directional breath beam: travels forward, damaging what it touches.
+        Bukkit.getScheduler().runTaskTimer(this.plugin, task -> {
+            traveled[0] += 1.6;
+            org.bukkit.Location pos = start.clone().add(dir.clone().multiply(traveled[0]));
+            pos.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, pos, 10, 0.35, 0.35, 0.35, 0.02, 0.06f);
+            for (org.bukkit.entity.Entity e : pos.getWorld().getNearbyEntities(pos, 1.8, 1.8, 1.8)) {
+                if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
+                if (hit.add(living.getUniqueId())) {
+                    living.damage(18.0, player);
+                    living.setFireTicks(Math.max(living.getFireTicks(), 80));
+                    living.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                        org.bukkit.potion.PotionEffectType.SLOWNESS, 100, 1, true, false));
+                    org.bukkit.util.Vector push = dir.clone().multiply(0.9);
+                    living.setVelocity(new org.bukkit.util.Vector(push.getX(), 0.45, push.getZ()));
+                    living.getWorld().spawnParticle(org.bukkit.Particle.CRIT,
+                        living.getLocation().add(0.0, 1.0, 0.0), 12, 0.3, 0.3, 0.3, 0.15);
+                }
+            }
+            boolean blocked = !pos.getBlock().isPassable();
+            if (blocked || traveled[0] >= maxRange) {
+                pos.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH, pos, 40, 1.6, 1.6, 1.6, 0.02, 0.06f);
+                pos.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, pos, 1);
+                for (org.bukkit.entity.Entity e : pos.getWorld().getNearbyEntities(pos, 3.5, 3.5, 3.5)) {
+                    if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player) continue;
+                    if (hit.add(living.getUniqueId())) {
+                        living.damage(14.0, player);
+                        living.setFireTicks(Math.max(living.getFireTicks(), 60));
+                    }
+                }
+                player.sendActionBar("\u00a75竜の吐息: " + hit.size() + "体に命中");
+                task.cancel();
+            }
+        }, 0L, 1L);
     }
 
     // ------------------------------------------------------------------
@@ -464,7 +471,21 @@ public class RelicFeature implements Listener {
     private String migrateRelicId(Player player, ItemStack item, String id) {
         if (id == null) return null;
         for (RelicType type : RelicType.values()) {
-            if (type.id.equals(id)) return id;
+            if (type.id.equals(id)) {
+                // Refresh stale baked names/lore (e.g. renamed or re-styled relics).
+                String expected = org.bukkit.ChatColor.stripColor(type.displayName);
+                String actual = "";
+                ItemMeta meta = item.getItemMeta();
+                if (meta != null && meta.hasDisplayName()) {
+                    actual = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                        .serialize(meta.displayName());
+                }
+                if (!expected.equals(actual)) {
+                    ItemStack fresh = createRelicItem(type);
+                    player.getInventory().setItemInMainHand(fresh);
+                }
+                return id;
+            }
         }
         String legacy = LEGACY_RELIC_IDS.get(id);
         if (legacy == null) return id;
@@ -846,6 +867,8 @@ public class RelicFeature implements Listener {
         if (held) {
             followers.remove(target.getUniqueId());
             if (target.isLeashed()) { try { target.setLeashHolder(null); } catch (Exception ignored) { } }
+            Boolean hadAI = chainHadAI.remove(target.getUniqueId());
+            if (hadAI != null && hadAI) target.setAI(true);
             if (followers.isEmpty()) { dragFollowers.remove(pid); this.stopDragTask(); }
             player.sendMessage(ChatColor.GRAY + "鎖を解いた。");
         } else {
@@ -854,6 +877,9 @@ public class RelicFeature implements Listener {
             // Track it regardless: the drag task guarantees the mob actually
             // follows even when the vanilla leash refuses or gets ignored.
             followers.add(target.getUniqueId());
+            // Immobilize the bound mob (no wandering/attacks) until released.
+            chainHadAI.put(target.getUniqueId(), target.hasAI());
+            target.setAI(false);
             this.startDragTask();
             // Immediate visible tug toward the player.
             org.bukkit.util.Vector tug = player.getLocation().toVector().subtract(target.getLocation().toVector());
@@ -896,6 +922,19 @@ public class RelicFeature implements Listener {
                         }
                     }
                     double distance = follower.getLocation().distance(owner.getLocation());
+                    boolean extending = chainExtendMode.contains(owner.getUniqueId());
+                    if (extending) {
+                        // Extended chain: the mob stays put while the chain reaches.
+                        follower.setVelocity(new org.bukkit.util.Vector(0.0, 0.0, 0.0));
+                        if (distance > 24.0) {
+                            // Chain reached its limit: release it safely.
+                            entry.getValue().remove(followerId);
+                            Boolean hadAI = chainHadAI.remove(followerId);
+                            if (hadAI != null && hadAI) follower.setAI(true);
+                            if (follower.isLeashed()) { try { follower.setLeashHolder(null); } catch (Exception ignored) { } }
+                        }
+                        continue;
+                    }
                     if (distance < 2.5) continue;
                     if (distance > 8.0) {
                         follower.teleport(owner.getLocation().add(owner.getLocation().getDirection().multiply(2.0)));
@@ -1225,7 +1264,16 @@ public class RelicFeature implements Listener {
         }
         AttributeInstance attr = this.scaleAttribute(event.getPlayer());
         if (attr != null && scaleExpiry.remove(uuid) != null) attr.setBaseValue(1.0);
-        dragFollowers.remove(uuid);
+        java.util.Set<UUID> chained = dragFollowers.remove(uuid);
+        if (chained != null) {
+            for (UUID mobId : chained) {
+                if (Bukkit.getEntity(mobId) instanceof org.bukkit.entity.LivingEntity mob) {
+                    Boolean hadAI = chainHadAI.remove(mobId);
+                    if (hadAI != null && hadAI) mob.setAI(true);
+                }
+            }
+        }
+        chainExtendMode.remove(uuid);
         if (dragFollowers.isEmpty()) this.stopDragTask();
     }
 
