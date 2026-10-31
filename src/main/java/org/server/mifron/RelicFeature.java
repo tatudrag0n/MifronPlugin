@@ -73,6 +73,7 @@ public class RelicFeature implements Listener {
         if (this.magnetTask != null) return;
         this.magnetTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickMagnet, 20L, 4L);
         this.passiveTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickPassive, 20L, 1L);
+        if (this.initPoseReflection()) this.plugin.getLogger().info("Swim pose packet bridge ready.");
     }
 
     /** Cancels background tasks owned by this feature. */
@@ -253,6 +254,15 @@ public class RelicFeature implements Listener {
     private final java.util.Set<java.util.UUID> seaswimRising = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Set<java.util.UUID> seaswimActive = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Set<java.util.UUID> seaswimAirborne = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<java.util.UUID> poseInjected = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private boolean poseReflectInit;
+    private boolean poseReflectOk;
+    private boolean poseReflectWarned;
+    private Object poseAccessor;
+    private Class<?> poseClass;
+    private java.lang.reflect.Constructor<?> dataValueCtor;
+    private java.lang.reflect.Constructor<?> packetCtor;
+    private Class<?> packetBaseClass;
     private final java.util.Map<java.util.UUID, java.util.Set<java.util.UUID>> dragFollowers = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> reflectCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> magnetCooldown = new java.util.concurrent.ConcurrentHashMap<>();
@@ -1115,6 +1125,7 @@ public class RelicFeature implements Listener {
                 p.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
                 p.setFallDistance(0.0f);
             }
+            if (this.poseInjected.remove(uuid)) this.sendPose(p, "STANDING");
             return;
         }
         this.seaswimActive.add(uuid);
@@ -1135,10 +1146,69 @@ public class RelicFeature implements Listener {
             }
             p.setFallDistance(0.0f);
         }
-        // Swim feel without touching the pose (the server recomputes pose each
-        // tick, so forcing it only caused a one-frame jolt).
+        // Client-only swim pose: the server never toggles it, so it holds.
+        this.poseInjected.add(uuid);
+        if (p.getTicksLived() % 4 == 0) this.sendPose(p, "SWIMMING");
         p.getWorld().spawnParticle(org.bukkit.Particle.BUBBLE, p.getLocation().add(0.0, 1.0, 0.0),
-            3, 0.4, 0.5, 0.4, 0.0);
+            2, 0.35, 0.45, 0.35, 0.0);
+    }
+
+    /** Resolves the NMS pose bridge once; returns true when usable. */
+    private boolean initPoseReflection() {
+        if (this.poseReflectInit) return this.poseReflectOk;
+        this.poseReflectInit = true;
+        try {
+            Class<?> entityClass = Class.forName("net.minecraft.world.entity.Entity");
+            this.poseAccessor = entityClass.getField("DATA_POSE").get(null);
+            this.poseClass = Class.forName("net.minecraft.world.entity.Pose");
+            Class<?> dataValueClass = Class.forName("net.minecraft.network.syncher.SynchedEntityData$DataValue");
+            this.dataValueCtor = dataValueClass.getConstructor(int.class,
+                Class.forName("net.minecraft.network.syncher.EntityDataSerializer"), Object.class);
+            Class<?> packetClass = Class.forName("net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket");
+            this.packetCtor = packetClass.getConstructor(int.class, java.util.List.class);
+            this.packetBaseClass = Class.forName("net.minecraft.network.protocol.Packet");
+            this.poseReflectOk = true;
+        } catch (Throwable t) {
+            this.poseReflectOk = false;
+            if (!this.poseReflectWarned) {
+                this.poseReflectWarned = true;
+                this.plugin.getLogger().warning("Swim pose packet bridge unavailable: " + t);
+            }
+        }
+        return this.poseReflectOk;
+    }
+
+    /** Sends a client-only pose packet so the server cannot fight it each tick. */
+    private void sendPose(Player player, String poseName) {
+        try {
+            if (!this.initPoseReflection()) return;
+            Object pose = this.poseClass.getField(poseName).get(null);
+            Object handle = player.getClass().getMethod("getHandle").invoke(player);
+            int entityId = (int) handle.getClass().getMethod("getId").invoke(handle);
+            int accessorId = 0;
+            try {
+                accessorId = (int) this.poseAccessor.getClass().getMethod("getId").invoke(this.poseAccessor);
+            } catch (NoSuchMethodException e) {
+                try { accessorId = (int) this.poseAccessor.getClass().getMethod("id").invoke(this.poseAccessor); }
+                catch (NoSuchMethodException ignored) { }
+            }
+            Object serializer;
+            try {
+                serializer = this.poseAccessor.getClass().getMethod("serializer").invoke(this.poseAccessor);
+            } catch (NoSuchMethodException e) {
+                serializer = this.poseAccessor.getClass().getMethod("getSerializer").invoke(this.poseAccessor);
+            }
+            Object dataValue = this.dataValueCtor.newInstance(accessorId, serializer, pose);
+            Object packet = this.packetCtor.newInstance(entityId, java.util.List.of(dataValue));
+            Object connection = handle.getClass().getField("connection").get(handle);
+            connection.getClass().getMethod("send", this.packetBaseClass).invoke(connection, packet);
+        } catch (Throwable t) {
+            this.poseReflectOk = false;
+            if (!this.poseReflectWarned) {
+                this.poseReflectWarned = true;
+                this.plugin.getLogger().warning("Swim pose packet bridge failed: " + t);
+            }
+        }
     }
 
     /** True while the sea heart sits in either hand. */
@@ -1274,6 +1344,7 @@ public class RelicFeature implements Listener {
         }
         seaswimActive.remove(uuid);
         seaswimAirborne.remove(uuid);
+        poseInjected.remove(uuid);
         seaswimRising.remove(uuid);
         AttributeInstance attr = this.scaleAttribute(event.getPlayer());
         if (attr != null && scaleExpiry.remove(uuid) != null) attr.setBaseValue(1.0);
