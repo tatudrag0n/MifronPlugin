@@ -1,5 +1,27 @@
 # E2E test report (2026-10-31, updated 2026-11-01)
 
+## 2026-11-01 player guide follow-up
+
+The tutorial only explained one action at a time and had no lasting, player-
+facing reference for proposals, voting, trade, protection or building
+submissions. Added:
+
+- A 12-page written book **「Mifron はじめの一歩」** covering MP/SHOP, menu,
+  quests/goals, `/trade`, `/mf quest propose`, `/mf vote` (and the difference
+  from the external vote site), building submissions, `/mf protect chunk`,
+  `/mf travel`, chat/Discord and the non-official disclaimer.
+- The book is handed over at graduation (and on tutorial skip), and can be
+  re-obtained with `/mf guide` (also the menu's new **ガイド** entry).
+- The menu now has 10 entries; the guide is inserted before チュートリアル so
+  the existing SHOP/wallet/quest indices do not move.
+- Tutorial stage 7 mentions the book, and the checkpoint sign now explains
+  `/mf quest propose` and `/mf vote`.
+- Tests: a `guide` suite verifies delivery, no duplication, drop/re-obtain and
+  the 10-entry menu. `PlayerBotTest` checks the book title, page count and
+  proposal content.
+
+Full suite after the change: **14/14 PASS**, 119 Java tests pass.
+
 ## 2026-11-01 tutorial follow-up
 
 The tutorial had drifted from the current feature set and two stages were
@@ -47,7 +69,7 @@ groups and world playerdata), so the run starts as a genuine first join.
 
 ## Result
 
-**13 / 13 suites passed** (`npm test`, exit code 0).
+**14 / 14 suites passed** (`npm test`, exit code 0).
 
 | Suite | Result | Evidence |
 |---|---|---|
@@ -63,9 +85,10 @@ groups and world playerdata), so the run starts as a genuine first join.
 | inventory | PASS | 5 diamonds hidden in tutorial and restored in Survival |
 | persistence | PASS | UUID record present in `data.yml` |
 | combat | PASS | vitals in range, no death |
+| guide | PASS | book delivered, drop + `/mf guide` recovery, 10-entry menu |
 | gui | PASS | menu item present, no legacy utility items |
 
-Report artifact (tutorial follow-up run): `mifron-bot/reports/e2e-2026-11-01T10-48-31-*.json`.
+Report artifact (final run with the guide): `mifron-bot/reports/e2e-2026-11-01T11-12-32-*.json`.
 
 ## Issues found and fixed
 

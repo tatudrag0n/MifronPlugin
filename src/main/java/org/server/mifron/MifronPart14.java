@@ -164,6 +164,7 @@ abstract class MifronPart14 extends MifronPart13x1 {
             this.mifron().starterGoalsFeature.open(player);
             this.mifron().tutorialFeature.onGuideOpen(player);
          }
+         case "menu_guide" -> PlayerGuide.give(this.mifron(), player);
          case "goal_claim" -> {
             String goalId = this.getUiTargetString(clicked);
             if (goalId != null) this.mifron().starterGoalsFeature.claim(player, goalId);

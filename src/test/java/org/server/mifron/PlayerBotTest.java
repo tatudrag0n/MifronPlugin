@@ -76,6 +76,28 @@ class PlayerBotTest {
    }
 
    @Test
+   void guideBookIsGivenOnlyOnce() {
+      PlayerGuide.give(plugin, bot);
+      long first = java.util.Arrays.stream(bot.getInventory().getContents())
+         .filter(item -> item != null && item.getType() == Material.WRITTEN_BOOK)
+         .count();
+      assertEquals(1, first, "one guide book must be delivered");
+
+      org.bukkit.inventory.ItemStack book = java.util.Arrays.stream(bot.getInventory().getContents())
+         .filter(item -> item != null && item.getType() == Material.WRITTEN_BOOK)
+         .findFirst().orElseThrow();
+      org.bukkit.inventory.meta.BookMeta meta = (org.bukkit.inventory.meta.BookMeta) book.getItemMeta();
+      assertEquals(PlayerGuide.TITLE, meta.getTitle());
+      assertTrue(meta.getPageCount() >= 10, "the guide must cover the main systems");
+      assertTrue(String.join("", meta.getPages()).contains("提案"), "the guide must explain proposals");
+      PlayerGuide.give(plugin, bot);
+      long second = java.util.Arrays.stream(bot.getInventory().getContents())
+         .filter(item -> item != null && item.getType() == Material.WRITTEN_BOOK)
+         .count();
+      assertEquals(1, second, "the guide must not be duplicated");
+   }
+
+   @Test
    void threeKillsAdvanceHuntStage() {
       World tutorial = server.getWorld("tutorial");
       assertNotNull(tutorial);

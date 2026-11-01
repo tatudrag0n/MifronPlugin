@@ -35,6 +35,10 @@ abstract class MifronPart17 extends MifronPart16 {
          case "reload" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleReloadCommand(sender); }
          case "kit" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().giveInitialItems((Player) sender); sender.sendMessage("\u00a7a\u521d\u671f\u914d\u5e03\u7269\u3092\u78ba\u8a8d\u3057\u307e\u3057\u305f\u3002"); }
          case "balance" -> sender.sendMessage("\u00a7a\u6240\u6301MP: " + this.mifron().formatNumber(this.mifron().getEmeralds(((Player) sender).getUniqueId())));
+         case "guide" -> {
+            if (sender instanceof Player guidePlayer) PlayerGuide.give(this.mifron(), guidePlayer);
+            else sender.sendMessage("Player only.");
+         }
          case "pay" -> this.mifron().handlePayCommand((Player) sender, args);
          case "merchant", "marchant" -> this.mifron().handleMerchantCommand((Player) sender, args);
          case "quest" -> this.mifron().handleQuestCommand(sender, args);
@@ -81,7 +85,7 @@ abstract class MifronPart17 extends MifronPart16 {
          }
          case "sethub" -> { if (this.isAdminOp(sender)) { this.writeLocation("hub", ((Player) sender).getLocation()); sender.sendMessage("\u00a7a\u4e2d\u592e\u5e83\u5834\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f\u3002"); } }
          case "warning" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleWarningCommand(sender, args); }
-         default -> sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial");
+         default -> sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial|guide");
       }
       return true;
    }

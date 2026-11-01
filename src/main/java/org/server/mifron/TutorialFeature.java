@@ -54,7 +54,7 @@ public final class TutorialFeature implements Listener {
       "",
       "§e[1/7] メニュー: §7配布された「メニュー」(ネザースター)を右クリック。\n"
          + "§7または /mf menu。開いた項目は左クリックで選ぶ。\n"
-         + "§7SHOP(Survivalのみ)・ウォレット・ステータス・クエスト・取引・投票・ログボ・目標・チュートリアルの9項目。",
+         + "§7SHOP(Survivalのみ)・ウォレット・ステータス・クエスト・取引・投票・ログボ・目標・ガイド・チュートリアルの10項目。",
       "§e[2/7] 討伐: §7北の金ブロックの上のゾンビを3体倒そう。1体30MP。\n"
          + "§7攻撃は左クリック。鉄の剣は配布済み。討伐数はステータス→討伐で確認できる。",
       "§e[3/7] Elite: §7さらに北の金ブロックの上の「✦ ELITE ✦」(紫の名前)を倒そう。\n"
@@ -68,7 +68,8 @@ public final class TutorialFeature implements Listener {
          + "§7結果を左クリックで取ると完了。バニラ上限を超える強化はMPとXPを消費する。",
       "§e[7/7] 卒業: §7キープ手前の金ブロックを踏むか右クリックでSurvivalへ。\n"
          + "§7SurvivalではSHOPが使える。死亡すると所持MPの50%を失う。\n"
-         + "§7個人宛チャットはDiscordへ。土地保護は /mf protect chunk。",
+         + "§7個人宛チャットはDiscordへ。土地保護は /mf protect chunk。\n"
+         + "§7卒業後は「Mifron はじめの一歩」を配布。提案・投票・取引の説明も入っている。なくしたら /mf guide。",
    };
 
    private static final int[] STAGE_REWARD = {0, 50, 150, 300, 150, 100, 500};
@@ -275,6 +276,7 @@ public final class TutorialFeature implements Listener {
       this.plugin.queueDataSave();
       this.sendToSurvival(player);
       player.sendMessage("§eチュートリアルをスキップした（残り報酬はなし）。");
+      Bukkit.getScheduler().runTask(this.plugin, () -> PlayerGuide.give(this.plugin, player));
    }
 
    private void advance(Player player) {
@@ -491,6 +493,7 @@ public final class TutorialFeature implements Listener {
       Bukkit.broadcastMessage("\u00a76[\u304a\u77e5\u3089\u305b] \u00a7e" + player.getName() + " \u00a7f\u304c\u30c1\u30e5\u30fc\u30c8\u30ea\u30a2\u30eb\u3092\u5352\u696d\u3057\u307e\u3057\u305f!");
       this.plugin.referralService.onTutorialGraduated(player);
       this.sendToSurvival(player);
+      Bukkit.getScheduler().runTask(this.plugin, () -> PlayerGuide.give(this.plugin, player));
       Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.plugin.starterGoalsFeature.open(player), 80L);
    }
 }

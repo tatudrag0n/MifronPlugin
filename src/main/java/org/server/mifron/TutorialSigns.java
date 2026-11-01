@@ -113,12 +113,12 @@ final class TutorialSigns {
          Line.goldBold("Survivalの注意"),
          Line.white("SHOPはSurvivalのみ"),
          Line.white("死亡でMP50%減"),
-         Line.gray("個人DMはDiscordへ"))),
+         Line.gray("詳しくは メニュー→ガイド"))),
       new Sign(62, 0, List.of(
-         Line.aqua("チェックポイント"),
-         Line.gray("東の休憩広場"),
-         Line.gray("Survivalの目印"),
-         Line.gray("眺めが良い")))
+         Line.aqua("提案・投票"),
+         Line.white("/mf quest propose"),
+         Line.white("/mf vote で賛成投票"),
+         Line.gray("詳しくは メニュー→ガイド")))
    );
 
    static void rebuild(Mifron plugin, World world) {
