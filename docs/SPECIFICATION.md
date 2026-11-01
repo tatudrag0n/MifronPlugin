@@ -1,6 +1,6 @@
 # MifronPlugin 仕様書
 
-最終更新: 2026-10-22 / 対象: `origin/main` 最新
+最終更新: 2026-11-01 / 対象: `origin/main` (`26.1.2-swimpose3-20261031`)
 本プラグインは Paper 26.1.2 向けの総合サーバー管理プラグインである。
 通貨単位は MP（内部的にはエメラルド残高として管理）。
 
@@ -9,7 +9,7 @@
 | ワールド | 用途 |
 |---|---|
 | survival | メインサバイバル（TerraformGenerator） |
-| tutorial | 体験チュートリアル（10段階・卒業で通知） |
+| tutorial | 体験チュートリアル（7段階・看板付き・卒業で通知） |
 | 各 `_nether` / `_the_end` | 対応ディメンション |
 
 Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` 配下に格納される。
@@ -59,42 +59,73 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 - 進捗：mainワールドでの達成は無効（記録・報酬・称号なし、再取得可）。
 - `/mf status reset` は進捗・クエスト・称号・統計を初期化し再達成可能にする。
 
-## 7. ギア（廃止済み）
+## 7. レリック
+
+- レリックはPDC `relic_id` で判定する売買不可の特殊アイテム。素材の入手・クラフト時にごく低確率で変化するほか、`/give` やクリエイティブ取得時にも同じ確率判定、Elite討伐ドロップ、チュートリアル配布で入手できる。
+- 旧ID（scratch/recall/phoenix/tide/swift/guardian/wind等）は使用時に新ID・新表示へ自動移行する。`/mf relic <id> [player]` で付与でき、旧IDもエイリアスとして受理する。
+
+| ID | 名前 | 効果 |
+|---|---|---|
+| hookshot | フックショット | ウキを引っ掛けた場所へ急接近 |
+| enchbook | 全適用の魔導書 | GUIから任意のエンチャントをオフハンドへ最大レベル付与 |
+| jetpack | ジェットパック | スペース長押しで上昇&前進（ブレイズパウダー燃料）、Sで緩着地 |
+| skates | スケートブーツ | 足元が青氷のように滑る（スニークでブレーキ） |
+| resonance | 残響の結晶 | ソニックビーム（CD8秒） |
+| fireball | ファイアーボール | ガストの火球（CD3秒） |
+| decayed_sword | 朽ちた剣 | 全エンチャントMAXで真価を発揮する最レア剣 |
+| enchgrind | 錬金の砥石 | 設置した砥石で剥がしたエンチャントを本にして返還 |
+| chain | 拘束の鎖 | 左クリックでMOBを拘束・AI停止、右クリック（空中）で延長モード |
+| giantcore | 巨人の心臓 | 25秒間 巨大化（サイズ3倍） |
+| seaswim | 空に海写す蒼球 | 空中を泳ぐ（スペース上昇・離すと緩降下・泳ぎ姿勢） |
+| dashfoot | バニーホップ | 前方へダッシュ |
+| reflect | 反射の守護盾 | 構えている間、受けたダメージを相手へ反射 |
+| nightclock | 常夜渡りの時計 | 夜を朝へスキップ |
+| magnet | 磁力の石 | 周囲のアイテム/XPを引き寄せ、右クリックで一括バースト |
+| shrinkstar | 剝蝕矮星 | 25秒間 縮小（サイズ0.45倍） |
+| lightning | 雷鳴の杖 | 視線先へ落雷（CD4秒） |
+| blink | 次元の眼 | 前方20ブロックへ瞬間移動（CD3秒） |
+| totem | 死不知のトーテム | 持っている間、耐性と再生（自動復活はしない） |
+| wither | 凋零の頭骨 | チャージ済みウィザースクロウ（CD4秒） |
+| bell | 癒やしの鐘 | 自分と周囲の味方を回復（CD6秒） |
+| dragonbreath | 竜の吐息 | 前方へ指向性ブレス（ダメージ+炎上、CD6秒） |
+| vision | 暗視鏡 | 望遠鏡を覗いている間だけ暗視 |
+
+## 8. ギア（廃止済み）
 
 - 旧ギアシステム（暗視・軽業・水棲・疾風などの解放・装備）は削除。メニューのギアタブは撤去済みで、解錠・装備データは保存されたまま新たな解放・装備は不可。
 - パッシブ・移動系の代替はレリック品（釣り・クラフト等で入手）が担う。
 
-## 8. 建築ワールド（廃止済み）
+## 9. 建築ワールド（廃止済み）
 
 - 旧建築ワールド群（共有main・共有Creative・プレイヤー別Buildワールド）は廃止済みです。`main-world.enabled` と `build-world.enabled` はいずれも既定 `false` で、configを有効化しない限り `/mf main`・`/mf build` は動作しません。
 
-## 9. 安全取引（/trade）
+## 10. 安全取引（/trade）
 
 - `/trade <player>` で申込→承諾で双方に共有UI。提示枠16枠×2＋提示MP。
 - 提示変更で双方の確定リセット。双方確定でMP・アイテム同時交換。タイムアウト・閉鎖・退出時は提示を返却。
 - 上限は `trade.max-amount`（既定100万MP）。
 
-## 10. その他機能（概要）
+## 11. その他機能（概要）
 
 - 棚/樽ショップ、チャンク保護・提案・投票、転生、エリートMob、ジャンプパッド、Minoru連携（Discord・認証・投票）。
 - テストサーバー機能（config既定off）：whitelist強制＋6時間再起動＋5分前警告。
 
-## 11. 主なコマンド
+## 12. 主なコマンド
 
-- `/mf menu|balance|pay|shop・・|tutorial|status|quest|merchant|protect|proposal|vote|gamerules|reload`（一部管理者専用）
+- `/mf menu|balance|pay|shop・・|tutorial|status|quest|merchant|protect|proposal|vote|gamerules|reload|relic <id>`（一部管理者専用）
 - `/trade <player>|accept|deny|cancel|money <額>`
 - `/mifron merchant spawn|spawnrare|reroll|clear`
 
-## 12. 設定・データ
+## 13. 設定・データ
 
 - `plugins/mifron/config.yml`：全般・取引・商人・クエスト倍率・ワールド設定等。
 - `plugins/mifron/data.yml`：プレイヤーデータ（MP・進捗・クエスト・称号・在庫・承認等）。`queueDataSave` で遅延保存。
 - `plugins/mifron/quests.yml`：クエスト定義（配布時は `src/main/resources/quests.yml` が初期配置）。
 - `plugins/mifron/shop-prices.yml` / `economy-price-table.yml`：価格（後者が優先）。
 
-## 13. 運用
+## 14. 運用
 
-- ビルド：`mvn -B clean package`（テスト97件）。
+- ビルド：`mvn -B clean package`（テスト118件）。
 - 検証フロー：`bash deploy/stage-jar.sh` → `~/mifron-staging/`（BUILD_INFO/HISTORY付き）→ ローカル検証 → 承認後のみ本番 `plugins/` へコピー＋再起動（警告・save-all・0人確認）。
 - 本番 `~/MifronPlugin` は config-sync が60秒ごとに `git fetch` し、`origin/main` と双方向同期。未pushのローカルコミットは自動でpush、リモート先行分はresetで取り込み、push失敗時はコミット保護のためresetしない（分岐時は手動マージ）。
 - ホストRAM 7GBのため本番（4G）と重い処理の同時実行に注意（OOM実績あり）。
