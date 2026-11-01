@@ -1,4 +1,30 @@
-# E2E test report (2026-10-31)
+# E2E test report (2026-10-31, updated 2026-11-01)
+
+## 2026-11-01 tutorial follow-up
+
+The tutorial had drifted from the current feature set and two stages were
+impossible to complete. Fixed and re-tested with a full 7-stage run:
+
+- **Stage 4** handed out a relic but never advanced: nothing called
+  `onSpecialUse`. Relic right-clicks now advance the stage.
+- **Stage 5** asked the player to run `/mf relic`, which is admin-only, and
+  waited for a *second* relic that a normal player cannot obtain. Replaced
+  with "open Quests or Goals from the menu"; both actions advance.
+- **Stage 6** advanced before the anvil transaction succeeded, and holding the
+  relic/menu item blocks the anvil from opening. The advance now happens after
+  the result is actually taken, and the text tells the player to hold a
+  sword/book. The test accepts `anvil` / `chipped_anvil` / `damaged_anvil`
+  and repairs the station if it has broken.
+- Removed all scratch-card, job and `/mf relic` instructions. Stage text now
+  covers SHOP(Survival only), attack timing, elite loot, relic acquisition,
+  quests/goals, anvil cost and the Survival death penalty.
+- The in-world guide holograms are now rebuilt from `TutorialSigns.java` on
+  every start, so they cannot drift from the code again. 15 signs × 4 lines
+  verified through Mineflayer.
+- `PlayerBotTest` now covers the stage-4 relic-use and stage-5 guide hooks.
+
+Full tutorial test: **PASS** (stages 1→2→3→4→5→6→7, graduation persisted).
+Full suite after the change: **13/13 PASS** (`e2e-run9`).
 
 Real-server test run against an isolated Paper test server, driven by the
 Mineflayer bot in `../mifron-bot`.
@@ -30,7 +56,7 @@ groups and world playerdata), so the run starts as a genuine first join.
 | chat | PASS | global chat echo |
 | command | PASS | `/mf`, `/mf balance`, usage fallback |
 | mp | PASS | balance 11 → 111, zero amount rejected |
-| tutorial | PASS | first-join auto-start, stage 1→2 via menu, zombie kill, skip persisted |
+| tutorial | PASS | full 7 stages: auto-start, menu, 3 kills, elite, relic, quests, anvil, graduation |
 | menu | PASS | 9 fan entries, wallet click returned `所持MP: 392` |
 | shop | PASS | `Mifron SHOP` inventory opened in Survival |
 | travel | PASS | usage, invalid destination, −500 MP fee, 59-minute cooldown |
@@ -39,7 +65,7 @@ groups and world playerdata), so the run starts as a genuine first join.
 | combat | PASS | vitals in range, no death |
 | gui | PASS | menu item present, no legacy utility items |
 
-Report artifact: `mifron-bot/reports/e2e-2026-10-31T16-06-05-113Z.json`.
+Report artifact (tutorial follow-up run): `mifron-bot/reports/e2e-2026-11-01T10-48-31-*.json`.
 
 ## Issues found and fixed
 
