@@ -218,7 +218,6 @@ final class AdvancedAnvilFeature implements Listener {
          player.sendMessage(Component.text("MPの支払いに失敗しました。もう一度お試しください。", NamedTextColor.RED));
          return;
       }
-      this.plugin.tutorialFeature.onAnvilUse(player);
 
       Bukkit.getScheduler().runTask(this.plugin, () -> {
          if (!player.isOnline()) {
@@ -239,6 +238,9 @@ final class AdvancedAnvilFeature implements Listener {
             return;
          }
          this.removeTransientCostDisplay(cursor);
+         // Advance the tutorial only after the item is actually taken; a
+         // cancelled/failed transaction must not complete the anvil stage.
+         this.plugin.tutorialFeature.onAnvilUse(player);
       });
    }
 

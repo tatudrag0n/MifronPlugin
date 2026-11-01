@@ -45,19 +45,30 @@ public final class TutorialFeature implements Listener {
    private static final String[] INTRO = {
       "§6Mifronチュートリアルへようこそ。7段階で基本を一通り体験できる。",
       "§7各段階で「説明→操作→次の目的」の順に進む。進み具合は保存される。",
-      "§7MPは討伐・進捗達成・スクラッチ・レリックなどで獲得できる。 tutorial 中もMPが入る。",
+      "§7MPは討伐・進捗・クエスト・売買などで増える。チュートリアル中もMPは入る。",
+      "§7ここで配布された装備はSurvivalには持ち越されない(インベントリは別管理)。",
       "§7途中で止めても /tutorial で再開できる。",
    };
 
    private static final String[] STAGE_TEXT = {
       "",
-      "§e[1/7] メニュー: §7配布アイテムを右クリックするとメニューが開く。SHOP・ウォレット・ステータス・クエスト・取引・投票・ログボ・目標・チュートリアルが並ぶ。",
-      "§e[2/7] 討伐: §7北側の金ブロックの上のゾンビを3体倒そう。1体倒すたびにMPがもらえる(30MP)。討伐数はステータスの討伐タブで見られる。",
-      "§e[3/7] Elite: §7討伐ゾンビのさらに北の金ブロックの上の Elite を倒そう。紫の名前が目印。Elite は通常より硬く、ドロップが増える(リンゴ・ダイヤ・エンチャント本など)。討伐で100MPもらえる。",
-      "§e[4/7] レリック: §7配布スクラッチを右クリックして削ろう。10%で500MP、90%で50MP。スクラッチは Elite 討伐時にも2%で出る。レリックは /mf relic <id> で入手できる。",
-      "§e[5/7] レリック: §7/mf relic でレリックを入手し、持つだけで効果が発動するものがある。レリックは売買不可の特殊アイテム。",
-      "§e[6/7] 金床: §7金床で本を素材に、道具へエンチャントを付けよう。結果を左クリックで取ると完了。高度な金床は MP を消費し、上限を超えて付けられる。",
-      "§e[7/7] 卒業: §7金のボタンを押して通常 Survival へ出発しよう。レリックは /mf relic <id> で入手でき、持っているだけで効果が発動するものもある。",
+      "§e[1/7] メニュー: §7配布された「メニュー」(ネザースター)を右クリック。\n"
+         + "§7または /mf menu。開いた項目は左クリックで選ぶ。\n"
+         + "§7SHOP(Survivalのみ)・ウォレット・ステータス・クエスト・取引・投票・ログボ・目標・チュートリアルの9項目。",
+      "§e[2/7] 討伐: §7北の金ブロックの上のゾンビを3体倒そう。1体30MP。\n"
+         + "§7攻撃は左クリック。鉄の剣は配布済み。討伐数はステータス→討伐で確認できる。",
+      "§e[3/7] Elite: §7さらに北の金ブロックの上の「✦ ELITE ✦」(紫の名前)を倒そう。\n"
+         + "§7HPは3倍で硬いが、金リンゴ・ダイヤ・エンチャント本・レリックなどを落とす。討伐で100MP。",
+      "§e[4/7] レリック: §7配布された「バニーホップ」(ウサギの足)を右クリックで前方ダッシュ。\n"
+         + "§7レリックは素材の入手/クラフト時にごく低確率で変化し、Elite討伐でも2%でドロップ。売買不可。",
+      "§e[5/7] クエスト/目標: §7メニュー→クエストでデイリー/ウィークリーを確認。\n"
+         + "§7メニュー→目標で「次にやること」をチェック。達成するとMPがもらえる。",
+      "§e[6/7] 金床: §7道の先の金床で、配布された「ダメージ増加VI」の本を剣に合成。\n"
+         + "§7金床を開くときはレリックやメニューではなく、剣か本を持とう。\n"
+         + "§7結果を左クリックで取ると完了。バニラ上限を超える強化はMPとXPを消費する。",
+      "§e[7/7] 卒業: §7キープ手前の金ブロックを踏むか右クリックでSurvivalへ。\n"
+         + "§7SurvivalではSHOPが使える。死亡すると所持MPの50%を失う。\n"
+         + "§7個人宛チャットはDiscordへ。土地保護は /mf protect chunk。",
    };
 
    private static final int[] STAGE_REWARD = {0, 50, 150, 300, 150, 100, 500};
@@ -68,8 +79,10 @@ public final class TutorialFeature implements Listener {
 
    public void ensureWorld() {
       String name = this.worldName();
-      if (Bukkit.getWorld(name) != null) {
-         this.lockDaytime(Bukkit.getWorld(name));
+      World existing = Bukkit.getWorld(name);
+      if (existing != null) {
+         this.lockDaytime(existing);
+         TutorialSigns.rebuild(this.plugin, existing);
          return;
       }
       WorldCreator creator = new WorldCreator(name).environment(World.Environment.NORMAL).type(WorldType.FLAT).generateStructures(false);
@@ -84,6 +97,7 @@ public final class TutorialFeature implements Listener {
       world.setDifficulty(org.bukkit.Difficulty.NORMAL);
       world.setSpawnLocation(this.spawn(world));
       this.lockDaytime(world);
+      TutorialSigns.rebuild(this.plugin, world);
       this.plugin.getLogger().info("[mifron] Tutorial world ready: " + name);
    }
 
@@ -312,16 +326,17 @@ public final class TutorialFeature implements Listener {
          }
          player.sendMessage("§7鉄の剣を渡した。攻撃は左クリック、倒すまで殴ろう。");
       }
-      // Stage 7 hands out its demo item so nobody can get stuck waiting for luck.
+      // Stage 4 hands out the demo relic so nobody can get stuck waiting for a
+      // lucky transform. It is used in the next step (onSpecialUse).
       if (stage == 4) {
-         org.bukkit.inventory.ItemStack scratch =
+         org.bukkit.inventory.ItemStack relic =
             this.plugin.relicFeature.createRelicItem(
                org.server.mifron.RelicFeature.RelicType.DASHFOOT);
-         if (scratch != null) {
-            for (ItemStack leftover : player.getInventory().addItem(scratch).values()) {
+         if (relic != null) {
+            for (ItemStack leftover : player.getInventory().addItem(relic).values()) {
                player.getWorld().dropItemNaturally(player.getLocation(), leftover);
             }
-            player.sendMessage("§7スクラッチを受け取った。右クリックで削ろう。");
+            player.sendMessage("§7レリック「バニーホップ」を受け取った。右クリックで前方へダッシュしよう。");
          }
       }
    }
@@ -343,11 +358,12 @@ public final class TutorialFeature implements Listener {
       if (this.stageOf(player) == 1 && this.inTutorial(player)) this.advance(player);
    }
 
-   /** Stage 5: any relic item obtained (via /mf relic or a lucky transform). */
-   public void onRelicObtained(Player player) {
+   /** Stage 5: opening the quest list or the starter-goal checklist. */
+   public void onGuideOpen(Player player) {
       if (this.stageOf(player) == 5 && this.inTutorial(player)) this.advance(player);
    }
 
+   /** Stage 4: right-clicking the relic handed out at stage start. */
    public void onSpecialUse(Player player) {
       if (this.stageOf(player) == 4 && this.inTutorial(player)) this.advance(player);
    }

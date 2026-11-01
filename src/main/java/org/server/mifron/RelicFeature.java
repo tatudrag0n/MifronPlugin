@@ -185,7 +185,6 @@ public class RelicFeature implements Listener {
         if (sender != target) {
             sender.sendMessage("§a" + target.getName() + " に " + type.id + " を付与しました。");
         }
-        this.plugin.tutorialFeature.onRelicObtained(target);
     }
 
     public boolean isRelicItem(ItemStack item) {
@@ -219,7 +218,6 @@ public class RelicFeature implements Listener {
                     player.sendMessage(ChatColor.GOLD + "✨ 奇跡が起きた！ 手に入れたアイテムが " + type.displayName + ChatColor.GOLD + " に変化した！");
                     player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1.2f);
                     plugin.recordRareCollection(player, type.id);
-                    plugin.tutorialFeature.onRelicObtained(player);
                     break;
                 }
             }
@@ -311,6 +309,7 @@ public class RelicFeature implements Listener {
         id = this.migrateRelicId(player, item, id);
         if (id == null) return;
         boolean rightClick = event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK;
+        if (rightClick) this.plugin.tutorialFeature.onSpecialUse(player);
 
         if ("enchbook".equals(id) && rightClick) {
             event.setCancelled(true);

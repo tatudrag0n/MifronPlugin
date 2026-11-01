@@ -147,7 +147,10 @@ abstract class MifronPart14 extends MifronPart13x1 {
          }
          case "menu_wallet" -> player.sendMessage("\u00a7a\u6240\u6301MP: " + this.mifron().formatNumber(this.mifron().getEmeralds(player.getUniqueId())));
          case "menu_status" -> this.mifron().menuFanFeature.openStatusTabs(player);
-         case "menu_quests" -> this.mifron().openQuestUi(player, "categories");
+         case "menu_quests" -> {
+            this.mifron().openQuestUi(player, "categories");
+            this.mifron().tutorialFeature.onGuideOpen(player);
+         }
          case "menu_gear" -> this.utilityItemsFeature.openGearUi(player);
          case "gear_toggle" -> this.utilityItemsFeature.toggleGear(player, this.getUiTargetString(clicked));
          case "menu_tutorial" -> { this.mifron().tutorialFeature.resume(player); }
@@ -157,7 +160,10 @@ abstract class MifronPart14 extends MifronPart13x1 {
             else player.sendMessage("\u00a7e\u6295\u7968\u306f\u73fe\u5728\u6e96\u5099\u4e2d\u3067\u3059\u3002Discord\u306e\u6848\u5185\u3092\u3054\u78ba\u8a8d\u304f\u3060\u3055\u3044\u3002");
          }
          case "menu_login_bonus" -> this.utilityItemsFeature.openLoginBonusUi(player);
-         case "menu_goals" -> this.mifron().starterGoalsFeature.open(player);
+         case "menu_goals" -> {
+            this.mifron().starterGoalsFeature.open(player);
+            this.mifron().tutorialFeature.onGuideOpen(player);
+         }
          case "goal_claim" -> {
             String goalId = this.getUiTargetString(clicked);
             if (goalId != null) this.mifron().starterGoalsFeature.claim(player, goalId);
