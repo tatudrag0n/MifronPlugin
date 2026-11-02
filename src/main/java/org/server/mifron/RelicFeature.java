@@ -83,42 +83,79 @@ public class RelicFeature implements Listener {
         this.stopDragTask();
     }
 
+    /**
+     * Scarcity of the item that transforms. A rare base material is harder to
+     * obtain, so it gets a proportionally better chance per unit; otherwise
+     * netherite-sword relics would be effectively unobtainable.
+     */
+    public enum MaterialRarity {
+        COMMON(0.00030),
+        UNCOMMON(0.00060),
+        RARE(0.00120),
+        EPIC(0.00240),
+        LEGENDARY(0.00480);
+
+        public final double baseChance;
+
+        MaterialRarity(double baseChance) {
+            this.baseChance = baseChance;
+        }
+    }
+
+    /** How much the relic changes play; stronger relics are deliberately rarer. */
+    public enum RelicPower {
+        MINOR(1.0),
+        MEDIUM(0.5),
+        MAJOR(0.2);
+
+        public final double multiplier;
+
+        RelicPower(double multiplier) {
+            this.multiplier = multiplier;
+        }
+    }
+
     public enum RelicType {
-        HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, 0.0005, "§7ウキを引っ掛けた所へ急接近する。"),
-        ENCHBOOK("enchbook", "§6§l全適用の魔導書", Material.ENCHANTED_BOOK, 0.0008, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
-        JETPACK("jetpack", "§3§lジェットパック", Material.CHAINMAIL_CHESTPLATE, 0.01, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
-        ROLLER_SKATES("skates", "§7§lスケートブーツ", Material.IRON_BOOTS, 0.0001, "§7足元が青氷のように滑る。スニークでブレーキ。"),
-        RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, 0.02, "§7ウォーデンのソニックビームを放つ。(クールダウン8秒)"),
-        FIREBALL("fireball", "§4§lファイアーボール", Material.FIRE_CHARGE, 0.001, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
-        DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, 0.00001, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
-        ENCHGRIND("enchgrind", "§d§l錬金の砥石", Material.GRINDSTONE, 0.0015, "§7右クリックで手元のエンチャントを本にして返還する。"),
-        CHAIN("chain", "§8§l拘束の鎖", Material.IRON_CHAIN, 0.0002, "§7左クリックで鎖を伸ばして拘束。右クリックで延長モード切替。"),
-        GIANTCORE("giantcore", "§2§l巨人の心臓", Material.HEAVY_CORE, 0.0006, "§7右クリックで25秒間、巨神サイズに巨大化。"),
-        SEASWIM("seaswim", "§3§l空に海写す蒼球", Material.HEART_OF_THE_SEA, 0.0008, "§7持っている間、空中を泳げる。スペースで上昇、離すとゆっくり降下。"),
-        DASHFOOT("dashfoot", "§7§lバニーホップ", Material.RABBIT_FOOT, 0.001, "§7右クリックで前方へ強くダッシュする。"),
-        REFLECT("reflect", "§1§l反射の守護盾", Material.SHIELD, 0.0005, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
-        NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, 0.0006, "§7右クリックで夜をそのまま朝へスキップする。"),
-        MAGNET("magnet", "§6§l磁力の石", Material.LODESTONE, 0.0004, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
-        SHRINKSTAR("shrinkstar", "§2§l剝蝕矮星", Material.NETHER_STAR, 0.0006, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
-        LIGHTNING("lightning", "§6§l雷鳴の杖", Material.LIGHTNING_ROD, 0.0005, "§7右クリックで視線先に落雷を落とす。(クールダウン4秒)"),
-        BLINK("blink", "§5§l次元の眼", Material.ENDER_EYE, 0.0005, "§7右クリックで前方へ瞬間移動する。(クールダウン3秒)"),
-        TOTEM("totem", "§6§l死不知のトーテム", Material.TOTEM_OF_UNDYING, 0.0003, "§7持っている間、耐性と再生を得る。"),
-        WITHER("wither", "§8§l凋零の頭骨", Material.WITHER_SKELETON_SKULL, 0.0004, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
-        BELL("bell", "§2§l癒やしの鐘", Material.BELL, 0.0005, "§7右クリックで自分と周囲の味方を回復する。(クールダウン6秒)"),
-        DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, 0.0004, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
-        VISION("vision", "§8§l暗視鏡", Material.SPYGLASS, 0.0003, "§7覗いている間だけ暗視を得る。");
+        HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, MaterialRarity.COMMON, RelicPower.MAJOR, "§7ウキを引っ掛けた所へ急接近する。"),
+        ENCHBOOK("enchbook", "§6§l全適用の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.UNCOMMON, RelicPower.MAJOR, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
+        JETPACK("jetpack", "§3§lジェットパック", Material.CHAINMAIL_CHESTPLATE, MaterialRarity.UNCOMMON, RelicPower.MAJOR, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
+        ROLLER_SKATES("skates", "§7§lスケートブーツ", Material.IRON_BOOTS, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7足元が青氷のように滑る。スニークでブレーキ。"),
+        RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, MaterialRarity.RARE, RelicPower.MEDIUM, "§7ウォーデンのソニックビームを放つ。(クールダウン8秒)"),
+        FIREBALL("fireball", "§4§lファイアーボール", Material.FIRE_CHARGE, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
+        DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, MaterialRarity.LEGENDARY, RelicPower.MAJOR, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
+        ENCHGRIND("enchgrind", "§d§l錬金の砥石", Material.GRINDSTONE, MaterialRarity.COMMON, RelicPower.MAJOR, "§7右クリックで手元のエンチャントを本にして返還する。"),
+        CHAIN("chain", "§8§l拘束の鎖", Material.IRON_CHAIN, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7左クリックで鎖を伸ばして拘束。右クリックで延長モード切替。"),
+        GIANTCORE("giantcore", "§2§l巨人の心臓", Material.HEAVY_CORE, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで25秒間、巨神サイズに巨大化。"),
+        SEASWIM("seaswim", "§3§l空に海写す蒼球", Material.HEART_OF_THE_SEA, MaterialRarity.RARE, RelicPower.MEDIUM, "§7持っている間、空中を泳げる。スペースで上昇、離すとゆっくり降下。"),
+        DASHFOOT("dashfoot", "§7§lバニーホップ", Material.RABBIT_FOOT, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7右クリックで前方へ強くダッシュする。"),
+        REFLECT("reflect", "§1§l反射の守護盾", Material.SHIELD, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
+        NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, MaterialRarity.COMMON, RelicPower.MINOR, "§7右クリックで夜をそのまま朝へスキップする。"),
+        MAGNET("magnet", "§6§l磁力の石", Material.LODESTONE, MaterialRarity.UNCOMMON, RelicPower.MINOR, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
+        SHRINKSTAR("shrinkstar", "§2§l剝蝕矮星", Material.NETHER_STAR, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
+        LIGHTNING("lightning", "§6§l雷鳴の杖", Material.LIGHTNING_ROD, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7右クリックで視線先に落雷を落とす。(クールダウン4秒)"),
+        BLINK("blink", "§5§l次元の眼", Material.ENDER_EYE, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7右クリックで前方へ瞬間移動する。(クールダウン3秒)"),
+        TOTEM("totem", "§6§l死不知のトーテム", Material.TOTEM_OF_UNDYING, MaterialRarity.RARE, RelicPower.MAJOR, "§7持っている間、耐性と再生を得る。"),
+        WITHER("wither", "§8§l凋零の頭骨", Material.WITHER_SKELETON_SKULL, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
+        BELL("bell", "§2§l癒やしの鐘", Material.BELL, MaterialRarity.COMMON, RelicPower.MINOR, "§7右クリックで自分と周囲の味方を回復する。(クールダウン6秒)"),
+        DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
+        VISION("vision", "§8§l暗視鏡", Material.SPYGLASS, MaterialRarity.COMMON, RelicPower.MINOR, "§7覗いている間だけ暗視を得る。");
 
         public final String id;
         public final String displayName;
         public final Material baseMaterial;
+        public final MaterialRarity materialRarity;
+        public final RelicPower power;
         public final double chance;
         public final String description;
 
-        RelicType(String id, String displayName, Material baseMaterial, double chance, String description) {
+        RelicType(String id, String displayName, Material baseMaterial, MaterialRarity materialRarity,
+                  RelicPower power, String description) {
             this.id = id;
             this.displayName = displayName;
             this.baseMaterial = baseMaterial;
-            this.chance = chance;
+            this.materialRarity = materialRarity;
+            this.power = power;
+            this.chance = materialRarity.baseChance * power.multiplier;
             this.description = description;
         }
     }
