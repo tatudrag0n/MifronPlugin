@@ -10,7 +10,8 @@ facing reference for proposals, voting, trade or protection. Added:
   from the external vote site), login bonus/vote sites/referrals,
   `/mf protect chunk`, `/mf travel`, chat/Discord and the non-official
   disclaimer. The Build world is disabled and is intentionally not advertised
-  in the book.
+  in the book. The book carries a version marker; an outdated copy is replaced
+  automatically on the next join (and by `/mf guide`).
 - The book is handed over at graduation (and on tutorial skip), and can be
   re-obtained with `/mf guide` (also the menu's new **ガイド** entry).
 - The menu now has 10 entries; the guide is inserted before チュートリアル so

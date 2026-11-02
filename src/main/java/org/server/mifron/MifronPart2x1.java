@@ -73,6 +73,7 @@ abstract class MifronPart2x1 extends MifronPart2 {
       this.flushPendingFirstMpEvent(player);
       this.queueDataSave();
       this.mifron().giveInitialItems(player);
+      PlayerGuide.upgradeIfOutdated(this.mifron(), player);
       this.mifron().applyPendingAdvancementReset(player);
       this.mifron().handleLoginReward(player);
       this.mifron().handleReturnBonus(player);

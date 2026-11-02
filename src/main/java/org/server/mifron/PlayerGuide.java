@@ -17,7 +17,8 @@ final class PlayerGuide {
    private PlayerGuide() {
    }
 
-   private static final NamespacedKey GUIDE_KEY = new NamespacedKey("mifron", "guide_book");
+   static final NamespacedKey GUIDE_KEY = new NamespacedKey("mifron", "guide_book");
+   static final String CURRENT_VERSION = "v2";
    static final String TITLE = "Mifron はじめの一歩";
 
    private static final String[] PAGES = {
@@ -78,13 +79,52 @@ final class PlayerGuide {
          + "§8MifronはMojang/Microsoftの公式サービスではありません。"
    };
 
+   private static boolean isGuide(ItemStack item) {
+      return item != null
+         && item.getType() == Material.WRITTEN_BOOK
+         && item.hasItemMeta()
+         && item.getItemMeta().getPersistentDataContainer().has(GUIDE_KEY, PersistentDataType.STRING);
+   }
+
+   private static boolean isCurrent(ItemStack item) {
+      return isGuide(item)
+         && CURRENT_VERSION.equals(item.getItemMeta().getPersistentDataContainer().get(GUIDE_KEY, PersistentDataType.STRING));
+   }
+
    static boolean hasGuide(Player player) {
       if (player == null) return false;
       for (ItemStack item : player.getInventory().getContents()) {
-         if (item == null || item.getType() != Material.WRITTEN_BOOK || !item.hasItemMeta()) continue;
-         if (item.getItemMeta().getPersistentDataContainer().has(GUIDE_KEY, PersistentDataType.STRING)) return true;
+         if (isCurrent(item)) return true;
       }
       return false;
+   }
+
+   /** Remove outdated copies so the player does not keep stale instructions. */
+   private static boolean removeOutdated(Player player) {
+      ItemStack[] contents = player.getInventory().getContents();
+      boolean removed = false;
+      for (int slot = 0; slot < contents.length; slot++) {
+         ItemStack item = contents[slot];
+         if (isGuide(item) && !isCurrent(item)) {
+            player.getInventory().setItem(slot, null);
+            removed = true;
+         }
+      }
+      return removed;
+   }
+
+   private static void addBook(Player player) {
+      ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
+      BookMeta meta = (BookMeta) book.getItemMeta();
+      meta.setTitle(TITLE);
+      meta.setAuthor("Mifron運営");
+      meta.addPage(PAGES);
+      meta.getPersistentDataContainer().set(GUIDE_KEY, PersistentDataType.STRING, CURRENT_VERSION);
+      book.setItemMeta(meta);
+
+      for (ItemStack leftover : player.getInventory().addItem(book).values()) {
+         player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+      }
    }
 
    static void give(Mifron plugin, Player player) {
@@ -94,18 +134,20 @@ final class PlayerGuide {
          return;
       }
 
-      ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
-      BookMeta meta = (BookMeta) book.getItemMeta();
-      meta.setTitle(TITLE);
-      meta.setAuthor("Mifron運営");
-      meta.addPage(PAGES);
-      meta.getPersistentDataContainer().set(GUIDE_KEY, PersistentDataType.STRING, "v1");
-      book.setItemMeta(meta);
-
-      for (ItemStack leftover : player.getInventory().addItem(book).values()) {
-         player.getWorld().dropItemNaturally(player.getLocation(), leftover);
-      }
-      player.sendMessage(ChatColor.GREEN + "遊び方ガイド「" + TITLE + "」を配布しました。");
+      boolean updated = removeOutdated(player);
+      addBook(player);
+      player.sendMessage(ChatColor.GREEN + (updated
+         ? "遊び方ガイド「" + TITLE + "」を最新版に更新しました。"
+         : "遊び方ガイド「" + TITLE + "」を配布しました。"));
       player.sendMessage(ChatColor.GRAY + "なくしたら /mf guide で取り出せます。");
+   }
+
+   /** Called on join: silently replace a book from an older release. */
+   static boolean upgradeIfOutdated(Mifron plugin, Player player) {
+      if (player == null || !player.isOnline()) return false;
+      if (!removeOutdated(player)) return false;
+      addBook(player);
+      player.sendMessage(ChatColor.GREEN + "遊び方ガイド「" + TITLE + "」を最新版に更新しました。");
+      return true;
    }
 }

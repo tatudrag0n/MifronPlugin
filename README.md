@@ -22,7 +22,7 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 
 - メイン: `/mifron`、短縮: `/mf`
 - プレイヤー向け: `/mf balance`、`/mf pay <player> <amount>`、`/mf tutorial [restart|skip]`、`/mf guide`、`/mf vote`、`/mf menu`、`/mf quest`、`/mf protect chunk`、`/mf refer [code]`、`/trade <player>|accept|deny|cancel|money <額>`、`/travel <hub|survival|main>`(`build-world` が既定無効のため `/mf build` は省略)。`/mf relic` は管理者専用です。
-- 卒業時と `/mf guide` で、MP・SHOP・クエスト・取引・提案・投票・ログボ・紹介・保護・移動をまとめた遊び方本「Mifron はじめの一歩」を配布します(メニューの「ガイド」からも取得可)。Buildワールドは既定で無効のため、ガイドでは案内していません。
+- 卒業時と `/mf guide` で、MP・SHOP・クエスト・取引・提案・投票・ログボ・紹介・保護・移動をまとめた遊び方本「Mifron はじめの一歩」を配布します(メニューの「ガイド」からも取得可)。Buildワールドは既定で無効のため、ガイドでは案内していません。旧版のガイド本は次回ログイン時に自動で最新版へ更新されます。
 - `/mv` はMifronでは登録せず、Multiverse-Core専用です。
 - 管理系サブコマンドは原則 `mifron.admin` または個別権限が必要です。
 

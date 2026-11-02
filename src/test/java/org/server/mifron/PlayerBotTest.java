@@ -104,6 +104,32 @@ class PlayerBotTest {
    }
 
    @Test
+   void outdatedGuideIsReplacedOnJoin() {
+      org.bukkit.inventory.ItemStack old = new org.bukkit.inventory.ItemStack(Material.WRITTEN_BOOK);
+      org.bukkit.inventory.meta.BookMeta meta = (org.bukkit.inventory.meta.BookMeta) old.getItemMeta();
+      meta.setTitle(PlayerGuide.TITLE);
+      meta.addPage("§6建築を提案する\n§0Buildワールドで /mf structure submit");
+      meta.getPersistentDataContainer().set(PlayerGuide.GUIDE_KEY,
+         org.bukkit.persistence.PersistentDataType.STRING, "v1");
+      old.setItemMeta(meta);
+      bot.getInventory().addItem(old);
+
+      assertTrue(PlayerGuide.upgradeIfOutdated(plugin, bot), "an old guide must be upgraded");
+      long count = java.util.Arrays.stream(bot.getInventory().getContents())
+         .filter(item -> item != null && item.getType() == Material.WRITTEN_BOOK)
+         .count();
+      assertEquals(1, count, "the old book must be replaced, not duplicated");
+
+      org.bukkit.inventory.ItemStack current = java.util.Arrays.stream(bot.getInventory().getContents())
+         .filter(item -> item != null && item.getType() == Material.WRITTEN_BOOK)
+         .findFirst().orElseThrow();
+      String pages = String.join("", ((org.bukkit.inventory.meta.BookMeta) current.getItemMeta()).getPages());
+      org.junit.jupiter.api.Assertions.assertFalse(pages.contains("Build"),
+         "the refreshed guide must not contain the disabled Build world");
+      assertTrue(pages.contains("ログボ"), "the refreshed guide must contain the replacement page");
+   }
+
+   @Test
    void threeKillsAdvanceHuntStage() {
       World tutorial = server.getWorld("tutorial");
       assertNotNull(tutorial);
