@@ -22,7 +22,7 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 
 - メイン: `/mifron`、短縮: `/mf`
 - プレイヤー向け: `/mf balance`、`/mf pay <player> <amount>`、`/mf tutorial [restart|skip]`、`/mf guide`、`/mf vote`、`/mf menu`、`/mf quest`、`/mf protect chunk`、`/mf refer [code]`、`/trade <player>|accept|deny|cancel|money <額>`、`/travel <hub|survival|main>`(`build-world` が既定無効のため `/mf build` は省略)。`/mf relic` は管理者専用です。
-- 卒業時と `/mf guide` で、MP・SHOP・クエスト・取引・提案・投票・建築・保護・移動をまとめた遊び方本「Mifron はじめの一歩」を配布します(メニューの「ガイド」からも取得可)。
+- 卒業時と `/mf guide` で、MP・SHOP・クエスト・取引・提案・投票・ログボ・紹介・保護・移動をまとめた遊び方本「Mifron はじめの一歩」を配布します(メニューの「ガイド」からも取得可)。Buildワールドは既定で無効のため、ガイドでは案内していません。
 - `/mv` はMifronでは登録せず、Multiverse-Core専用です。
 - 管理系サブコマンドは原則 `mifron.admin` または個別権限が必要です。
 
@@ -98,7 +98,7 @@ Mifronの保護チャンクでは、扉・ボタン・コンテナ・額縁・�
 
 ## 現在未完了の機能
 
-- Proposalへの投票はゲーム内で可能です(`/mf vote` でGUIを開き賛成投票)。建築の提案提出(`/mf structure submit`)やクエスト提案フローもゲーム内対応で、審査(`list` / `review` / `approve` / `reject`)は管理者専用です。外部から `proposals.yml` へ入った提案も審査対象です。
+- Proposalへの投票はゲーム内で可能です(`/mf vote` でGUIを開き賛成投票)。クエスト提案フローもゲーム内対応で、審査(`list` / `review` / `approve` / `reject`)は管理者専用です。建築の提案提出(`/mf structure submit`)はBuildワールドを有効化した場合のみで、既定では使用できません。外部から `proposals.yml` へ入った提案も審査対象です。
 - `/mf regen` は管理者権限が必要です。`allow` は除外解除、`deny` は除外登録、`list` は除外一覧、半径指定で強制再生成します。再生成対象は Survival のロード済み・保護外・除外外チャンクだけです。
 
 ## 保存データ

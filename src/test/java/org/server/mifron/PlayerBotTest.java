@@ -89,7 +89,13 @@ class PlayerBotTest {
       org.bukkit.inventory.meta.BookMeta meta = (org.bukkit.inventory.meta.BookMeta) book.getItemMeta();
       assertEquals(PlayerGuide.TITLE, meta.getTitle());
       assertTrue(meta.getPageCount() >= 10, "the guide must cover the main systems");
-      assertTrue(String.join("", meta.getPages()).contains("提案"), "the guide must explain proposals");
+      String pages = String.join("", meta.getPages());
+      assertTrue(pages.contains("提案"), "the guide must explain proposals");
+      assertTrue(pages.contains("ログボ"), "the guide must explain login/vote/referral");
+      org.junit.jupiter.api.Assertions.assertFalse(pages.contains("Build"),
+         "the guide must not advertise the disabled Build world");
+      org.junit.jupiter.api.Assertions.assertFalse(pages.contains("structure submit"),
+         "the guide must not advertise building submissions while Build is disabled");
       PlayerGuide.give(plugin, bot);
       long second = java.util.Arrays.stream(bot.getInventory().getContents())
          .filter(item -> item != null && item.getType() == Material.WRITTEN_BOOK)

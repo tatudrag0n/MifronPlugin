@@ -3,13 +3,14 @@
 ## 2026-11-01 player guide follow-up
 
 The tutorial only explained one action at a time and had no lasting, player-
-facing reference for proposals, voting, trade, protection or building
-submissions. Added:
+facing reference for proposals, voting, trade or protection. Added:
 
 - A 12-page written book **「Mifron はじめの一歩」** covering MP/SHOP, menu,
   quests/goals, `/trade`, `/mf quest propose`, `/mf vote` (and the difference
-  from the external vote site), building submissions, `/mf protect chunk`,
-  `/mf travel`, chat/Discord and the non-official disclaimer.
+  from the external vote site), login bonus/vote sites/referrals,
+  `/mf protect chunk`, `/mf travel`, chat/Discord and the non-official
+  disclaimer. The Build world is disabled and is intentionally not advertised
+  in the book.
 - The book is handed over at graduation (and on tutorial skip), and can be
   re-obtained with `/mf guide` (also the menu's new **ガイド** entry).
 - The menu now has 10 entries; the guide is inserted before チュートリアル so
