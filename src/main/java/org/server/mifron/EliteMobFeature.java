@@ -104,7 +104,8 @@ public class EliteMobFeature implements Listener {
      * Extra elite loot table (on top of the vanilla 5x drops). Chances are
      * config-tunable under elite-drops.* and default to the survival-friendly
      * rates: apple 30%, diamond 5%, head 5%, book 8%, god-apple 1%,
-     * netherite-scrap 0.5%, scratch 2%.
+     * netherite-scrap 0.5%, dashfoot 2%. An elite Warden always drops the
+     * Resonance Crystal relic in addition to this table.
      */
     private void dropEliteBonus(LivingEntity entity, Player killer) {
         java.util.Random rng = this.random;
@@ -136,6 +137,15 @@ public class EliteMobFeature implements Listener {
             ItemStack dashfoot = plugin.relicFeature.createRelicItem(RelicFeature.RelicType.DASHFOOT);
             if (dashfoot != null) loc.getWorld().dropItemNaturally(loc, dashfoot);
         }
+        if (guaranteesResonanceDrop(entity.getType())) {
+            ItemStack resonance = plugin.relicFeature.createRelicItem(RelicFeature.RelicType.RESONANCE_CRYSTAL);
+            if (resonance != null) loc.getWorld().dropItemNaturally(loc, resonance);
+        }
+    }
+
+    /** Elite Wardens are the dedicated source of the Resonance Crystal. */
+    static boolean guaranteesResonanceDrop(EntityType type) {
+        return type == EntityType.WARDEN;
     }
 
     private boolean roll(String key, double def) {

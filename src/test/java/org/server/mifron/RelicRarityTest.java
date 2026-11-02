@@ -16,7 +16,7 @@ class RelicRarityTest {
          double expected = type.materialRarity.baseChance * type.power.multiplier;
          assertEquals(expected, type.chance, 1.0e-12, type.id);
          assertTrue(type.chance > 0.0, type.id + " must be obtainable");
-         assertTrue(type.chance <= 0.001, type.id + " must stay a rare drop");
+         assertTrue(type.chance <= 0.005, type.id + " must stay a rare drop");
       }
    }
 
@@ -51,16 +51,18 @@ class RelicRarityTest {
 
    @Test
    void initialBalanceMatchesTheIntendedExamples() {
+      // Calibration point requested by the owner.
+      assertEquals(0.0020, RelicFeature.RelicType.RESONANCE_CRYSTAL.chance, 1.0e-12,
+         "Resonance Crystal must be 0.20%");
       // The netherite sword used to be practically impossible (0.001%).
-      assertTrue(RelicFeature.RelicType.DECAYED_SWORD.chance > 0.0005,
+      assertTrue(RelicFeature.RelicType.DECAYED_SWORD.chance > 0.002,
          "netherite-sword relic needs a reasonable chance");
       // Flight, any-enchant and grapple relics must stay chase items.
-      assertTrue(RelicFeature.RelicType.JETPACK.chance < 0.0002);
-      assertTrue(RelicFeature.RelicType.ENCHBOOK.chance < 0.0002);
-      assertTrue(RelicFeature.RelicType.HOOKSHOT.chance < 0.0001);
+      assertTrue(RelicFeature.RelicType.JETPACK.chance < 0.0005);
+      assertTrue(RelicFeature.RelicType.ENCHBOOK.chance < 0.0005);
+      assertTrue(RelicFeature.RelicType.HOOKSHOT.chance < 0.0003);
       // Common-mob sources should not be the easiest route to strong relics.
-      assertTrue(RelicFeature.RelicType.RESONANCE_CRYSTAL.chance < 0.001);
-      assertTrue(RelicFeature.RelicType.DASHFOOT.chance < 0.0005);
+      assertTrue(RelicFeature.RelicType.DASHFOOT.chance < 0.001);
    }
 
    private static RelicFeature.RelicType find(RelicFeature.MaterialRarity rarity, RelicFeature.RelicPower power) {

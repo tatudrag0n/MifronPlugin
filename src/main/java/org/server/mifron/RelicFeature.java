@@ -89,11 +89,12 @@ public class RelicFeature implements Listener {
      * netherite-sword relics would be effectively unobtainable.
      */
     public enum MaterialRarity {
-        COMMON(0.00030),
-        UNCOMMON(0.00060),
-        RARE(0.00120),
-        EPIC(0.00240),
-        LEGENDARY(0.00480);
+        // Calibrated so RARE / MEDIUM (Resonance Crystal) is 0.20%.
+        COMMON(0.00100),
+        UNCOMMON(0.00200),
+        RARE(0.00400),
+        EPIC(0.00800),
+        LEGENDARY(0.01600);
 
         public final double baseChance;
 
