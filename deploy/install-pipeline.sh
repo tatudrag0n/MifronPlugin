@@ -8,6 +8,7 @@
 #     mifron-build-check.timer    (5min)  GitHub -> staging + updates event
 #     mifron-backup.timer         (daily) local server backup (runbook SHA-256)
 #     mifron-geyser-update.timer  (daily) Geyser auto-update w/ rollback
+#     mifronplugin-deploy.timer   (06:00 JST) GitHub -> production jar + restart
 #
 # Run once as root. Re-running refreshes units; the server itself is NOT
 # restarted by the installer.
@@ -179,10 +180,19 @@ systemctl enable mifron-config-sync.timer mifron-build-check.timer \
 systemctl start  mifron-config-sync.timer mifron-build-check.timer \
                  mifron-backup.timer mifron-geyser-update.timer
 
+# Daily production deployment at 06:00 Asia/Tokyo. The deploy script is
+# idempotent: it exits without restarting when origin/main was already
+# deployed.
+DEPLOY_USER="${DEPLOY_USER:-${SUDO_USER:-$USER}}" \
+  REPO_DIR="$REPO_DIR" PLUGINS_DIR="$PLUGINS_DIR" \
+  SERVICE_NAME="$SERVICE_NAME" STATE_DIR="$STATE_DIR" ENV_FILE="$ENV_PATH" \
+  bash "$REPO_DIR/deploy/install-auto-deploy.sh"
+
 echo
 echo "=== installed timers ==="
-systemctl list-timers --all "mifron-*" --no-pager | head -12
+systemctl list-timers --all "mifron-*" "mifronplugin-*" --no-pager | head -14
 echo
 echo "config:  $ENV_PATH"
 echo "state:   $STATE_DIR"
-echo "production jar promotion (manual gate) is deploy/promote-jar.sh --confirm"
+echo "production jar promotion: daily at 06:00 Asia/Tokyo"
+echo "manual run: systemctl start mifronplugin-deploy.service"

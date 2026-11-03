@@ -6,7 +6,7 @@ DEPLOY_HOME="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
 REPO_DIR="${REPO_DIR:-$DEPLOY_HOME/MifronPlugin}"
 PLUGINS_DIR="${PLUGINS_DIR:-$DEPLOY_HOME/main-server/plugins}"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
-INTERVAL="${INTERVAL:-60}"
+SCHEDULE="${SCHEDULE:-*-*-* 06:00:00 Asia/Tokyo}"
 STATE_DIR="${STATE_DIR:-/var/lib/mifronplugin-deploy}"
 ENV_FILE="${ENV_FILE:-/etc/mifronplugin-deploy.env}"
 LOCK_FILE="${LOCK_FILE:-$STATE_DIR/repo-sync.lock}"
@@ -66,7 +66,7 @@ else
   sudo -u "\$DEPLOY_USER" -H git reset --hard origin/main
 fi
 chmod +x "\$REPO_DIR/deploy/run-auto-deploy.sh"
-exec "\$REPO_DIR/deploy/run-auto-deploy.sh"
+exec flock -x /var/lock/mifronplugin-deploy.lock "\$REPO_DIR/deploy/run-auto-deploy.sh"
 EOF
 sudo chmod 0755 /usr/local/sbin/mifronplugin-deploy
 
@@ -85,12 +85,12 @@ EOF
 
 sudo tee /etc/systemd/system/mifronplugin-deploy.timer >/dev/null <<EOF
 [Unit]
-Description=Check MifronPlugin updates
+Description=Daily MifronPlugin deployment (Asia/Tokyo)
 
 [Timer]
-OnBootSec=30s
-OnUnitActiveSec=${INTERVAL}s
+OnCalendar=${SCHEDULE}
 Persistent=true
+AccuracySec=1min
 Unit=mifronplugin-deploy.service
 
 [Install]
@@ -99,9 +99,10 @@ EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now mifronplugin-deploy.timer
-sudo systemctl start mifronplugin-deploy.service
 
-echo "Installed safe MifronPlugin auto deploy."
+echo "Installed safe MifronPlugin daily deploy."
+echo "Schedule: $SCHEDULE"
 echo "Optional notifications: edit $ENV_FILE and set DISCORD_WEBHOOK_URL."
 echo "Timer: systemctl status mifronplugin-deploy.timer --no-pager"
+echo "Run now: systemctl start mifronplugin-deploy.service"
 echo "Logs:  journalctl -u mifronplugin-deploy.service -n 100 --no-pager"

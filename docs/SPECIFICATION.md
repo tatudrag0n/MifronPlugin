@@ -25,7 +25,7 @@ Multiverse管理ワールドの実体は `world/dimensions/minecraft/<名前>/` 
 - 売却・クエスト・進捗・プレイ時間報酬等でMP取得。売却入金は `mp_gained` クエストにも計上。
 - 決済は単一スレッドのティック内で完結し、二重支払い・MP増殖が起きない設計（購入失敗時は自動返金）。
 
-## 3. SHOP（旧OnlineShop、Survival専用）
+## 3. SHOP（旧OnlineShop）
 
 - 左列タブの5ジャンル：装飾 / 材料 / 道具類 / 食料 / その他（1ページ40件）。
 - 装飾＝建築ブロック、材料＝クラフト素材（鉱石・ドロップ・染料・型・本等）、道具類＝武器防具・ツール・機能ブロック・レッドストーン、食料＝飲食＋ポーション、その他＝残り。
@@ -149,8 +149,8 @@ Multiverse管理ワールドの実体は `world/dimensions/minecraft/<名前>/` 
 
 ## 14. 運用
 
-- ビルド：`mvn -B clean package`（Java単体テスト125件）。
-- 検証フロー：`bash deploy/stage-jar.sh` → `~/mifron-staging/`（BUILD_INFO/HISTORY付き）→ ローカル検証 → 承認後のみ本番 `plugins/` へコピー＋再起動（警告・save-all・0人確認）。
+- ビルド：`mvn -B clean package`（Java単体テスト127件）。
+- 検証フロー：`bash deploy/stage-jar.sh` → `~/mifron-staging/`（BUILD_INFO/HISTORY付き）→ ローカル検証。本番へは毎朝6時（Asia/Tokyo）に `mifronplugin-deploy.timer` が `origin/main` を再ビルド・テストして自動反映し、ヘルスチェック失敗時は自動ロールバックします。手動実行は `systemctl start mifronplugin-deploy.service`。
 - 本番 `~/MifronPlugin` は config-sync が60秒ごとに `git fetch` し、`origin/main` と双方向同期。未pushのローカルコミットは自動でpush、リモート先行分はresetで取り込み、push失敗時はコミット保護のためresetしない（分岐時は手動マージ）。
 - ホストRAM 7GBのため本番（4G）と重い処理の同時実行に注意（OOM実績あり）。
 - 既知のログノイズ：DiscordSRV権限WARN、Votifier外部スパム。

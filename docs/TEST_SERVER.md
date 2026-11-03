@@ -37,23 +37,23 @@ production and diverges afterwards; production is never written from test.
   (worlds/player data untouched). `--full` also refreshes worlds (wipes test
   progress).
 
-## Workflow: GitHub -> staging -> local audit -> approve -> prod
+## Workflow: GitHub -> staging -> daily 06:00 JST deploy
 
 1. Push changes to `origin/main` (GitHub is the source of truth; the prod
    `mifron-config-sync.timer` resets `~/MifronPlugin` to `origin/main`).
-2. Stage the build: `bash deploy/stage-jar.sh` (builds, runs tests, copies
-   the jar to `~/mifron-staging/` with `BUILD_INFO.txt`). Production is
-   never touched by staging.
-3. Verify the staged jar locally.
-4. On approval ONLY: copy `~/mifron-staging/mifronplugin-26.1.2.jar` to
-   `~/main-server/plugins/` and restart production (warn players,
-   `save-all` first).
-5. Never deploy without explicit approval.
+2. `mifron-build-check.timer` builds and stages the jar into
+   `~/mifron-staging/` every 5 minutes with `BUILD_INFO.txt` for audit.
+3. Verify the staged jar locally if needed.
+4. Every day at **06:00 Asia/Tokyo**, `mifronplugin-deploy.timer` rebuilds
+   `origin/main`, installs the jar and restarts production. The deploy is
+   idempotent (no restart when the commit is already deployed) and rolls back
+   automatically if the health check fails.
+5. Manual run: `systemctl start mifronplugin-deploy.service`.
 
 ## E2E bot
 
 `../mifron-bot` is a Mineflayer bot that logs in and drives real gameplay
-(tutorial, fan menu, shop, travel, inventory separation, MP, persistence).
+(tutorial, fan menu, shop, inventory separation, MP, persistence).
 It defaults to `:25566` and refuses `:25565` unless explicitly overridden.
 
 ```bash
