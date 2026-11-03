@@ -80,7 +80,14 @@ Wants=network-online.target
 Type=oneshot
 User=root
 ExecStart=/usr/local/sbin/mifronplugin-deploy
+# The restart script launches the server inside a detached screen session.
+# Never kill that session when this oneshot unit exits; otherwise systemd
+# terminates the freshly started Minecraft process together with the unit.
+KillMode=process
 TimeoutStartSec=15min
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
 sudo tee /etc/systemd/system/mifronplugin-deploy.timer >/dev/null <<EOF
