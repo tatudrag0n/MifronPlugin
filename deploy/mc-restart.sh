@@ -50,6 +50,7 @@ detect_start_command() {
 }
 
 persist_start_command() {
+  [ -n "${1:-}" ] || { log "ERROR: refusing to persist an empty start command"; return 1; }
   mkdir -p "$STATE_DIR"
   printf '%s\n' "$1" > "$STATE_DIR/minecraft-start-command"
 }
@@ -57,7 +58,10 @@ persist_start_command() {
 load_start_command() {
   [ -n "$MINECRAFT_START_COMMAND" ] && return 0
   if [ -s "$STATE_DIR/minecraft-start-command" ]; then
-    MINECRAFT_START_COMMAND="$(tr -d '\r\n' < "$STATE_DIR/minecraft-start-command")"
+    local saved
+    saved="$(tr -d '\r\n' < "$STATE_DIR/minecraft-start-command")"
+    [ -n "$saved" ] || return 1
+    MINECRAFT_START_COMMAND="$saved"
     return 0
   fi
   return 1
@@ -92,9 +96,13 @@ start_via_screen() {
     sleep 2
   fi
   screen -wipe >/dev/null 2>&1 || true
-  screen -dmS "$SCREEN_SESSION_NAME" bash -c "cd '$SERVER_DIR' && exec ${JAVA_BIN} $1"
+  screen -L -Logfile "$STATE_DIR/screen-console.log" -dmS "$SCREEN_SESSION_NAME" \
+    bash -c "cd '$SERVER_DIR' && exec ${JAVA_BIN} $1"
   sleep 2
-  screen_has_session
+  if ! screen_has_session; then
+    log "screen session '${SCREEN_SESSION_NAME}' did not start; see $STATE_DIR/screen-console.log"
+    return 1
+  fi
 }
 
 wait_port_closed() {
@@ -135,6 +143,7 @@ main() {
   # screen path -------------------------------------------------------------
   local starting_cmd pid
   starting_cmd="$(load_start_command || detect_start_command)"
+  [ -n "$starting_cmd" ] || starting_cmd="$(detect_start_command)"
 
   if ! screen_has_session && ! java_pid_for_server_dir "$SERVER_DIR" >/dev/null 2>&1; then
     log "Server not running; starting it"
