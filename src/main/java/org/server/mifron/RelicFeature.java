@@ -67,6 +67,12 @@ public class RelicFeature implements Listener {
      * A 0.4 multiplier makes air-swimming feel like water instead of walking.
      */
     static final double SEASWIM_SPEED_MULTIPLIER = 0.4;
+    /**
+     * Vanilla water swimming rises noticeably faster than Levitation I.
+     * Levitation II (amplifier 1) matches that climb while keeping the
+     * smooth, server-controlled ascent.
+     */
+    static final int SEASWIM_ASCEND_AMPLIFIER = 1;
     private final Random random = new Random();
     private final Map<UUID, BukkitTask> visionTasks = new HashMap<>();
     private final BlockData ghostIceData;
@@ -1487,7 +1493,7 @@ public class RelicFeature implements Listener {
             org.bukkit.potion.PotionEffect levitation = p.getPotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
             if (levitation == null || levitation.getDuration() <= 20) {
                 p.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                    org.bukkit.potion.PotionEffectType.LEVITATION, 40, 0, true, false));
+                    org.bukkit.potion.PotionEffectType.LEVITATION, 40, SEASWIM_ASCEND_AMPLIFIER, true, false));
             }
         } else {
             p.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
