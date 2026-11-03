@@ -345,6 +345,8 @@ public class RelicFeature implements Listener {
     private static final double HOOKSHOT_BLOCK_RADIUS = 0.4;
     /** Reel-in speed toward the anchored bobber (blocks/tick). */
     private static final double HOOKSHOT_PULL_SPEED = 0.8;
+    /** Maximum hookshot range in blocks. */
+    private static final double HOOKSHOT_MAX_RANGE = 100.0;
     /** Bunny hop stays unavailable until landing; this is only the visual timer. */
     static final int DASH_COOLDOWN_TICKS = 400;
     /** A stopped bobber and the block location it hit. */
@@ -388,6 +390,17 @@ public class RelicFeature implements Listener {
         // too; starting a scope task twice is idempotent.
         if ("vision".equals(getRelicId(item)) && event.getAction().isRightClick()) {
             this.startScopedVision(player);
+            return;
+        }
+
+        // Second right-click during a hookshot reel: abort the movement but
+        // keep the current velocity (inertia), retract the line, and leave the
+        // rod ready for another cast. Checked before the generic debounce.
+        if ("hookshot".equals(getRelicId(item)) && event.getAction().isRightClick()
+                && this.hookshotPulls.containsKey(player.getUniqueId())) {
+            event.setCancelled(true);
+            this.stopHookshotPull(player.getUniqueId());
+            this.clearHookshotAnchor(player);
             return;
         }
 
@@ -483,8 +496,16 @@ public class RelicFeature implements Listener {
         org.bukkit.util.Vector dir = player.getLocation().getDirection().normalize();
         org.bukkit.Location dest = player.getLocation().clone();
         org.bukkit.Location base = player.getLocation().clone();
-        for (int i = 1; i <= 20; i++) {
+        World world = player.getWorld();
+        // No gameplay distance cap: keep going until a block, the world
+        // border, the build height, or an unloaded chunk. The large numeric
+        // guard only prevents a pathological loop when aiming at open sky.
+        double maxDistance = Math.min(4096.0, world.getWorldBorder().getSize());
+        for (int i = 1; i <= maxDistance; i++) {
             org.bukkit.Location check = base.clone().add(dir.clone().multiply(i));
+            if (check.getY() < world.getMinHeight() || check.getY() >= world.getMaxHeight()) break;
+            if (!world.getWorldBorder().isInside(check)) break;
+            if (!world.isChunkLoaded(check.getBlockX() >> 4, check.getBlockZ() >> 4)) break;
             if (!check.getBlock().isPassable() || !check.clone().add(0.0, 1.0, 0.0).getBlock().isPassable()) break;
             dest = check;
         }
@@ -928,12 +949,22 @@ public class RelicFeature implements Listener {
             return;
         }
         if (state == PlayerFishEvent.State.REEL_IN) {
-            HookAnchor anchor = this.hookshotAnchors.remove(player.getUniqueId());
+            UUID playerId = player.getUniqueId();
+            if (this.hookshotPulls.containsKey(playerId)) {
+                // Second right-click while reeling: stop the pull where it is,
+                // keep the current inertia, and retract the line immediately.
+                this.stopHookshotPull(playerId);
+                this.clearHookshotAnchor(player);
+                event.setCancelled(true);
+                return;
+            }
+            HookAnchor anchor = this.hookshotAnchors.get(playerId);
             this.stopHookshotFlight(hook.getUniqueId());
-            this.stopHookshotHold(hook.getUniqueId());
             if (anchor != null && anchor.hookId().equals(hook.getUniqueId())) {
+                // Keep the hook and line attached until the player arrives.
+                event.setCancelled(true);
                 this.startHookshotPull(player, anchor.location());
-                if (hook.isValid()) hook.remove();
+                return;
             }
             return;
         }
@@ -965,6 +996,11 @@ public class RelicFeature implements Listener {
         Location[] lastSafe = {hook.getLocation().clone()};
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
             if (!hook.isValid() || hook.isDead() || ++ticks[0] > 200) {
+                this.stopHookshotFlight(hook.getUniqueId());
+                if (hook.isValid()) hook.remove();
+                return;
+            }
+            if (hook.getLocation().distanceSquared(player.getLocation()) > HOOKSHOT_MAX_RANGE * HOOKSHOT_MAX_RANGE) {
                 this.stopHookshotFlight(hook.getUniqueId());
                 if (hook.isValid()) hook.remove();
                 return;
@@ -1074,7 +1110,7 @@ public class RelicFeature implements Listener {
             Player current = Bukkit.getPlayer(uuid);
             if (current == null || !current.isOnline() || current.isDead()
                     || ++ticks[0] > 160 || !current.getWorld().equals(destination.getWorld())) {
-                this.stopHookshotPull(uuid);
+                this.clearHookshotAnchor(player);
                 return;
             }
             Vector delta = destination.toVector().subtract(current.getLocation().toVector());
@@ -1083,12 +1119,13 @@ public class RelicFeature implements Listener {
                 current.setVelocity(new Vector(0.0, 0.0, 0.0));
                 current.setFallDistance(0.0f);
                 current.getWorld().playSound(current.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 0.8f, 0.8f);
-                this.stopHookshotPull(uuid);
+                // Arrived: now retract the line and free the rod for a new cast.
+                this.clearHookshotAnchor(current);
                 return;
             }
             if (distance >= lastDistance[0] - 0.02) {
                 if (++stuck[0] > 20) {
-                    this.stopHookshotPull(uuid);
+                    this.clearHookshotAnchor(current);
                     return;
                 }
             } else {
