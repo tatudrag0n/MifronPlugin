@@ -332,7 +332,7 @@ public class RelicFeature implements Listener {
     /** Straight-line bobber speed for the hookshot. */
     private static final double HOOKSHOT_SPEED = 2.0;
     /** The bobber stops when any solid block is within this radius. */
-    private static final double HOOKSHOT_BLOCK_RADIUS = 0.35;
+    private static final double HOOKSHOT_BLOCK_RADIUS = 0.4;
     /** Bunny hop stays unavailable until landing; this is only the visual timer. */
     static final int DASH_COOLDOWN_TICKS = 400;
     /** A stopped bobber and the block location it hit. */
@@ -953,12 +953,25 @@ public class RelicFeature implements Listener {
                 return;
             }
             Location current = hook.getLocation().clone();
-            Location next = current.clone().add(direction);
             // Give the bobber a few ticks to leave the player's body, then
             // stop it on floor, wall, ceiling or any other solid block.
-            if (ticks[0] > 3 && (this.hookshotBlocked(current) || this.hookshotBlocked(next))) {
-                this.anchorHookshot(player, hook, lastSafe[0]);
-                return;
+            if (ticks[0] > 3) {
+                if (this.hookshotBlocked(current)) {
+                    this.anchorHookshot(player, hook, lastSafe[0]);
+                    return;
+                }
+                // Sample the 2-block step so a thin wall cannot be skipped,
+                // and stop at the last free position just before the block.
+                Vector step = direction.clone().multiply(0.2);
+                Location safe = current.clone();
+                for (int i = 1; i <= 5; i++) {
+                    Location probe = current.clone().add(step.clone().multiply(i));
+                    if (this.hookshotBlocked(probe)) {
+                        this.anchorHookshot(player, hook, safe);
+                        return;
+                    }
+                    safe = probe;
+                }
             }
             lastSafe[0] = current;
             hook.setVelocity(direction);
@@ -988,6 +1001,7 @@ public class RelicFeature implements Listener {
 
     private void anchorHookshot(Player player, FishHook hook, Location location) {
         this.stopHookshotFlight(hook.getUniqueId());
+        hook.teleport(location);
         hook.setGravity(false);
         hook.setVelocity(new Vector(0.0, 0.0, 0.0));
         this.hookshotAnchors.put(player.getUniqueId(), new HookAnchor(location.clone(), hook.getUniqueId()));
