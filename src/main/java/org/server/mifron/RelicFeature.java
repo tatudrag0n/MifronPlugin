@@ -105,6 +105,8 @@ public class RelicFeature implements Listener {
         this.stopDragTask();
         for (BukkitTask task : this.hookshotFlights.values()) task.cancel();
         this.hookshotFlights.clear();
+        for (BukkitTask task : this.hookshotPulls.values()) task.cancel();
+        this.hookshotPulls.clear();
         this.hookshotAnchors.clear();
         this.dashWaitingForGround.clear();
         this.dashAirborne.clear();
@@ -339,6 +341,8 @@ public class RelicFeature implements Listener {
     private static final double HOOKSHOT_SPEED = 2.0;
     /** The bobber stops when any solid block is within this radius. */
     private static final double HOOKSHOT_BLOCK_RADIUS = 0.4;
+    /** Reel-in speed toward the anchored bobber (blocks/tick). */
+    private static final double HOOKSHOT_PULL_SPEED = 0.8;
     /** Bunny hop stays unavailable until landing; this is only the visual timer. */
     static final int DASH_COOLDOWN_TICKS = 400;
     /** A stopped bobber and the block location it hit. */
@@ -354,6 +358,8 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, Long> breathCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     /** Hookshot bobbers fly straight; keyed by the hook entity id. */
     private final java.util.Map<java.util.UUID, BukkitTask> hookshotFlights = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Active reel-in tasks, keyed by the player being pulled. */
+    private final java.util.Map<java.util.UUID, BukkitTask> hookshotPulls = new java.util.concurrent.ConcurrentHashMap<>();
     /** Bunny hop stays locked until the player has left and touched the ground again. */
     private final java.util.Set<java.util.UUID> dashWaitingForGround = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Set<java.util.UUID> dashAirborne = java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -652,7 +658,7 @@ public class RelicFeature implements Listener {
     /** Spring forward like a startled rabbit (sneaking cancels the hop). */
     void tryDash(Player player, ItemStack relic) {
         java.util.UUID uuid = player.getUniqueId();
-        if (this.dashWaitingForGround.contains(uuid)) return;
+        if (this.dashWaitingForGround.contains(uuid) || this.hookshotPulls.containsKey(uuid)) return;
         this.dashWaitingForGround.add(uuid);
         this.dashAirborne.remove(uuid);
         this.dashStarted.put(uuid, System.currentTimeMillis());
@@ -921,7 +927,7 @@ public class RelicFeature implements Listener {
             HookAnchor anchor = this.hookshotAnchors.remove(player.getUniqueId());
             this.stopHookshotFlight(hook.getUniqueId());
             if (anchor != null && anchor.hookId().equals(hook.getUniqueId())) {
-                this.pullToHook(player, anchor.location());
+                this.startHookshotPull(player, anchor.location());
                 if (hook.isValid()) hook.remove();
             }
             return;
@@ -1016,18 +1022,65 @@ public class RelicFeature implements Listener {
         player.sendMessage(ChatColor.GRAY + "ウキがブロックに当たった。右クリックで引き寄せ。");
     }
 
-    private void pullToHook(Player player, Location target) {
-        Vector pull = target.toVector().subtract(player.getLocation().toVector());
-        double dist = pull.length();
-        if (dist < 0.5) return;
-        pull = pull.normalize().multiply(Math.min(2.4, 1.0 + dist * 0.1));
-        pull.setY(Math.min(pull.getY() + 0.4, 1.3));
-        player.setVelocity(pull);
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 1.0f, 0.8f);
-        player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, player.getLocation(), 12, 0.2, 0.2, 0.2, 0.1);
+    /**
+     * Reels the player along the line to the anchored bobber instead of
+     * launching a single jump impulse. The task keeps steering every tick so
+     * the player actually ends up at the hook.
+     */
+    private void startHookshotPull(Player player, Location hookLocation) {
+        UUID uuid = player.getUniqueId();
+        this.stopHookshotPull(uuid);
+        // The bobber is at eye-ish height; put the player's feet one block
+        // below it so their body arrives at the hook rather than above it.
+        Location destination = hookLocation.clone().add(0.0, -1.0, 0.0);
+        jetpackActive.remove(uuid);
+        landingAssist.remove(uuid);
+        int[] ticks = {0};
+        double[] lastDistance = {Double.MAX_VALUE};
+        int[] stuck = {0};
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 1.0f, 1.2f);
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            Player current = Bukkit.getPlayer(uuid);
+            if (current == null || !current.isOnline() || current.isDead()
+                    || ++ticks[0] > 160 || !current.getWorld().equals(destination.getWorld())) {
+                this.stopHookshotPull(uuid);
+                return;
+            }
+            Vector delta = destination.toVector().subtract(current.getLocation().toVector());
+            double distance = delta.length();
+            if (distance <= 1.0) {
+                current.setVelocity(new Vector(0.0, 0.0, 0.0));
+                current.setFallDistance(0.0f);
+                current.getWorld().playSound(current.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 0.8f, 0.8f);
+                this.stopHookshotPull(uuid);
+                return;
+            }
+            if (distance >= lastDistance[0] - 0.02) {
+                if (++stuck[0] > 20) {
+                    this.stopHookshotPull(uuid);
+                    return;
+                }
+            } else {
+                stuck[0] = 0;
+            }
+            lastDistance[0] = distance;
+            current.setVelocity(delta.normalize().multiply(Math.min(HOOKSHOT_PULL_SPEED, distance)));
+            current.setFallDistance(0.0f);
+            if (ticks[0] % 2 == 0) {
+                current.getWorld().spawnParticle(org.bukkit.Particle.CRIT,
+                    current.getLocation().add(0.0, 1.0, 0.0), 3, 0.2, 0.2, 0.2, 0.02);
+            }
+        }, 1L, 1L);
+        this.hookshotPulls.put(uuid, task);
+    }
+
+    private void stopHookshotPull(UUID playerId) {
+        BukkitTask task = this.hookshotPulls.remove(playerId);
+        if (task != null) task.cancel();
     }
 
     private void clearHookshotAnchor(Player player) {
+        this.stopHookshotPull(player.getUniqueId());
         HookAnchor anchor = this.hookshotAnchors.remove(player.getUniqueId());
         if (anchor == null) return;
         org.bukkit.entity.Entity hook = Bukkit.getEntity(anchor.hookId());
@@ -1286,10 +1339,11 @@ public class RelicFeature implements Listener {
             // Covers relogs and other paths where no interact event fired.
             this.startScopedVision(player);
         }
-        if (jetpackActive.contains(player.getUniqueId())) {
+        boolean pulling = hookshotPulls.containsKey(player.getUniqueId());
+        if (!pulling && jetpackActive.contains(player.getUniqueId())) {
             this.tryHoverJetpack(player);
         }
-        if (landingAssist.contains(player.getUniqueId())) {
+        if (!pulling && landingAssist.contains(player.getUniqueId())) {
             if (player.isOnGround()) {
                 // Soft touchdown: landing while holding the assist never hurts.
                 player.setFallDistance(0.0f);
@@ -1433,7 +1487,8 @@ public class RelicFeature implements Listener {
     private void enforceSeaswimSpeed(Player player) {
         UUID uuid = player.getUniqueId();
         if (player.isOnGround() || player.isInWater() || !this.hasSeaswim(player)
-                || jetpackActive.contains(uuid) || dashWaitingForGround.contains(uuid)) {
+                || jetpackActive.contains(uuid) || dashWaitingForGround.contains(uuid)
+                || hookshotPulls.containsKey(uuid)) {
             this.removeSeaswimSpeed(player);
         }
     }
@@ -1460,10 +1515,11 @@ public class RelicFeature implements Listener {
     private void tickSeaswim(Player p) {
         UUID uuid = p.getUniqueId();
         boolean held = this.hasSeaswim(p);
-        boolean jetpacking = jetpackActive.contains(uuid);
+        boolean jetpacking = jetpackActive.contains(uuid) || hookshotPulls.containsKey(uuid);
         boolean dashing = dashWaitingForGround.contains(uuid);
-        // Real water/lava swimming keeps vanilla physics. Jetpack and bunny
-        // hop also suppress the swim state entirely, including the slow
+        // Real water/lava swimming keeps vanilla physics. Jetpack, bunny hop
+        // and the hookshot reel also suppress the swim state entirely,
+        // including the slow
         // movement modifier and the swimming pose.
         if (!shouldAirSwim(held, p.isOnGround(), p.isInWater(), jetpacking, dashing)) {
             this.seaswimRising.remove(uuid);
@@ -1752,6 +1808,7 @@ public class RelicFeature implements Listener {
     /** Clears any stale swim speed/pose, including after a crash or relog. */
     private void resetSeaswimState(Player player) {
         UUID uuid = player.getUniqueId();
+        this.stopHookshotPull(uuid);
         seaswimActive.remove(uuid);
         seaswimAirborne.remove(uuid);
         seaswimRising.remove(uuid);
@@ -1771,16 +1828,17 @@ public class RelicFeature implements Listener {
         Player player = event.getPlayer();
         ItemStack chest = player.getInventory().getChestplate();
         boolean jetpack = chest != null && isRelicItem(chest) && "jetpack".equals(getRelicId(chest));
+        boolean pulling = this.hookshotPulls.containsKey(player.getUniqueId());
         // The hold flags only mark intent: the climb/float itself is applied
         // on every move event so it follows the player smoothly.
-        if (jetpack && event.getInput().isJump()) {
+        if (jetpack && !pulling && event.getInput().isJump()) {
             jetpackActive.add(player.getUniqueId());
         } else {
             jetpackActive.remove(player.getUniqueId());
         }
         // Back (S) key: gentle landing assist flag; the hop loop lives in the
         // move-event ticker so a steadily held key keeps floating the player.
-        if (jetpack && event.getInput().isBackward()) {
+        if (jetpack && !pulling && event.getInput().isBackward()) {
             landingAssist.add(player.getUniqueId());
         } else {
             landingAssist.remove(player.getUniqueId());
