@@ -22,7 +22,7 @@ facing reference for proposals, voting, trade or protection. Added:
   the 10-entry menu. `PlayerBotTest` checks the book title, page count and
   proposal content.
 
-Full suite after the change: **14/14 PASS**, 119 Java tests pass.
+Full suite after the change: **14/14 PASS**, 125 Java tests pass.
 
 ## 2026-11-01 tutorial follow-up
 

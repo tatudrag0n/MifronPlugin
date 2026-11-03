@@ -4,10 +4,18 @@
 
 ## 初期配布と移動
 
-- 初回を含む参加時にウォレット、ステータスを確認・更新します。
-- 参加時に配布されるのは「メニュー」1個だけです。旧配布アイテム(emerald_bundle、friend_book、quest_book、teleporter、online_shop、hub_compass)とTebexストア案内アイテムは参加時に回収します。
+- 参加時に配布されるのは「メニュー」(ネザースター)1個だけです。旧配布アイテム(emerald_bundle、friend_book、quest_book、teleporter、online_shop、hub_compass)とTebexストア案内アイテムは参加時に回収します。
 - メニューの「ウォレット」クリックで残高表示ができます。「メニュー」は旧ウォレットアイテム(emerald_bundle)と同等の棚ショップの決済アイテムです。Bundleとしての収納は無効です。
+- 初参加は自動でチュートリアルへ移動する。卒業/スキップ時に遊び方本「Mifron はじめの一歩」を配布し、`/mf guide` とメニューの「ガイド」から再取得できる。旧版の本は次回ログイン時に自動更新される。
 - 通常のコンパスクリックはキャンセルされ、意図しないテレポートを防ぎます。
+
+## チュートリアルとガイド
+
+- 初参加者は自動で `tutorial` ワールドへ移動し、7段階（メニュー → ゾンビ3体 → Elite → レリック使用 → クエスト/目標 → 金床 → 卒業）を進む。進捗は `data.yml` の `tutorial.stage` に保存され、途中離脱後も再開できる。
+- `/mf tutorial [restart|skip]`（`/tutorial` も可）で再開・やり直し・スキップ。スキップは残り報酬なしでSurvivalへ出る。
+- 卒業/スキップ時に遊び方本「Mifron はじめの一歩」を配布。`/mf guide` とメニューの「ガイド」から再取得でき、旧版(v1)は次回ログイン時に最新版(v2)へ自動更新される。
+- 案内板は `TutorialSigns` が起動時にコードから再生成する。Buildワールドは既定無効のため、建築提案はガイドに載せない。
+- チュートリアル内の配布装備は通常系インベントリに入り、Survival系とは分離される。
 
 ## MP
 
@@ -46,7 +54,9 @@
 
 ## レリック
 
-- 判定はPDC `relic_id`。素材の入手（EntityPickupItemEvent）とクラフト（CraftItemEvent）時に素材ごとの低確率で1個だけ変化する。`/give` とクリエイティブのインベントリ取得でも同じ確率判定を行う。Elite討伐時はバニーホップが2%でドロップする。
+- 判定はPDC `relic_id`。素材の入手（EntityPickupItemEvent）とクラフト（CraftItemEvent）時に素材ごとの低確率で1個だけ変化する。`/give` とクリエイティブのインベントリ取得でも同じ確率判定を行う。
+- 変化確率は `素材の希少性(baseChance) × レリックの強さ(multiplier)`。基本確率は COMMON 0.100% / UNCOMMON 0.200% / RARE 0.400% / EPIC 0.800% / LEGENDARY 1.600%、倍率は MINOR ×1.0 / MEDIUM ×0.5 / MAJOR ×0.2。残響の結晶が0.200%になるよう調整している。
+- Elite討伐時はバニーホップが2%でドロップする。エリートWardenをプレイヤーが討伐した場合は、通常のエリートドロップとは別に残響の結晶を確定で1個ドロップする。
 - `/mf relic <id> [player]` で付与。旧ID（scratch/recall/phoenix/tide/swift/guardian/wind等）はエイリアスとして受理し、使用時に表示・IDを新しい形へ自動更新する。
 - 右クリック系はクールダウン制で、残り秒数をメッセージ表示する。所持パッシブ（磁力の石・死不知のトーテム・空に海写す蒼球・反射の守護盾など）は専用の周期タスクで処理する。
 - 錬金の砥石は設置型。プレイヤーが設置した砥石の位置を記憶し、`PrepareGrindstoneEvent` で剥がしたエンチャントを本にして返す。破壊時はレリック本体をドロップする。
@@ -59,14 +69,14 @@
 - `/trade <player>|accept|deny|cancel|money <額>`。共有54枠UIで提示し、双方確定で成立。
 - 上限は `trade.max-amount`（既定100万MP）。MP移動は `EconomyManager.transfer`（デッドロック回避ロック）経由。
 
-## Buildワールドと建築提出
+## Buildワールドと建築提出（既定無効）
 
-- `/mf build enter` でUUIDごとのフラットワールドを必要時に作成し、Creativeへ変更します。
-- モブ、時間経過、PvPは無効、KeepInventoryは有効です。既定のワールド境界は直径256ブロック、初期足場は中心から半径16ブロックです。
-- WorldEdit権限はBuildワールド滞在中だけ付与されます。空間制限はWorldEdit側ではなくワールド境界です。
-- 一般プレイヤーは他人のBuildワールドへ入れません。管理者は訪問と編集ができます。
-- `/mf structure submit <name>` は現在のWorldEditクリップボードをSchematicとして提出します。管理者の承認後だけSurvivalへ設置できます。
-- 設置済み範囲では破壊・設置、爆発、ピストン、液体、額縁・防具立て・コンテナ操作を禁止します。
+- `build-world.enabled` と `main-world.enabled` は既定で `false`。無効時は `/mf build enter|exit` は動作せず、プレイヤー別Buildワールドも作成しない。遊び方ガイド・案内板でも案内しない。
+- 有効化した場合のみ `/mf build enter` でUUIDごとのフラットワールドを必要時に作成し、Creativeへ変更する。
+- 有効時の仕様: モブ、時間経過、PvPは無効、KeepInventoryは有効。既定のワールド境界は直径256ブロック、初期足場は中心から半径16ブロック。
+- WorldEdit権限はBuildワールド滞在中だけ付与され、空間制限はWorldEdit側ではなくワールド境界で行う。一般プレイヤーは他人のBuildワールドへ入れず、管理者は訪問・編集できる。
+- `/mf structure submit <name>` はBuildワールド内でのみ、現在のWorldEditクリップボードをSchematicとして提出する。管理者の承認後だけSurvivalへ設置する。
+- 設置済み範囲では破壊・設置、爆発、ピストン、液体、額縁・防具立て・コンテナ操作を禁止する。
 
 ## ワールド・保護・再生成
 
@@ -75,7 +85,7 @@
 - 中央保護はHubのチャンクを中心にした正方形範囲です。設定半径は最小4チャンクです。
 - 中央・追加保護チャンクではコンテナ、扉、赤石操作、額縁、防具立て、看板、ホッパー移送、爆発、ピストン、液体、延焼を制限します。
 - 中央・追加保護チャンクに対する通常のブロック破壊・設置を止めるリスナーは現行コードにありません。
-- `/mf regen [radius]`(管理者) は Survival・ロード済み・保護外・除外外のチャンクを実APIで再生成します。月次の自動再生成(`regen.monthly-enabled` / `interval-days` / `monthly-max-chunks`)も動きます。除外は `regen.excluded-chunks` だけで、旧キー `regen.allowed-chunks` は設定から削除済みです。
+- `/mf regen [radius]`(管理者) は Survival・ロード済み・保護外・除外外のチャンクを実APIで再生成します。月次の自動再生成(`regen.monthly-enabled` / `interval-days` / `monthly-max-chunks`)も動きます。コードが参照する除外キーは `regen.excluded-chunks` で、旧 `regen.allowed-chunks` は残っていても無視されます。
 
 ## インベントリ分離
 
@@ -85,9 +95,10 @@
 
 ## ProposalとMinoru
 
-- Proposalコマンドは管理者専用で、`proposals.yml` のpendingを一覧・確認・承認・強制承認・却下・再読込します。
-- 提案の作成はゲーム内にありません。閲覧と賛成投票は `/mf vote`(メニューの「提案」)で行え、pending提案を1ページ45件で表示してクリックで賛成票の付与・取消ができます。
-- 承認で設定へ反映できる種類は `title` と `custom_item` だけです。`shop_item` は廃止済みです。
+- クエスト提案は `/mf quest propose` でゲーム内作成できる。種類→名前→条件→必要数→報酬→依存→称号の順に入力し、pendingとして `proposals.yml` に保存する。`/mf quest cancel` で中断できる。
+- 提案の閲覧・賛成投票は `/mf vote`。pending提案を1ページ45件で表示し、クリックで賛成票の付与・取消ができる。メニューの「投票」は VotingPlugin の外部投票サイトで、提案投票とは別。
+- 管理者は `/mf proposal list|review|approve|forceapprove|reject|reload` で審査する。承認で設定へ反映できる種類は `title` と `custom_item` など設定で扱う種類に限る。`shop_item` は廃止済み。
+- 建築提出はBuildワールド有効時のみ `/mf structure submit` で行い、管理者承認後にSurvivalへ設置する（既定は無効）。
 - Minoru連携コードは6桁、10分有効、1回使用で失効します。APIが無効な場合は発行できません。
 - Minoru APIはBearer認証を使い、プレイヤー照会、MP照会、重複防止付きMP増減・設定を提供します。
 

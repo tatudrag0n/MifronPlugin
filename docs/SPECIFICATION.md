@@ -1,6 +1,6 @@
 # MifronPlugin 仕様書
 
-最終更新: 2026-11-01 / 対象: `origin/main` (`26.1.2-swimpose3-20261031`)
+最終更新: 2026-11-03 / 対象: `main` (`a137a7c`, plugin `26.1.2`)
 本プラグインは Paper 26.1.2 向けの総合サーバー管理プラグインである。
 通貨単位は MP（内部的にはエメラルド残高として管理）。
 
@@ -8,12 +8,14 @@
 
 | ワールド | 用途 |
 |---|---|
+| world | 既定ワールド（Hub/待機。新規参加直後の一時スポーン） |
 | survival | メインサバイバル（TerraformGenerator） |
-| tutorial | 体験チュートリアル（7段階・看板付き・卒業で通知） |
-| 各 `_nether` / `_the_end` | 対応ディメンション |
+| survival_nether / survival_the_end | Survival用ディメンション |
+| tutorial | 体験チュートリアル（7段階・案内板付き・卒業で通知） |
+| athletic / minigame | 設定で有効化する追加ワールド（既定 off） |
 
-Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` 配下に格納される。
-`main/` 削除時は必ず `main/dimensions/` を先に退避すること。
+Multiverse管理ワールドの実体は `world/dimensions/minecraft/<名前>/` 配下に格納される。
+ワールド削除時は必ず `world/dimensions/` を先に退避すること。
 
 ## 2. 経済（MP）
 
@@ -50,11 +52,20 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 - 配布される「メニュー」1個を右クリックで扇状メニュー：SHOP / ウォレット / ステータス / クエスト / 取引 / 投票 / ログボ / 目標 / ガイド / チュートリアル（10項目。ギアは廃止済み）。「ガイド」は遊び方本「Mifron はじめの一歩」を取り出す。`/mf guide` でも再取得できる。ただし「メニュー」を右手に持った棚ショップ（タグ棚・旧data.yml棚）の右クリックは、ファンメニューを開かずに取り引（購入/売却）に進む。樽ショップの棚は対象外。
 - 項目は目の前に扇状展開し、左クリックで選択。スコップの先が合っている（発光・黄色太字ラベル）項目がそのままクリック対象になる。ステータス等の詳細は専用UIを開く。20秒・離脱で自動消滅。
 
+## 5.5 チュートリアルと遊び方ガイド
+
+- 初参加者は自動で `tutorial` ワールドへ移動し、7段階を進行する。途中離脱しても `data.yml` の `tutorial.stage` から再開できる。
+- 段階: 1 メニュー → 2 ゾンビ3体 → 3 Elite → 4 配布レリックの使用 → 5 クエスト/目標を開く → 6 金床合成 → 7 金ブロックで卒業。
+- `/mf tutorial [restart|skip]`、`/tutorial` で再開・やり直し・スキップができる。スキップは残り報酬なしでSurvivalへ出る。
+- 卒業時・スキップ時に遊び方本「Mifron はじめの一歩」を配布する。`/mf guide` とメニューの「ガイド」から再取得でき、旧版(v1)は次回ログイン時に最新版(v2)へ自動更新される。
+- 案内板は `TutorialSigns` が起動時にコードから再生成する。Buildワールドは既定で無効のため、ガイド・案内板では建築提案を案内しない。
+- チュートリアル内の配布装備は通常系インベントリに入り、Survival系とは分離される。
+
 ## 6. ステータス・クエスト・称号・進捗
 
 - ステータスUI：メニューからは扇状に進捗・討伐・称号・図鑑・転生の5タブを展開。討伐タブは討伐数＋エリート討伐状況を日本語Mob名（全87種）で表示。図鑑タブはレアアイテム発見状況。各タブ末尾の「追加」から公式サイトへ誘導。
 - 高度な金床は維持（エンチャント拡張）。チュートリアルで説明。
-- クエスト39件（デイリー/ウィークリー/マンスリー/定期/スペシャル/単発/隠し）。
+- 組み込みクエスト39件（デイリー/ウィークリー/マンスリー/定期/スペシャル/単発/隠し）。`quests.yml` とサイト同期で追加でき、稼働サーバーではこれより多くなる場合がある。
 - 称号21種＋特殊。未解放は「???」＋達成ヒント表示。装着はタブ表示に反映。
 - 進捗：mainワールドでの達成は無効（記録・報酬・称号なし、再取得可）。
 - `/mf status reset` は進捗・クエスト・称号・統計を初期化し再達成可能にする。
@@ -107,6 +118,13 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 - 提示変更で双方の確定リセット。双方確定でMP・アイテム同時交換。タイムアウト・閉鎖・退出時は提示を返却。
 - 上限は `trade.max-amount`（既定100万MP）。
 
+## 10.5 提案・投票
+
+- クエスト提案: `/mf quest propose`。種類→名前→条件→必要数→報酬→依存クエスト→称号の順に選択/チャット入力し、`proposals.yml` の pending に保存する。`/mf quest cancel` で中断できる。
+- 提案投票: `/mf vote`。pending提案を1ページ45件で表示し、クリックで賛成投票を付与/取消する。メニューの「投票」は VotingPlugin の外部投票サイトで、提案投票とは別機能。
+- 管理者審査: `/mf proposal list|review|approve|forceapprove|reject|reload`。承認で設定へ反映できるのは `title` / `custom_item` など設定で扱う種類に限る。
+- 建築提出: `/mf structure submit <name> [用途]` はBuildワールド有効時のみ。WorldEditのクリップボードをSchematicとして提出し、管理者承認後だけSurvivalへ設置する。既定の `build-world.enabled` は `false`。
+
 ## 11. その他機能（概要）
 
 - 棚/樽ショップ、チャンク保護・提案・投票、転生、エリートMob、ジャンプパッド、Minoru連携（Discord・認証・投票）。
@@ -114,9 +132,12 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 
 ## 12. 主なコマンド
 
-- `/mf menu|balance|pay|shop・・|tutorial|status|quest|merchant|protect|proposal|vote|gamerules|reload|relic <id>`（一部管理者専用）
+- `/mf menu|balance|pay|tutorial|guide|status|quest|merchant|protect|proposal|vote|gamerules|reload|relic <id>`（一部管理者専用）
+- `/mf quest propose|cancel|progress`、`/mf refer [code]`、`/mf event list|start <id> [分]|stop`
+- `/mf structure submit|submissions|register|generate|approve|reject|install|delete`（提出はBuild有効時、審査は管理者）
 - `/trade <player>|accept|deny|cancel|money <額>`
 - `/mifron merchant spawn|spawnrare|reroll|clear`
+- `/tutorial`（`/mf tutorial` の別名）
 
 ## 13. 設定・データ
 
@@ -127,7 +148,7 @@ Multiverse管理ワールドの実体は `main/dimensions/minecraft/<名前>/` �
 
 ## 14. 運用
 
-- ビルド：`mvn -B clean package`（テスト118件）。
+- ビルド：`mvn -B clean package`（Java単体テスト125件）。
 - 検証フロー：`bash deploy/stage-jar.sh` → `~/mifron-staging/`（BUILD_INFO/HISTORY付き）→ ローカル検証 → 承認後のみ本番 `plugins/` へコピー＋再起動（警告・save-all・0人確認）。
 - 本番 `~/MifronPlugin` は config-sync が60秒ごとに `git fetch` し、`origin/main` と双方向同期。未pushのローカルコミットは自動でpush、リモート先行分はresetで取り込み、push失敗時はコミット保護のためresetしない（分岐時は手動マージ）。
 - ホストRAM 7GBのため本番（4G）と重い処理の同時実行に注意（OOM実績あり）。
