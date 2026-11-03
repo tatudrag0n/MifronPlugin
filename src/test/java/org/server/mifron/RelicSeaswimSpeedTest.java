@@ -1,6 +1,7 @@
 package org.server.mifron;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -45,6 +46,19 @@ class RelicSeaswimSpeedTest {
          .filter(modifier -> "seaswim_speed".equals(modifier.getKey().getKey()))
          .count();
       assertEquals(1, matching, "the modifier must not stack");
+   }
+
+   @Test
+   void jetpackAndBunnyHopAreNotSlowedByTheAirSwimModifier() {
+      // Regression: holding the Sea-Sky Orb while flying with the jetpack (or
+      // during a bunny-hop arc) used to stack the x0.4 swim modifier on top of
+      // the ability, making movement feel much slower than intended.
+      assertTrue(RelicFeature.shouldReduceSeaswimSpeed(true, false, false, false, false));
+      assertFalse(RelicFeature.shouldReduceSeaswimSpeed(true, false, false, true, false));
+      assertFalse(RelicFeature.shouldReduceSeaswimSpeed(true, false, false, false, true));
+      assertFalse(RelicFeature.shouldReduceSeaswimSpeed(true, true, false, false, false));
+      assertFalse(RelicFeature.shouldReduceSeaswimSpeed(true, false, true, false, false));
+      assertFalse(RelicFeature.shouldReduceSeaswimSpeed(false, false, false, false, false));
    }
 
    @Test

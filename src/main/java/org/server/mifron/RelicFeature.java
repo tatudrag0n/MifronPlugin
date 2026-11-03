@@ -27,6 +27,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Fireball;
+import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -89,7 +90,16 @@ public class RelicFeature implements Listener {
     public void shutdown() {
         if (this.magnetTask != null) { this.magnetTask.cancel(); this.magnetTask = null; }
         if (this.passiveTask != null) { this.passiveTask.cancel(); this.passiveTask = null; }
+        for (java.util.Set<UUID> followers : dragFollowers.values()) {
+            for (UUID followerId : followers) this.restoreChainAI(followerId);
+        }
+        dragFollowers.clear();
         this.stopDragTask();
+        for (BukkitTask task : this.hookshotFlights.values()) task.cancel();
+        this.hookshotFlights.clear();
+        this.dashWaitingForGround.clear();
+        this.dashAirborne.clear();
+        this.dashStarted.clear();
         for (Player player : Bukkit.getOnlinePlayers()) this.removeSeaswimSpeed(player);
     }
 
@@ -135,10 +145,10 @@ public class RelicFeature implements Listener {
         FIREBALL("fireball", "§4§lファイアーボール", Material.FIRE_CHARGE, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
         DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, MaterialRarity.LEGENDARY, RelicPower.MAJOR, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
         ENCHGRIND("enchgrind", "§d§l錬金の砥石", Material.GRINDSTONE, MaterialRarity.COMMON, RelicPower.MAJOR, "§7右クリックで手元のエンチャントを本にして返還する。"),
-        CHAIN("chain", "§8§l拘束の鎖", Material.IRON_CHAIN, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7左クリックで鎖を伸ばして拘束。右クリックで延長モード切替。"),
+        CHAIN("chain", "§8§lサプライズ・チェーン", Material.IRON_CHAIN, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7左クリックで最大30ブロック先のMOBを拘束。再左クリックで解放。右クリックでは外れない。"),
         GIANTCORE("giantcore", "§2§l巨人の心臓", Material.HEAVY_CORE, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで25秒間、巨神サイズに巨大化。"),
         SEASWIM("seaswim", "§3§l空に海写す蒼球", Material.HEART_OF_THE_SEA, MaterialRarity.RARE, RelicPower.MEDIUM, "§7持っている間、空中を泳げる。移動速度は水中泳ぎ相当。スペースで上昇、離すとゆっくり降下。"),
-        DASHFOOT("dashfoot", "§7§lバニーホップ", Material.RABBIT_FOOT, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7右クリックで前方へ強くダッシュする。"),
+        DASHFOOT("dashfoot", "§7§lバニーホップ", Material.RABBIT_FOOT, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7右クリックで前方へ強くダッシュする。着地するまで再使用不可。"),
         REFLECT("reflect", "§1§l反射の守護盾", Material.SHIELD, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
         NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, MaterialRarity.COMMON, RelicPower.MINOR, "§7右クリックで夜をそのまま朝へスキップする。"),
         MAGNET("magnet", "§6§l磁力の石", Material.LODESTONE, MaterialRarity.UNCOMMON, RelicPower.MINOR, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
@@ -310,6 +320,16 @@ public class RelicFeature implements Listener {
     private java.lang.reflect.Constructor<?> dataValueCtor;
     private java.lang.reflect.Constructor<?> packetCtor;
     private Class<?> packetBaseClass;
+    /** Maximum distance at which a new mob can be hooked. */
+    private static final double CHAIN_BIND_RANGE = 30.0;
+    /** The bound mob stops this far from the owner instead of pushing into them. */
+    private static final double CHAIN_FOLLOW_STOP = 2.0;
+    /** Per-tick speed cap keeps the pull smooth instead of snapping/teleporting. */
+    private static final double CHAIN_MAX_PULL_SPEED = 0.7;
+    /** Straight-line bobber speed for the hookshot. */
+    private static final double HOOKSHOT_SPEED = 2.0;
+    /** Bunny hop stays unavailable until landing; this is only the visual timer. */
+    static final int DASH_COOLDOWN_TICKS = 400;
     private final java.util.Map<java.util.UUID, java.util.Set<java.util.UUID>> dragFollowers = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> reflectCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> magnetCooldown = new java.util.concurrent.ConcurrentHashMap<>();
@@ -318,8 +338,13 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, Long> witherCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> bellCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> breathCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Hookshot bobbers fly straight; keyed by the hook entity id. */
+    private final java.util.Map<java.util.UUID, BukkitTask> hookshotFlights = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Bunny hop stays locked until the player has left and touched the ground again. */
+    private final java.util.Set<java.util.UUID> dashWaitingForGround = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<java.util.UUID> dashAirborne = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Map<java.util.UUID, Long> dashStarted = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> chainToggleMs = new java.util.concurrent.ConcurrentHashMap<>();
-    private final java.util.Set<java.util.UUID> chainExtendMode = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Map<java.util.UUID, Boolean> chainHadAI = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, ItemStack> lastGrindInput = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<org.bukkit.Location> relicGrindstoneLocations = new java.util.HashSet<>();
@@ -364,58 +389,52 @@ public class RelicFeature implements Listener {
             this.openEnchantUi(player);
         } else if ("resonance".equals(id) && rightClick) {
             event.setCancelled(true);
-            this.tryResonanceBeam(player);
+            this.tryResonanceBeam(player, item);
         } else if ("fireball".equals(id) && rightClick) {
             event.setCancelled(true);
-            this.tryFireball(player);
+            this.tryFireball(player, item);
         } else if ("nightclock".equals(id) && rightClick) {
             event.setCancelled(true);
             this.trySkipNight(player);
         } else if ("dashfoot".equals(id) && rightClick && !player.isSneaking()) {
             event.setCancelled(true);
-            this.tryDash(player);
+            this.tryDash(player, item);
         } else if ("magnet".equals(id) && rightClick) {
             event.setCancelled(true);
-            if (!this.rollingCooldown(player, magnetCooldown, 2000L, "磁力バースト")) return;
+            if (!this.rollingCooldown(player, magnetCooldown, 2000L, item)) return;
             this.pullMagnet(player, 24.0, 1.35);
             player.getWorld().spawnParticle(org.bukkit.Particle.ENCHANT, player.getLocation().add(0.0, 1.0, 0.0), 40, 1.5, 1.5, 1.5, 0.5);
             player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 1.6f);
             player.sendMessage(ChatColor.YELLOW + "磁力バースト！周囲のアイテムを一気に引き寄せた。");
         } else if ("lightning".equals(id) && rightClick) {
             event.setCancelled(true);
-            if (!this.rollingCooldown(player, lightningCooldown, 4000L, "雷鳴")) return;
+            if (!this.rollingCooldown(player, lightningCooldown, 4000L, item)) return;
             this.tryLightning(player);
         } else if ("blink".equals(id) && rightClick) {
             event.setCancelled(true);
-            if (!this.rollingCooldown(player, blinkCooldown, 3000L, "ブリンク")) return;
+            if (!this.rollingCooldown(player, blinkCooldown, 3000L, item)) return;
             this.tryBlink(player);
         } else if ("wither".equals(id) && rightClick) {
             event.setCancelled(true);
-            if (!this.rollingCooldown(player, witherCooldown, 4000L, "ウィザースクロウ")) return;
+            if (!this.rollingCooldown(player, witherCooldown, 4000L, item)) return;
             org.bukkit.entity.WitherSkull skull = player.launchProjectile(org.bukkit.entity.WitherSkull.class,
                 player.getEyeLocation().getDirection().multiply(2.4));
             skull.setCharged(true);
             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WITHER_SHOOT, 1.0f, 1.0f);
         } else if ("bell".equals(id) && rightClick) {
             event.setCancelled(true);
-            if (!this.rollingCooldown(player, bellCooldown, 6000L, "癒やしの鐘")) return;
+            if (!this.rollingCooldown(player, bellCooldown, 6000L, item)) return;
             this.tryBell(player);
         } else if ("dragonbreath".equals(id) && rightClick) {
             event.setCancelled(true);
-            if (!this.rollingCooldown(player, breathCooldown, 6000L, "竜の吐息")) return;
+            if (!this.rollingCooldown(player, breathCooldown, 6000L, item)) return;
             this.tryDragonBreath(player);
-        } else if ("chain".equals(id) && rightClick && event.getAction() == Action.RIGHT_CLICK_AIR) {
+        } else if ("chain".equals(id) && event.getAction() == Action.LEFT_CLICK_AIR) {
             event.setCancelled(true);
-            java.util.UUID chainUuid = player.getUniqueId();
-            if (this.chainExtendMode.remove(chainUuid)) {
-                player.sendMessage(ChatColor.GRAY + "延長モード OFF。移動すると引っ張られます。");
-            } else {
-                this.chainExtendMode.add(chainUuid);
-                player.sendMessage(ChatColor.GRAY + "延長モード ON。移動しても引っ張られず、鎖が伸びます。");
-            }
+            this.tryChainAtRange(player);
         } else if (("giantcore".equals(id) || "shrinkstar".equals(id)) && rightClick) {
             event.setCancelled(true);
-            this.tryResize(player, "giantcore".equals(id));
+            this.tryResize(player, "giantcore".equals(id), item);
         }
     }
 
@@ -566,9 +585,9 @@ public class RelicFeature implements Listener {
     // Right-click relic actions, cooldown based (nothing is consumed).
     // ------------------------------------------------------------------
 
-    /** Warden sonic beam on a 10s cooldown instead of shattering the shard. */
-    private void tryResonanceBeam(Player player) {
-        if (!this.rollingCooldown(player, beamCooldown, 8000L, "ソニックビーム")) return;
+    /** Warden sonic beam on an 8s cooldown instead of shattering the shard. */
+    private void tryResonanceBeam(Player player, ItemStack relic) {
+        if (!this.rollingCooldown(player, beamCooldown, 8000L, relic)) return;
         Location eye = player.getEyeLocation();
         Vector dir = eye.getDirection().normalize();
         double range = 22.0;
@@ -586,12 +605,12 @@ public class RelicFeature implements Listener {
             if (to.normalize().dot(dir) < 0.85) continue;
             living.damage(30.0, player);
         }
-        player.sendMessage(ChatColor.DARK_AQUA + "ソニックビームを放った！(次まで8秒)");
+        player.sendMessage(ChatColor.DARK_AQUA + "ソニックビームを放った！");
     }
 
     /** Gust fireball on a 3s cooldown instead of eating the charge. */
-    private void tryFireball(Player player) {
-        if (!this.rollingCooldown(player, fireballCooldown, 3000L, "ファイアーボール")) return;
+    private void tryFireball(Player player, ItemStack relic) {
+        if (!this.rollingCooldown(player, fireballCooldown, 3000L, relic)) return;
         Location eye = player.getEyeLocation();
         Fireball fireball = player.launchProjectile(Fireball.class, eye.getDirection().multiply(2.0));
         fireball.setYield(4.0f);
@@ -599,22 +618,33 @@ public class RelicFeature implements Listener {
         player.getWorld().playSound(eye, Sound.ENTITY_GHAST_SHOOT, 1.0f, 1.0f);
     }
 
-    /** Shared cooldown gate: reports the remaining seconds when blocked. */
-    private boolean rollingCooldown(Player player, java.util.Map<java.util.UUID, Long> map, long millis, String label) {
+    /**
+     * Shared cooldown gate. Cooldowns are shown through the vanilla item
+     * cooldown sweep instead of chat messages.
+     */
+    boolean rollingCooldown(Player player, java.util.Map<java.util.UUID, Long> map, long millis, ItemStack relic) {
         long now = System.currentTimeMillis();
         java.util.UUID uuid = player.getUniqueId();
         Long last = map.get(uuid);
-        if (last != null && now - last < millis) {
-            long left = (millis - (now - last) + 999) / 1000;
-            player.sendMessage(ChatColor.GRAY + label + "のクールダウン中…あと " + left + " 秒");
-            return false;
-        }
+        if (last != null && now - last < millis) return false;
         map.put(uuid, now);
+        if (relic != null && relic.getType() != Material.AIR) {
+            int ticks = Math.max(1, (int) Math.ceil(millis / 50.0));
+            player.setCooldown(relic.getType(), ticks);
+        }
         return true;
     }
 
     /** Spring forward like a startled rabbit (sneaking cancels the hop). */
-    private void tryDash(Player player) {
+    void tryDash(Player player, ItemStack relic) {
+        java.util.UUID uuid = player.getUniqueId();
+        if (this.dashWaitingForGround.contains(uuid)) return;
+        this.dashWaitingForGround.add(uuid);
+        this.dashAirborne.remove(uuid);
+        this.dashStarted.put(uuid, System.currentTimeMillis());
+        if (relic != null && relic.getType() != Material.AIR) {
+            player.setCooldown(relic.getType(), DASH_COOLDOWN_TICKS);
+        }
         Vector facing = player.getLocation().getDirection();
         facing.setY(0.0);
         if (facing.lengthSquared() < 1.0E-9) facing = new Vector(1.0, 0.0, 0.0);
@@ -648,7 +678,7 @@ public class RelicFeature implements Listener {
     }
 
     /** Giant/tiny transform: scale comes back on its own after 25s. */
-    private void tryResize(Player player, boolean giant) {
+    private void tryResize(Player player, boolean giant, ItemStack relic) {
         double scale = giant ? 3.0 : 0.45;
         String label = giant ? "巨大化" : "縮小";
         AttributeInstance attr = this.scaleAttribute(player);
@@ -659,12 +689,10 @@ public class RelicFeature implements Listener {
         long now = System.currentTimeMillis();
         java.util.UUID uuid = player.getUniqueId();
         Long expiry = scaleExpiry.get(uuid);
-        if (expiry != null && expiry > now) {
-            player.sendMessage(ChatColor.YELLOW + label + "の効果が続いている…");
-            return;
-        }
+        if (expiry != null && expiry > now) return;
         attr.setBaseValue(scale);
         scaleExpiry.put(uuid, now + 25000L);
+        if (relic != null && relic.getType() != Material.AIR) player.setCooldown(relic.getType(), 500);
         player.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, player.getLocation(), 20, 0.5, 0.5, 0.5, 0.2);
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_RAVAGER_ROAR, giant ? 1.0f : 0.7f, giant ? 0.7f : 1.6f);
         player.sendMessage(ChatColor.GOLD + label + "した！(25秒)");
@@ -869,6 +897,11 @@ public class RelicFeature implements Listener {
 
 
         PlayerFishEvent.State state = event.getState();
+        if (state == PlayerFishEvent.State.FISHING) {
+            this.startHookshotFlight(player, event.getHook());
+            return;
+        }
+        this.stopHookshotFlight(event.getHook().getUniqueId());
         if (state != PlayerFishEvent.State.IN_GROUND
                 && state != PlayerFishEvent.State.CAUGHT_ENTITY
                 && state != PlayerFishEvent.State.CAUGHT_FISH) {
@@ -883,6 +916,33 @@ public class RelicFeature implements Listener {
         player.setVelocity(pull);
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 1.0f, 0.8f);
         player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, player.getLocation(), 12, 0.2, 0.2, 0.2, 0.1);
+    }
+
+    /**
+     * Keeps the hookshot bobber on a straight line instead of letting vanilla
+     * fishing-rod gravity drag it into an arc. Velocity is refreshed every
+     * tick until the bobber lands, hooks something, or expires.
+     */
+    private void startHookshotFlight(Player player, FishHook hook) {
+        this.stopHookshotFlight(hook.getUniqueId());
+        Vector direction = player.getEyeLocation().getDirection().normalize().multiply(HOOKSHOT_SPEED);
+        hook.setGravity(false);
+        hook.setVelocity(direction);
+        int[] ticks = {0};
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            if (!hook.isValid() || hook.isDead() || ++ticks[0] > 100) {
+                this.stopHookshotFlight(hook.getUniqueId());
+                if (hook.isValid()) hook.remove();
+                return;
+            }
+            hook.setVelocity(direction);
+        }, 1L, 1L);
+        this.hookshotFlights.put(hook.getUniqueId(), task);
+    }
+
+    private void stopHookshotFlight(UUID hookId) {
+        BukkitTask task = this.hookshotFlights.remove(hookId);
+        if (task != null) task.cancel();
     }
 
     @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST, ignoreCancelled = false)
@@ -904,111 +964,178 @@ public class RelicFeature implements Listener {
         this.toggleChain(player, target);
     }
 
+    /** Right-click only hooks a new mob; it never releases an existing chain. */
     @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST, ignoreCancelled = false)
     public void onChainInteract(org.bukkit.event.player.PlayerInteractEntityEvent event) {
         Player player = event.getPlayer();
         if (!this.holdsRelic(player, "chain")) return;
         if (!(event.getRightClicked() instanceof org.bukkit.entity.LivingEntity target)) return;
         event.setCancelled(true);
-        this.toggleChain(player, target);
+        this.bindChainOnly(player, target);
+    }
+
+    /** Left-click in the air can hook a mob up to CHAIN_BIND_RANGE blocks away. */
+    private void tryChainAtRange(Player player) {
+        org.bukkit.entity.Entity found = player.getTargetEntity((int) CHAIN_BIND_RANGE, false);
+        if (found instanceof org.bukkit.entity.LivingEntity target && target != player) {
+            this.toggleChain(player, target);
+            return;
+        }
+        // Sneak + left-click is the panic release; a normal miss does nothing.
+        if (player.isSneaking()) this.releaseAllChains(player);
+    }
+
+    private void toggleChain(Player player, org.bukkit.entity.LivingEntity target) {
+        this.changeChain(player, target, true);
+    }
+
+    private void bindChainOnly(Player player, org.bukkit.entity.LivingEntity target) {
+        this.changeChain(player, target, false);
     }
 
     /** Binds or releases a mob; tracked for the drag-follow task either way. */
-    private void toggleChain(Player player, org.bukkit.entity.LivingEntity target) {
+    private void changeChain(Player player, org.bukkit.entity.LivingEntity target, boolean allowRelease) {
         long now = System.currentTimeMillis();
         Long lastToggle = chainToggleMs.get(player.getUniqueId());
         if (lastToggle != null && now - lastToggle < 400L) return; // two events, one click
         chainToggleMs.put(player.getUniqueId(), now);
         UUID pid = player.getUniqueId();
-        java.util.Set<UUID> followers = dragFollowers.computeIfAbsent(pid, k -> new java.util.HashSet<>());
-        boolean leashedToPlayer = false;
-        if (target.isLeashed()) {
-            try { leashedToPlayer = target.getLeashHolder() == player; } catch (Exception ignored) { }
-        }
-        boolean held = followers.contains(target.getUniqueId()) || leashedToPlayer;
+        java.util.Set<UUID> followers = dragFollowers.get(pid);
+        boolean held = followers != null && followers.contains(target.getUniqueId());
         if (held) {
+            if (!allowRelease) return;
             followers.remove(target.getUniqueId());
-            if (target.isLeashed()) { try { target.setLeashHolder(null); } catch (Exception ignored) { } }
-            Boolean hadAI = chainHadAI.remove(target.getUniqueId());
-            if (hadAI != null && hadAI) target.setAI(true);
+            this.restoreChainAI(target.getUniqueId());
             if (followers.isEmpty()) { dragFollowers.remove(pid); this.stopDragTask(); }
             player.sendMessage(ChatColor.GRAY + "鎖を解いた。");
         } else {
-            boolean leashed = false;
-            try { leashed = target.setLeashHolder(player); } catch (Exception ignored) { }
-            // Track it regardless: the drag task guarantees the mob actually
-            // follows even when the vanilla leash refuses or gets ignored.
+            if (!this.chainInRange(player, target)) {
+                player.sendMessage(ChatColor.GRAY + "鎖が届かない。(最大" + (int) CHAIN_BIND_RANGE + "ブロック)");
+                return;
+            }
+            followers = dragFollowers.computeIfAbsent(pid, k -> new java.util.HashSet<>());
+            // The chain itself is the only tether: no vanilla lead is created.
+            if (target.isLeashed()) { try { target.setLeashHolder(null); } catch (Exception ignored) { } }
             followers.add(target.getUniqueId());
             // Immobilize the bound mob (no wandering/attacks) until released.
             chainHadAI.put(target.getUniqueId(), target.hasAI());
             target.setAI(false);
             this.startDragTask();
-            // Immediate visible tug toward the player.
-            org.bukkit.util.Vector tug = player.getLocation().toVector().subtract(target.getLocation().toVector());
-            if (tug.lengthSquared() > 0.01) target.setVelocity(tug.normalize().multiply(0.45));
-            player.sendMessage(ChatColor.GRAY + (leashed ? "鎖で拘束した。" : "鎖で拘束した(追尾)。") + "引っ張って移動できる。");
+            player.sendMessage(ChatColor.GRAY + "鎖で拘束した。もう一度左クリックで解ける。");
         }
-        player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, target.getLocation().add(0, target.getHeight() / 2.0, 0), 12, 0.25, 0.25, 0.25, 0.1);
+        player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, target.getLocation().add(0, target.getHeight() / 2.0, 0), 16, 0.3, 0.3, 0.3, 0.1);
         player.getWorld().playSound(target.getLocation(), Sound.BLOCK_CHAIN_PLACE, 1.0f, 1.0f);
     }
 
-    /** Pulls drag-bound followers back to the player whenever they stray. */
+    private boolean chainInRange(Player player, org.bukkit.entity.LivingEntity target) {
+        if (!target.getWorld().equals(player.getWorld())) return false;
+        org.bukkit.Location center = target.getLocation().add(0.0, target.getHeight() / 2.0, 0.0);
+        return player.getEyeLocation().distanceSquared(center) <= CHAIN_BIND_RANGE * CHAIN_BIND_RANGE;
+    }
+
+    /** Releases every mob bound by this player. */
+    private void releaseAllChains(Player player) {
+        java.util.Set<UUID> followers = dragFollowers.remove(player.getUniqueId());
+        if (followers == null || followers.isEmpty()) return;
+        for (UUID followerId : followers) this.restoreChainAI(followerId);
+        if (dragFollowers.isEmpty()) this.stopDragTask();
+        player.sendMessage(ChatColor.GRAY + "鎖をすべて解いた。");
+        player.getWorld().playSound(player.getLocation(), Sound.BLOCK_CHAIN_BREAK, 1.0f, 1.0f);
+    }
+
+    private void restoreChainAI(UUID followerId) {
+        Boolean hadAI = chainHadAI.remove(followerId);
+        if (hadAI != null && hadAI && Bukkit.getEntity(followerId) instanceof org.bukkit.entity.LivingEntity mob) {
+            mob.setAI(true);
+        }
+    }
+
+    /** Draws the chain every tick so it reads as a continuous tether. */
     private void startDragTask() {
         if (this.dragTask != null) return;
-        this.dragTask = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
-            for (java.util.Map.Entry<java.util.UUID, java.util.Set<java.util.UUID>> entry : List.copyOf(dragFollowers.entrySet())) {
-                Player owner = Bukkit.getPlayer(entry.getKey());
-                if (owner == null || entry.getValue().isEmpty()) {
-                    dragFollowers.remove(entry.getKey());
+        this.dragTask = Bukkit.getScheduler().runTaskTimer(this.plugin, this::tickChains, 1L, 1L);
+    }
+
+    /** Pulls drag-bound followers toward the player with eased, per-tick motion. */
+    private void tickChains() {
+        for (java.util.Map.Entry<java.util.UUID, java.util.Set<java.util.UUID>> entry : List.copyOf(dragFollowers.entrySet())) {
+            Player owner = Bukkit.getPlayer(entry.getKey());
+            if (owner == null || entry.getValue().isEmpty()) {
+                if (owner == null) {
+                    for (UUID followerId : List.copyOf(entry.getValue())) this.restoreChainAI(followerId);
+                }
+                dragFollowers.remove(entry.getKey());
+                continue;
+            }
+            for (java.util.UUID followerId : List.copyOf(entry.getValue())) {
+                if (!(Bukkit.getEntity(followerId) instanceof org.bukkit.entity.LivingEntity follower) || follower.isDead()) {
+                    entry.getValue().remove(followerId);
+                    chainHadAI.remove(followerId);
                     continue;
                 }
-                for (java.util.UUID followerId : List.copyOf(entry.getValue())) {
-                    if (!(Bukkit.getEntity(followerId) instanceof org.bukkit.entity.LivingEntity follower) || follower.isDead()) {
-                        entry.getValue().remove(followerId);
-                        continue;
-                    }
-                    if (!follower.getWorld().equals(owner.getWorld())) {
-                        follower.teleport(owner.getLocation().add(0.0, 0.5, 0.0));
-                        continue;
-                    }
-                    // Visible chain: sparks along the line to the bound mob.
-                    org.bukkit.Location from = owner.getLocation().add(0.0, 1.0, 0.0);
-                    org.bukkit.Location to = follower.getLocation().add(0.0, follower.getHeight() / 2.0, 0.0);
-                    org.bukkit.util.Vector line = to.toVector().subtract(from.toVector());
-                    double lineLength = line.length();
-                    if (lineLength > 0.1) {
-                        org.bukkit.util.Vector step = line.clone().normalize();
-                        for (double d = 0.3; d < lineLength; d += 0.5) {
-                            owner.getWorld().spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK,
-                                from.clone().add(step.clone().multiply(d)), 1, 0.0, 0.0, 0.0, 0.0);
-                        }
-                    }
-                    double distance = follower.getLocation().distance(owner.getLocation());
-                    boolean extending = chainExtendMode.contains(owner.getUniqueId());
-                    if (extending) {
-                        // Extended chain: the mob stays put while the chain reaches.
-                        follower.setVelocity(new org.bukkit.util.Vector(0.0, 0.0, 0.0));
-                        if (distance > 24.0) {
-                            // Chain reached its limit: release it safely.
-                            entry.getValue().remove(followerId);
-                            Boolean hadAI = chainHadAI.remove(followerId);
-                            if (hadAI != null && hadAI) follower.setAI(true);
-                            if (follower.isLeashed()) { try { follower.setLeashHolder(null); } catch (Exception ignored) { } }
-                        }
-                        continue;
-                    }
-                    if (distance < 2.5) continue;
-                    if (distance > 8.0) {
-                        follower.teleport(owner.getLocation().add(owner.getLocation().getDirection().multiply(2.0)));
-                    } else {
-                        org.bukkit.util.Vector pull = owner.getLocation().toVector().subtract(follower.getLocation().toVector()).normalize().multiply(0.7);
-                        follower.setVelocity(new org.bukkit.util.Vector(pull.getX(), Math.max(0.2, pull.getY() + 0.2), pull.getZ()));
-                    }
+                if (!follower.getWorld().equals(owner.getWorld())) {
+                    follower.teleport(owner.getLocation().add(0.0, 0.5, 0.0));
+                    follower.setFallDistance(0.0f);
+                    continue;
                 }
-                if (entry.getValue().isEmpty()) dragFollowers.remove(entry.getKey());
+                this.drawChainEffect(owner, follower);
+                this.pullChainedMob(owner, follower);
             }
-            if (dragFollowers.isEmpty()) this.stopDragTask();
-        }, 5L, 5L);
+            if (entry.getValue().isEmpty()) dragFollowers.remove(entry.getKey());
+        }
+        if (dragFollowers.isEmpty()) this.stopDragTask();
+    }
+
+    private void drawChainEffect(Player owner, org.bukkit.entity.LivingEntity follower) {
+        org.bukkit.Location from = owner.getLocation().add(0.0, 1.0, 0.0);
+        org.bukkit.Location to = follower.getLocation().add(0.0, follower.getHeight() / 2.0, 0.0);
+        org.bukkit.util.Vector line = to.toVector().subtract(from.toVector());
+        double length = line.length();
+        if (length < 0.1) return;
+        org.bukkit.util.Vector direction = line.clone().multiply(1.0 / length);
+        // Keep it dense up close, but bound the particle count on very long chains.
+        double stepSize = length > 32.0 ? length / 72.0 : 0.45;
+        int index = 0;
+        for (double d = 0.2; d < length; d += stepSize, index++) {
+            org.bukkit.Location point = from.clone().add(direction.clone().multiply(d));
+            owner.getWorld().spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, point, 1, 0.0, 0.0, 0.0, 0.0);
+            if ((index & 3) == 0) {
+                owner.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, point, 1, 0.0, 0.0, 0.0, 0.0);
+            }
+        }
+    }
+
+    private void pullChainedMob(Player owner, org.bukkit.entity.LivingEntity follower) {
+        org.bukkit.Location followerLocation = follower.getLocation();
+        org.bukkit.util.Vector delta = owner.getLocation().toVector().subtract(followerLocation.toVector());
+        double horizontal = Math.hypot(delta.getX(), delta.getZ());
+        org.bukkit.util.Vector velocity = follower.getVelocity();
+
+        if (horizontal > CHAIN_FOLLOW_STOP) {
+            double speed = Math.min(CHAIN_MAX_PULL_SPEED, (horizontal - CHAIN_FOLLOW_STOP) * 0.12);
+            double targetX = delta.getX() / horizontal * speed;
+            double targetZ = delta.getZ() / horizontal * speed;
+            // Ease toward the target speed instead of snapping every tick.
+            velocity.setX(velocity.getX() + (targetX - velocity.getX()) * 0.35);
+            velocity.setZ(velocity.getZ() + (targetZ - velocity.getZ()) * 0.35);
+        } else {
+            velocity.setX(velocity.getX() * 0.7);
+            velocity.setZ(velocity.getZ() * 0.7);
+        }
+
+        double dy = owner.getLocation().getY() - followerLocation.getY();
+        if (follower.isOnGround()) {
+            if (dy > 1.0) velocity.setY(0.42);
+        } else if (dy > 0.8) {
+            velocity.setY(Math.min(0.5, velocity.getY() + 0.06));
+        }
+        follower.setVelocity(velocity);
+        follower.setFallDistance(0.0f);
+
+        if (horizontal > 0.2) {
+            float yaw = (float) Math.toDegrees(Math.atan2(-delta.getX(), delta.getZ()));
+            follower.setRotation(yaw, follower.getLocation().getPitch());
+        }
     }
 
     private void stopDragTask() {
@@ -1052,6 +1179,7 @@ public class RelicFeature implements Listener {
     @EventHandler
     public void onMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
+        this.tickDashGrounding(player);
         ItemStack boots = player.getInventory().getBoots();
         if (boots != null && isRelicItem(boots) && "skates".equals(getRelicId(boots)) && !player.isSneaking()) {
             this.refreshGhostIce(player);
@@ -1146,6 +1274,7 @@ public class RelicFeature implements Listener {
     /** Background upkeep: totem buffs and stable air-swim control. */
     private void tickPassive() {
         for (Player p : Bukkit.getOnlinePlayers()) {
+            this.tickDashGrounding(p);
             if (this.holdsRelic(p, "totem")) {
                 org.bukkit.potion.PotionEffect resist = p.getPotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE);
                 if (resist == null || resist.getDuration() <= 20) {
@@ -1160,6 +1289,33 @@ public class RelicFeature implements Listener {
             }
             this.tickSeaswim(p);
         }
+    }
+
+    /** Bunny hop is reusable only after leaving the ground and landing again. */
+    private void tickDashGrounding(Player player) {
+        java.util.UUID uuid = player.getUniqueId();
+        if (!this.dashWaitingForGround.contains(uuid)) return;
+        if (!player.isOnGround()) {
+            this.dashAirborne.add(uuid);
+            return;
+        }
+        Long started = this.dashStarted.get(uuid);
+        boolean neverLeftGround = started != null && System.currentTimeMillis() - started > 3000L;
+        if (this.dashAirborne.remove(uuid) || neverLeftGround) {
+            this.dashWaitingForGround.remove(uuid);
+            this.dashStarted.remove(uuid);
+            player.setCooldown(Material.RABBIT_FOOT, 0);
+        }
+    }
+
+    /**
+     * The Sea-Sky Orb's speed reduction is for actual air-swimming only. It
+     * must not stack on top of jetpack thrust or a bunny-hop dash, otherwise
+     * those abilities feel much slower than intended.
+     */
+    static boolean shouldReduceSeaswimSpeed(boolean held, boolean onGround, boolean inWater,
+                                           boolean jetpacking, boolean dashing) {
+        return held && !onGround && !inWater && !jetpacking && !dashing;
     }
 
     /** Apply the water-swim horizontal speed while the player is air-swimming. */
@@ -1203,8 +1359,14 @@ public class RelicFeature implements Listener {
             this.lastServerPose.remove(uuid);
             return;
         }
-        boolean becameActive = this.seaswimActive.add(uuid);
-        if (becameActive) this.applySeaswimSpeed(p);
+        this.seaswimActive.add(uuid);
+        boolean jetpacking = jetpackActive.contains(uuid);
+        boolean dashing = dashWaitingForGround.contains(uuid);
+        if (shouldReduceSeaswimSpeed(true, false, false, jetpacking, dashing)) {
+            this.applySeaswimSpeed(p);
+        } else {
+            this.removeSeaswimSpeed(p);
+        }
         boolean rising = this.seaswimRising.contains(uuid);
         if (rising) {
             p.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
@@ -1437,18 +1599,15 @@ public class RelicFeature implements Listener {
         seaswimAirborne.remove(uuid);
         poseInjected.remove(uuid);
         seaswimRising.remove(uuid);
+        dashWaitingForGround.remove(uuid);
+        dashAirborne.remove(uuid);
+        dashStarted.remove(uuid);
         AttributeInstance attr = this.scaleAttribute(event.getPlayer());
         if (attr != null && scaleExpiry.remove(uuid) != null) attr.setBaseValue(1.0);
         java.util.Set<UUID> chained = dragFollowers.remove(uuid);
         if (chained != null) {
-            for (UUID mobId : chained) {
-                if (Bukkit.getEntity(mobId) instanceof org.bukkit.entity.LivingEntity mob) {
-                    Boolean hadAI = chainHadAI.remove(mobId);
-                    if (hadAI != null && hadAI) mob.setAI(true);
-                }
-            }
+            for (UUID mobId : chained) this.restoreChainAI(mobId);
         }
-        chainExtendMode.remove(uuid);
         if (dragFollowers.isEmpty()) this.stopDragTask();
     }
 
