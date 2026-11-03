@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# systemd units do not always define HOME; keep set -u expansions safe.
+export HOME="${HOME:-/root}"
+
 PLUGINS_DIR="${PLUGINS_DIR:-$HOME/main-server/plugins}"
 SERVICE_NAME="${SERVICE_NAME:-minecraft}"
 BUILD="149"
