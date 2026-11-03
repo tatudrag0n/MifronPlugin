@@ -85,7 +85,25 @@ escalate_kill() {
 
 start_via_screen() {
   require_screen || return 1
-  screen -dmS "$SCREEN_SESSION_NAME" bash -c "cd '$SERVER_DIR' && ${JAVA_BIN} $1"
+  # A dead/old screen socket with the same name makes `screen -dmS` a no-op.
+  # Clear it before every start so the server actually gets launched.
+  if screen_has_session; then
+    screen -S "$SCREEN_SESSION_NAME" -X quit >/dev/null 2>&1 || true
+    sleep 2
+  fi
+  screen -wipe >/dev/null 2>&1 || true
+  screen -dmS "$SCREEN_SESSION_NAME" bash -c "cd '$SERVER_DIR' && exec ${JAVA_BIN} $1"
+  sleep 2
+  screen_has_session
+}
+
+wait_port_closed() {
+  local deadline=$(( $(date +%s) + ${1:-30} ))
+  while port_open; do
+    [ "$(date +%s)" -ge "$deadline" ] && return 1
+    sleep 1
+  done
+  return 0
 }
 
 wait_port_open() {
@@ -120,8 +138,15 @@ main() {
 
   if ! screen_has_session && ! java_pid_for_server_dir "$SERVER_DIR" >/dev/null 2>&1; then
     log "Server not running; starting it"
+    wait_port_closed 30 || log "WARNING: port ${MINECRAFT_PORT} is still open before start"
     persist_start_command "$starting_cmd"
-    start_via_screen "$starting_cmd" || return 1
+    if ! start_via_screen "$starting_cmd"; then
+      log "first start attempt did not create the screen session; retrying"
+      screen -S "$SCREEN_SESSION_NAME" -X quit >/dev/null 2>&1 || true
+      screen -wipe >/dev/null 2>&1 || true
+      sleep 2
+      start_via_screen "$starting_cmd" || return 1
+    fi
     if wait_port_open; then
       log "Start-up OK (screen $SCREEN_SESSION_NAME)"
       return 0
@@ -154,11 +179,21 @@ main() {
 
   if screen_has_session; then
     screen -S "$SCREEN_SESSION_NAME" -X quit >/dev/null 2>&1 || true
-    sleep 1
+    sleep 2
+  fi
+  screen -wipe >/dev/null 2>&1 || true
+  if ! wait_port_closed 30; then
+    log "WARNING: port ${MINECRAFT_PORT} is still open before restart"
   fi
 
   persist_start_command "$starting_cmd"
-  start_via_screen "$starting_cmd" || return 1
+  if ! start_via_screen "$starting_cmd"; then
+    log "first start attempt did not create the screen session; retrying"
+    screen -S "$SCREEN_SESSION_NAME" -X quit >/dev/null 2>&1 || true
+    screen -wipe >/dev/null 2>&1 || true
+    sleep 2
+    start_via_screen "$starting_cmd" || return 1
+  fi
   if wait_port_open; then
     log "Restart OK (screen $SCREEN_SESSION_NAME)"
     return 0
