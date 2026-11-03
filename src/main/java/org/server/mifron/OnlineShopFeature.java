@@ -234,7 +234,7 @@ final class OnlineShopFeature implements Listener {
 
    void openShop(Player player) {
       if (!this.inSurvivalWorld(player)) {
-         player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
+         player.sendMessage(ChatColor.RED + "SHOP\u306f\u3053\u306e\u30ef\u30fc\u30eb\u30c9\u3067\u306f\u4f7f\u3048\u307e\u305b\u3093\u3002");
          return;
       }
       player.openInventory(this.createInventory(player));
@@ -244,7 +244,7 @@ final class OnlineShopFeature implements Listener {
       ItemStack item = new ItemStack(Material.IRON_DOOR);
       ItemMeta meta = item.getItemMeta();
       meta.setDisplayName(ChatColor.AQUA + "OnlineShop");
-      meta.setLore(List.of(ChatColor.GRAY + "\u53f3\u30af\u30ea\u30c3\u30af: \u5546\u54c1\u4e00\u89a7\u3092\u958b\u304f", ChatColor.DARK_GRAY + "Survival\u30ef\u30fc\u30eb\u30c9\u306e\u307f"));
+      meta.setLore(List.of(ChatColor.GRAY + "\u53f3\u30af\u30ea\u30c3\u30af: \u5546\u54c1\u4e00\u89a7\u3092\u958b\u304f"));
       meta.getPersistentDataContainer().set(this.accessKey, PersistentDataType.STRING, "online_shop");
       item.setItemMeta(meta);
       return item;
@@ -257,7 +257,7 @@ final class OnlineShopFeature implements Listener {
       if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
       Player player = event.getPlayer();
       if (!this.inSurvivalWorld(player)) {
-         player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
+         player.sendMessage(ChatColor.RED + "SHOP\u306f\u3053\u306e\u30ef\u30fc\u30eb\u30c9\u3067\u306f\u4f7f\u3048\u307e\u305b\u3093\u3002");
          return;
       }
       player.openInventory(this.createInventory(player));
@@ -278,7 +278,7 @@ final class OnlineShopFeature implements Listener {
       event.setCancelled(true);
       if (!this.inSurvivalWorld(player)) {
          player.closeInventory();
-         player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
+         player.sendMessage(ChatColor.RED + "SHOP\u306f\u3053\u306e\u30ef\u30fc\u30eb\u30c9\u3067\u306f\u4f7f\u3048\u307e\u305b\u3093\u3002");
          return;
       }
       int topSize = event.getView().getTopInventory().getSize();
@@ -553,7 +553,7 @@ final class OnlineShopFeature implements Listener {
    private void purchase(Player player, String id) {
       if (!this.plugin.getConfig().getBoolean("online-shop.enabled", true) || !id.startsWith("item:")) return;
       if (!this.inSurvivalWorld(player)) {
-         player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
+         player.sendMessage(ChatColor.RED + "SHOP\u306f\u3053\u306e\u30ef\u30fc\u30eb\u30c9\u3067\u306f\u4f7f\u3048\u307e\u305b\u3093\u3002");
          return;
       }
       long remaining = this.remainingSeconds(player, id);
@@ -619,7 +619,7 @@ final class OnlineShopFeature implements Listener {
    private void sell(Player player, String id, boolean bulk) {
       if (!this.plugin.getConfig().getBoolean("online-shop.enabled", true) || !id.startsWith("item:")) return;
       if (!this.inSurvivalWorld(player)) {
-         player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
+         player.sendMessage(ChatColor.RED + "SHOP\u306f\u3053\u306e\u30ef\u30fc\u30eb\u30c9\u3067\u306f\u4f7f\u3048\u307e\u305b\u3093\u3002");
          return;
       }
       ShopProduct listed = this.productIndex.get(id);
@@ -876,7 +876,7 @@ final class OnlineShopFeature implements Listener {
          return;
       }
       if (!this.inSurvivalWorld(player)) {
-         player.sendMessage(ChatColor.RED + "OnlineShop\u306fSurvival\u30ef\u30fc\u30eb\u30c9\u3067\u306e\u307f\u4f7f\u3048\u307e\u3059\u3002");
+         player.sendMessage(ChatColor.RED + "SHOP\u306f\u3053\u306e\u30ef\u30fc\u30eb\u30c9\u3067\u306f\u4f7f\u3048\u307e\u305b\u3093\u3002");
          return;
       }
       int price = BarrelShopFeature.DEFAULT_PRICE;

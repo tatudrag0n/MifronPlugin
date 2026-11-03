@@ -53,7 +53,7 @@ final class TutorialSigns {
          Line.gold("[1] メニュー"),
          Line.white("メニュー(ネザースター)を右クリック"),
          Line.white("項目は左クリックで選ぶ"),
-         Line.gray("SHOPはSurvivalのみ"))),
+         Line.gray("SHOP・取引・クエストなど"))),
       new Sign(-3, 13, List.of(
          Line.gold("[2] ゾンビを3体討伐"),
          Line.white("道の上の金ブロックのゾンビ"),
@@ -110,8 +110,8 @@ final class TutorialSigns {
          Line.white("踏むか右クリック"),
          Line.gray("Survivalへ出発"))),
       new Sign(2, -52, List.of(
-         Line.goldBold("Survivalの注意"),
-         Line.white("SHOPはSurvivalのみ"),
+         Line.goldBold("プレイの注意"),
+         Line.white("SHOPで装備を整えよう"),
          Line.white("死亡でMP50%減"),
          Line.gray("詳しくは メニュー→ガイド"))),
       new Sign(62, 0, List.of(

@@ -270,7 +270,7 @@ final class MenuFanFeature implements Listener {
    private List<ItemStack> buildActions(Player player) {
       int walletMp = this.plugin.getEmeralds(player.getUniqueId());
       List<ItemStack> actions = new ArrayList<>();
-      actions.add(this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "SHOP", List.of(ChatColor.GRAY + "クリック: ショップを開く（Survivalのみ）"), "menu_shop", null));
+      actions.add(this.plugin.actionItem(Material.IRON_DOOR, ChatColor.AQUA + "SHOP", List.of(ChatColor.GRAY + "クリック: ショップを開く"), "menu_shop", null));
       actions.add(this.plugin.actionItem(Material.BUNDLE, ChatColor.GREEN + "ウォレット", List.of(ChatColor.GOLD + "所持MP: " + this.plugin.formatNumber(walletMp) + " MP"), "menu_wallet", null));
       actions.add(this.plugin.actionItem(Material.NETHER_STAR, ChatColor.GOLD + "ステータス", List.of(ChatColor.GRAY + "クリック: ステータス UI"), "menu_status", null));
       actions.add(this.plugin.actionItem(Material.KNOWLEDGE_BOOK, ChatColor.AQUA + "クエスト", List.of(ChatColor.GRAY + "クリック: クエスト（ステータス内）"), "menu_quests", null));

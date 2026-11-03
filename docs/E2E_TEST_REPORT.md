@@ -1,4 +1,13 @@
-# E2E test report (2026-10-31, updated 2026-11-01)
+# E2E test report (2026-10-31, updated 2026-11-03)
+
+## 2026-11-03 travel removal follow-up
+
+- `/travel` was retired: Survival is the only destination, so the command only
+  charged MP and applied a cooldown without moving anyone. The command, its
+  config block, the `travel` bot suite and the guide page were removed.
+- The guide book no longer uses yellow/gold text (headings are dark blue,
+  command hints blue) and bumps its version so existing copies refresh.
+- SHOP descriptions no longer mention Survival.
 
 ## 2026-11-01 player guide follow-up
 
@@ -8,7 +17,7 @@ facing reference for proposals, voting, trade or protection. Added:
 - A 12-page written book **「Mifron はじめの一歩」** covering MP/SHOP, menu,
   quests/goals, `/trade`, `/mf quest propose`, `/mf vote` (and the difference
   from the external vote site), login bonus/vote sites/referrals,
-  `/mf protect chunk`, `/mf travel`, chat/Discord and the non-official
+  `/mf protect chunk`, chat/Discord and the non-official
   disclaimer. The Build world is disabled and is intentionally not advertised
   in the book. The book carries a version marker; an outdated copy is replaced
   automatically on the next join (and by `/mf guide`).
@@ -114,11 +123,8 @@ Report artifact (final run with the guide): `mifron-bot/reports/e2e-2026-11-01T1
 
 ## Open issues / not covered
 
-- **`/travel` destinations collapse.** `hub`, `survival` and `main` currently
-  resolve to the same Survival spawn, so the command charges 500 MP and the
-  cooldown without moving the player. Decide whether to re-point `hub` at a
-  real world, make same-location travel free, or retire the command before
-  public launch.
+- **`/travel` retired (2026-11-03).** The command, config, guide page and bot
+  suite were removed because Survival is the only destination.
 - Fan sub-screens (status tabs, quest UI, trade UI) are not fully driven yet;
   entry spawning and wallet actions are verified.
 - Bedrock/Geyser UI paths are not covered by this Java bot.

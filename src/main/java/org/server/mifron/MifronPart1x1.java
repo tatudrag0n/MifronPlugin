@@ -108,8 +108,6 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.getConfig().addDefault("events.fishing-festival.time", "20:00");
       this.getConfig().addDefault("events.fishing-festival.duration-minutes", 60);
       this.getConfig().addDefault("events.fishing-festival.announce-minutes-before", 15);
-      this.getConfig().addDefault("travel.cost-mp", 500);
-      this.getConfig().addDefault("travel.cooldown-minutes", 60.0);
       this.getConfig().options().copyDefaults(true);
       this.saveConfig();
       this.mifron().applyServerMotd();
@@ -175,7 +173,6 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.bindPluginCommand("status");
       this.bindPluginCommand("tutorial");
       this.bindPluginCommand("trade");
-      this.bindPluginCommand("travel");
       this.mifron().runStartupStep("apply world rules", this.worldRulesFeature::apply);
       this.mifron().runStartupStep("apply main world border", this.mifron()::applyMainWorldBorder);
       this.mifron().runStartupStep("register online shop", () -> {

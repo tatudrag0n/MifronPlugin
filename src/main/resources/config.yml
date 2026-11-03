@@ -68,11 +68,6 @@ events:
     duration-minutes: 60
     announce-minutes-before: 15
 
-travel:
-  # Fast-travel fee and cooldown applied to every player.
-  cost-mp: 500
-  cooldown-minutes: 60.0
-
 # Extra titles selectable once unlocked. Built-in titles are defined in code;
 # quest proposals may add entries here.
 titles: {}
