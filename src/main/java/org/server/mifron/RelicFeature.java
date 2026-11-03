@@ -11,11 +11,13 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.inventory.GrindstoneInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
@@ -56,6 +58,12 @@ public class RelicFeature implements Listener {
     private final Mifron plugin;
     private final NamespacedKey keyRelic;
     private final NamespacedKey relicGrindstoneKey;
+    private final NamespacedKey seaswimSpeedKey;
+    /**
+     * Water sprint-swimming is about 2.2 blocks/s; normal sprinting is ~5.6.
+     * A 0.4 multiplier makes air-swimming feel like water instead of walking.
+     */
+    static final double SEASWIM_SPEED_MULTIPLIER = 0.4;
     private final Random random = new Random();
     private final Map<UUID, BukkitTask> visionTasks = new HashMap<>();
     private final BlockData ghostIceData;
@@ -65,6 +73,7 @@ public class RelicFeature implements Listener {
         this.plugin = plugin;
         this.keyRelic = new NamespacedKey(plugin, "relic_id");
         this.relicGrindstoneKey = new NamespacedKey(plugin, "relic_grindstone");
+        this.seaswimSpeedKey = new NamespacedKey(plugin, "seaswim_speed");
         this.ghostIceData = Bukkit.createBlockData(Material.BLUE_ICE);
     }
 
@@ -81,6 +90,7 @@ public class RelicFeature implements Listener {
         if (this.magnetTask != null) { this.magnetTask.cancel(); this.magnetTask = null; }
         if (this.passiveTask != null) { this.passiveTask.cancel(); this.passiveTask = null; }
         this.stopDragTask();
+        for (Player player : Bukkit.getOnlinePlayers()) this.removeSeaswimSpeed(player);
     }
 
     /**
@@ -127,7 +137,7 @@ public class RelicFeature implements Listener {
         ENCHGRIND("enchgrind", "§d§l錬金の砥石", Material.GRINDSTONE, MaterialRarity.COMMON, RelicPower.MAJOR, "§7右クリックで手元のエンチャントを本にして返還する。"),
         CHAIN("chain", "§8§l拘束の鎖", Material.IRON_CHAIN, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7左クリックで鎖を伸ばして拘束。右クリックで延長モード切替。"),
         GIANTCORE("giantcore", "§2§l巨人の心臓", Material.HEAVY_CORE, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで25秒間、巨神サイズに巨大化。"),
-        SEASWIM("seaswim", "§3§l空に海写す蒼球", Material.HEART_OF_THE_SEA, MaterialRarity.RARE, RelicPower.MEDIUM, "§7持っている間、空中を泳げる。スペースで上昇、離すとゆっくり降下。"),
+        SEASWIM("seaswim", "§3§l空に海写す蒼球", Material.HEART_OF_THE_SEA, MaterialRarity.RARE, RelicPower.MEDIUM, "§7持っている間、空中を泳げる。移動速度は水中泳ぎ相当。スペースで上昇、離すとゆっくり降下。"),
         DASHFOOT("dashfoot", "§7§lバニーホップ", Material.RABBIT_FOOT, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7右クリックで前方へ強くダッシュする。"),
         REFLECT("reflect", "§1§l反射の守護盾", Material.SHIELD, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
         NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, MaterialRarity.COMMON, RelicPower.MINOR, "§7右クリックで夜をそのまま朝へスキップする。"),
@@ -1152,22 +1162,49 @@ public class RelicFeature implements Listener {
         }
     }
 
+    /** Apply the water-swim horizontal speed while the player is air-swimming. */
+    void applySeaswimSpeed(Player player) {
+        AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (speed == null) return;
+        for (AttributeModifier modifier : new ArrayList<>(speed.getModifiers())) {
+            if (this.seaswimSpeedKey.equals(modifier.getKey())) return;
+        }
+        speed.addModifier(new AttributeModifier(this.seaswimSpeedKey,
+            SEASWIM_SPEED_MULTIPLIER - 1.0, AttributeModifier.Operation.MULTIPLY_SCALAR_1,
+            EquipmentSlotGroup.ANY));
+    }
+
+    /** Restore normal movement as soon as the swim ends. */
+    void removeSeaswimSpeed(Player player) {
+        AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (speed == null) return;
+        for (AttributeModifier modifier : new ArrayList<>(speed.getModifiers())) {
+            if (this.seaswimSpeedKey.equals(modifier.getKey())) {
+                speed.removeModifier(modifier.getUniqueId());
+            }
+        }
+    }
+
     /** Stable air swim: keep one pose while held; only clamp while airborne. */
     private void tickSeaswim(Player p) {
         UUID uuid = p.getUniqueId();
         boolean held = this.hasSeaswim(p);
-        if (!held || p.isOnGround()) {
+        // Real water/lava swimming keeps vanilla physics; the relic only
+        // provides the water-like movement while airborne.
+        if (!held || p.isOnGround() || p.isInWater()) {
             this.seaswimRising.remove(uuid);
             if (this.seaswimActive.remove(uuid)) {
                 p.removePotionEffect(org.bukkit.potion.PotionEffectType.LEVITATION);
                 p.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
                 p.setFallDistance(0.0f);
             }
+            this.removeSeaswimSpeed(p);
             if (this.poseInjected.remove(uuid)) this.sendPose(p, "STANDING");
             this.lastServerPose.remove(uuid);
             return;
         }
-        this.seaswimActive.add(uuid);
+        boolean becameActive = this.seaswimActive.add(uuid);
+        if (becameActive) this.applySeaswimSpeed(p);
         boolean rising = this.seaswimRising.contains(uuid);
         if (rising) {
             p.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW_FALLING);
@@ -1395,6 +1432,7 @@ public class RelicFeature implements Listener {
         if (event.getPlayer().getPose() == org.bukkit.entity.Pose.SWIMMING) {
             event.getPlayer().setPose(org.bukkit.entity.Pose.STANDING);
         }
+        this.removeSeaswimSpeed(event.getPlayer());
         seaswimActive.remove(uuid);
         seaswimAirborne.remove(uuid);
         poseInjected.remove(uuid);
