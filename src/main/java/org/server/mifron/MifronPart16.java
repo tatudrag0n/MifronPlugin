@@ -151,7 +151,6 @@ abstract class MifronPart16 extends MifronPart15x2 {
 
    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
       try {
-         if ("friend".equalsIgnoreCase(command.getName())) return this.mifron().handleFriendCommand(sender, args);
          if ("status".equalsIgnoreCase(command.getName())) return this.mifron().handleStatusCommand(sender, args);
          if ("tutorial".equalsIgnoreCase(command.getName())) return this.mifron().handleTutorialCommand(sender, args);
          if ("travel".equalsIgnoreCase(command.getName())) {

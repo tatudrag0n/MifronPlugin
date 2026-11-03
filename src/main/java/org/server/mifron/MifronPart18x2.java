@@ -7,33 +7,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 abstract class MifronPart18x2 extends MifronPart18x1 {
-   protected boolean handleFriendCommand(CommandSender sender, String[] args) {
-      if (!(sender instanceof Player player)) {
-         sender.sendMessage("Player only.");
-         return true;
-      }
-      if (args.length == 0) { this.mifron().openFriendUi(player); return true; }
-      switch (args[0].toLowerCase(Locale.ROOT)) {
-         case "add" -> {
-            if (args.length < 2) { player.sendMessage("\u00a7c/friend add <player>"); return true; }
-            OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);
-            if (target != null) this.mifron().sendFriendRequest(player, target);
-         }
-         case "accept" -> {
-            if (args.length < 2) { player.sendMessage("\u00a7c/friend accept <player>"); return true; }
-            OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);
-            if (target != null) this.mifron().acceptFriendRequest(player, target);
-         }
-         case "remove" -> {
-            if (args.length < 2) { player.sendMessage("\u00a7c/friend remove <player>"); return true; }
-            OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);
-            if (target != null) this.mifron().removeFriend(player, target);
-         }
-         case "chat" -> player.sendMessage("\u00a7c\u500b\u4eba\u5b9b\u30e1\u30c3\u30bb\u30fc\u30b8(DM)\u306f\u5ec3\u6b62\u3057\u307e\u3057\u305f\u3002\u5168\u4f53\u30c1\u30e3\u30c3\u30c8\u304bDiscord\u3092\u3054\u5229\u7528\u304f\u3060\u3055\u3044\u3002");
-         default -> player.sendMessage("\u00a7e/friend add|accept|remove");
-      }
-      return true;
-   }
    protected boolean handleStatusCommand(CommandSender sender, String[] args) {
       if (!sender.hasPermission("mifron.admin")) {
          sender.sendMessage("\u00a7c\u6a29\u9650\u304c\u3042\u308a\u307e\u305b\u3093\u3002");

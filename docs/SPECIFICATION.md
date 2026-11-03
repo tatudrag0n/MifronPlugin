@@ -138,6 +138,7 @@ Multiverse管理ワールドの実体は `world/dimensions/minecraft/<名前>/` 
 - `/trade <player>|accept|deny|cancel|money <額>`
 - `/mifron merchant spawn|spawnrare|reroll|clear`
 - `/tutorial`（`/mf tutorial` の別名）
+- 廃止: `/mshop`、`/friend`、`/mf check`、`/mf debugopen`、`/mf marchant`、`/mf special`。`/mf build` / `/mf main` は有効時のみタブ補完に出る。
 
 ## 13. 設定・データ
 

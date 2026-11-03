@@ -12,20 +12,12 @@ softdepend:
   - Multiverse-Core
   - Geyser-Spigot
 commands:
-  mshop:
-    description: Open online shop
-    permission: mifron.shop
-    permission-default: true
   mifron:
     description: Mifron server management and player utilities.
     usage: /mifron
   mf:
     description: Mifron server management and player utilities.
     usage: /mf
-  friend:
-    description: Mifron friend system.
-    usage: /friend
-    aliases: [friends]
   status:
     description: Reset Mifron status data.
     usage: /status <player> reset

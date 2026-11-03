@@ -26,6 +26,7 @@ Paper 26.1.2向けのMifronサーバー統合プラグインです。実装に�
 - 卒業時と `/mf guide` で、MP・SHOP・クエスト・取引・提案・投票・ログボ・紹介・保護・移動をまとめた遊び方本「Mifron はじめの一歩」を配布します(メニューの「ガイド」からも取得可)。Buildワールドは既定で無効のため、ガイドでは案内していません。旧版のガイド本は次回ログイン時に自動で最新版へ更新されます。
 - `/mv` はMifronでは登録せず、Multiverse-Core専用です。
 - 管理系サブコマンドは原則 `mifron.admin` または個別権限が必要です。
+- 廃止コマンド: `/mshop`、`/friend`、`/mf check`、`/mf debugopen`、`/mf marchant`、`/mf special`。`/mf build` / `/mf main` は機能有効時のみタブ補完に表示します。
 
 ## プレイヤー向け主要仕様
 

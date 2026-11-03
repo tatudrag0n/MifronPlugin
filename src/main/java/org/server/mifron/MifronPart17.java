@@ -12,7 +12,7 @@ import org.bukkit.inventory.ItemStack;
 abstract class MifronPart17 extends MifronPart16 {
    protected boolean handleMifronCommand(CommandSender sender, String[] args) {
       if (args.length == 0) {
-         sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial|build|proposal|vote|relic");
+         this.sendMifronHelp(sender);
          return true;
       }
       if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop", "event", "relic").contains(args[0].toLowerCase(Locale.ROOT))) {
@@ -20,7 +20,6 @@ abstract class MifronPart17 extends MifronPart16 {
          return true;
       }
       switch (args[0].toLowerCase(Locale.ROOT)) {
-         case "check" -> { if (this.mifron().hasPermission(sender, "mifron.command.chunk")) this.mifron().handleChunkCommand((Player) sender); }
          case "list" -> this.mifron().handleListCommand(sender);
          case "text" -> { if (this.denyUnlessAdmin(sender)) return true; this.textDisplayFeature.handleCommand(sender, args); }
          case "structure" -> { if (this.denyUnlessAdmin(sender)) return true; this.structureManager.handleCommand(sender, args); }
@@ -40,7 +39,7 @@ abstract class MifronPart17 extends MifronPart16 {
             else sender.sendMessage("Player only.");
          }
          case "pay" -> this.mifron().handlePayCommand((Player) sender, args);
-         case "merchant", "marchant" -> this.mifron().handleMerchantCommand((Player) sender, args);
+         case "merchant" -> this.mifron().handleMerchantCommand((Player) sender, args);
          case "quest" -> this.mifron().handleQuestCommand(sender, args);
          case "mp", "em", "emerald" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleEmeraldCommand(sender, args); }
          case "regen" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleRegenCommand(sender, args); }
@@ -49,13 +48,6 @@ abstract class MifronPart17 extends MifronPart16 {
          case "chunkprotect" -> this.chunkProtectionFeature.handleChunkProtectCommand(sender, args);
          case "menu" -> { if (sender instanceof Player menuPlayer) this.utilityItemsFeature.openMenuUi(menuPlayer); }
          case "main" -> this.mifron().handleMainCommand(sender, args);
-         case "debugopen" -> {
-            if (this.denyUnlessAdmin(sender)) return true;
-            if (!(sender instanceof Player debugPlayer)) return true;
-            String debugWhich = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "quest";
-            if ("status".equals(debugWhich)) this.mifron().openFriendUi(debugPlayer);
-            else this.mifron().openQuestUi(debugPlayer, "categories");
-         }
          case "status" -> { if (this.mifron().hasPermission(sender, "mifron.command.status")) this.mifron().handleMifronStatusCommand((Player) sender, args); }
          case "tutorial" -> this.mifron().handleTutorialCommand(sender, args);
 
@@ -79,15 +71,23 @@ abstract class MifronPart17 extends MifronPart16 {
             if (this.denyUnlessAdmin(sender)) return true;
             this.handleMakeEliteCommand(sender, args);
          }
-         case "relic", "special" -> {
+         case "relic" -> {
             if (this.denyUnlessAdmin(sender)) return true;
             this.relicFeature.handleCommand(sender, args);
          }
          case "sethub" -> { if (this.isAdminOp(sender)) { this.writeLocation("hub", ((Player) sender).getLocation()); sender.sendMessage("\u00a7a\u4e2d\u592e\u5e83\u5834\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f\u3002"); } }
          case "warning" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleWarningCommand(sender, args); }
-         default -> sender.sendMessage("\u00a7e/mf check|list|balance|pay|quest|status|tutorial|guide");
+         default -> {
+            sender.sendMessage(ChatColor.RED + "不明なサブコマンド: " + args[0]);
+            this.sendMifronHelp(sender);
+         }
       }
       return true;
+   }
+
+   private void sendMifronHelp(CommandSender sender) {
+      sender.sendMessage(ChatColor.YELLOW + "/mf menu|balance|pay|quest|status|tutorial|guide|protect|vote|refer");
+      sender.sendMessage(ChatColor.GRAY + "管理: /mf list|merchant|proposal|relic|regen|event|warning|text|structure|kit|...");
    }
 
     private boolean isAdminOp(CommandSender sender) {

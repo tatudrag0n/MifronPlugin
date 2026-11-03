@@ -172,12 +172,10 @@ abstract class MifronPart1x1 extends MifronPart1 {
       }
       this.bindPluginCommand("mifron");
       this.bindPluginCommand("mf");
-      this.bindPluginCommand("friend");
       this.bindPluginCommand("status");
       this.bindPluginCommand("tutorial");
       this.bindPluginCommand("trade");
       this.bindPluginCommand("travel");
-      this.bindPluginCommand("mshop");
       this.mifron().runStartupStep("apply world rules", this.worldRulesFeature::apply);
       this.mifron().runStartupStep("apply main world border", this.mifron()::applyMainWorldBorder);
       this.mifron().runStartupStep("register online shop", () -> {
