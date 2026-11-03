@@ -20,6 +20,9 @@ set -euo pipefail
 STOP_GRACE_SECONDS="${STOP_GRACE_SECONDS:-180}"
 START_GRACE_SECONDS="${START_GRACE_SECONDS:-300}"
 HEALTH_STABLE_SECONDS="${HEALTH_STABLE_SECONDS:-8}"
+# The launch command is filled in from the running process or the state file.
+# Initialize it so `set -u` does not abort the restart path.
+MINECRAFT_START_COMMAND="${MINECRAFT_START_COMMAND:-}"
 
 require_screen() {
   command -v screen >/dev/null 2>&1 || { log "screen(1) not installed and no systemd unit for $SERVICE_NAME; cannot manage server"; return 1; }
