@@ -352,15 +352,15 @@ public class RelicFeature implements Listener {
     /** Per-tick speed cap keeps the pull smooth instead of snapping/teleporting. */
     private static final double CHAIN_MAX_PULL_SPEED = 0.7;
     /** Straight-line bobber speed for the hookshot. */
-    private static final double HOOKSHOT_SPEED = 3.0;
+    private static final double HOOKSHOT_SPEED = 6.0;
     /** The bobber stops when any solid block is within this radius. */
     private static final double HOOKSHOT_BLOCK_RADIUS = 0.4;
     /** Reel-in speed toward the anchored bobber (blocks/tick). */
-    private static final double HOOKSHOT_PULL_SPEED = 0.8;
+    private static final double HOOKSHOT_PULL_SPEED = 1.4;
     /** Maximum hookshot range in blocks. */
     private static final double HOOKSHOT_MAX_RANGE = 100.0;
     /** Particle spacing for the custom long-distance hookshot line. */
-    private static final double HOOKSHOT_LINE_STEP = 0.75;
+    private static final double HOOKSHOT_LINE_STEP = 0.45;
     /** Bunny hop stays unavailable until landing; this is only the visual timer. */
     static final int DASH_COOLDOWN_TICKS = 400;
     /** A stopped bobber and the block location it hit. */
@@ -1026,7 +1026,7 @@ public class RelicFeature implements Listener {
             }
             lastSafe[0] = current;
             marker.teleport(current.clone().add(direction));
-            if (ticks[0] % 2 == 0) this.drawHookshotLine(player, marker.getLocation());
+            this.drawHookshotLine(player, marker.getLocation());
         }, 1L, 1L);
         this.hookshotFlights.put(marker.getUniqueId(), task);
         this.hookshotFlightOwners.put(player.getUniqueId(), marker.getUniqueId());
@@ -1044,10 +1044,14 @@ public class RelicFeature implements Listener {
         if (distance < 0.5) return;
         Vector step = span.normalize().multiply(HOOKSHOT_LINE_STEP);
         int points = (int) Math.ceil(distance / HOOKSHOT_LINE_STEP);
+        org.bukkit.Particle.DustOptions thread =
+            new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(230, 240, 255), 0.55f);
         for (int i = 0; i <= points; i++) {
             Location point = from.clone().add(step.clone().multiply(i));
-            player.spawnParticle(org.bukkit.Particle.END_ROD, point, 1, 0.0, 0.0, 0.0, 0.0, true);
+            player.spawnParticle(org.bukkit.Particle.DUST, point, 1, 0.0, 0.0, 0.0, 0.0, thread, true);
         }
+        // A brighter tip so the end of the line stays readable at range.
+        player.spawnParticle(org.bukkit.Particle.END_ROD, target, 2, 0.06, 0.06, 0.06, 0.0, true);
     }
 
     /** True when a solid (non-passable) block is within the bobber's radius. */
@@ -1078,7 +1082,6 @@ public class RelicFeature implements Listener {
         HookAnchor anchor = new HookAnchor(location.clone(), marker.getUniqueId());
         this.hookshotAnchors.put(player.getUniqueId(), anchor);
         // Keep the marker exactly on the contact point until it is reeled in.
-        int[] holdTicks = {0};
         BukkitTask hold = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
             HookAnchor current = this.hookshotAnchors.get(player.getUniqueId());
             if (current == null || !current.hookId().equals(marker.getUniqueId())
@@ -1091,7 +1094,7 @@ public class RelicFeature implements Listener {
                 marker.teleport(current.location());
             }
             marker.setGravity(false);
-            if (++holdTicks[0] % 2 == 0) this.drawHookshotLine(player, current.location());
+            this.drawHookshotLine(player, current.location());
         }, 1L, 1L);
         this.hookshotHolds.put(marker.getUniqueId(), hold);
         player.getWorld().playSound(location, Sound.BLOCK_CHAIN_PLACE, 1.0f, 0.8f);
