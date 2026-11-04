@@ -347,6 +347,8 @@ public class RelicFeature implements Listener {
     private static final double HOOKSHOT_PULL_SPEED = 0.8;
     /** Maximum hookshot range in blocks. */
     private static final double HOOKSHOT_MAX_RANGE = 100.0;
+    /** Particle spacing for the custom long-distance hookshot line. */
+    private static final double HOOKSHOT_LINE_STEP = 0.75;
     /** Bunny hop stays unavailable until landing; this is only the visual timer. */
     static final int DASH_COOLDOWN_TICKS = 400;
     /** A stopped bobber and the block location it hit. */
@@ -969,6 +971,8 @@ public class RelicFeature implements Listener {
             return;
         }
         if (state == PlayerFishEvent.State.IN_GROUND) {
+            // Cancel vanilla's auto-retract; the bobber must stay pinned.
+            event.setCancelled(true);
             if (!this.hookshotAnchors.containsKey(player.getUniqueId())) {
                 this.anchorHookshot(player, hook, hook.getLocation());
             }
@@ -976,7 +980,11 @@ public class RelicFeature implements Listener {
         }
         if (state == PlayerFishEvent.State.CAUGHT_ENTITY
                 || state == PlayerFishEvent.State.CAUGHT_FISH) {
+            event.setCancelled(true);
             this.stopHookshotFlight(hook.getUniqueId());
+            if (!this.hookshotAnchors.containsKey(player.getUniqueId())) {
+                this.anchorHookshot(player, hook, hook.getLocation());
+            }
             return;
         }
         this.stopHookshotFlight(hook.getUniqueId());
@@ -1030,8 +1038,27 @@ public class RelicFeature implements Listener {
             }
             lastSafe[0] = current;
             hook.setVelocity(direction);
+            if (ticks[0] % 2 == 0) this.drawHookshotLine(player, current);
         }, 1L, 1L);
         this.hookshotFlights.put(hook.getUniqueId(), task);
+    }
+
+    /**
+     * The vanilla fishing line stops rendering once the bobber leaves the
+     * client's entity/particle range. Draw a forced particle line so the
+     * 100-block hookshot stays visibly connected.
+     */
+    private void drawHookshotLine(Player player, Location target) {
+        Location from = player.getEyeLocation().clone();
+        Vector span = target.toVector().subtract(from.toVector());
+        double distance = span.length();
+        if (distance < 0.5) return;
+        Vector step = span.normalize().multiply(HOOKSHOT_LINE_STEP);
+        int points = (int) Math.ceil(distance / HOOKSHOT_LINE_STEP);
+        for (int i = 0; i <= points; i++) {
+            Location point = from.clone().add(step.clone().multiply(i));
+            player.spawnParticle(org.bukkit.Particle.END_ROD, point, 1, 0.0, 0.0, 0.0, 0.0, true);
+        }
     }
 
     /** True when a solid (non-passable) block is within the bobber's radius. */
@@ -1064,6 +1091,7 @@ public class RelicFeature implements Listener {
         this.hookshotAnchors.put(player.getUniqueId(), anchor);
         // Vanilla fishing-hook physics still applies drag/gravity and can make
         // the bobber drift. Pin it to the contact point until it is reeled in.
+        int[] holdTicks = {0};
         BukkitTask hold = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
             HookAnchor current = this.hookshotAnchors.get(player.getUniqueId());
             if (current == null || !current.hookId().equals(hook.getUniqueId())
@@ -1077,6 +1105,7 @@ public class RelicFeature implements Listener {
             }
             hook.setGravity(false);
             hook.setVelocity(new Vector(0.0, 0.0, 0.0));
+            if (++holdTicks[0] % 2 == 0) this.drawHookshotLine(player, current.location());
         }, 1L, 1L);
         this.hookshotHolds.put(hook.getUniqueId(), hold);
         player.getWorld().playSound(location, Sound.BLOCK_CHAIN_PLACE, 1.0f, 0.8f);
