@@ -1,0 +1,6 @@
+.venv/
+qa/
+__pycache__/
+_silent.mp4
+_bgm.wav
+_fixed.mp4
