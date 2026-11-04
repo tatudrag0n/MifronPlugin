@@ -21,13 +21,14 @@ import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.inventory.GrindstoneInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Fireball;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Fireball;
-import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -38,7 +39,6 @@ import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.PrepareGrindstoneEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
-import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -48,7 +48,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -103,6 +106,15 @@ public class RelicFeature implements Listener {
         }
         dragFollowers.clear();
         this.stopDragTask();
+        for (UUID markerId : List.copyOf(this.hookshotFlights.keySet())) {
+            org.bukkit.entity.Entity marker = Bukkit.getEntity(markerId);
+            if (marker != null) marker.remove();
+        }
+        for (HookAnchor anchor : List.copyOf(this.hookshotAnchors.values())) {
+            org.bukkit.entity.Entity marker = Bukkit.getEntity(anchor.hookId());
+            if (marker != null) marker.remove();
+        }
+        this.hookshotFlightOwners.clear();
         for (BukkitTask task : this.hookshotFlights.values()) task.cancel();
         this.hookshotFlights.clear();
         for (BukkitTask task : this.hookshotHolds.values()) task.cancel();
@@ -364,6 +376,8 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, Long> breathCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     /** Hookshot bobbers fly straight; keyed by the hook entity id. */
     private final java.util.Map<java.util.UUID, BukkitTask> hookshotFlights = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Active flying hookshot marker, keyed by owner. */
+    private final java.util.Map<java.util.UUID, java.util.UUID> hookshotFlightOwners = new java.util.concurrent.ConcurrentHashMap<>();
     /** Keeps a stopped bobber pinned to the block-contact point. */
     private final java.util.Map<java.util.UUID, BukkitTask> hookshotHolds = new java.util.concurrent.ConcurrentHashMap<>();
     /** Active reel-in tasks, keyed by the player being pulled. */
@@ -395,14 +409,28 @@ public class RelicFeature implements Listener {
             return;
         }
 
-        // Second right-click during a hookshot reel: abort the movement but
-        // keep the current velocity (inertia), retract the line, and leave the
-        // rod ready for another cast. Checked before the generic debounce.
-        if ("hookshot".equals(getRelicId(item)) && event.getAction().isRightClick()
-                && this.hookshotPulls.containsKey(player.getUniqueId())) {
+        // Hookshot is handled entirely here so the vanilla fishing rod (and
+        // its 32-block bobber limit) is never used.
+        if ("hookshot".equals(getRelicId(item)) && event.getAction().isRightClick()) {
             event.setCancelled(true);
-            this.stopHookshotPull(player.getUniqueId());
-            this.clearHookshotAnchor(player);
+            UUID uuid = player.getUniqueId();
+            if (this.hookshotPulls.containsKey(uuid)) {
+                // During a reel: stop where we are, keep inertia, retract.
+                this.stopHookshotPull(uuid);
+                this.clearHookshotAnchor(player);
+                return;
+            }
+            if (this.hookshotFlightOwners.containsKey(uuid)) {
+                // During flight: retract the current marker and stop.
+                this.stopHookshotFlightFor(uuid);
+                return;
+            }
+            HookAnchor anchor = this.hookshotAnchors.get(uuid);
+            if (anchor != null) {
+                this.startHookshotPull(player, anchor.location());
+                return;
+            }
+            this.startHookshotFlight(player);
             return;
         }
 
@@ -935,90 +963,50 @@ public class RelicFeature implements Listener {
         }
     }
 
-    @EventHandler
-    public void onFish(PlayerFishEvent event) {
-        Player player = event.getPlayer();
-        ItemStack item = player.getInventory().getItemInMainHand();
-        if (!isRelicItem(item)) item = player.getInventory().getItemInOffHand();
-        if (!isRelicItem(item) || !"hookshot".equals(getRelicId(item))) return;
-
-
-        PlayerFishEvent.State state = event.getState();
-        FishHook hook = event.getHook();
-        if (state == PlayerFishEvent.State.FISHING) {
-            this.clearHookshotAnchor(player);
-            this.startHookshotFlight(player, hook);
-            return;
-        }
-        if (state == PlayerFishEvent.State.REEL_IN) {
-            UUID playerId = player.getUniqueId();
-            if (this.hookshotPulls.containsKey(playerId)) {
-                // Second right-click while reeling: stop the pull where it is,
-                // keep the current inertia, and retract the line immediately.
-                this.stopHookshotPull(playerId);
-                this.clearHookshotAnchor(player);
-                event.setCancelled(true);
-                return;
-            }
-            HookAnchor anchor = this.hookshotAnchors.get(playerId);
-            this.stopHookshotFlight(hook.getUniqueId());
-            if (anchor != null && anchor.hookId().equals(hook.getUniqueId())) {
-                // Keep the hook and line attached until the player arrives.
-                event.setCancelled(true);
-                this.startHookshotPull(player, anchor.location());
-                return;
-            }
-            return;
-        }
-        if (state == PlayerFishEvent.State.IN_GROUND) {
-            // Cancel vanilla's auto-retract; the bobber must stay pinned.
-            event.setCancelled(true);
-            if (!this.hookshotAnchors.containsKey(player.getUniqueId())) {
-                this.anchorHookshot(player, hook, hook.getLocation());
-            }
-            return;
-        }
-        if (state == PlayerFishEvent.State.CAUGHT_ENTITY
-                || state == PlayerFishEvent.State.CAUGHT_FISH) {
-            event.setCancelled(true);
-            this.stopHookshotFlight(hook.getUniqueId());
-            if (!this.hookshotAnchors.containsKey(player.getUniqueId())) {
-                this.anchorHookshot(player, hook, hook.getLocation());
-            }
-            return;
-        }
-        this.stopHookshotFlight(hook.getUniqueId());
-    }
-
     /**
      * Keeps the hookshot bobber on a straight line and stops it as soon as any
      * solid block is within a small radius. A stopped bobber stays in place
      * until the player right-clicks to reel themselves toward it.
      */
-    private void startHookshotFlight(Player player, FishHook hook) {
-        this.stopHookshotFlight(hook.getUniqueId());
+    private void startHookshotFlight(Player player) {
+        this.clearHookshotAnchor(player);
+        this.stopHookshotFlightFor(player.getUniqueId());
         Vector direction = player.getEyeLocation().getDirection().normalize().multiply(HOOKSHOT_SPEED);
-        hook.setGravity(false);
-        hook.setVelocity(direction);
+        Location start = player.getEyeLocation().clone().add(direction.clone().normalize().multiply(0.5));
+        // A real fishing bobber is discarded by vanilla once it is 32 blocks
+        // from the owner. Use a display marker instead, with a forced particle
+        // line, so the full 100-block range is usable.
+        ItemDisplay marker = player.getWorld().spawn(start, ItemDisplay.class, display -> {
+            display.setItemStack(new ItemStack(Material.SLIME_BALL));
+            display.setBillboard(Display.Billboard.CENTER);
+            display.setTransformation(new Transformation(
+                new Vector3f(), new Quaternionf(), new Vector3f(0.7f, 0.7f, 0.7f), new Quaternionf()));
+            display.setGravity(false);
+            display.setInvulnerable(true);
+            display.setPersistent(false);
+            display.setGlowing(true);
+            display.setViewRange(8.0f);
+            display.setTeleportDuration(1);
+        });
         int[] ticks = {0};
-        Location[] lastSafe = {hook.getLocation().clone()};
+        Location[] lastSafe = {start.clone()};
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
-            if (!hook.isValid() || hook.isDead() || ++ticks[0] > 200) {
-                this.stopHookshotFlight(hook.getUniqueId());
-                if (hook.isValid()) hook.remove();
+            if (!marker.isValid() || ++ticks[0] > 200) {
+                this.stopHookshotFlight(marker.getUniqueId());
+                if (marker.isValid()) marker.remove();
                 return;
             }
-            if (hook.getLocation().distanceSquared(player.getLocation()) > HOOKSHOT_MAX_RANGE * HOOKSHOT_MAX_RANGE) {
-                this.stopHookshotFlight(hook.getUniqueId());
-                if (hook.isValid()) hook.remove();
+            if (marker.getLocation().distanceSquared(player.getLocation()) > HOOKSHOT_MAX_RANGE * HOOKSHOT_MAX_RANGE) {
+                this.stopHookshotFlight(marker.getUniqueId());
+                if (marker.isValid()) marker.remove();
                 return;
             }
-            Location current = hook.getLocation().clone();
-            // Give the bobber a few ticks to leave the player's body, then
+            Location current = marker.getLocation().clone();
+            // Give the marker a few ticks to leave the player's body, then
             // stop it on floor, wall, ceiling or any other solid block.
             if (ticks[0] > 3) {
                 if (this.hookshotBlocked(current)) {
-                    this.anchorHookshot(player, hook, lastSafe[0]);
+                    this.anchorHookshot(player, marker, lastSafe[0]);
                     return;
                 }
                 // Sample the flight step every quarter block so a thin wall
@@ -1030,17 +1018,18 @@ public class RelicFeature implements Listener {
                 for (int i = 1; i <= samples; i++) {
                     Location probe = current.clone().add(unit.clone().multiply(i * 0.25));
                     if (this.hookshotBlocked(probe)) {
-                        this.anchorHookshot(player, hook, safe);
+                        this.anchorHookshot(player, marker, safe);
                         return;
                     }
                     safe = probe;
                 }
             }
             lastSafe[0] = current;
-            hook.setVelocity(direction);
-            if (ticks[0] % 2 == 0) this.drawHookshotLine(player, current);
+            marker.teleport(current.clone().add(direction));
+            if (ticks[0] % 2 == 0) this.drawHookshotLine(player, marker.getLocation());
         }, 1L, 1L);
-        this.hookshotFlights.put(hook.getUniqueId(), task);
+        this.hookshotFlights.put(marker.getUniqueId(), task);
+        this.hookshotFlightOwners.put(player.getUniqueId(), marker.getUniqueId());
     }
 
     /**
@@ -1081,33 +1070,30 @@ public class RelicFeature implements Listener {
         return false;
     }
 
-    private void anchorHookshot(Player player, FishHook hook, Location location) {
-        this.stopHookshotFlight(hook.getUniqueId());
-        this.stopHookshotHold(hook.getUniqueId());
-        hook.teleport(location);
-        hook.setGravity(false);
-        hook.setVelocity(new Vector(0.0, 0.0, 0.0));
-        HookAnchor anchor = new HookAnchor(location.clone(), hook.getUniqueId());
+    private void anchorHookshot(Player player, ItemDisplay marker, Location location) {
+        this.stopHookshotFlight(marker.getUniqueId());
+        this.stopHookshotHold(marker.getUniqueId());
+        marker.teleport(location);
+        marker.setGravity(false);
+        HookAnchor anchor = new HookAnchor(location.clone(), marker.getUniqueId());
         this.hookshotAnchors.put(player.getUniqueId(), anchor);
-        // Vanilla fishing-hook physics still applies drag/gravity and can make
-        // the bobber drift. Pin it to the contact point until it is reeled in.
+        // Keep the marker exactly on the contact point until it is reeled in.
         int[] holdTicks = {0};
         BukkitTask hold = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
             HookAnchor current = this.hookshotAnchors.get(player.getUniqueId());
-            if (current == null || !current.hookId().equals(hook.getUniqueId())
-                    || !hook.isValid() || hook.isDead()) {
-                this.stopHookshotHold(hook.getUniqueId());
+            if (current == null || !current.hookId().equals(marker.getUniqueId())
+                    || !marker.isValid()) {
+                this.stopHookshotHold(marker.getUniqueId());
                 return;
             }
-            if (!hook.getWorld().equals(current.location().getWorld())
-                    || hook.getLocation().distanceSquared(current.location()) > 0.0025) {
-                hook.teleport(current.location());
+            if (!marker.getWorld().equals(current.location().getWorld())
+                    || marker.getLocation().distanceSquared(current.location()) > 0.0025) {
+                marker.teleport(current.location());
             }
-            hook.setGravity(false);
-            hook.setVelocity(new Vector(0.0, 0.0, 0.0));
+            marker.setGravity(false);
             if (++holdTicks[0] % 2 == 0) this.drawHookshotLine(player, current.location());
         }, 1L, 1L);
-        this.hookshotHolds.put(hook.getUniqueId(), hold);
+        this.hookshotHolds.put(marker.getUniqueId(), hold);
         player.getWorld().playSound(location, Sound.BLOCK_CHAIN_PLACE, 1.0f, 0.8f);
         player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, location, 16, 0.25, 0.25, 0.25, 0.1);
         player.sendMessage(ChatColor.GRAY + "ウキがブロックに当たった。右クリックで引き寄せ。");
@@ -1178,6 +1164,7 @@ public class RelicFeature implements Listener {
 
     private void clearHookshotAnchor(Player player) {
         this.stopHookshotPull(player.getUniqueId());
+        this.stopHookshotFlightFor(player.getUniqueId());
         HookAnchor anchor = this.hookshotAnchors.remove(player.getUniqueId());
         if (anchor == null) return;
         this.stopHookshotHold(anchor.hookId());
@@ -1186,8 +1173,18 @@ public class RelicFeature implements Listener {
     }
 
     private void stopHookshotFlight(UUID hookId) {
+        this.hookshotFlightOwners.values().remove(hookId);
         BukkitTask task = this.hookshotFlights.remove(hookId);
         if (task != null) task.cancel();
+    }
+
+    private void stopHookshotFlightFor(UUID playerId) {
+        UUID markerId = this.hookshotFlightOwners.remove(playerId);
+        if (markerId == null) return;
+        BukkitTask task = this.hookshotFlights.remove(markerId);
+        if (task != null) task.cancel();
+        org.bukkit.entity.Entity marker = Bukkit.getEntity(markerId);
+        if (marker != null) marker.remove();
     }
 
     @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST, ignoreCancelled = false)
@@ -1906,7 +1903,7 @@ public class RelicFeature implements Listener {
     /** Clears any stale swim speed/pose, including after a crash or relog. */
     private void resetSeaswimState(Player player) {
         UUID uuid = player.getUniqueId();
-        this.stopHookshotPull(uuid);
+        this.clearHookshotAnchor(player);
         seaswimActive.remove(uuid);
         seaswimAirborne.remove(uuid);
         seaswimRising.remove(uuid);
