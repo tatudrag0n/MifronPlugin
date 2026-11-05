@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVER_ROOT="${SERVER_ROOT:-/home/tatudragon0327/main-server}"
-BOT_ROOT="${BOT_ROOT:-/home/tatudragon0327/minoru-bot}"
+# Derive the server/bot locations from the repository layout so the setup keeps
+# working when the tree is restored outside the original home directory.
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mc-common.sh"
+
+SERVER_ROOT="${SERVER_ROOT:-$SERVER_DIR}"
+BOT_ROOT="${BOT_ROOT:-$BASE_DIR/minoru-bot}"
 MIFRON_CONFIG="${MIFRON_CONFIG:-$SERVER_ROOT/plugins/mifron/config.yml}"
 MIFRON_DATA="${MIFRON_DATA:-$SERVER_ROOT/plugins/mifron/data.yml}"
 MIFRON_AUTH="${MIFRON_AUTH:-$SERVER_ROOT/plugins/MifronAuth/auth.yml}"
+MIFRON_USERCACHE="${MIFRON_USERCACHE:-$SERVER_ROOT/usercache.json}"
 BOT_ENV="${BOT_ENV:-$BOT_ROOT/.env}"
 
 if [[ ! -f "$MIFRON_CONFIG" ]]; then
@@ -92,7 +97,8 @@ if not bridge_seen:
 path.write_text('\n'.join(out) + '\n', encoding='utf-8')
 PY
 
-SECRET="$SECRET" BOT_ENV="$BOT_ENV" MIFRON_DATA="$MIFRON_DATA" MIFRON_AUTH="$MIFRON_AUTH" python3 - <<'PY'
+SECRET="$SECRET" BOT_ENV="$BOT_ENV" MIFRON_DATA="$MIFRON_DATA" MIFRON_AUTH="$MIFRON_AUTH" \
+MIFRON_USERCACHE="$MIFRON_USERCACHE" python3 - <<'PY'
 import os
 from pathlib import Path
 
@@ -100,9 +106,11 @@ path = Path(os.environ['BOT_ENV'])
 updates = {
     'MINORU_BRIDGE_URL': 'http://127.0.0.1:8123',
     'MINORU_BRIDGE_SECRET': os.environ['SECRET'],
+    'MINECRAFT_INTEGRATION_MODE': 'legacy',
+    'MINECRAFT_API_URL': 'http://127.0.0.1:8081',
     'MIFRON_DATA_PATH': os.environ['MIFRON_DATA'],
     'AUTH_FILE_PATH': os.environ['MIFRON_AUTH'],
-    'MINECRAFT_API_URL': 'http://127.0.0.1:8081',
+    'MINECRAFT_USERCACHE_PATH': os.environ['MIFRON_USERCACHE'],
 }
 
 lines = path.read_text(encoding='utf-8').splitlines()
@@ -131,9 +139,20 @@ echo "Configured Mifron <-> Minoru MP bridge on 127.0.0.1:8123."
 echo "Backups:"
 echo "  $MIFRON_CONFIG.bak.$STAMP"
 echo "  $BOT_ENV.bak.$STAMP"
-echo "Restarting Minecraft and Minoru..."
-sudo systemctl restart minecraft
-sudo systemctl restart minoru-bot
+echo "Restarting Minecraft..."
+if systemctl list-unit-files "$SERVICE_NAME.service" >/dev/null 2>&1 && \
+   systemctl is-enabled "$SERVICE_NAME.service" >/dev/null 2>&1; then
+  sudo systemctl restart "$SERVICE_NAME"
+else
+  bash "$(cd "$(dirname "$0")" && pwd)/mc-restart.sh"
+fi
+echo "Restarting Minoru..."
+if systemctl list-unit-files minoru-bot.service >/dev/null 2>&1 && \
+   systemctl is-enabled minoru-bot.service >/dev/null 2>&1; then
+  sudo systemctl restart minoru-bot
+else
+  echo "WARNING: minoru-bot.service is not installed; restart the bot manually so it reloads .env."
+fi
 
 echo "Bridge health:"
 curl -fsS http://127.0.0.1:8123/health || {
