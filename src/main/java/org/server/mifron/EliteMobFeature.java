@@ -38,6 +38,7 @@ public class EliteMobFeature implements Listener {
     private final NamespacedKey eliteKey;
     private final Map<UUID, EliteState> eliteStates = new ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> eliteTasks = new ConcurrentHashMap<>();
+    private boolean allowEliteSpawn;
 
     private static final class EliteState {
         boolean phase2;
@@ -50,6 +51,17 @@ public class EliteMobFeature implements Listener {
     public EliteMobFeature(Mifron plugin) {
         this.plugin = plugin;
         this.eliteKey = new NamespacedKey(plugin, "elite_mob");
+    }
+
+    /** Admin-summoned elites bypass region/plugin spawn denials. */
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = false)
+    public void onForcedEliteSpawn(CreatureSpawnEvent event) {
+        if (this.allowEliteSpawn
+            && (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.CUSTOM
+                || event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.COMMAND)
+            && event.getEntity() instanceof Monster) {
+            event.setCancelled(false);
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -128,23 +140,44 @@ public class EliteMobFeature implements Listener {
     public boolean spawnElite(Player player, EntityType type) {
         if (player == null || type == null || type.getEntityClass() == null
             || !Monster.class.isAssignableFrom(type.getEntityClass())) return false;
-        Location location = player.getLocation().clone();
-        Vector direction = location.getDirection();
+        Location base = player.getLocation().clone();
+        Vector direction = base.getDirection();
         direction.setY(0.0);
-        if (direction.lengthSquared() > 1.0E-6) {
-            location.add(direction.normalize().multiply(2.0));
+        if (direction.lengthSquared() > 1.0E-6) direction.normalize();
+        else direction = new Vector(0.0, 0.0, 1.0);
+        Vector side = direction.clone().crossProduct(new Vector(0.0, 1.0, 0.0));
+        Location[] candidates = {
+            base.clone().add(direction.clone().multiply(2.0)),
+            base.clone(),
+            base.clone().add(direction.clone().multiply(3.0)),
+            base.clone().add(side.clone().multiply(2.0)),
+            base.clone().add(side.clone().multiply(-2.0)),
+            base.clone().add(0.0, 1.0, 0.0)
+        };
+        this.allowEliteSpawn = true;
+        try {
+            for (Location candidate : candidates) {
+                candidate.setY(base.getY());
+                if (!candidate.getBlock().isPassable()
+                    || !candidate.clone().add(0.0, 1.0, 0.0).getBlock().isPassable()) continue;
+                if (!player.getWorld().isChunkLoaded(candidate.getBlockX() >> 4, candidate.getBlockZ() >> 4)
+                    && !player.getWorld().getChunkAt(candidate).load(true)) continue;
+                Entity spawned = player.getWorld().spawnEntity(candidate, type,
+                    CreatureSpawnEvent.SpawnReason.COMMAND);
+                if (spawned instanceof Monster mob && mob.isValid()) {
+                    this.makeElite(mob);
+                    plugin.getLogger().info("Spawned elite " + type.name() + " at "
+                        + candidate.getWorld().getName() + " " + candidate.getBlockX() + ","
+                        + candidate.getBlockY() + "," + candidate.getBlockZ());
+                    return true;
+                }
+                if (spawned != null) spawned.remove();
+            }
+        } finally {
+            this.allowEliteSpawn = false;
         }
-        location.setY(player.getLocation().getY());
-        if (!location.getBlock().isPassable() || !location.clone().add(0.0, 1.0, 0.0).getBlock().isPassable()) {
-            location = player.getLocation().clone();
-        }
-        Entity spawned = player.getWorld().spawnEntity(location, type);
-        if (!(spawned instanceof Monster mob)) {
-            spawned.remove();
-            return false;
-        }
-        this.makeElite(mob);
-        return true;
+        plugin.getLogger().warning("Failed to spawn elite " + type.name() + " near " + player.getName());
+        return false;
     }
 
     private void tickElite(Monster mob) {
