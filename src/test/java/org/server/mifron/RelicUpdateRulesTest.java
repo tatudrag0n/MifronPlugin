@@ -41,6 +41,8 @@ class RelicUpdateRulesTest {
 
    @Test
    void sniperZoomScalesSmoothlyWithDrawProgress() {
+      assertEquals(20, RelicFeature.SNIPER_DRAW_TICKS);
+      assertEquals(1.0, RelicFeature.SNIPER_DRAW_TIME_MULTIPLIER, 1.0e-9);
       assertEquals(1.0, RelicFeature.sniperZoomFactor(0L), 1.0e-9);
       assertEquals(RelicFeature.SNIPER_FULL_DRAW_FOV,
          RelicFeature.sniperZoomFactor(RelicFeature.SNIPER_DRAW_MILLIS), 1.0e-9);

@@ -246,7 +246,7 @@ public class RelicFeature implements Listener {
         GAYBOLG("gaybolg", "§5§lゲイ・ボルグ", Material.DIAMOND_SPEAR, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで最も近い敵を追尾して突進。攻撃射程50ブロック、距離でダメージ増加。(クールダウン10秒)"),
         EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
         SIXSHOT_CROSSBOW("sixshot_crossbow", "§8§l六連装弩弓", Material.CROSSBOW, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7最大6連射のリボルバー式クロスボウ。リロード速度80%、ダメージ120%。"),
-        SNIPER_BOW("sniper_bow", "§2§l狙撃弓", Material.BOW, MaterialRarity.RARE, RelicPower.MEDIUM, "§7引き絞り2倍、ダメージ5倍、矢は貫通して直進する。"),
+        SNIPER_BOW("sniper_bow", "§2§l狙撃弓", Material.BOW, MaterialRarity.RARE, RelicPower.MEDIUM, "§7溜め時間はバニラ相当、動的FOVズーム、ダメージ5倍、矢は貫通して直進する。"),
         NOAHS_ARK("noahs_ark", "§3§lノアの方舟", Material.PALE_OAK_BOAT, MaterialRarity.RARE, RelicPower.MEDIUM, "§7空を飛べる高速な船。");
 
         public final String id;
@@ -647,7 +647,12 @@ public class RelicFeature implements Listener {
     static final int SIXSHOT_RELOAD_TICKS = (int) Math.ceil(
         VANILLA_CROSSBOW_RELOAD_TICKS / SIXSHOT_RELOAD_SPEED_MULTIPLIER);
     static final double SIXSHOT_DAMAGE = 7.2;
-    static final int SNIPER_DRAW_TICKS = 40;
+    /**
+     * Vanilla's client-side bow animation completes at 20 ticks and cannot be
+     * slowed by a server plugin. Keep the release gate in lockstep with that
+     * animation so the arrow never fires after the bow already looks fully drawn.
+     */
+    static final int SNIPER_DRAW_TICKS = 20;
     static final long SNIPER_DRAW_MILLIS = SNIPER_DRAW_TICKS * 50L;
     static final double SNIPER_DAMAGE = 45.0;
     static final int SNIPER_PIERCE_LEVEL = 10;
@@ -672,7 +677,7 @@ public class RelicFeature implements Listener {
     static final double ANCIENT_SLASH_DAMAGE = 5.0;
     static final double ANCIENT_SLASH_RADIUS = 5.0;
     static final long MACE_LANDING_PROTECT_MILLIS = 2000L;
-    static final long MACE_LAUNCH_MILLIS = 1200L;
+    static final long MACE_LAUNCH_MILLIS = 650L;
     static final double MACE_LAUNCH_VELOCITY = 0.9;
     static final double MACE_CLIMB_SPEED = 1.0;
     static final double MACE_CLIMB_ACCEL = 0.45;
@@ -686,7 +691,7 @@ public class RelicFeature implements Listener {
     static final int SIXSHOT_CAPACITY = SIXSHOT_MAX_AMMO;
     static final int SIXSHOT_RELOAD_TIME_TICKS = SIXSHOT_RELOAD_TICKS;
     static final double SIXSHOT_DAMAGE_MULTIPLIER = 1.2;
-    static final double SNIPER_DRAW_TIME_MULTIPLIER = 2.0;
+    static final double SNIPER_DRAW_TIME_MULTIPLIER = 1.0;
     static final double SNIPER_DAMAGE_MULTIPLIER = 5.0;
     static final double EXCALIBUR_REPLICA_DAMAGE = EXCALIBUR_REPLICA_SLASH_DAMAGE;
     static final int EXCALIBUR_REPLICA_MAX_USES = EXCALIBUR_REPLICA_USES;
@@ -824,7 +829,8 @@ public class RelicFeature implements Listener {
         long now = System.currentTimeMillis();
         String id = getRelicId(item);
         Long last = this.lastUseMillis.get(player.getUniqueId());
-        if (!"sixshot_crossbow".equals(id) && last != null && now - last < 500L) {
+        if (!"sixshot_crossbow".equals(id) && !"antigravity_mace".equals(id)
+            && last != null && now - last < 500L) {
             event.setCancelled(true);
             return;
         }
@@ -1073,6 +1079,11 @@ public class RelicFeature implements Listener {
             .toVector().subtract(player.getEyeLocation().toVector());
         if (direction.lengthSquared() < 0.01) return;
         direction.normalize();
+        // Turn the player toward the tracked mob every tick, not just once at
+        // the start of the dash.
+        org.bukkit.Location look = player.getLocation().clone();
+        look.setDirection(direction);
+        player.setRotation(look.getYaw(), look.getPitch());
         double speed = GAYBOLG_DASH_SPEED;
         double y = Math.max(-0.6, Math.min(0.8, direction.getY() * speed));
         player.setVelocity(direction.multiply(speed).setY(y));
@@ -1388,8 +1399,10 @@ public class RelicFeature implements Listener {
     private void tickMace(Player player) {
         UUID uuid = player.getUniqueId();
         long now = System.currentTimeMillis();
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        boolean holdingMace = this.isRelicItem(hand) && "antigravity_mace".equals(this.getRelicId(hand));
         Long launchUntil = this.maceLaunchUntil.get(uuid);
-        boolean launchActive = launchUntil != null && now < launchUntil;
+        boolean launchActive = launchUntil != null && now < launchUntil && holdingMace;
         if (launchUntil != null && !launchActive) this.maceLaunchUntil.remove(uuid);
         if (launchActive) {
             Vector velocity = player.getVelocity();
@@ -1559,8 +1572,15 @@ public class RelicFeature implements Listener {
     public void onMaceFallDamage(org.bukkit.event.entity.EntityDamageEvent event) {
         if (event.getCause() != org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL) return;
         if (!(event.getEntity() instanceof Player player)) return;
+        long now = System.currentTimeMillis();
         Long until = this.maceLandingProtectUntil.get(player.getUniqueId());
-        if (until != null && System.currentTimeMillis() < until) {
+        Long launchUntil = this.maceLaunchUntil.get(player.getUniqueId());
+        ItemStack main = player.getInventory().getItemInMainHand();
+        ItemStack off = player.getInventory().getItemInOffHand();
+        boolean holdingMace = (this.isRelicItem(main) && "antigravity_mace".equals(this.getRelicId(main)))
+            || (this.isRelicItem(off) && "antigravity_mace".equals(this.getRelicId(off)));
+        if (holdingMace || this.maceAscended.contains(player.getUniqueId())
+            || (until != null && now < until) || (launchUntil != null && now < launchUntil)) {
             event.setCancelled(true);
             player.setFallDistance(0.0f);
         }
