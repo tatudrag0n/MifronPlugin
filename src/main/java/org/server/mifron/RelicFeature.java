@@ -258,7 +258,7 @@ public class RelicFeature implements Listener {
         EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
         SIXSHOT_CROSSBOW("sixshot_crossbow", "§8§l六連装弩弓", Material.CROSSBOW, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7最大6連射のリボルバー式クロスボウ。リロード速度80%、ダメージ120%。"),
         SNIPER_BOW("sniper_bow", "§2§l狙撃弓", Material.BOW, MaterialRarity.RARE, RelicPower.MEDIUM, "§7溜め時間はバニラ相当、動的FOVズーム、ダメージ5倍、矢は貫通して直進する。"),
-        INFINITE_BUNDLE("infinite_bundle", "§6§l無限のバンドル", Material.BUNDLE, MaterialRarity.EPIC, RelicPower.MAJOR, "§7容量無制限。Shiftクリックで収納し、好きな順番で取り出せる。"),
+        INFINITE_BUNDLE("infinite_bundle", "§6§l無限のバンドル", Material.BUNDLE, MaterialRarity.EPIC, RelicPower.MAJOR, "§7容量無制限。バンドルに重ねるかShiftクリックで収納し、好きな順番で取り出せる。"),
         NOAHS_ARK("noahs_ark", "§3§lノアの方舟", Material.PALE_OAK_BOAT, MaterialRarity.RARE, RelicPower.MEDIUM, "§7空を飛べる高速な船。");
 
         public final String id;
@@ -553,7 +553,7 @@ public class RelicFeature implements Listener {
         return this.bundleContents.computeIfAbsent(id, ignored -> new ArrayList<>());
     }
 
-    private UUID bundleId(Player player, ItemStack item) {
+    private UUID bundleIdForItem(ItemStack item) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return UUID.randomUUID();
         String raw = meta.getPersistentDataContainer().get(this.bundleIdKey, PersistentDataType.STRING);
@@ -565,9 +565,35 @@ public class RelicFeature implements Listener {
             id = UUID.randomUUID();
             meta.getPersistentDataContainer().set(this.bundleIdKey, PersistentDataType.STRING, id.toString());
             item.setItemMeta(meta);
-            player.getInventory().setItemInMainHand(item);
         }
         return id;
+    }
+
+    private UUID bundleId(Player player, ItemStack item) {
+        UUID id = this.bundleIdForItem(item);
+        player.getInventory().setItemInMainHand(item);
+        return id;
+    }
+
+    private boolean isInfiniteBundle(ItemStack item) {
+        return item != null && "infinite_bundle".equals(this.getRelicId(item));
+    }
+
+    private void addToBundle(UUID id, ItemStack stack) {
+        if (stack == null || stack.getType().isAir() || stack.getAmount() <= 0) return;
+        List<ItemStack> items = this.bundleItems(id);
+        ItemStack remaining = stack.clone();
+        for (ItemStack existing : items) {
+            if (remaining.getAmount() <= 0) break;
+            if (!existing.isSimilar(remaining)) continue;
+            int max = Math.max(1, existing.getMaxStackSize());
+            int space = max - existing.getAmount();
+            if (space <= 0) continue;
+            int move = Math.min(space, remaining.getAmount());
+            existing.setAmount(existing.getAmount() + move);
+            remaining.setAmount(remaining.getAmount() - move);
+        }
+        if (remaining.getAmount() > 0) items.add(remaining);
     }
 
     private void openBundle(Player player, ItemStack item) {
@@ -651,7 +677,7 @@ public class RelicFeature implements Listener {
         if (this.isRelicItem(moving) && "infinite_bundle".equals(this.getRelicId(moving))) return;
         ItemStack deposit = moving.clone();
         if (this.isRelicItem(deposit)) this.normalizeRelicDurability(deposit);
-        this.bundleItems(bundleId).add(deposit);
+        this.addToBundle(bundleId, deposit);
         event.getClickedInventory().setItem(event.getSlot(), null);
         this.saveBundles();
         this.openBundlePage(player, bundleId, page);
@@ -663,6 +689,41 @@ public class RelicFeature implements Listener {
         UUID id = this.openBundleViewers.remove(event.getPlayer().getUniqueId());
         this.bundlePages.remove(event.getPlayer().getUniqueId());
         if (id != null) this.saveBundles();
+    }
+
+    /**
+     * Stacking a cursor item onto the bundle in an inventory stores it
+     * immediately, without requiring the player to open the GUI first.
+     */
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBundleStack(org.bukkit.event.inventory.InventoryClickEvent event) {
+        if (BUNDLE_TITLE.equals(event.getView().getTitle())) return;
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        ItemStack cursor = event.getCursor();
+        ItemStack current = event.getCurrentItem();
+        boolean currentBundle = this.isInfiniteBundle(current);
+        boolean cursorBundle = this.isInfiniteBundle(cursor);
+        if (currentBundle && !cursorBundle && cursor != null && !cursor.getType().isAir()) {
+            UUID id = this.bundleIdForItem(current);
+            ItemStack deposit = cursor.clone();
+            if (this.isRelicItem(deposit)) this.normalizeRelicDurability(deposit);
+            this.addToBundle(id, deposit);
+            event.setCurrentItem(current);
+            event.setCursor(null);
+            event.setCancelled(true);
+            this.saveBundles();
+            player.updateInventory();
+        } else if (cursorBundle && !currentBundle && current != null && !current.getType().isAir()) {
+            UUID id = this.bundleIdForItem(cursor);
+            ItemStack deposit = current.clone();
+            if (this.isRelicItem(deposit)) this.normalizeRelicDurability(deposit);
+            this.addToBundle(id, deposit);
+            event.setCursor(cursor);
+            event.setCurrentItem(null);
+            event.setCancelled(true);
+            this.saveBundles();
+            player.updateInventory();
+        }
     }
 
     /** True when the player carries the given relic anywhere in the inventory. */
@@ -1334,26 +1395,24 @@ public class RelicFeature implements Listener {
 
     private int countArrows(Player player) {
         int count = 0;
+        boolean endless = false;
         for (ItemStack item : player.getInventory().getContents()) {
-            if (item == null) continue;
-            if (item.getType() == Material.ARROW || item.getType() == Material.TIPPED_ARROW
-                || item.getType() == Material.SPECTRAL_ARROW) {
-                count += item.getAmount();
-            }
+            if (!this.isSupportedArrow(item)) continue;
+            if (this.hasEndless(item)) endless = true;
+            else count += item.getAmount();
         }
-        return count;
+        // One Endless arrow stack can supply a full six-shot load forever.
+        return endless ? Math.max(count, SIXSHOT_MAX_AMMO) : count;
     }
 
     private void consumeArrows(Player player, int amount) {
         int remaining = amount;
         ItemStack[] contents = player.getInventory().getContents();
+        // Consume ordinary arrows first. Endless arrows are skipped entirely;
+        // they satisfy any remaining load without losing a single item.
         for (int i = 0; i < contents.length && remaining > 0; i++) {
             ItemStack item = contents[i];
-            if (item == null) continue;
-            if (item.getType() != Material.ARROW && item.getType() != Material.TIPPED_ARROW
-                && item.getType() != Material.SPECTRAL_ARROW) {
-                continue;
-            }
+            if (!this.isSupportedArrow(item) || this.hasEndless(item)) continue;
             int take = Math.min(remaining, item.getAmount());
             item.setAmount(item.getAmount() - take);
             if (item.getAmount() <= 0) player.getInventory().setItem(i, null);
