@@ -85,6 +85,22 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
+      // The Endless Grimoire works on every item, including otherwise
+      // excluded Mifron items, and is never consumed by the anvil.
+      if (this.isEndlessGrimoire(left) || this.isEndlessGrimoire(right)) {
+         ItemStack grimoire = this.isEndlessGrimoire(left) ? left : right;
+         ItemStack target = this.isEndlessGrimoire(left) ? right : left;
+         if (!this.isEmpty(target)) {
+            ItemStack result = target.clone();
+            this.plugin.relicFeature.applyEndless(result);
+            event.getView().setRepairCost(0);
+            event.setResult(result);
+            this.pendingResults.put(inventory, new PendingResult(result.clone(), 0, 0,
+               List.of(grimoire.clone())));
+            return;
+         }
+      }
+
       if (this.isExcluded(left) || this.isExcluded(right)) {
          if (!this.enchantments(right).isEmpty()) {
             event.setResult(null);
@@ -112,18 +128,35 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
+      boolean artisanAnvil = this.plugin.relicFeature.hasRelicInInventory(player, "ancient_anvil");
       int vanillaCost = Math.max(0, event.getView().getRepairCost());
       int totalCost = Math.max(vanillaCost, this.fallbackCost(left, right, incoming, result));
       totalCost = Math.min(totalCost, this.maximumRepairCost());
       boolean exceedsVanillaLevel = this.hasEnchantmentAboveVanillaMaximum(result);
-      int xpCost = exceedsVanillaLevel ? 0 : totalCost;
-      int mpCost = exceedsVanillaLevel ? this.mpCost(totalCost, result, left) : 0;
+      int xpCost = artisanAnvil ? 0 : (exceedsVanillaLevel ? 0 : totalCost);
+      int mpCost = artisanAnvil ? 0 : (exceedsVanillaLevel ? this.mpCost(totalCost, result, left) : 0);
+      this.applyArtisanRepairBonus(left, right, result, artisanAnvil);
       event.getView().setRepairCost(xpCost);
       this.configureMaximumRepairCost(event.getView());
       this.applyRepairPenalty(result, left, right);
       this.applyAnvilDisplay(result, xpCost, mpCost);
       event.setResult(result);
-      this.pendingResults.put(inventory, new PendingResult(result.clone(), xpCost, mpCost));
+      List<ItemStack> preserved = new ArrayList<>();
+      if (this.plugin.relicFeature.hasEndless(left)) preserved.add(left.clone());
+      if (this.plugin.relicFeature.hasEndless(right)) preserved.add(right.clone());
+      this.pendingResults.put(inventory, new PendingResult(result.clone(), xpCost, mpCost, preserved));
+   }
+
+   /** The artisan anvil restores 50% more durability when repairing. */
+   private void applyArtisanRepairBonus(ItemStack left, ItemStack right, ItemStack result, boolean artisanAnvil) {
+      if (!artisanAnvil || this.isBookInput(right)) return;
+      if (left == null || result == null) return;
+      if (!(left.getItemMeta() instanceof org.bukkit.inventory.meta.Damageable leftDamageable)) return;
+      if (!(result.getItemMeta() instanceof org.bukkit.inventory.meta.Damageable resultDamageable)) return;
+      int repaired = Math.max(0, leftDamageable.getDamage() - resultDamageable.getDamage());
+      if (repaired <= 0) return;
+      resultDamageable.setDamage(Math.max(0, resultDamageable.getDamage() - repaired / 2));
+      result.setItemMeta(resultDamageable);
    }
 
    /**
@@ -238,6 +271,13 @@ final class AdvancedAnvilFeature implements Listener {
             return;
          }
          this.removeTransientCostDisplay(cursor);
+         // Endless inputs (including the Endless Grimoire) must survive the
+         // anvil transaction. Restore them only after the result was taken.
+         for (ItemStack preserved : pending.preservedItems()) {
+            for (ItemStack leftover : player.getInventory().addItem(preserved.clone()).values()) {
+               player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+            }
+         }
          // Advance the tutorial only after the item is actually taken; a
          // cancelled/failed transaction must not complete the anvil stage.
          this.plugin.tutorialFeature.onAnvilUse(player);
@@ -614,6 +654,10 @@ final class AdvancedAnvilFeature implements Listener {
          && (item.getType() == Material.BOOK || item.getType() == Material.ENCHANTED_BOOK);
    }
 
+   private boolean isEndlessGrimoire(ItemStack item) {
+      return item != null && "endless_grimoire".equals(this.plugin.relicFeature.getRelicId(item));
+   }
+
    private boolean isExcluded(ItemStack item) {
       if (this.isEmpty(item) || !item.hasItemMeta()) {
          return false;
@@ -720,6 +764,6 @@ final class AdvancedAnvilFeature implements Listener {
       return true;
    }
 
-   private record PendingResult(ItemStack result, int xpCost, int mpCost) {
+   private record PendingResult(ItemStack result, int xpCost, int mpCost, List<ItemStack> preservedItems) {
    }
 }

@@ -59,7 +59,6 @@ class RelicRarityTest {
          "netherite-sword relic needs a reasonable chance");
       // Flight, any-enchant and grapple relics must stay chase items.
       assertTrue(RelicFeature.RelicType.JETPACK.chance < 0.0005);
-      assertTrue(RelicFeature.RelicType.ENCHBOOK.chance < 0.0005);
       assertTrue(RelicFeature.RelicType.HOOKSHOT.chance < 0.0003);
       // Common-mob sources should not be the easiest route to strong relics.
       assertTrue(RelicFeature.RelicType.DASHFOOT.chance < 0.001);

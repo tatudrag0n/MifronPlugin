@@ -143,6 +143,25 @@ advanced-enchanting:
     - server_wand
     - jump_pad_wand
     - hub_compass
+
+# Relics are real equipment now: they wear down when used. Set enabled to
+# false to restore the old indestructible behaviour. per-relic overrides the
+# default max-durability for individual relic ids.
+relic-durability:
+  enabled: true
+  max-durability: 500
+  durability-loss-on-use: 1
+  per-relic:
+    antigravity_mace: 800
+    ancient_slash_armor: 700
+
+# Wearing armor has a small movement-speed trade-off. The penalty scales with
+# the number of equipped armor pieces and is capped by max-penalty.
+armor-movement-penalty:
+  enabled: true
+  per-piece: 0.02
+  max-penalty: 0.08
+
 # Legacy fallback for minoru-bridge.secret. Keep empty so a deployment cannot
 # accidentally start the bridge with a publicly-known default secret.
 serverSecret: ""

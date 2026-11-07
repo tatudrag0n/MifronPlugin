@@ -147,6 +147,8 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register compass events", () -> Bukkit.getPluginManager().registerEvents(this.compassFeature, this));
       this.mifron().runStartupStep("register utility item events", () -> Bukkit.getPluginManager().registerEvents(this.utilityItemsFeature, this));
       this.mifron().runStartupStep("register advanced anvil events", () -> Bukkit.getPluginManager().registerEvents(this.advancedAnvilFeature, this));
+      this.mifron().runStartupStep("load special crafting tables", this.specialCraftingFeature::load);
+      this.mifron().runStartupStep("register special crafting events", () -> Bukkit.getPluginManager().registerEvents(this.specialCraftingFeature, this));
       this.mifron().runStartupStep("register shop block events", () -> Bukkit.getPluginManager().registerEvents(this.shopBlockFeature, this));
       this.mifron().runStartupStep("register barrel shop events", () -> Bukkit.getPluginManager().registerEvents(this.barrelShopFeature, this));
       this.mifron().runStartupStep("start barrel shop hover", this.barrelShopFeature::startHoverTask);

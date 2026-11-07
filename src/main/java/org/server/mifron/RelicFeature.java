@@ -35,6 +35,17 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityPlaceEvent;
+import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.inventory.BrewingStandFuelEvent;
+import org.bukkit.event.inventory.FurnaceBurnEvent;
+import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.entity.AbstractArrow;
+import org.bukkit.entity.Boat;
+import org.bukkit.entity.Enemy;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.util.RayTraceResult;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.PrepareGrindstoneEvent;
@@ -80,12 +91,50 @@ public class RelicFeature implements Listener {
     private final Map<UUID, BukkitTask> visionTasks = new HashMap<>();
     private final BlockData ghostIceData;
     private final Map<UUID, GhostPatch> ghostIcePatches = new HashMap<>();
+    private final NamespacedKey hellfireKey;
+    private final NamespacedKey excaliburReplicaUsesKey;
+    private final NamespacedKey sixshotAmmoKey;
+    private final NamespacedKey noahsArkKey;
+    private final NamespacedKey excaliburHealthKey;
+    private final NamespacedKey endlessKey;
+    private final NamespacedKey sniperZoomKey;
+    private final NamespacedKey armorPenaltyKey;
+    private final Map<UUID, ClockSnapshot> clockSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Set<UUID> maceAscending = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<UUID> maceAscended = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Long> maceLandingProtectUntil = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> maceLaunchUntil = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Double> maceLastFallSpeed = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> gaybolgCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, UUID> gaybolgDashTargets = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, BukkitTask> gaybolgDashTasks = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburReplicaCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburReviveCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> sniperDrawStart = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<org.bukkit.Location, ItemStack> endlessBrewIngredients = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Set<UUID> arkAscending = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<UUID> arkDescending = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<UUID> excaliburHealthActive = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private record ClockSnapshot(Location location, double health, int food, float saturation,
+                                 int level, float exp, ItemStack[] inventory, int heldSlot,
+                                 java.util.List<org.bukkit.potion.PotionEffect> effects,
+                                 org.bukkit.GameMode gameMode) { }
 
     public RelicFeature(Mifron plugin) {
         this.plugin = plugin;
         this.keyRelic = new NamespacedKey(plugin, "relic_id");
         this.relicGrindstoneKey = new NamespacedKey(plugin, "relic_grindstone");
         this.seaswimSpeedKey = new NamespacedKey(plugin, "seaswim_speed");
+        this.hellfireKey = new NamespacedKey(plugin, "hellfire");
+        this.excaliburReplicaUsesKey = new NamespacedKey(plugin, "excalibur_replica_uses");
+        this.sixshotAmmoKey = new NamespacedKey(plugin, "sixshot_ammo");
+        this.noahsArkKey = new NamespacedKey(plugin, "noahs_ark");
+        this.excaliburHealthKey = new NamespacedKey(plugin, "excalibur_health");
+        this.endlessKey = new NamespacedKey(plugin, "endless");
+        this.sniperZoomKey = new NamespacedKey(plugin, "sniper_zoom_speed");
+        this.armorPenaltyKey = new NamespacedKey(plugin, "armor_movement_penalty");
         this.ghostIceData = Bukkit.createBlockData(Material.BLUE_ICE);
     }
 
@@ -101,6 +150,14 @@ public class RelicFeature implements Listener {
     public void shutdown() {
         if (this.magnetTask != null) { this.magnetTask.cancel(); this.magnetTask = null; }
         if (this.passiveTask != null) { this.passiveTask.cancel(); this.passiveTask = null; }
+        for (BukkitTask task : this.gaybolgDashTasks.values()) task.cancel();
+        this.gaybolgDashTasks.clear();
+        this.gaybolgDashTargets.clear();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            this.clearExcaliburHealth(player);
+            this.removeSniperZoom(player);
+            this.removeArmorMovementPenalty(player);
+        }
         for (java.util.Set<UUID> followers : dragFollowers.values()) {
             for (UUID followerId : followers) this.restoreChainAI(followerId);
         }
@@ -163,28 +220,37 @@ public class RelicFeature implements Listener {
 
     public enum RelicType {
         HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, MaterialRarity.COMMON, RelicPower.MAJOR, "§7ウキを引っ掛けた所へ急接近する。"),
-        ENCHBOOK("enchbook", "§6§l全適用の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.UNCOMMON, RelicPower.MAJOR, "§7右クリックでどんなアイテムにも強力エンチャントを付与できる。"),
         JETPACK("jetpack", "§3§lジェットパック", Material.CHAINMAIL_CHESTPLATE, MaterialRarity.UNCOMMON, RelicPower.MAJOR, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
         ROLLER_SKATES("skates", "§7§lスケートブーツ", Material.IRON_BOOTS, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7足元が青氷のように滑る。スニークでブレーキ。"),
         RESONANCE_CRYSTAL("resonance", "§3§l残響の結晶", Material.ECHO_SHARD, MaterialRarity.RARE, RelicPower.MEDIUM, "§7ウォーデンのソニックビームを放つ。(クールダウン8秒)"),
         FIREBALL("fireball", "§4§lファイアーボール", Material.FIRE_CHARGE, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7ガストの火の玉を撃ち出す。(クールダウン3秒)"),
         DECAYED_SWORD("decayed_sword", "§8§l朽ちた剣", Material.NETHERITE_SWORD, MaterialRarity.LEGENDARY, RelicPower.MAJOR, "§7いつかの勇者の剣。全エンチャントMAXで真価を発揮する。"),
-        ENCHGRIND("enchgrind", "§d§l錬金の砥石", Material.GRINDSTONE, MaterialRarity.COMMON, RelicPower.MAJOR, "§7右クリックで手元のエンチャントを本にして返還する。"),
+        ENCHGRIND("enchgrind", "§d§l金剛の砥石", Material.GRINDSTONE, MaterialRarity.COMMON, RelicPower.MAJOR, "§7右クリックで手元のエンチャントを本にして返還する。"),
         CHAIN("chain", "§8§lサプライズ・チェーン", Material.IRON_CHAIN, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7左クリックで最大30ブロック先のMOBを拘束。再左クリックで解放。右クリックでは外れない。"),
         GIANTCORE("giantcore", "§2§l巨人の心臓", Material.HEAVY_CORE, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで25秒間、巨神サイズに巨大化。"),
         SEASWIM("seaswim", "§3§l空に海写す蒼球", Material.HEART_OF_THE_SEA, MaterialRarity.RARE, RelicPower.MEDIUM, "§7持っている間、空中を泳げる。移動速度は水中泳ぎ相当。スペースで上昇、離すとゆっくり降下。"),
         DASHFOOT("dashfoot", "§7§lバニーホップ", Material.RABBIT_FOOT, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7右クリックで前方へ強くダッシュする。着地するまで再使用不可。"),
         REFLECT("reflect", "§1§l反射の守護盾", Material.SHIELD, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7盾を構えている間、受けた攻撃のダメージを相手に跳ね返す。"),
-        NIGHTCLOCK("nightclock", "§3§l常夜渡りの時計", Material.CLOCK, MaterialRarity.COMMON, RelicPower.MINOR, "§7右クリックで夜をそのまま朝へスキップする。"),
         MAGNET("magnet", "§6§l磁力の石", Material.LODESTONE, MaterialRarity.UNCOMMON, RelicPower.MINOR, "§7持っている間、周囲のアイテムと経験値を強く引き寄せる。右クリックで一気に引き寄せる。"),
         SHRINKSTAR("shrinkstar", "§2§l剝蝕矮星", Material.NETHER_STAR, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで25秒間、小さくなる。狭い隙間も通り抜けられる。"),
-        LIGHTNING("lightning", "§6§l雷鳴の杖", Material.LIGHTNING_ROD, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7右クリックで視線先に落雷を落とす。(クールダウン4秒)"),
+        LIGHTNING("lightning", "§6§l呼雷の銅杖", Material.LIGHTNING_ROD, MaterialRarity.COMMON, RelicPower.MEDIUM, "§7右クリックで視線先に落雷を落とす。射程50ブロック。(クールダウン4秒)"),
         BLINK("blink", "§5§l次元の眼", Material.ENDER_EYE, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7右クリックで前方へ瞬間移動する。(クールダウン3秒)"),
         TOTEM("totem", "§6§l死不知のトーテム", Material.TOTEM_OF_UNDYING, MaterialRarity.RARE, RelicPower.MAJOR, "§7持っている間、耐性と再生を得る。"),
         WITHER("wither", "§8§l凋零の頭骨", Material.WITHER_SKELETON_SKULL, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
-        BELL("bell", "§2§l癒やしの鐘", Material.BELL, MaterialRarity.COMMON, RelicPower.MINOR, "§7右クリックで自分と周囲の味方を回復する。(クールダウン6秒)"),
+        BELL("bell", "§2§lシングル・ベル", Material.BELL, MaterialRarity.COMMON, RelicPower.MINOR, "§7半径10ブロック以内のエンティティを10秒間停止させる。(クールダウン10秒)"),
         DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
-        VISION("vision", "§8§l暗視鏡", Material.SPYGLASS, MaterialRarity.COMMON, RelicPower.MINOR, "§7覗いている間だけ暗視を得る。");
+        VISION("vision", "§8§l暗視鏡", Material.SPYGLASS, MaterialRarity.COMMON, RelicPower.MINOR, "§7覗いている間だけ暗視を得る。"),
+        TIME_CLOCK("time_clock", "§b§lときを刻む時計", Material.CLOCK, MaterialRarity.COMMON, RelicPower.MINOR, "§7右クリックで現在の状態を保存し、もう一度でその状態へ戻る。"),
+        ANTIGRAVITY_MACE("antigravity_mace", "§9§l反重力戦鎚", Material.MACE, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで上昇する。落下速度に応じて周囲を吹き飛ばす。"),
+        ANCIENT_SLASH_ARMOR("ancient_slash_armor", "§4§l古代の斬鎧", Material.NETHERITE_CHESTPLATE, MaterialRarity.RARE, RelicPower.MAJOR, "§7攻撃を受けると周囲5ブロックへ5ダメージの斬撃を放つ。"),
+        HELLFIRE_BOOK("hellfire_book", "§c§l獄炎の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.UNCOMMON, RelicPower.MAJOR, "§7金床で武器に「獄炎」を付与する。"),
+        ENDLESS_GRIMOIRE("endless_grimoire", "§d§l無尽の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.EPIC, RelicPower.MAJOR, "§7金床でどんなアイテムにも「無尽」を付与する。"),
+        ANCIENT_ANVIL("ancient_anvil", "§6§l古匠の金床", Material.ANVIL, MaterialRarity.EPIC, RelicPower.MEDIUM, "§7あらゆるアイテムに全エンチャントを付与できる。XP・MP不要、修繕ボーナス+50%。"),
+        GAYBOLG("gaybolg", "§5§lゲイ・ボルグ", Material.DIAMOND_SPEAR, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで最も近い敵を追尾して突進。攻撃射程50ブロック、距離でダメージ増加。(クールダウン10秒)"),
+        EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
+        SIXSHOT_CROSSBOW("sixshot_crossbow", "§8§l六連装弩弓", Material.CROSSBOW, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7最大6連射のリボルバー式クロスボウ。リロード速度80%、ダメージ120%。"),
+        SNIPER_BOW("sniper_bow", "§2§l狙撃弓", Material.BOW, MaterialRarity.RARE, RelicPower.MEDIUM, "§7引き絞り2倍、ダメージ5倍、矢は貫通して直進する。"),
+        NOAHS_ARK("noahs_ark", "§3§lノアの方舟", Material.PALE_OAK_BOAT, MaterialRarity.RARE, RelicPower.MEDIUM, "§7空を飛べる高速な船。");
 
         public final String id;
         public final String displayName;
@@ -214,10 +280,18 @@ public class RelicFeature implements Listener {
             // no gradient/effects, just one dignified title colour.
             meta.displayName(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
                 .legacySection().deserialize(type.displayName));
-            meta.setUnbreakable(true);
             List<String> lore = new ArrayList<>();
             lore.add(type.description);
             lore.add("§8レリック");
+            if (this.plugin.getConfig().getBoolean("relic-durability.enabled", true)) {
+                if (meta instanceof Damageable damageable) {
+                    damageable.setUnbreakable(false);
+                    damageable.setMaxDamage(this.relicMaxDurability(type));
+                    damageable.setDamage(0);
+                }
+            } else {
+                meta.setUnbreakable(true);
+            }
             meta.setLore(lore);
             meta.setEnchantmentGlintOverride(true);
             meta.getPersistentDataContainer().set(keyRelic, PersistentDataType.STRING, type.id);
@@ -226,14 +300,90 @@ public class RelicFeature implements Listener {
         return item;
     }
 
+    private int relicMaxDurability(RelicType type) {
+        int fallback = Math.max(1, this.plugin.getConfig().getInt("relic-durability.max-durability", 500));
+        int configured = this.plugin.getConfig().getInt("relic-durability.per-relic." + type.id, fallback);
+        return Math.max(1, Math.min(32767, configured));
+    }
+
+    private int relicDurabilityLossOnUse() {
+        return Math.max(0, this.plugin.getConfig().getInt("relic-durability.durability-loss-on-use", 1));
+    }
+
+    /**
+     * Applies configured wear to a relic. Returns true when the item broke and
+     * was removed, so an action can stop before using a destroyed relic.
+     */
+    boolean damageRelic(Player player, ItemStack item, int amount) {
+        if (player == null || item == null || amount <= 0) return false;
+        if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) return false;
+        if (!this.plugin.getConfig().getBoolean("relic-durability.enabled", true)) return false;
+        if (this.hasEndless(item)) return false;
+        if (!(item.getItemMeta() instanceof Damageable damageable)) return false;
+        int maximum = damageable.hasMaxDamage() ? damageable.getMaxDamage() : item.getType().getMaxDurability();
+        if (maximum <= 0) return false;
+        int next = Math.min(maximum, damageable.getDamage() + amount);
+        damageable.setDamage(next);
+        item.setItemMeta(damageable);
+        // PlayerInteractEvent may hand out a copy; write the worn item back.
+        // Avoid replacing an item that is already the live inventory object,
+        // because that can interrupt a spear/bow use animation mid-stance.
+        String materialName = item.getType().name();
+        if (materialName.endsWith("_HELMET")) {
+            if (player.getInventory().getHelmet() != item) player.getInventory().setHelmet(item);
+        } else if (materialName.endsWith("_CHESTPLATE") || item.getType() == Material.ELYTRA) {
+            if (player.getInventory().getChestplate() != item) player.getInventory().setChestplate(item);
+        } else if (materialName.endsWith("_LEGGINGS")) {
+            if (player.getInventory().getLeggings() != item) player.getInventory().setLeggings(item);
+        } else if (materialName.endsWith("_BOOTS")) {
+            if (player.getInventory().getBoots() != item) player.getInventory().setBoots(item);
+        } else if (this.getRelicId(player.getInventory().getItemInMainHand()) != null) {
+            if (player.getInventory().getItemInMainHand() != item) player.getInventory().setItemInMainHand(item);
+        } else {
+            if (player.getInventory().getItemInOffHand() != item) player.getInventory().setItemInOffHand(item);
+        }
+        if (next < maximum) return false;
+        this.removeOneMatching(player, item);
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1.0f, 0.9f);
+        player.sendActionBar(ChatColor.RED + "レリックの耐久値が尽きた。");
+        return true;
+    }
+
     public void handleCommand(CommandSender sender, String[] args) {
+        if (sender == null) return;
+        if (!(sender instanceof org.bukkit.command.ConsoleCommandSender)
+            && !sender.isOp() && !sender.hasPermission("mifron.admin")) {
+            sender.sendMessage("§cOP権限が必要です。");
+            return;
+        }
         if (args.length < 2) {
-            sender.sendMessage("§e/mf relic <id> [player]");
+            sender.sendMessage("§e/mf relic <id|all> [player]");
             sender.sendMessage("§7IDs: " + String.join(", ", java.util.Arrays.stream(RelicType.values()).map(t -> t.id).toList()));
             return;
         }
+        Player target = sender instanceof Player player ? player : null;
+        if (target == null && args.length >= 3) {
+            target = Bukkit.getPlayerExact(args[2]);
+        }
+        if (target == null) {
+            sender.sendMessage("§cPlayer not found.");
+            return;
+        }
+        String raw = args[1].toLowerCase(java.util.Locale.ROOT);
+        if ("all".equals(raw)) {
+            int given = 0;
+            for (RelicType candidate : RelicType.values()) {
+                ItemStack item = createRelicItem(candidate);
+                for (ItemStack leftover : target.getInventory().addItem(item).values()) {
+                    target.getWorld().dropItemNaturally(target.getLocation(), leftover);
+                }
+                given++;
+            }
+            target.sendMessage("§a全レリックを入手しました: " + given + "種");
+            if (sender != target) sender.sendMessage("§a" + target.getName() + " に全レリックを付与しました。");
+            return;
+        }
         RelicType type = null;
-        String raw = args[1].toLowerCase();
         String wanted = raw;
         boolean known = false;
         for (RelicType candidate : RelicType.values()) {
@@ -252,14 +402,6 @@ public class RelicFeature implements Listener {
             sender.sendMessage("§7IDs: " + String.join(", ", java.util.Arrays.stream(RelicType.values()).map(t -> t.id).toList()));
             return;
         }
-        Player target = sender instanceof Player player ? player : null;
-        if (target == null && args.length >= 3) {
-            target = Bukkit.getPlayerExact(args[2]);
-        }
-        if (target == null) {
-            sender.sendMessage("§cPlayer not found.");
-            return;
-        }
         ItemStack item = createRelicItem(type);
         for (ItemStack leftover : target.getInventory().addItem(item).values()) {
             target.getWorld().dropItemNaturally(target.getLocation(), leftover);
@@ -268,6 +410,71 @@ public class RelicFeature implements Listener {
         if (sender != target) {
             sender.sendMessage("§a" + target.getName() + " に " + type.id + " を付与しました。");
         }
+    }
+
+    /** Opens the read-only relic compendium for every player. */
+    public void openCompendium(Player player) {
+        this.openCompendium(player, 0);
+    }
+
+    private static final String COMPENDIUM_TITLE = "\u00a76\u00a7lレリック図鑑";
+    private static final int COMPENDIUM_PAGE_SIZE = 45;
+
+    private void openCompendium(Player player, int requestedPage) {
+        RelicType[] types = RelicType.values();
+        int pages = Math.max(1, (types.length + COMPENDIUM_PAGE_SIZE - 1) / COMPENDIUM_PAGE_SIZE);
+        int page = Math.max(0, Math.min(pages - 1, requestedPage));
+        Inventory inventory = Bukkit.createInventory(player, 54, COMPENDIUM_TITLE);
+        int start = page * COMPENDIUM_PAGE_SIZE;
+        int end = Math.min(types.length, start + COMPENDIUM_PAGE_SIZE);
+        int slot = 0;
+        for (int i = start; i < end; i++) {
+            RelicType type = types[i];
+            ItemStack display = createRelicItem(type);
+            ItemMeta meta = display.getItemMeta();
+            if (meta != null) {
+                List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
+                lore.add("§8ID: " + type.id);
+                meta.setLore(lore);
+                display.setItemMeta(meta);
+            }
+            inventory.setItem(slot++, display);
+        }
+        while (slot < COMPENDIUM_PAGE_SIZE) inventory.setItem(slot++, this.framePane());
+        for (int i = 45; i < 54; i++) inventory.setItem(i, this.framePane());
+        if (page > 0) {
+            inventory.setItem(45, this.plugin.actionItem(Material.ARROW, "§7◀ 前のページ",
+                List.of("§7ページ " + (page + 1) + " / " + pages), "relic_page", String.valueOf(page - 1)));
+        }
+        inventory.setItem(49, this.plugin.actionItem(Material.BOOK, "§6レリック図鑑",
+            List.of("§7全 " + types.length + " 種", "§7ページ " + (page + 1) + " / " + pages), "relic_page_info", null));
+        if (page + 1 < pages) {
+            inventory.setItem(53, this.plugin.actionItem(Material.ARROW, "§7次のページ ▶",
+                List.of("§7ページ " + (page + 2) + " / " + pages), "relic_page", String.valueOf(page + 1)));
+        }
+        player.openInventory(inventory);
+    }
+
+    @EventHandler
+    public void onCompendiumClick(org.bukkit.event.inventory.InventoryClickEvent event) {
+        if (!COMPENDIUM_TITLE.equals(event.getView().getTitle())) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null) return;
+        if ("relic_page".equals(this.plugin.getUiAction(clicked))) {
+            this.openCompendium(player,
+                this.plugin.parsePositiveInt(this.plugin.getUiTargetString(clicked), 0));
+        }
+    }
+
+    /** True when the player carries the given relic anywhere in the inventory. */
+    public boolean hasRelicInInventory(Player player, String id) {
+        if (player == null || id == null) return false;
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (this.isRelicItem(item) && id.equals(this.getRelicId(item))) return true;
+        }
+        return false;
     }
 
     public boolean isRelicItem(ItemStack item) {
@@ -280,10 +487,69 @@ public class RelicFeature implements Listener {
         return item.getItemMeta().getPersistentDataContainer().get(keyRelic, PersistentDataType.STRING);
     }
 
+    /** True when an item carries the custom Endless (無尽) enchantment. */
+    public boolean hasEndless(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        Byte value = item.getItemMeta().getPersistentDataContainer()
+            .get(this.endlessKey, PersistentDataType.BYTE);
+        return value != null && value != 0;
+    }
+
+    /** Applies Endless to any item and adds its visible lore marker. */
+    public void applyEndless(ItemStack item) {
+        if (item == null || item.getType().isAir()) return;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+        meta.getPersistentDataContainer().set(this.endlessKey, PersistentDataType.BYTE, (byte) 1);
+        List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
+        lore.removeIf(line -> (ChatColor.LIGHT_PURPLE + "無尽").equals(line));
+        lore.add(ChatColor.LIGHT_PURPLE + "無尽");
+        meta.setLore(lore);
+        meta.setEnchantmentGlintOverride(true);
+        item.setItemMeta(meta);
+    }
+
+    private boolean isEndlessGrimoire(ItemStack item) {
+        return item != null && "endless_grimoire".equals(this.getRelicId(item));
+    }
+
+    private void giveOrDrop(Player player, ItemStack item) {
+        if (player == null || item == null || item.getType().isAir() || item.getAmount() <= 0) return;
+        for (ItemStack leftover : player.getInventory().addItem(item.clone()).values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+        }
+    }
+
+    private void removeOneMatching(Player player, ItemStack target) {
+        if (player == null || target == null) return;
+        ItemStack wanted = target.clone();
+        wanted.setAmount(1);
+        for (int i = 0; i < player.getInventory().getSize(); i++) {
+            ItemStack current = player.getInventory().getItem(i);
+            if (current == null || !current.isSimilar(wanted)) continue;
+            if (current.getAmount() <= 1) player.getInventory().setItem(i, null);
+            else current.setAmount(current.getAmount() - 1);
+            return;
+        }
+        for (ItemStack armor : player.getInventory().getArmorContents()) {
+            if (armor == null || !armor.isSimilar(wanted)) continue;
+            if (armor.getAmount() <= 1) {
+                if (armor.getType().name().endsWith("_HELMET")) player.getInventory().setHelmet(null);
+                else if (armor.getType().name().endsWith("_CHESTPLATE")) player.getInventory().setChestplate(null);
+                else if (armor.getType().name().endsWith("_LEGGINGS")) player.getInventory().setLeggings(null);
+                else if (armor.getType().name().endsWith("_BOOTS")) player.getInventory().setBoots(null);
+            } else {
+                armor.setAmount(armor.getAmount() - 1);
+            }
+            return;
+        }
+    }
+
     private void tryTransform(ItemStack item, Player player) {
         if (item == null || isRelicItem(item)) return;
         for (RelicType type : RelicType.values()) {
             if (item.getType() == type.baseMaterial) {
+                if (type == RelicType.HELLFIRE_BOOK && !this.isFireEnchantedBook(item)) continue;
                 if (random.nextDouble() < type.chance) {
                     // Transform exactly one unit: converting the whole stack
                     // would multiply a 64-stack into 64 lottery items.
@@ -305,6 +571,17 @@ public class RelicFeature implements Listener {
                 }
             }
         }
+    }
+
+    /** The hellfire tome only awakens from a Fire Aspect or Flame book. */
+    private boolean isFireEnchantedBook(ItemStack item) {
+        if (item == null || item.getType() != Material.ENCHANTED_BOOK) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta instanceof EnchantmentStorageMeta storage) {
+            return storage.hasStoredEnchant(Enchantment.FIRE_ASPECT)
+                || storage.hasStoredEnchant(Enchantment.FLAME);
+        }
+        return meta != null && (meta.hasEnchant(Enchantment.FIRE_ASPECT) || meta.hasEnchant(Enchantment.FLAME));
     }
 
     @EventHandler
@@ -363,6 +640,108 @@ public class RelicFeature implements Listener {
     private static final double HOOKSHOT_LINE_STEP = 0.45;
     /** Bunny hop stays unavailable until landing; this is only the visual timer. */
     static final int DASH_COOLDOWN_TICKS = 400;
+
+    // Public balance constants for the newer special items. Keeping them here
+    // makes the gameplay and the rule checks share one source of truth.
+    static final int SIXSHOT_MAX_AMMO = 6;
+    static final int VANILLA_CROSSBOW_RELOAD_TICKS = 25;
+    static final double SIXSHOT_RELOAD_SPEED_MULTIPLIER = 0.8;
+    /** 80% of vanilla crossbow reload speed means 25 / 0.8 = 31.25 ticks. */
+    static final int SIXSHOT_RELOAD_TICKS = (int) Math.ceil(
+        VANILLA_CROSSBOW_RELOAD_TICKS / SIXSHOT_RELOAD_SPEED_MULTIPLIER);
+    static final double SIXSHOT_DAMAGE = 7.2;
+    static final int SNIPER_DRAW_TICKS = 40;
+    static final long SNIPER_DRAW_MILLIS = SNIPER_DRAW_TICKS * 50L;
+    static final double SNIPER_DAMAGE = 45.0;
+    static final int SNIPER_PIERCE_LEVEL = 10;
+    /** FOV multiplier at full draw. Lower values zoom in more. */
+    static final double SNIPER_FULL_DRAW_FOV = 0.55;
+    static final double EXCALIBUR_ATTACK_DAMAGE = 50.0;
+    static final double EXCALIBUR_SLASH_DAMAGE = 1000.0;
+    static final double EXCALIBUR_REPLICA_SLASH_DAMAGE = 100.0;
+    static final int EXCALIBUR_REPLICA_USES = 5;
+    static final long EXCALIBUR_COOLDOWN_MILLIS = 30000L;
+    static final long EXCALIBUR_REVIVE_COOLDOWN_MILLIS = 60000L;
+    static final int EXCALIBUR_CHARGE_TICKS = 60;
+    static final double SINGLE_BELL_RADIUS = 10.0;
+    static final int SINGLE_BELL_FREEZE_TICKS = 200;
+    static final long SINGLE_BELL_COOLDOWN_MILLIS = 10000L;
+    static final long GAYBOLG_COOLDOWN_MILLIS = 10000L;
+    static final double GAYBOLG_RANGE = 50.0;
+    static final double GAYBOLG_DASH_SPEED = 3.1;
+    static final int GAYBOLG_DASH_TICKS = 40;
+    static final double GAYBOLG_DASH_ARRIVE_DISTANCE = 1.8;
+    static final long ANCIENT_SLASH_COOLDOWN_MILLIS = 0L;
+    static final double ANCIENT_SLASH_DAMAGE = 5.0;
+    static final double ANCIENT_SLASH_RADIUS = 5.0;
+    static final long MACE_LANDING_PROTECT_MILLIS = 2000L;
+    static final long MACE_LAUNCH_MILLIS = 1200L;
+    static final double MACE_LAUNCH_VELOCITY = 0.9;
+    static final double MACE_CLIMB_SPEED = 1.0;
+    static final double MACE_CLIMB_ACCEL = 0.45;
+    static final double LIGHTNING_STRIKE_RANGE = 50.0;
+    // Common aliases used by balance notes and tests.
+    static final int SIXSHOT_CAPACITY = SIXSHOT_MAX_AMMO;
+    static final int SIXSHOT_RELOAD_TIME_TICKS = SIXSHOT_RELOAD_TICKS;
+    static final double SIXSHOT_DAMAGE_MULTIPLIER = 1.2;
+    static final double SNIPER_DRAW_TIME_MULTIPLIER = 2.0;
+    static final double SNIPER_DAMAGE_MULTIPLIER = 5.0;
+    static final double EXCALIBUR_REPLICA_DAMAGE = EXCALIBUR_REPLICA_SLASH_DAMAGE;
+    static final int EXCALIBUR_REPLICA_MAX_USES = EXCALIBUR_REPLICA_USES;
+    static final double EXCALIBUR_REVIVE_DURABILITY_FRACTION = 0.2;
+    static final double BELL_RADIUS = SINGLE_BELL_RADIUS;
+    static final int BELL_FREEZE_TICKS = SINGLE_BELL_FREEZE_TICKS;
+    static final long BELL_COOLDOWN_MILLIS = SINGLE_BELL_COOLDOWN_MILLIS;
+    static final double MACE_LANDING_RADIUS = 5.0;
+    static final double MACE_ATTACK_RADIUS = 6.0;
+
+    /** Upward speed while the anti-gravity mace is held. */
+    static double maceClimbY(double currentY) {
+        return Math.min(currentY + MACE_CLIMB_ACCEL, MACE_CLIMB_SPEED);
+    }
+
+    /** Knockback strength for a landing, scaling with the fall speed. */
+    static double maceLandingKnockback(double fallSpeed) {
+        return Math.min(2.0, 0.4 + Math.max(0.0, fallSpeed) * 0.8);
+    }
+
+    /** Knockback strength for a successful mace smash, scaling with fall speed. */
+    static double maceAttackKnockback(double fallSpeed) {
+        return Math.min(3.5, 0.8 + Math.max(0.0, fallSpeed) * 1.2);
+    }
+
+    /** One reload loads at most six arrows, capped by the arrows available. */
+    static int sixshotReloadAmount(int availableArrows) {
+        return Math.max(0, Math.min(SIXSHOT_MAX_AMMO, availableArrows));
+    }
+
+    /** The spear deals more damage the farther the target is. */
+    static double gaybolgDamage(double distance) {
+        return Math.min(50.0, 8.0 + Math.max(0.0, distance) * 0.8);
+    }
+
+    /** FOV multiplier for the sniper bow, from 1.0 at rest to a zoomed value. */
+    static double sniperZoomFactor(long elapsedMillis) {
+        double progress = Math.max(0.0, Math.min(1.0, elapsedMillis / (double) SNIPER_DRAW_MILLIS));
+        // Ease-out keeps the first few ticks subtle and the full draw obvious.
+        double eased = 1.0 - Math.pow(1.0 - progress, 2.0);
+        return 1.0 - (1.0 - SNIPER_FULL_DRAW_FOV) * eased;
+    }
+
+    /**
+     * Vanilla derives FOV from movement speed. A negative speed modifier is
+     * therefore the server-side way to produce the sniper zoom without a
+     * client mod; it is removed as soon as the bow is released.
+     */
+    static double sniperMovementSpeedModifier(double zoomFactor) {
+        return Math.max(-0.9, Math.min(0.0, 2.0 * zoomFactor - 2.0));
+    }
+
+    /** Each worn armor piece slows the player slightly, capped by config. */
+    static double armorMovementPenalty(int pieces, double perPiece, double maxPenalty) {
+        if (pieces <= 0) return 0.0;
+        return -Math.min(Math.abs(maxPenalty), pieces * Math.abs(perPiece));
+    }
     /** A stopped bobber and the block location it hit. */
     private record HookAnchor(Location location, UUID hookId) { }
     private final java.util.Map<java.util.UUID, HookAnchor> hookshotAnchors = new java.util.concurrent.ConcurrentHashMap<>();
@@ -389,6 +768,7 @@ public class RelicFeature implements Listener {
     private final java.util.Map<java.util.UUID, Long> chainToggleMs = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Boolean> chainHadAI = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, ItemStack> lastGrindInput = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, java.util.List<ItemStack>> pendingGrindBooks = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<org.bukkit.Location> relicGrindstoneLocations = new java.util.HashSet<>();
     private org.bukkit.scheduler.BukkitTask dragTask;
     private org.bukkit.scheduler.BukkitTask magnetTask;
@@ -405,6 +785,7 @@ public class RelicFeature implements Listener {
         // Checked before the HAND-only guard so an off-hand spyglass works
         // too; starting a scope task twice is idempotent.
         if ("vision".equals(getRelicId(item)) && event.getAction().isRightClick()) {
+            if (this.damageRelic(player, item, this.relicDurabilityLossOnUse())) return;
             this.startScopedVision(player);
             return;
         }
@@ -413,6 +794,7 @@ public class RelicFeature implements Listener {
         // its 32-block bobber limit) is never used.
         if ("hookshot".equals(getRelicId(item)) && event.getAction().isRightClick()) {
             event.setCancelled(true);
+            if (this.damageRelic(player, item, this.relicDurabilityLossOnUse())) return;
             UUID uuid = player.getUniqueId();
             if (this.hookshotPulls.containsKey(uuid)) {
                 // During a reel: stop where we are, keep inertia, retract.
@@ -438,31 +820,33 @@ public class RelicFeature implements Listener {
         // dispatch (item consumed twice, reward paid twice).
         if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
         long now = System.currentTimeMillis();
+        String id = getRelicId(item);
         Long last = this.lastUseMillis.get(player.getUniqueId());
-        if (last != null && now - last < 500L) {
+        if (!"sixshot_crossbow".equals(id) && last != null && now - last < 500L) {
             event.setCancelled(true);
             return;
         }
         this.lastUseMillis.put(player.getUniqueId(), now);
 
-        String id = getRelicId(item);
         id = this.migrateRelicId(player, item, id);
         if (id == null) return;
         boolean rightClick = event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK;
         if (rightClick) this.plugin.tutorialFeature.onSpecialUse(player);
+        boolean opensAnvil = rightClick && event.getClickedBlock() != null
+            && (event.getClickedBlock().getType() == Material.ANVIL
+                || event.getClickedBlock().getType() == Material.CHIPPED_ANVIL
+                || event.getClickedBlock().getType() == Material.DAMAGED_ANVIL)
+            && ("hellfire_book".equals(id) || "ancient_anvil".equals(id));
+        boolean usesRelic = rightClick || event.getAction() == Action.LEFT_CLICK_AIR
+            || event.getAction() == Action.LEFT_CLICK_BLOCK;
+        if (usesRelic && !opensAnvil && this.damageRelic(player, item, this.relicDurabilityLossOnUse())) return;
 
-        if ("enchbook".equals(id) && rightClick) {
-            event.setCancelled(true);
-            this.openEnchantUi(player);
-        } else if ("resonance".equals(id) && rightClick) {
+        if ("resonance".equals(id) && rightClick) {
             event.setCancelled(true);
             this.tryResonanceBeam(player, item);
         } else if ("fireball".equals(id) && rightClick) {
             event.setCancelled(true);
             this.tryFireball(player, item);
-        } else if ("nightclock".equals(id) && rightClick) {
-            event.setCancelled(true);
-            this.trySkipNight(player);
         } else if ("dashfoot".equals(id) && rightClick && !player.isSneaking()) {
             event.setCancelled(true);
             this.tryDash(player, item);
@@ -490,7 +874,7 @@ public class RelicFeature implements Listener {
             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WITHER_SHOOT, 1.0f, 1.0f);
         } else if ("bell".equals(id) && rightClick) {
             event.setCancelled(true);
-            if (!this.rollingCooldown(player, bellCooldown, 6000L, item)) return;
+            if (!this.rollingCooldown(player, bellCooldown, SINGLE_BELL_COOLDOWN_MILLIS, item)) return;
             this.tryBell(player);
         } else if ("dragonbreath".equals(id) && rightClick) {
             event.setCancelled(true);
@@ -502,15 +886,959 @@ public class RelicFeature implements Listener {
         } else if (("giantcore".equals(id) || "shrinkstar".equals(id)) && rightClick) {
             event.setCancelled(true);
             this.tryResize(player, "giantcore".equals(id), item);
+        } else if ("time_clock".equals(id) && rightClick) {
+            event.setCancelled(true);
+            this.toggleClockSnapshot(player);
+        } else if ("antigravity_mace".equals(id) && rightClick) {
+            event.setCancelled(true);
+            this.startMaceAscension(player);
+        } else if ("gaybolg".equals(id)) {
+            if (rightClick) {
+                // Keep the vanilla spear ready/charging stance alive: only the
+                // left-click ranged attack cancels the interaction.
+                if (!this.rollingCooldown(player, gaybolgCooldown, GAYBOLG_COOLDOWN_MILLIS, item)) return;
+                this.startGaybolgDash(player);
+            } else if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                event.setCancelled(true);
+                this.tryGaybolgRangedAttack(player);
+            }
+        } else if ("sixshot_crossbow".equals(id) && rightClick) {
+            event.setCancelled(true);
+            this.trySixshotCrossbow(player, item);
+        } else if ("sniper_bow".equals(id) && rightClick) {
+            // Do not cancel: vanilla keeps drawing the bow; the shoot event
+            // enforces the doubled draw time and rewrites the arrow.
+            this.startSniperDraw(player);
+        } else if ("excalibur_replica".equals(id) && rightClick) {
+            event.setCancelled(true);
+            this.tryExcaliburReplica(player, item);
+        } else if ("decayed_sword".equals(id) && rightClick && this.isExcalibur(item)) {
+            event.setCancelled(true);
+            this.tryExcaliburSlash(player, item);
+        } else if ("hellfire_book".equals(id) && rightClick) {
+            if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null
+                && (event.getClickedBlock().getType() == Material.ANVIL
+                    || event.getClickedBlock().getType() == Material.CHIPPED_ANVIL
+                    || event.getClickedBlock().getType() == Material.DAMAGED_ANVIL)) {
+                return;
+            }
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.RED + "金床で武器と一緒に合成すると「獄炎」を付与できる。");
+        } else if ("ancient_anvil".equals(id) && rightClick) {
+            if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null
+                && (event.getClickedBlock().getType() == Material.ANVIL
+                    || event.getClickedBlock().getType() == Material.CHIPPED_ANVIL
+                    || event.getClickedBlock().getType() == Material.DAMAGED_ANVIL)) {
+                // Let the normal anvil GUI open; the artisan bonus is applied
+                // by AdvancedAnvilFeature while this relic is in the inventory.
+                return;
+            }
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.GOLD + "古匠の金床をインベントリに入れた状態で金床を使うと、XP・MPなしで全エンチャントと修繕ができる。");
         }
     }
 
-    /** Lightning rod: a damaging strike lands where the player looks. */
+    // ------------------------------------------------------------------
+    // New special items
+    // ------------------------------------------------------------------
+
+    private void toggleClockSnapshot(Player player) {
+        UUID uuid = player.getUniqueId();
+        ClockSnapshot snapshot = this.clockSnapshots.get(uuid);
+        if (snapshot == null) {
+            this.clockSnapshots.put(uuid, this.captureClock(player));
+            player.sendMessage(ChatColor.AQUA + "ときを刻んだ。もう一度右クリックするとこの状態へ戻る。");
+            player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.6f);
+            return;
+        }
+        this.clockSnapshots.remove(uuid);
+        this.restoreClock(player, snapshot);
+        player.sendMessage(ChatColor.AQUA + "刻んだ時点の状態へ戻った。");
+        player.playSound(player.getLocation(), Sound.ITEM_TRIDENT_RETURN, 1.0f, 1.3f);
+    }
+
+    private ClockSnapshot captureClock(Player player) {
+        java.util.List<org.bukkit.potion.PotionEffect> effects = new ArrayList<>();
+        for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
+            effects.add(new org.bukkit.potion.PotionEffect(effect.getType(), effect.getDuration(),
+                effect.getAmplifier(), effect.isAmbient(), effect.hasParticles(), effect.hasIcon()));
+        }
+        ItemStack[] contents = player.getInventory().getContents();
+        ItemStack[] copy = new ItemStack[contents.length];
+        for (int i = 0; i < contents.length; i++) {
+            copy[i] = contents[i] == null ? null : contents[i].clone();
+        }
+        return new ClockSnapshot(player.getLocation().clone(), player.getHealth(), player.getFoodLevel(),
+            player.getSaturation(), player.getLevel(), player.getExp(), copy,
+            player.getInventory().getHeldItemSlot(), effects, player.getGameMode());
+    }
+
+    private void restoreClock(Player player, ClockSnapshot snapshot) {
+        player.teleport(snapshot.location());
+        player.getInventory().setContents(snapshot.inventory());
+        player.getInventory().setHeldItemSlot(snapshot.heldSlot());
+        player.setFoodLevel(snapshot.food());
+        player.setSaturation(snapshot.saturation());
+        player.setLevel(snapshot.level());
+        player.setExp(snapshot.exp());
+        player.setFireTicks(0);
+        for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
+            player.removePotionEffect(effect.getType());
+        }
+        for (org.bukkit.potion.PotionEffect effect : snapshot.effects()) {
+            player.addPotionEffect(effect);
+        }
+        player.setHealth(Math.min(player.getMaxHealth(), Math.max(1.0, snapshot.health())));
+        if (snapshot.gameMode() != null) player.setGameMode(snapshot.gameMode());
+    }
+
+    private LivingEntity findNearestEnemy(Player player, double range) {
+        LivingEntity best = null;
+        double bestDistance = range * range;
+        for (org.bukkit.entity.Entity entity : player.getWorld().getNearbyEntities(player.getLocation(), range, range, range)) {
+            if (!(entity instanceof LivingEntity living) || living == player || living.isDead()) continue;
+            if (!(living instanceof Enemy) && !(living instanceof Player)) continue;
+            if (living instanceof Player other
+                && (other.getGameMode() == org.bukkit.GameMode.SPECTATOR || other.getGameMode() == org.bukkit.GameMode.CREATIVE)) {
+                continue;
+            }
+            double distance = player.getLocation().distanceSquared(living.getLocation());
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = living;
+            }
+        }
+        return best;
+    }
+
+    private void startGaybolgDash(Player player) {
+        LivingEntity target = this.findNearestEnemy(player, GAYBOLG_RANGE);
+        if (target == null) {
+            player.sendMessage(ChatColor.GRAY + "近くに突進できる敵がいない。");
+            return;
+        }
+        UUID uuid = player.getUniqueId();
+        this.stopGaybolgDash(uuid);
+        this.gaybolgDashTargets.put(uuid, target.getUniqueId());
+        this.maceLaunchUntil.remove(uuid);
+        player.setFallDistance(0.0f);
+        this.aimGaybolgDash(player, target);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_RIPTIDE_3, 1.2f, 1.1f);
+        player.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, player.getLocation(), 30, 0.4, 0.3, 0.4, 0.08);
+        int[] ticks = {0};
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            Player current = Bukkit.getPlayer(uuid);
+            if (current == null || !current.isOnline() || current.isDead()
+                || ++ticks[0] > GAYBOLG_DASH_TICKS
+                || !this.holdsRelic(current, "gaybolg")) {
+                this.stopGaybolgDash(uuid);
+                return;
+            }
+            LivingEntity tracked = null;
+            UUID trackedId = this.gaybolgDashTargets.get(uuid);
+            if (trackedId != null && Bukkit.getEntity(trackedId) instanceof LivingEntity living
+                && !living.isDead() && living.getWorld().equals(current.getWorld())) {
+                tracked = living;
+            }
+            if (tracked == null) {
+                tracked = this.findNearestEnemy(current, GAYBOLG_RANGE);
+                if (tracked == null) {
+                    this.stopGaybolgDash(uuid);
+                    return;
+                }
+                this.gaybolgDashTargets.put(uuid, tracked.getUniqueId());
+            }
+            double distance = current.getEyeLocation().distance(tracked.getLocation().add(0.0, tracked.getHeight() / 2.0, 0.0));
+            if (distance <= GAYBOLG_DASH_ARRIVE_DISTANCE) {
+                current.setVelocity(new Vector(0.0, 0.0, 0.0));
+                current.setFallDistance(0.0f);
+                current.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK,
+                    tracked.getLocation().add(0.0, tracked.getHeight() / 2.0, 0.0), 12, 0.4, 0.4, 0.4, 0.0);
+                current.getWorld().playSound(current.getLocation(), Sound.ITEM_TRIDENT_HIT, 1.2f, 1.0f);
+                this.stopGaybolgDash(uuid);
+                return;
+            }
+            this.aimGaybolgDash(current, tracked);
+            current.setFallDistance(0.0f);
+            current.getWorld().spawnParticle(org.bukkit.Particle.CRIT,
+                current.getLocation().add(0.0, 1.0, 0.0), 6, 0.2, 0.2, 0.2, 0.02);
+        }, 1L, 1L);
+        this.gaybolgDashTasks.put(uuid, task);
+    }
+
+    private void aimGaybolgDash(Player player, LivingEntity target) {
+        Vector direction = target.getLocation().add(0.0, target.getHeight() / 2.0, 0.0)
+            .toVector().subtract(player.getEyeLocation().toVector());
+        if (direction.lengthSquared() < 0.01) return;
+        direction.normalize();
+        double speed = GAYBOLG_DASH_SPEED;
+        double y = Math.max(-0.6, Math.min(0.8, direction.getY() * speed));
+        player.setVelocity(direction.multiply(speed).setY(y));
+    }
+
+    private void stopGaybolgDash(UUID uuid) {
+        this.gaybolgDashTargets.remove(uuid);
+        BukkitTask task = this.gaybolgDashTasks.remove(uuid);
+        if (task != null) task.cancel();
+    }
+
+    private void tryGaybolgRangedAttack(Player player) {
+        org.bukkit.Location eye = player.getEyeLocation();
+        Vector direction = eye.getDirection().normalize();
+        RayTraceResult result = player.getWorld().rayTraceEntities(eye, direction, 50.0, 0.7,
+            entity -> entity instanceof LivingEntity && entity != player && !entity.isDead());
+        if (result == null || !(result.getHitEntity() instanceof LivingEntity target)) {
+            player.sendMessage(ChatColor.GRAY + "射程内に敵がいない。");
+            return;
+        }
+        double distance = player.getLocation().distance(target.getLocation());
+        double damage = gaybolgDamage(distance);
+        target.damage(damage, player);
+        target.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK,
+            target.getLocation().add(0.0, target.getHeight() / 2.0, 0.0), 6, 0.4, 0.3, 0.4, 0.0);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_THROW, 1.0f, 1.2f);
+        player.sendActionBar(ChatColor.LIGHT_PURPLE + "ゲイ・ボルグ: " + (int) Math.round(damage) + " ダメージ (" + (int) distance + "m)");
+    }
+
+    private int countArrows(Player player) {
+        int count = 0;
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (item == null) continue;
+            if (item.getType() == Material.ARROW || item.getType() == Material.TIPPED_ARROW
+                || item.getType() == Material.SPECTRAL_ARROW) {
+                count += item.getAmount();
+            }
+        }
+        return count;
+    }
+
+    private void consumeArrows(Player player, int amount) {
+        int remaining = amount;
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int i = 0; i < contents.length && remaining > 0; i++) {
+            ItemStack item = contents[i];
+            if (item == null) continue;
+            if (item.getType() != Material.ARROW && item.getType() != Material.TIPPED_ARROW
+                && item.getType() != Material.SPECTRAL_ARROW) {
+                continue;
+            }
+            int take = Math.min(remaining, item.getAmount());
+            item.setAmount(item.getAmount() - take);
+            if (item.getAmount() <= 0) player.getInventory().setItem(i, null);
+            remaining -= take;
+        }
+    }
+
+    private int sixshotAmmo(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return 0;
+        Integer value = item.getItemMeta().getPersistentDataContainer()
+            .get(this.sixshotAmmoKey, PersistentDataType.INTEGER);
+        return value == null ? 0 : Math.max(0, Math.min(SIXSHOT_MAX_AMMO, value));
+    }
+
+    private void setSixshotAmmo(Player player, ItemStack item, int ammo) {
+        if (item == null || !item.hasItemMeta()) return;
+        ItemMeta meta = item.getItemMeta();
+        meta.getPersistentDataContainer().set(this.sixshotAmmoKey, PersistentDataType.INTEGER,
+            Math.max(0, Math.min(SIXSHOT_MAX_AMMO, ammo)));
+        java.util.List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
+        lore.removeIf(line -> line != null && line.contains("装填"));
+        lore.add(ChatColor.GRAY + "装填: " + ChatColor.YELLOW + Math.max(0, Math.min(SIXSHOT_MAX_AMMO, ammo)) + "/" + SIXSHOT_MAX_AMMO);
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        player.getInventory().setItemInMainHand(item);
+    }
+
+    private void trySixshotCrossbow(Player player, ItemStack item) {
+        int ammo = this.sixshotAmmo(item);
+        if (ammo > 0) {
+            org.bukkit.entity.Arrow arrow = player.launchProjectile(org.bukkit.entity.Arrow.class);
+            arrow.setVelocity(player.getEyeLocation().getDirection().multiply(2.8));
+            arrow.setDamage(SIXSHOT_DAMAGE);
+            arrow.setCritical(true);
+            arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
+            this.setSixshotAmmo(player, item, ammo - 1);
+            player.setCooldown(Material.CROSSBOW, 2);
+            player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_SHOOT, 1.0f, 1.1f);
+            return;
+        }
+        int arrows = this.countArrows(player);
+        if (arrows <= 0) {
+            player.sendMessage(ChatColor.RED + "矢がない。");
+            return;
+        }
+        int load = sixshotReloadAmount(arrows);
+        this.consumeArrows(player, load);
+        player.setCooldown(Material.CROSSBOW, SIXSHOT_RELOAD_TICKS);
+        player.sendActionBar(ChatColor.YELLOW + "六連装弩弓をリロード中...");
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, 1.0f, 1.0f);
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            if (!player.isOnline()) return;
+            ItemStack hand = player.getInventory().getItemInMainHand();
+            if (hand != null && this.isRelicItem(hand) && "sixshot_crossbow".equals(this.getRelicId(hand))) {
+                this.setSixshotAmmo(player, hand, load);
+                player.playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_END, 1.0f, 1.0f);
+                player.sendActionBar(ChatColor.YELLOW + "装填完了: " + load + "/" + SIXSHOT_MAX_AMMO);
+            }
+        }, (long) SIXSHOT_RELOAD_TICKS);
+    }
+
+    private boolean isExcalibur(ItemStack item) {
+        return item != null && this.isRelicItem(item)
+            && "decayed_sword".equals(this.getRelicId(item))
+            && item.getEnchantmentLevel(Enchantment.SMITE) >= 20;
+    }
+
+    private ItemStack findExcalibur(Player player) {
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (this.isExcalibur(item)) return item;
+        }
+        return null;
+    }
+
+    private int replicaUses(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return 5;
+        Integer value = item.getItemMeta().getPersistentDataContainer()
+            .get(this.excaliburReplicaUsesKey, PersistentDataType.INTEGER);
+        return value == null ? 5 : Math.max(0, Math.min(5, value));
+    }
+
+    private void setReplicaUses(Player player, ItemStack item, int uses) {
+        if (item == null || !item.hasItemMeta()) return;
+        ItemMeta meta = item.getItemMeta();
+        meta.getPersistentDataContainer().set(this.excaliburReplicaUsesKey, PersistentDataType.INTEGER,
+            Math.max(0, Math.min(5, uses)));
+        java.util.List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
+        lore.removeIf(line -> line != null && line.contains("残り使用回数"));
+        lore.add(ChatColor.GRAY + "残り使用回数: " + ChatColor.YELLOW + Math.max(0, Math.min(5, uses)) + "/5");
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        player.getInventory().setItemInMainHand(item);
+    }
+
+    private void tryExcaliburSlash(Player player, ItemStack item) {
+        if (!this.rollingCooldown(player, this.excaliburCooldown, EXCALIBUR_COOLDOWN_MILLIS, item)) return;
+        player.sendActionBar(ChatColor.YELLOW + "聖剣の光を溜めている...");
+        player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 1.6f);
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            if (!player.isOnline()) return;
+            ItemStack hand = player.getInventory().getItemInMainHand();
+            if (!this.isExcalibur(hand)) return;
+            this.fireLightSlash(player, EXCALIBUR_SLASH_DAMAGE, 18.0);
+        }, EXCALIBUR_CHARGE_TICKS);
+    }
+
+    private void tryExcaliburReplica(Player player, ItemStack item) {
+        int uses = this.replicaUses(item);
+        if (uses <= 0) {
+            player.sendMessage(ChatColor.GRAY + "このレプリカはもう力を使い切っている。");
+            return;
+        }
+        if (!this.rollingCooldown(player, this.excaliburReplicaCooldown, EXCALIBUR_COOLDOWN_MILLIS, item)) return;
+        player.sendActionBar(ChatColor.YELLOW + "レプリカの光を溜めている...");
+        player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.7f, 1.8f);
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            if (!player.isOnline()) return;
+            ItemStack hand = player.getInventory().getItemInMainHand();
+            if (hand == null || !this.isRelicItem(hand) || !"excalibur_replica".equals(this.getRelicId(hand))) return;
+            int remaining = this.replicaUses(hand);
+            if (remaining <= 0) return;
+            this.setReplicaUses(player, hand, remaining - 1);
+            this.fireLightSlash(player, EXCALIBUR_REPLICA_SLASH_DAMAGE, 18.0);
+        }, EXCALIBUR_CHARGE_TICKS);
+    }
+
+    private void fireLightSlash(Player player, double damage, double range) {
+        Vector direction = player.getEyeLocation().getDirection().normalize();
+        org.bukkit.Location start = player.getEyeLocation();
+        for (double step = 1.0; step <= range; step += 1.0) {
+            org.bukkit.Location point = start.clone().add(direction.clone().multiply(step));
+            point.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, point, 6, 0.2, 0.2, 0.2, 0.01);
+            point.getWorld().spawnParticle(org.bukkit.Particle.FIREWORK, point, 3, 0.2, 0.2, 0.2, 0.01);
+        }
+        for (org.bukkit.entity.Entity entity : player.getWorld().getNearbyEntities(player.getLocation(), range, range, range)) {
+            if (!(entity instanceof LivingEntity living) || living == player || living.isDead()) continue;
+            Vector to = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0)
+                .toVector().subtract(player.getEyeLocation().toVector());
+            if (to.length() > range) continue;
+            if (to.lengthSquared() > 0.01 && to.normalize().dot(direction) < 0.35) continue;
+            living.damage(damage, player);
+            living.setFireTicks(Math.max(living.getFireTicks(), 60));
+            living.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK,
+                living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0), 8, 0.5, 0.4, 0.5, 0.0);
+        }
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.5f, 1.4f);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 1.5f, 1.0f);
+    }
+
+    private boolean hasHellfire(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        Byte value = item.getItemMeta().getPersistentDataContainer()
+            .get(this.hellfireKey, PersistentDataType.BYTE);
+        return value != null && value != 0;
+    }
+
+    private static boolean isWeapon(Material material) {
+        if (material == null) return false;
+        String name = material.name();
+        return name.endsWith("_SWORD") || name.endsWith("_AXE") || name.endsWith("_SPEAR")
+            || name.endsWith("_MACE") || material == Material.TRIDENT || material == Material.BOW
+            || material == Material.CROSSBOW;
+    }
+
+    private void applyExcaliburPassive(Player player) {
+        player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+            org.bukkit.potion.PotionEffectType.SPEED, 60, 2, true, false));
+        player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+            org.bukkit.potion.PotionEffectType.JUMP_BOOST, 60, 2, true, false));
+        player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+            org.bukkit.potion.PotionEffectType.RESISTANCE, 60, 2, true, false));
+        player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+            org.bukkit.potion.PotionEffectType.REGENERATION, 60, 2, true, false));
+        AttributeInstance health = player.getAttribute(Attribute.MAX_HEALTH);
+        if (health == null) return;
+        if (this.excaliburHealthActive.add(player.getUniqueId())) {
+            for (AttributeModifier modifier : new ArrayList<>(health.getModifiers())) {
+                if (this.excaliburHealthKey.equals(modifier.getKey())) {
+                    this.excaliburHealthActive.remove(player.getUniqueId());
+                    break;
+                }
+            }
+        }
+        boolean present = health.getModifiers().stream()
+            .anyMatch(modifier -> this.excaliburHealthKey.equals(modifier.getKey()));
+        if (!present) {
+            health.addModifier(new AttributeModifier(this.excaliburHealthKey, 20.0,
+                AttributeModifier.Operation.ADD_NUMBER, EquipmentSlotGroup.ANY));
+        }
+        // Excalibur is a real, breakable blade once it awakens.
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack item = player.getInventory().getItem(slot);
+            if (!this.isExcalibur(item) || item.getItemMeta() == null) continue;
+            ItemMeta meta = item.getItemMeta();
+            boolean changed = false;
+            if (meta.isUnbreakable()) {
+                meta.setUnbreakable(false);
+                changed = true;
+            }
+            String plain = meta.hasDisplayName()
+                ? net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(meta.displayName())
+                : "";
+            if (!plain.contains("エクスカリバー")) {
+                meta.displayName(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                    .legacySection().deserialize("§6§l聖剣エクスカリバー"));
+                changed = true;
+            }
+            if (changed) {
+                item.setItemMeta(meta);
+                player.getInventory().setItem(slot, item);
+            }
+        }
+    }
+
+    private void clearExcaliburHealth(Player player) {
+        this.excaliburHealthActive.remove(player.getUniqueId());
+        AttributeInstance health = player.getAttribute(Attribute.MAX_HEALTH);
+        if (health == null) return;
+        boolean removed = false;
+        for (AttributeModifier modifier : new ArrayList<>(health.getModifiers())) {
+            if (this.excaliburHealthKey.equals(modifier.getKey())) {
+                health.removeModifier(modifier);
+                removed = true;
+            }
+        }
+        if (removed && player.getHealth() > player.getMaxHealth()) {
+            player.setHealth(player.getMaxHealth());
+        }
+    }
+
+    private void tickNewSpecialItems(Player player) {
+        ItemStack main = player.getInventory().getItemInMainHand();
+        ItemStack off = player.getInventory().getItemInOffHand();
+        if (this.hasHellfire(main) || this.hasHellfire(off)) {
+            player.setFireTicks(Math.max(player.getFireTicks(), 40));
+        }
+        if (this.findExcalibur(player) != null) {
+            this.applyExcaliburPassive(player);
+        } else {
+            this.clearExcaliburHealth(player);
+        }
+        this.tickMace(player);
+        this.tickNoahsArk(player);
+    }
+
+    private void startMaceAscension(Player player) {
+        UUID uuid = player.getUniqueId();
+        long now = System.currentTimeMillis();
+        this.maceAscending.add(uuid);
+        this.maceLaunchUntil.put(uuid, now + MACE_LAUNCH_MILLIS);
+        this.maceAscended.add(uuid);
+        this.maceLastFallSpeed.put(uuid, 0.0);
+        Vector velocity = player.getVelocity();
+        player.setVelocity(new Vector(velocity.getX(),
+            Math.max(MACE_LAUNCH_VELOCITY, velocity.getY()), velocity.getZ()));
+        player.setFallDistance(0.0f);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_MACE_SMASH_AIR, 1.0f, 1.2f);
+        player.getWorld().spawnParticle(org.bukkit.Particle.CLOUD,
+            player.getLocation().add(0.0, 0.2, 0.0), 12, 0.3, 0.1, 0.3, 0.03);
+    }
+
+    private void tickMace(Player player) {
+        UUID uuid = player.getUniqueId();
+        long now = System.currentTimeMillis();
+        Long launchUntil = this.maceLaunchUntil.get(uuid);
+        boolean launchActive = launchUntil != null && now < launchUntil;
+        if (this.maceAscending.contains(uuid) && !player.getCurrentInput().isRight() && !launchActive) {
+            this.maceAscending.remove(uuid);
+        }
+        if (launchUntil != null && !launchActive) this.maceLaunchUntil.remove(uuid);
+        if (this.maceAscending.contains(uuid) || launchActive) {
+            Vector velocity = player.getVelocity();
+            player.setVelocity(new Vector(velocity.getX(), maceClimbY(velocity.getY()), velocity.getZ()));
+            player.setFallDistance(0.0f);
+            this.maceAscended.add(uuid);
+            this.maceLastFallSpeed.put(uuid, 0.0);
+            player.getWorld().spawnParticle(org.bukkit.Particle.CLOUD,
+                player.getLocation().add(0.0, 0.2, 0.0), 3, 0.2, 0.05, 0.2, 0.01);
+            return;
+        }
+        if (this.maceAscended.contains(uuid) && player.isOnGround()) {
+            double fallSpeed = this.maceLastFallSpeed.getOrDefault(uuid, 0.0);
+            this.maceAscended.remove(uuid);
+            this.maceLandingProtectUntil.put(uuid, now + MACE_LANDING_PROTECT_MILLIS);
+            player.setFallDistance(0.0f);
+            this.knockbackAround(player, 5.0, maceLandingKnockback(fallSpeed));
+            player.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION,
+                player.getLocation(), 1, 0.0, 0.0, 0.0, 0.0);
+            player.getWorld().playSound(player.getLocation(), Sound.ITEM_MACE_SMASH_GROUND, 1.0f, 1.0f);
+            return;
+        }
+        if (!player.isOnGround() && player.getVelocity().getY() < 0.0) {
+            this.maceLastFallSpeed.put(uuid, -player.getVelocity().getY());
+        }
+    }
+
+    private void knockbackAround(Player player, double radius, double power) {
+        org.bukkit.Location center = player.getLocation();
+        for (org.bukkit.entity.Entity entity : player.getWorld().getNearbyEntities(center, radius, radius, radius)) {
+            if (entity == player || !(entity instanceof LivingEntity)) continue;
+            Vector away = entity.getLocation().toVector().subtract(center.toVector());
+            if (away.lengthSquared() < 0.01) away = new Vector(0.0, 0.0, 1.0);
+            away.normalize().multiply(power).setY(0.55);
+            entity.setVelocity(away);
+        }
+    }
+
+    private boolean isArk(org.bukkit.entity.Entity entity) {
+        if (!(entity instanceof Boat)) return false;
+        Byte value = entity.getPersistentDataContainer().get(this.noahsArkKey, PersistentDataType.BYTE);
+        return value != null && value != 0;
+    }
+
+    private void tickNoahsArk(Player player) {
+        org.bukkit.entity.Entity vehicle = player.getVehicle();
+        if (!(vehicle instanceof Boat boat) || !this.isArk(boat)) {
+            this.arkAscending.remove(player.getUniqueId());
+            this.arkDescending.remove(player.getUniqueId());
+            return;
+        }
+        Vector velocity = boat.getVelocity();
+        double y;
+        if (this.arkAscending.contains(player.getUniqueId())) {
+            y = Math.min(0.6, velocity.getY() + 0.25);
+        } else if (this.arkDescending.contains(player.getUniqueId())) {
+            y = Math.max(-0.6, velocity.getY() - 0.25);
+        } else {
+            y = Math.max(velocity.getY(), 0.02);
+        }
+        double x = Math.copySign(Math.min(Math.abs(velocity.getX()) * 1.03, 1.6), velocity.getX());
+        double z = Math.copySign(Math.min(Math.abs(velocity.getZ()) * 1.03, 1.6), velocity.getZ());
+        boat.setVelocity(new Vector(x, y, z));
+        boat.setFallDistance(0.0f);
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onHellfireAnvil(org.bukkit.event.inventory.PrepareAnvilEvent event) {
+        org.bukkit.inventory.AnvilInventory inventory = event.getInventory();
+        ItemStack left = inventory.getItem(0);
+        ItemStack right = inventory.getItem(1);
+        if (left == null || right == null) return;
+        if (!this.isRelicItem(right) || !"hellfire_book".equals(this.getRelicId(right))) return;
+        if (!isWeapon(left.getType())) return;
+        ItemStack result = left.clone();
+        ItemMeta meta = result.getItemMeta();
+        if (meta == null) return;
+        meta.getPersistentDataContainer().set(this.hellfireKey, PersistentDataType.BYTE, (byte) 1);
+        java.util.List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
+        lore.removeIf(line -> line != null && line.contains("獄炎"));
+        lore.add(ChatColor.RED + "獄炎");
+        meta.setLore(lore);
+        meta.setEnchantmentGlintOverride(true);
+        result.setItemMeta(meta);
+        event.setResult(result);
+        event.getView().setRepairCost(0);
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onSpecialAttack(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player)) return;
+        if (!(event.getEntity() instanceof LivingEntity target) || target == player) return;
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (this.isExcalibur(hand)) {
+            event.setDamage(Math.max(event.getDamage(), EXCALIBUR_ATTACK_DAMAGE));
+        }
+        if (this.hasHellfire(hand)) {
+            event.setDamage(event.getDamage() + 10.0);
+            target.setFireTicks(Math.max(target.getFireTicks(), 100));
+        }
+        if (this.isRelicItem(hand) && "gaybolg".equals(this.getRelicId(hand))) {
+            double distance = player.getLocation().distance(target.getLocation());
+            event.setDamage(event.getDamage() + Math.min(40.0, distance * 0.8));
+        }
+        if (this.isRelicItem(hand) && "antigravity_mace".equals(this.getRelicId(hand))) {
+            double fallSpeed = this.maceLastFallSpeed.getOrDefault(player.getUniqueId(), 0.0);
+            this.knockbackAround(player, 6.0, maceAttackKnockback(fallSpeed));
+            player.setFallDistance(0.0f);
+        }
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onAncientSlashArmor(org.bukkit.event.entity.EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        org.bukkit.event.entity.EntityDamageEvent.DamageCause cause = event.getCause();
+        if (cause != org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_ATTACK
+            && cause != org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK
+            && cause != org.bukkit.event.entity.EntityDamageEvent.DamageCause.PROJECTILE
+            && cause != org.bukkit.event.entity.EntityDamageEvent.DamageCause.MAGIC) {
+            return;
+        }
+        ItemStack chest = player.getInventory().getChestplate();
+        if (chest == null || !this.isRelicItem(chest) || !"ancient_slash_armor".equals(this.getRelicId(chest))) return;
+        this.damageRelic(player, chest, this.relicDurabilityLossOnUse());
+        org.bukkit.Location center = player.getLocation().add(0.0, 1.0, 0.0);
+        org.bukkit.Particle.DustOptions red =
+            new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(190, 20, 20), 1.1f);
+        // A full visible ring makes the 5-block reach obvious to nearby players.
+        for (int i = 0; i < 96; i++) {
+            double angle = Math.PI * 2.0 * i / 96.0;
+            org.bukkit.Location point = center.clone().add(
+                Math.cos(angle) * ANCIENT_SLASH_RADIUS, 0.0, Math.sin(angle) * ANCIENT_SLASH_RADIUS);
+            player.getWorld().spawnParticle(org.bukkit.Particle.DUST, point, 2, 0.08, 0.15, 0.08, 0.0, red);
+            if (i % 4 == 0) {
+                player.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, point, 1, 0.0, 0.0, 0.0, 0.0);
+            }
+        }
+        for (org.bukkit.entity.Entity entity : player.getWorld().getNearbyEntities(
+            player.getLocation(), ANCIENT_SLASH_RADIUS, ANCIENT_SLASH_RADIUS, ANCIENT_SLASH_RADIUS)) {
+            if (!(entity instanceof LivingEntity living) || living == player || living.isDead()) continue;
+            if (living.getLocation().distanceSquared(player.getLocation()) > ANCIENT_SLASH_RADIUS * ANCIENT_SLASH_RADIUS) continue;
+            living.damage(ANCIENT_SLASH_DAMAGE, player);
+            org.bukkit.Location hit = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
+            living.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, hit, 12, 0.5, 0.4, 0.5, 0.0);
+            living.getWorld().spawnParticle(org.bukkit.Particle.DUST, hit, 18, 0.35, 0.35, 0.35, 0.02, red);
+            living.getWorld().spawnParticle(org.bukkit.Particle.CRIT, hit, 12, 0.25, 0.3, 0.25, 0.12);
+        }
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.4f, 0.7f);
+        player.getWorld().playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 0.5f, 1.6f);
+        player.sendActionBar(ChatColor.RED + "古代の斬鎧: 周囲へ斬撃を放った！");
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onMaceFallDamage(org.bukkit.event.entity.EntityDamageEvent event) {
+        if (event.getCause() != org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL) return;
+        if (!(event.getEntity() instanceof Player player)) return;
+        Long until = this.maceLandingProtectUntil.get(player.getUniqueId());
+        if (until != null && System.currentTimeMillis() < until) {
+            event.setCancelled(true);
+            player.setFallDistance(0.0f);
+        }
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onExcaliburRevive(org.bukkit.event.entity.EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (event.getFinalDamage() < player.getHealth()) return;
+        int excaliburSlot = -1;
+        for (int i = 0; i < player.getInventory().getSize(); i++) {
+            ItemStack candidate = player.getInventory().getItem(i);
+            if (this.isExcalibur(candidate)) {
+                excaliburSlot = i;
+                break;
+            }
+        }
+        if (excaliburSlot < 0) return;
+        ItemStack excalibur = player.getInventory().getItem(excaliburSlot);
+        long now = System.currentTimeMillis();
+        Long last = this.excaliburReviveCooldown.get(player.getUniqueId());
+        if (last != null && now - last < EXCALIBUR_REVIVE_COOLDOWN_MILLIS) return;
+        if (!(excalibur.getItemMeta() instanceof Damageable damageable)) return;
+        int maxDurability = excalibur.getType().getMaxDurability();
+        if (maxDurability <= 0) return;
+        int damage = damageable.getDamage() + Math.max(1, maxDurability / 5);
+        this.excaliburReviveCooldown.put(player.getUniqueId(), now);
+        event.setCancelled(true);
+        player.setHealth(player.getMaxHealth());
+        player.setFireTicks(0);
+        if (damage >= maxDurability) {
+            player.getInventory().setItem(excaliburSlot, null);
+        } else {
+            damageable.setDamage(damage);
+            excalibur.setItemMeta(damageable);
+            player.getInventory().setItem(excaliburSlot, excalibur);
+        }
+        player.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING,
+            player.getLocation().add(0.0, 1.0, 0.0), 80, 0.6, 1.0, 0.6, 0.3);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TOTEM_USE, 1.2f, 1.0f);
+        player.sendMessage(ChatColor.GOLD + "聖剣エクスカリバーがあなたを死から引き戻した。");
+    }
+
+    private void startSniperDraw(Player player) {
+        this.sniperDrawStart.put(player.getUniqueId(), System.currentTimeMillis());
+        this.applySniperZoom(player, 1.0);
+    }
+
+    private void tickSniperDraw(Player player) {
+        UUID uuid = player.getUniqueId();
+        Long start = this.sniperDrawStart.get(uuid);
+        if (start == null) {
+            this.removeSniperZoom(player);
+            return;
+        }
+        ItemStack active = player.getActiveItem();
+        if (active == null || !this.isRelicItem(active) || !"sniper_bow".equals(this.getRelicId(active))) {
+            this.sniperDrawStart.remove(uuid);
+            this.removeSniperZoom(player);
+            return;
+        }
+        this.applySniperZoom(player, sniperZoomFactor(System.currentTimeMillis() - start));
+    }
+
+    private void applySniperZoom(Player player, double zoomFactor) {
+        AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (speed == null) return;
+        double desired = sniperMovementSpeedModifier(zoomFactor);
+        AttributeModifier existing = null;
+        for (AttributeModifier modifier : speed.getModifiers()) {
+            if (this.sniperZoomKey.equals(modifier.getKey())) {
+                existing = modifier;
+                break;
+            }
+        }
+        if (existing != null && Math.abs(existing.getAmount() - desired) < 0.005) return;
+        if (existing != null) speed.removeModifier(existing.getUniqueId());
+        speed.addModifier(new AttributeModifier(this.sniperZoomKey, desired,
+            AttributeModifier.Operation.MULTIPLY_SCALAR_1, EquipmentSlotGroup.ANY));
+    }
+
+    private void removeSniperZoom(Player player) {
+        AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (speed == null) return;
+        for (AttributeModifier modifier : new ArrayList<>(speed.getModifiers())) {
+            if (this.sniperZoomKey.equals(modifier.getKey())) speed.removeModifier(modifier.getUniqueId());
+        }
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)
+    public void onSniperShoot(EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        ItemStack bow = event.getBow();
+        if (bow == null || !this.isRelicItem(bow) || !"sniper_bow".equals(this.getRelicId(bow))) return;
+        this.removeSniperZoom(player);
+        Long start = this.sniperDrawStart.remove(player.getUniqueId());
+        long elapsed = start == null ? Long.MAX_VALUE : System.currentTimeMillis() - start;
+        if (elapsed < SNIPER_DRAW_MILLIS) {
+            event.setCancelled(true);
+            event.setConsumeArrow(false);
+            player.sendActionBar(ChatColor.RED + "狙撃弓は2倍の時間をかけて引き絞る必要がある。");
+            return;
+        }
+        if (event.getProjectile() instanceof AbstractArrow arrow) {
+            arrow.setDamage(Math.max(SNIPER_DAMAGE, arrow.getDamage() * 5.0));
+            arrow.setPierceLevel(SNIPER_PIERCE_LEVEL);
+            arrow.setGravity(false);
+            Vector velocity = arrow.getVelocity();
+            if (velocity.lengthSquared() > 0.01) {
+                arrow.setVelocity(velocity.normalize().multiply(4.0));
+            }
+        }
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 1.0f, 0.7f);
+    }
+
+    @EventHandler
+    public void onNoahsArkPlace(EntityPlaceEvent event) {
+        if (event.getPlayer() == null) return;
+        ItemStack item = event.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND
+            ? event.getPlayer().getInventory().getItemInOffHand()
+            : event.getPlayer().getInventory().getItemInMainHand();
+        if (!this.isRelicItem(item) || !"noahs_ark".equals(this.getRelicId(item))) return;
+        if (!(event.getEntity() instanceof Boat boat)) return;
+        boat.getPersistentDataContainer().set(this.noahsArkKey, PersistentDataType.BYTE, (byte) 1);
+        boat.setMaxSpeed(2.0);
+        boat.setWorkOnLand(true);
+        event.getPlayer().sendMessage(ChatColor.AQUA + "ノアの方舟を出航させた。ジャンプで上昇、スニークで下降。");
+    }
+
+    // ------------------------------------------------------------------
+    // Endless (無尽): a custom enchantment that prevents its item from ever
+    // being consumed. The grimoire applies it through the anvil.
+    // ------------------------------------------------------------------
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)
+    public void onEndlessBrewingFuel(BrewingStandFuelEvent event) {
+        if (!this.hasEndless(event.getFuel())) return;
+        event.setConsuming(false);
+        event.setFuelPower(Math.max(20, event.getFuelPower()));
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)
+    public void onEndlessFurnaceBurn(FurnaceBurnEvent event) {
+        if (!this.hasEndless(event.getFuel())) return;
+        event.setConsumeFuel(false);
+        event.setBurning(true);
+        event.setBurnTime(Math.max(event.getBurnTime(), 1200));
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEndlessCraft(CraftItemEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!(event.getInventory() instanceof org.bukkit.inventory.CraftingInventory inventory)) return;
+        java.util.Map<Integer, ItemStack> restore = new java.util.HashMap<>();
+        for (int i = 1; i < inventory.getSize(); i++) {
+            ItemStack slot = inventory.getItem(i);
+            if (this.hasEndless(slot)) restore.put(i, slot.clone());
+        }
+        if (restore.isEmpty()) return;
+        Bukkit.getScheduler().runTask(this.plugin, () -> {
+            for (java.util.Map.Entry<Integer, ItemStack> entry : restore.entrySet()) {
+                ItemStack original = entry.getValue();
+                if (inventory.getViewers().contains(player)) {
+                    ItemStack current = inventory.getItem(entry.getKey());
+                    if (current == null || current.getType().isAir() || current.getAmount() < original.getAmount()) {
+                        inventory.setItem(entry.getKey(), original);
+                    }
+                } else {
+                    this.giveOrDrop(player, original);
+                }
+            }
+        });
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEndlessSmelt(org.bukkit.event.inventory.FurnaceSmeltEvent event) {
+        ItemStack source = event.getSource();
+        if (!this.hasEndless(source)) return;
+        ItemStack keep = source.clone();
+        org.bukkit.block.Block block = event.getBlock();
+        Bukkit.getScheduler().runTask(this.plugin, () -> {
+            if (!(block.getState() instanceof org.bukkit.block.Furnace furnace)) return;
+            org.bukkit.inventory.FurnaceInventory inventory = furnace.getInventory();
+            ItemStack current = inventory.getSmelting();
+            if (current == null || current.getType().isAir() || current.getAmount() < keep.getAmount()) {
+                inventory.setSmelting(keep);
+            }
+        });
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEndlessBlockPlace(BlockPlaceEvent event) {
+        ItemStack item = event.getItemInHand();
+        if (!this.hasEndless(item)) return;
+        Player player = event.getPlayer();
+        if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) return;
+        ItemStack keep = item.clone();
+        keep.setAmount(1);
+        Bukkit.getScheduler().runTask(this.plugin, () -> this.giveOrDrop(player, keep));
+    }
+
+    private static final java.util.Set<Material> ENDLESS_THROWABLES = java.util.Set.of(
+        Material.SNOWBALL, Material.EGG, Material.ENDER_PEARL, Material.EXPERIENCE_BOTTLE,
+        Material.WIND_CHARGE, Material.FIREWORK_ROCKET, Material.SPLASH_POTION,
+        Material.LINGERING_POTION);
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEndlessTrialKey(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK && event.getAction() != Action.RIGHT_CLICK_AIR) return;
+        ItemStack item = event.getItem();
+        if (!this.hasEndless(item)) return;
+        Material type = item.getType();
+        boolean trialKey = type == Material.TRIAL_KEY || type == Material.OMINOUS_TRIAL_KEY;
+        if (trialKey) {
+            if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
+                || event.getClickedBlock().getType() != Material.VAULT) return;
+        } else if (!ENDLESS_THROWABLES.contains(type)) {
+            return;
+        }
+        if (event.useItemInHand() == org.bukkit.event.Event.Result.DENY) return;
+        Player player = event.getPlayer();
+        if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) return;
+        ItemStack keep = item.clone();
+        keep.setAmount(1);
+        Bukkit.getScheduler().runTask(this.plugin, () -> this.giveOrDrop(player, keep));
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onEndlessArrow(EntityShootBowEvent event) {
+        if (this.hasEndless(event.getArrowItem()) || this.hasEndless(event.getConsumable())) {
+            event.setConsumeArrow(false);
+            event.setConsumeItem(false);
+        }
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onEndlessDurability(org.bukkit.event.player.PlayerItemDamageEvent event) {
+        if (this.hasEndless(event.getItem())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onEndlessBreak(org.bukkit.event.player.PlayerItemBreakEvent event) {
+        ItemStack broken = event.getBrokenItem();
+        if (!this.hasEndless(broken)) return;
+        ItemStack keep = broken.clone();
+        if (keep.getItemMeta() instanceof Damageable damageable) {
+            damageable.setDamage(0);
+            keep.setItemMeta(damageable);
+        }
+        Bukkit.getScheduler().runTask(this.plugin, () -> this.giveOrDrop(event.getPlayer(), keep));
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEndlessConsume(org.bukkit.event.player.PlayerItemConsumeEvent event) {
+        ItemStack item = event.getItem();
+        if (!this.hasEndless(item)) return;
+        ItemStack keep = item.clone();
+        keep.setAmount(1);
+        Bukkit.getScheduler().runTask(this.plugin, () -> this.giveOrDrop(event.getPlayer(), keep));
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onEndlessBrewStart(org.bukkit.event.block.BrewingStartEvent event) {
+        if (!(event.getBlock().getState() instanceof org.bukkit.block.BrewingStand stand)) return;
+        ItemStack ingredient = stand.getInventory().getIngredient();
+        if (this.hasEndless(ingredient)) {
+            this.endlessBrewIngredients.put(event.getBlock().getLocation(), ingredient.clone());
+        }
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onEndlessBrew(org.bukkit.event.inventory.BrewEvent event) {
+        ItemStack keep = this.endlessBrewIngredients.remove(event.getBlock().getLocation());
+        if (keep == null) return;
+        org.bukkit.block.Block block = event.getBlock();
+        Bukkit.getScheduler().runTask(this.plugin, () -> {
+            if (block.getState() instanceof org.bukkit.block.BrewingStand stand) {
+                stand.getInventory().setIngredient(keep);
+            }
+        });
+    }
+
+    /** Calling-thunder copper staff: a long-range strike where the player looks. */
     private void tryLightning(Player player) {
-        org.bukkit.block.Block target = player.getTargetBlockExact(30);
+        int range = (int) LIGHTNING_STRIKE_RANGE;
+        org.bukkit.block.Block target = player.getTargetBlockExact(range);
         org.bukkit.Location loc = target != null
             ? target.getLocation().add(0.5, 1.0, 0.5)
-            : player.getEyeLocation().add(player.getEyeLocation().getDirection().multiply(10));
+            : player.getEyeLocation().add(player.getEyeLocation().getDirection().multiply(range));
         player.getWorld().strikeLightningEffect(loc);
         player.getWorld().playSound(loc, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 3.0f, 1.0f);
         java.util.Set<java.util.UUID> hit = new java.util.HashSet<>();
@@ -545,20 +1873,20 @@ public class RelicFeature implements Listener {
         player.getWorld().playSound(dest, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
     }
 
-    /** Healing bell: heals the user and nearby players, granting regen. */
+    /** Single bell: freezes entities within 10 blocks for 10 seconds. */
     private void tryBell(Player player) {
-        this.healWithBell(player);
-        for (org.bukkit.entity.Entity e : player.getNearbyEntities(10, 10, 10)) {
-            if (e instanceof Player other && other != player) this.healWithBell(other);
+        for (org.bukkit.entity.Entity e : player.getNearbyEntities(SINGLE_BELL_RADIUS, SINGLE_BELL_RADIUS, SINGLE_BELL_RADIUS)) {
+            if (e instanceof org.bukkit.entity.LivingEntity living && living != player) {
+                living.setAI(false);
+                living.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+                Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+                    if (living.isValid()) living.setAI(true);
+                }, SINGLE_BELL_FREEZE_TICKS);
+            }
         }
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.2f, 1.4f);
-        player.getWorld().spawnParticle(org.bukkit.Particle.HEART, player.getLocation().add(0.0, 1.5, 0.0), 10, 0.5, 0.5, 0.5, 0.0);
-    }
-
-    private void healWithBell(Player target) {
-        target.setHealth(Math.min(target.getMaxHealth(), target.getHealth() + 14.0));
-        target.addPotionEffect(new org.bukkit.potion.PotionEffect(
-            org.bukkit.potion.PotionEffectType.REGENERATION, 120, 2, true, false));
+        player.getWorld().spawnParticle(org.bukkit.Particle.SNOWFLAKE, player.getLocation().add(0.0, 1.0, 0.0), 30, 5, 1, 5, 0.0);
+        player.sendMessage(ChatColor.AQUA + "周囲のエンティティを停止させた。");
     }
 
     /** Dragon breath: a cone of damaging breath particles. */
@@ -610,7 +1938,6 @@ public class RelicFeature implements Listener {
     // ------------------------------------------------------------------
 
     private static final Map<String, String> LEGACY_RELIC_IDS = Map.of(
-        "scratch", "enchbook",
         "recall", "enchgrind",
         "phoenix", "giantcore",
         "tide", "seaswim",
@@ -626,6 +1953,9 @@ public class RelicFeature implements Listener {
      */
     private String migrateRelicId(Player player, ItemStack item, String id) {
         if (id == null) return null;
+        // Awakened Excalibur intentionally has a different display name and
+        // must never be reset to the plain decayed sword.
+        if ("decayed_sword".equals(id) && item.getEnchantmentLevel(Enchantment.SMITE) >= 20) return id;
         for (RelicType type : RelicType.values()) {
             if (type.id.equals(id)) {
                 // Refresh stale baked names/lore (e.g. renamed or re-styled relics).
@@ -900,6 +2230,17 @@ public class RelicFeature implements Listener {
 
 
     @EventHandler
+    public void onPlaceNonPlaceableRelic(BlockPlaceEvent event) {
+        ItemStack item = event.getItemInHand();
+        if (!isRelicItem(item)) return;
+        String id = getRelicId(item);
+        if ("chain".equals(id) || "magnet".equals(id) || "ancient_anvil".equals(id)) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(ChatColor.RED + "このレリックは設置できません。");
+        }
+    }
+
+    @EventHandler
     public void onPlaceRelicGrindstone(BlockPlaceEvent event) {
         ItemStack item = event.getItemInHand();
         if (!isRelicItem(item) || !"enchgrind".equals(getRelicId(item))) return;
@@ -941,6 +2282,7 @@ public class RelicFeature implements Listener {
         UUID viewerId = viewer.getUniqueId();
         ItemStack last = lastGrindInput.get(viewerId);
         if (last != null && last.isSimilar(input) && last.getEnchantments().equals(input.getEnchantments())) return;
+        java.util.List<ItemStack> books = new java.util.ArrayList<>();
         for (Map.Entry<Enchantment, Integer> entry : input.getEnchantments().entrySet()) {
             ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
             ItemMeta bookMeta = book.getItemMeta();
@@ -950,15 +2292,49 @@ public class RelicFeature implements Listener {
             } else {
                 book.addUnsafeEnchantment(entry.getKey(), entry.getValue());
             }
-            if (viewer instanceof Player player) {
+            books.add(book);
+        }
+        pendingGrindBooks.put(viewerId, books);
+        lastGrindInput.put(viewerId, input.clone());
+        if (viewer instanceof Player player) {
+            player.sendMessage(ChatColor.GREEN + "錬金の砥石がエンチャントを本に戻した！");
+            player.playSound(player.getLocation(), Sound.BLOCK_GRINDSTONE_USE, 1.0f, 1.0f);
+        }
+    }
+
+    @EventHandler
+    public void onGrindstoneResultTake(org.bukkit.event.inventory.InventoryClickEvent event) {
+        if (!(event.getInventory() instanceof GrindstoneInventory inv)) return;
+        org.bukkit.Location loc = inv.getLocation();
+        if (loc == null) return;
+        if (!relicGrindstoneLocations.contains(loc)) return;
+        if (event.getSlot() != 2) return;
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        java.util.List<ItemStack> books = pendingGrindBooks.remove(player.getUniqueId());
+        if (books == null || books.isEmpty()) {
+            ItemStack input = inv.getItem(0);
+            if (input != null && !input.getEnchantments().isEmpty()) {
+                books = new java.util.ArrayList<>();
+                for (Map.Entry<Enchantment, Integer> entry : input.getEnchantments().entrySet()) {
+                    ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
+                    ItemMeta bookMeta = book.getItemMeta();
+                    if (bookMeta instanceof EnchantmentStorageMeta storage) {
+                        storage.addStoredEnchant(entry.getKey(), entry.getValue(), true);
+                        book.setItemMeta(storage);
+                    } else {
+                        book.addUnsafeEnchantment(entry.getKey(), entry.getValue());
+                    }
+                    books.add(book);
+                }
+            }
+        }
+        if (books != null) {
+            for (ItemStack book : books) {
                 for (ItemStack leftover : player.getInventory().addItem(book).values()) {
                     player.getWorld().dropItemNaturally(player.getLocation(), leftover);
                 }
             }
-        }
-        lastGrindInput.put(viewerId, input.clone());
-        if (viewer instanceof Player player) {
-            player.sendMessage(ChatColor.GREEN + "錬金の砥石がエンチャントを本に戻した！");
+            player.sendMessage(ChatColor.GREEN + "金剛の砥石がエンチャントを本に戻した！");
             player.playSound(player.getLocation(), Sound.BLOCK_GRINDSTONE_USE, 1.0f, 1.0f);
         }
     }
@@ -1522,6 +2898,9 @@ public class RelicFeature implements Listener {
     private void tickPassive() {
         for (Player p : Bukkit.getOnlinePlayers()) {
             this.tickDashGrounding(p);
+            this.tickNewSpecialItems(p);
+            this.tickSniperDraw(p);
+            this.tickArmorMovementPenalty(p);
             if (this.holdsRelic(p, "totem")) {
                 org.bukkit.potion.PotionEffect resist = p.getPotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE);
                 if (resist == null || resist.getDuration() <= 20) {
@@ -1606,6 +2985,42 @@ public class RelicFeature implements Listener {
             speed.removeModifier(this.seaswimSpeedKey);
         } catch (NoSuchMethodError ignored) {
             // Older API: the UUID removal above is the only option.
+        }
+    }
+
+    private void tickArmorMovementPenalty(Player player) {
+        AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (speed == null) return;
+        boolean enabled = this.plugin.getConfig().getBoolean("armor-movement-penalty.enabled", true);
+        int pieces = 0;
+        if (enabled) {
+            for (ItemStack armor : player.getInventory().getArmorContents()) {
+                if (armor != null && !armor.getType().isAir() && armor.getAmount() > 0) pieces++;
+            }
+        }
+        double perPiece = this.plugin.getConfig().getDouble("armor-movement-penalty.per-piece", 0.02);
+        double maxPenalty = this.plugin.getConfig().getDouble("armor-movement-penalty.max-penalty", 0.08);
+        double desired = armorMovementPenalty(pieces, perPiece, maxPenalty);
+        AttributeModifier existing = null;
+        for (AttributeModifier modifier : speed.getModifiers()) {
+            if (this.armorPenaltyKey.equals(modifier.getKey())) {
+                existing = modifier;
+                break;
+            }
+        }
+        if (existing != null && Math.abs(existing.getAmount() - desired) < 0.0001) return;
+        if (existing != null) speed.removeModifier(existing.getUniqueId());
+        if (desired < 0.0) {
+            speed.addModifier(new AttributeModifier(this.armorPenaltyKey, desired,
+                AttributeModifier.Operation.MULTIPLY_SCALAR_1, EquipmentSlotGroup.ANY));
+        }
+    }
+
+    private void removeArmorMovementPenalty(Player player) {
+        AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (speed == null) return;
+        for (AttributeModifier modifier : new ArrayList<>(speed.getModifiers())) {
+            if (this.armorPenaltyKey.equals(modifier.getKey())) speed.removeModifier(modifier.getUniqueId());
         }
     }
 
@@ -1863,6 +3278,10 @@ public class RelicFeature implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
         this.stopScopedVision(uuid);
+        this.stopGaybolgDash(uuid);
+        this.sniperDrawStart.remove(uuid);
+        this.removeSniperZoom(event.getPlayer());
+        this.removeArmorMovementPenalty(event.getPlayer());
         this.clearGhostIce(uuid);
         event.getPlayer().setSwimming(false);
         if (event.getPlayer().getPose() == org.bukkit.entity.Pose.SWIMMING) {
@@ -1907,6 +3326,10 @@ public class RelicFeature implements Listener {
     private void resetSeaswimState(Player player) {
         UUID uuid = player.getUniqueId();
         this.clearHookshotAnchor(player);
+        this.stopGaybolgDash(uuid);
+        this.sniperDrawStart.remove(uuid);
+        this.removeSniperZoom(player);
+        this.removeArmorMovementPenalty(player);
         seaswimActive.remove(uuid);
         seaswimAirborne.remove(uuid);
         seaswimRising.remove(uuid);
@@ -1948,6 +3371,25 @@ public class RelicFeature implements Listener {
             seaswimRising.remove(player.getUniqueId());
         } else {
             seaswimRising.remove(player.getUniqueId());
+        }
+        // Anti-gravity mace: right click (the use button) is held to rise.
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        boolean mace = this.isRelicItem(mainHand) && "antigravity_mace".equals(this.getRelicId(mainHand));
+        if (mace && event.getInput().isRight()) {
+            this.maceAscending.add(player.getUniqueId());
+        } else {
+            this.maceAscending.remove(player.getUniqueId());
+        }
+        // Noah's Ark: jump ascends, sneak descends while riding the boat.
+        org.bukkit.entity.Entity vehicle = player.getVehicle();
+        if (vehicle instanceof Boat boat && this.isArk(boat)) {
+            if (event.getInput().isJump()) this.arkAscending.add(player.getUniqueId());
+            else this.arkAscending.remove(player.getUniqueId());
+            if (event.getInput().isSneak()) this.arkDescending.add(player.getUniqueId());
+            else this.arkDescending.remove(player.getUniqueId());
+        } else {
+            this.arkAscending.remove(player.getUniqueId());
+            this.arkDescending.remove(player.getUniqueId());
         }
     }
 

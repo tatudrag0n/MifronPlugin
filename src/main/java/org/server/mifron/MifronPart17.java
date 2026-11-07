@@ -75,6 +75,15 @@ abstract class MifronPart17 extends MifronPart16 {
             if (this.denyUnlessAdmin(sender)) return true;
             this.relicFeature.handleCommand(sender, args);
          }
+         case "relics", "compendium" -> {
+            if (sender instanceof Player relicViewer) this.relicFeature.openCompendium(relicViewer);
+            else {
+               sender.sendMessage("§6レリック一覧:");
+               for (RelicFeature.RelicType type : RelicFeature.RelicType.values()) {
+                  sender.sendMessage("§e" + type.id + " §7- " + org.bukkit.ChatColor.stripColor(type.displayName));
+               }
+            }
+         }
          case "sethub" -> { if (this.isAdminOp(sender)) { this.writeLocation("hub", ((Player) sender).getLocation()); sender.sendMessage("\u00a7a\u4e2d\u592e\u5e83\u5834\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f\u3002"); } }
          case "warning" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleWarningCommand(sender, args); }
          default -> {
@@ -86,7 +95,7 @@ abstract class MifronPart17 extends MifronPart16 {
    }
 
    private void sendMifronHelp(CommandSender sender) {
-      sender.sendMessage(ChatColor.YELLOW + "/mf menu|balance|pay|quest|status|tutorial|guide|protect|vote|refer");
+      sender.sendMessage(ChatColor.YELLOW + "/mf menu|balance|pay|quest|status|tutorial|guide|relics|protect|vote|refer");
       sender.sendMessage(ChatColor.GRAY + "管理: /mf list|merchant|proposal|relic|regen|event|warning|text|structure|kit|...");
    }
 
