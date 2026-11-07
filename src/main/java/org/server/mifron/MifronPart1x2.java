@@ -33,6 +33,7 @@ abstract class MifronPart1x2 extends MifronPart1x1 {
       try { this.menuFanFeature.closeAll(); } catch (Throwable e) { this.getLogger().severe("Failed to close menu fan cleanly."); e.printStackTrace(); }
       try { this.relicFeature.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to shut down relic feature cleanly."); e.printStackTrace(); }
       try { this.relicFeature.clearAllGhostIce(); } catch (Throwable e) { this.getLogger().severe("Failed to melt relic ghost ice cleanly."); e.printStackTrace(); }
+      try { this.eliteMobFeature.shutdown(); } catch (Throwable e) { this.getLogger().severe("Failed to shut down elite mobs cleanly."); e.printStackTrace(); }
       this.mifron().saveData();
       InventoryGroupFeature.shutdown(this);
    }

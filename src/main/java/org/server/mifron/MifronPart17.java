@@ -126,9 +126,8 @@ abstract class MifronPart17 extends MifronPart16 {
          sender.sendMessage("§c不明なモブID: " + args[2]);
          return true;
       }
-      if (type.getEntityClass() == null
-          || !org.bukkit.entity.Monster.class.isAssignableFrom(type.getEntityClass())) {
-         sender.sendMessage("§cエリート化できるモブではありません: " + args[2]);
+      if (!EliteMobFeature.isEliteCandidate(type)) {
+         sender.sendMessage("§cエリート化できる敵モブではありません: " + args[2]);
          return true;
       }
       if (this.mifron().eliteMobFeature.spawnElite(player, type)) {
