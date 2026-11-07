@@ -99,6 +99,11 @@ public class RelicFeature implements Listener {
     private final NamespacedKey endlessKey;
     private final NamespacedKey sniperZoomKey;
     private final NamespacedKey armorPenaltyKey;
+    private final NamespacedKey bundleIdKey;
+    private final java.io.File bundleFile;
+    private final Map<UUID, List<ItemStack>> bundleContents = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, UUID> openBundleViewers = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Integer> bundlePages = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, ClockSnapshot> clockSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<UUID> maceAscended = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final Map<UUID, Long> maceLandingProtectUntil = new java.util.concurrent.ConcurrentHashMap<>();
@@ -132,6 +137,9 @@ public class RelicFeature implements Listener {
         this.endlessKey = new NamespacedKey(plugin, "endless");
         this.sniperZoomKey = new NamespacedKey(plugin, "sniper_zoom_speed");
         this.armorPenaltyKey = new NamespacedKey(plugin, "armor_movement_penalty");
+        this.bundleIdKey = new NamespacedKey(plugin, "bundle_id");
+        this.bundleFile = new java.io.File(plugin.getDataFolder(), "infinite-bundles.yml");
+        this.loadBundles();
         this.ghostIceData = Bukkit.createBlockData(Material.BLUE_ICE);
     }
 
@@ -145,6 +153,7 @@ public class RelicFeature implements Listener {
 
     /** Cancels background tasks owned by this feature. */
     public void shutdown() {
+        this.saveBundles();
         if (this.magnetTask != null) { this.magnetTask.cancel(); this.magnetTask = null; }
         if (this.passiveTask != null) { this.passiveTask.cancel(); this.passiveTask = null; }
         for (BukkitTask task : this.gaybolgDashTasks.values()) task.cancel();
@@ -247,6 +256,7 @@ public class RelicFeature implements Listener {
         EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
         SIXSHOT_CROSSBOW("sixshot_crossbow", "§8§l六連装弩弓", Material.CROSSBOW, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7最大6連射のリボルバー式クロスボウ。リロード速度80%、ダメージ120%。"),
         SNIPER_BOW("sniper_bow", "§2§l狙撃弓", Material.BOW, MaterialRarity.RARE, RelicPower.MEDIUM, "§7溜め時間はバニラ相当、動的FOVズーム、ダメージ5倍、矢は貫通して直進する。"),
+        INFINITE_BUNDLE("infinite_bundle", "§6§l無限のバンドル", Material.BUNDLE, MaterialRarity.EPIC, RelicPower.MAJOR, "§7容量無制限。Shiftクリックで収納し、好きな順番で取り出せる。"),
         NOAHS_ARK("noahs_ark", "§3§lノアの方舟", Material.PALE_OAK_BOAT, MaterialRarity.RARE, RelicPower.MEDIUM, "§7空を飛べる高速な船。");
 
         public final String id;
@@ -280,18 +290,28 @@ public class RelicFeature implements Listener {
             List<String> lore = new ArrayList<>();
             lore.add(type.description);
             lore.add("§8レリック");
-            if (this.plugin.getConfig().getBoolean("relic-durability.enabled", true)) {
-                if (meta instanceof Damageable damageable) {
-                    damageable.setUnbreakable(false);
-                    damageable.setMaxDamage(this.relicMaxDurability(type));
-                    damageable.setDamage(0);
-                }
+            // Only materials with a real durability can safely carry a custom
+            // max_damage component. Applying max_damage to non-damageable items
+            // (boats, blaze powder, books, etc.) produces invalid stacks that
+            // crash the client when they are placed inside a bundle.
+            boolean damageableMaterial = item.getType().getMaxDurability() > 0;
+            if (this.plugin.getConfig().getBoolean("relic-durability.enabled", true) && damageableMaterial
+                && meta instanceof Damageable damageable) {
+                damageable.setUnbreakable(false);
+                damageable.setMaxDamage(this.relicMaxDurability(type));
+                damageable.setDamage(0);
+            } else if (meta instanceof Damageable damageable) {
+                damageable.setUnbreakable(true);
             } else {
                 meta.setUnbreakable(true);
             }
             meta.setLore(lore);
             meta.setEnchantmentGlintOverride(true);
             meta.getPersistentDataContainer().set(keyRelic, PersistentDataType.STRING, type.id);
+            if (type == RelicType.INFINITE_BUNDLE) {
+                meta.getPersistentDataContainer().set(this.bundleIdKey, PersistentDataType.STRING,
+                    UUID.randomUUID().toString());
+            }
             item.setItemMeta(meta);
         }
         return item;
@@ -305,6 +325,23 @@ public class RelicFeature implements Listener {
 
     private int relicDurabilityLossOnUse() {
         return Math.max(0, this.plugin.getConfig().getInt("relic-durability.durability-loss-on-use", 1));
+    }
+
+    /**
+     * Older builds attached max_damage to every relic material. That is
+     * invalid for non-damageable items and makes the client crash when the
+     * stack is stored in a bundle. Strip that component in place.
+     */
+    private boolean normalizeRelicDurability(ItemStack item) {
+        if (item == null || item.getType().getMaxDurability() > 0) return false;
+        if (!(item.getItemMeta() instanceof Damageable damageable)) return false;
+        boolean changed = damageable.hasMaxDamage() || damageable.hasDamage();
+        if (!changed) return false;
+        damageable.setMaxDamage(null);
+        damageable.resetDamage();
+        damageable.setUnbreakable(true);
+        item.setItemMeta(damageable);
+        return true;
     }
 
     /**
@@ -463,6 +500,161 @@ public class RelicFeature implements Listener {
             this.openCompendium(player,
                 this.plugin.parsePositiveInt(this.plugin.getUiTargetString(clicked), 0));
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Infinite bundle relic: file-backed, unlimited storage with a paginated
+    // withdrawal GUI. Shift-click inventory items to store them; click a
+    // stored item to take it back in any order.
+    // ------------------------------------------------------------------
+
+    private static final String BUNDLE_TITLE = "\u00a76\u00a7l無限のバンドル";
+    private static final int BUNDLE_PAGE_SIZE = 45;
+
+    private void loadBundles() {
+        this.bundleContents.clear();
+        if (!this.bundleFile.exists()) return;
+        org.bukkit.configuration.file.YamlConfiguration config =
+            org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(this.bundleFile);
+        org.bukkit.configuration.ConfigurationSection section = config.getConfigurationSection("bundles");
+        if (section == null) return;
+        for (String key : section.getKeys(false)) {
+            try {
+                UUID id = UUID.fromString(key);
+                List<ItemStack> items = new ArrayList<>();
+                for (Object raw : config.getList("bundles." + key, List.of())) {
+                    if (raw instanceof ItemStack stack && stack.getType() != Material.AIR) items.add(stack.clone());
+                }
+                this.bundleContents.put(id, items);
+            } catch (IllegalArgumentException ignored) {
+                // Ignore malformed bundle ids rather than disabling the file.
+            }
+        }
+    }
+
+    private void saveBundles() {
+        try {
+            java.io.File parent = this.bundleFile.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs()) return;
+            org.bukkit.configuration.file.YamlConfiguration config =
+                new org.bukkit.configuration.file.YamlConfiguration();
+            for (Map.Entry<UUID, List<ItemStack>> entry : this.bundleContents.entrySet()) {
+                config.set("bundles." + entry.getKey(), new ArrayList<>(entry.getValue()));
+            }
+            config.save(this.bundleFile);
+        } catch (java.io.IOException error) {
+            this.plugin.getLogger().warning("Failed to save infinite bundle data: " + error.getMessage());
+        }
+    }
+
+    private List<ItemStack> bundleItems(UUID id) {
+        return this.bundleContents.computeIfAbsent(id, ignored -> new ArrayList<>());
+    }
+
+    private UUID bundleId(Player player, ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return UUID.randomUUID();
+        String raw = meta.getPersistentDataContainer().get(this.bundleIdKey, PersistentDataType.STRING);
+        UUID id = null;
+        if (raw != null) {
+            try { id = UUID.fromString(raw); } catch (IllegalArgumentException ignored) { }
+        }
+        if (id == null) {
+            id = UUID.randomUUID();
+            meta.getPersistentDataContainer().set(this.bundleIdKey, PersistentDataType.STRING, id.toString());
+            item.setItemMeta(meta);
+            player.getInventory().setItemInMainHand(item);
+        }
+        return id;
+    }
+
+    private void openBundle(Player player, ItemStack item) {
+        UUID id = this.bundleId(player, item);
+        this.openBundleViewers.put(player.getUniqueId(), id);
+        this.openBundlePage(player, id, 0);
+    }
+
+    private void openBundlePage(Player player, UUID id, int requestedPage) {
+        List<ItemStack> items = this.bundleItems(id);
+        int pages = Math.max(1, (items.size() + BUNDLE_PAGE_SIZE - 1) / BUNDLE_PAGE_SIZE);
+        int page = Math.max(0, Math.min(pages - 1, requestedPage));
+        Inventory inventory = Bukkit.createInventory(player, 54, BUNDLE_TITLE);
+        int start = page * BUNDLE_PAGE_SIZE;
+        for (int slot = 0; slot < BUNDLE_PAGE_SIZE; slot++) {
+            int index = start + slot;
+            if (index < items.size()) inventory.setItem(slot, items.get(index).clone());
+            else inventory.setItem(slot, this.framePane());
+        }
+        for (int slot = 45; slot < 54; slot++) inventory.setItem(slot, this.framePane());
+        if (page > 0) {
+            inventory.setItem(45, this.plugin.actionItem(Material.ARROW, "§7◀ 前のページ",
+                List.of("§7ページ " + (page + 1) + " / " + pages), "bundle_page", String.valueOf(page - 1)));
+        }
+        inventory.setItem(49, this.plugin.actionItem(Material.BUNDLE, "§6無限のバンドル",
+            List.of("§7収納: " + items.size() + "個",
+                "§7ページ " + (page + 1) + " / " + pages,
+                "§eインベントリでShiftクリック → 収納",
+                "§e収納アイテムをクリック → 取り出し",
+                "§7右クリックで1個ずつ取り出し"), "bundle_info", null));
+        if (page + 1 < pages) {
+            inventory.setItem(53, this.plugin.actionItem(Material.ARROW, "§7次のページ ▶",
+                List.of("§7ページ " + (page + 2) + " / " + pages), "bundle_page", String.valueOf(page + 1)));
+        }
+        // Re-open after the previous view's close event so the viewer mapping
+        // survives page changes and item withdrawals.
+        player.openInventory(inventory);
+        this.openBundleViewers.put(player.getUniqueId(), id);
+        this.bundlePages.put(player.getUniqueId(), page);
+    }
+
+    @EventHandler
+    public void onBundleClick(org.bukkit.event.inventory.InventoryClickEvent event) {
+        if (!BUNDLE_TITLE.equals(event.getView().getTitle())) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        UUID bundleId = this.openBundleViewers.get(player.getUniqueId());
+        if (bundleId == null) return;
+        int page = this.bundlePages.getOrDefault(player.getUniqueId(), 0);
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked != null && "bundle_page".equals(this.plugin.getUiAction(clicked))) {
+            this.openBundlePage(player, bundleId,
+                this.plugin.parsePositiveInt(this.plugin.getUiTargetString(clicked), 0));
+            return;
+        }
+        Inventory top = event.getView().getTopInventory();
+        if (event.getClickedInventory() == top) {
+            if (event.getSlot() >= BUNDLE_PAGE_SIZE) return;
+            List<ItemStack> items = this.bundleItems(bundleId);
+            int index = page * BUNDLE_PAGE_SIZE + event.getSlot();
+            if (index < 0 || index >= items.size()) return;
+            ItemStack stored = items.get(index);
+            ItemStack give = stored.clone();
+            if (event.getClick().isRightClick() && give.getAmount() > 1) {
+                give.setAmount(1);
+                stored.setAmount(stored.getAmount() - 1);
+            } else {
+                items.remove(index);
+            }
+            this.giveOrDrop(player, give);
+            this.saveBundles();
+            this.openBundlePage(player, bundleId, page);
+            return;
+        }
+        ItemStack moving = event.getCurrentItem();
+        if (!event.isShiftClick() || moving == null || moving.getType().isAir()) return;
+        if (this.isRelicItem(moving) && "infinite_bundle".equals(this.getRelicId(moving))) return;
+        this.bundleItems(bundleId).add(moving.clone());
+        event.getClickedInventory().setItem(event.getSlot(), null);
+        this.saveBundles();
+        this.openBundlePage(player, bundleId, page);
+    }
+
+    @EventHandler
+    public void onBundleClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
+        if (!BUNDLE_TITLE.equals(event.getView().getTitle())) return;
+        UUID id = this.openBundleViewers.remove(event.getPlayer().getUniqueId());
+        this.bundlePages.remove(event.getPlayer().getUniqueId());
+        if (id != null) this.saveBundles();
     }
 
     /** True when the player carries the given relic anywhere in the inventory. */
@@ -915,8 +1107,11 @@ public class RelicFeature implements Listener {
             this.trySixshotCrossbow(player, item);
         } else if ("sniper_bow".equals(id) && rightClick) {
             // Do not cancel: vanilla keeps drawing the bow; the shoot event
-            // enforces the doubled draw time and rewrites the arrow.
+            // enforces the draw time and rewrites the arrow.
             this.startSniperDraw(player);
+        } else if ("infinite_bundle".equals(id) && rightClick) {
+            event.setCancelled(true);
+            this.openBundle(player, item);
         } else if ("excalibur_replica".equals(id) && rightClick) {
             event.setCancelled(true);
             this.tryExcaliburReplica(player, item);
@@ -1657,7 +1852,7 @@ public class RelicFeature implements Listener {
             }
         }
         if (existing != null && Math.abs(existing.getAmount() - desired) < 0.005) return;
-        if (existing != null) speed.removeModifier(existing.getUniqueId());
+        speed.removeModifier(this.sniperZoomKey);
         speed.addModifier(new AttributeModifier(this.sniperZoomKey, desired,
             AttributeModifier.Operation.MULTIPLY_SCALAR_1, EquipmentSlotGroup.ANY));
     }
@@ -1665,9 +1860,7 @@ public class RelicFeature implements Listener {
     private void removeSniperZoom(Player player) {
         AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
         if (speed == null) return;
-        for (AttributeModifier modifier : new ArrayList<>(speed.getModifiers())) {
-            if (this.sniperZoomKey.equals(modifier.getKey())) speed.removeModifier(modifier.getUniqueId());
-        }
+        speed.removeModifier(this.sniperZoomKey);
     }
 
     @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)
@@ -2009,6 +2202,9 @@ public class RelicFeature implements Listener {
      */
     private String migrateRelicId(Player player, ItemStack item, String id) {
         if (id == null) return null;
+        if (this.normalizeRelicDurability(item)) {
+            player.getInventory().setItemInMainHand(item);
+        }
         // Awakened Excalibur intentionally has a different display name and
         // must never be reset to the plain decayed sword.
         if ("decayed_sword".equals(id) && item.getEnchantmentLevel(Enchantment.SMITE) >= 20) return id;
@@ -3065,7 +3261,7 @@ public class RelicFeature implements Listener {
             }
         }
         if (existing != null && Math.abs(existing.getAmount() - desired) < 0.0001) return;
-        if (existing != null) speed.removeModifier(existing.getUniqueId());
+        speed.removeModifier(this.armorPenaltyKey);
         if (desired < 0.0) {
             speed.addModifier(new AttributeModifier(this.armorPenaltyKey, desired,
                 AttributeModifier.Operation.MULTIPLY_SCALAR_1, EquipmentSlotGroup.ANY));
@@ -3075,9 +3271,7 @@ public class RelicFeature implements Listener {
     private void removeArmorMovementPenalty(Player player) {
         AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
         if (speed == null) return;
-        for (AttributeModifier modifier : new ArrayList<>(speed.getModifiers())) {
-            if (this.armorPenaltyKey.equals(modifier.getKey())) speed.removeModifier(modifier.getUniqueId());
-        }
+        speed.removeModifier(this.armorPenaltyKey);
     }
 
     /** Stable air swim: keep one pose while held; only clamp while airborne. */
@@ -3371,6 +3565,57 @@ public class RelicFeature implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         this.resetSeaswimState(event.getPlayer());
+        this.normalizeInventoryRelics(event.getPlayer());
+    }
+
+    private void normalizeInventoryRelics(Player player) {
+        boolean changed = false;
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack item = player.getInventory().getItem(slot);
+            if (item == null) continue;
+            boolean itemChanged = this.isRelicItem(item) && this.normalizeRelicDurability(item);
+            itemChanged |= this.normalizeStoredRelics(item);
+            if (itemChanged) {
+                player.getInventory().setItem(slot, item);
+                changed = true;
+            }
+        }
+        org.bukkit.inventory.Inventory enderChest = player.getEnderChest();
+        for (int slot = 0; slot < enderChest.getSize(); slot++) {
+            ItemStack item = enderChest.getItem(slot);
+            if (item == null) continue;
+            boolean itemChanged = this.isRelicItem(item) && this.normalizeRelicDurability(item);
+            itemChanged |= this.normalizeStoredRelics(item);
+            if (itemChanged) {
+                enderChest.setItem(slot, item);
+                changed = true;
+            }
+        }
+        if (changed) player.updateInventory();
+    }
+
+    /** Cleans old invalid relic stacks stored inside vanilla bundles. */
+    private boolean normalizeStoredRelics(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (!(meta instanceof org.bukkit.inventory.meta.BundleMeta bundle)) return false;
+        List<ItemStack> contents = new ArrayList<>(bundle.getItems());
+        boolean changed = false;
+        for (int i = 0; i < contents.size(); i++) {
+            ItemStack child = contents.get(i);
+            if (child == null) continue;
+            boolean childChanged = this.isRelicItem(child) && this.normalizeRelicDurability(child);
+            childChanged |= this.normalizeStoredRelics(child);
+            if (childChanged) {
+                contents.set(i, child);
+                changed = true;
+            }
+        }
+        if (changed) {
+            bundle.setItems(contents);
+            item.setItemMeta(bundle);
+        }
+        return changed;
     }
 
     @EventHandler
@@ -3406,9 +3651,13 @@ public class RelicFeature implements Listener {
         ItemStack chest = player.getInventory().getChestplate();
         boolean jetpack = chest != null && isRelicItem(chest) && "jetpack".equals(getRelicId(chest));
         boolean pulling = this.hookshotPulls.containsKey(player.getUniqueId());
+        // Holding the sea heart takes priority over a worn jetpack; otherwise
+        // the jump input that drives air-swimming would trigger the jetpack
+        // and immediately suppress the swim state.
+        boolean seaswim = this.hasSeaswim(player);
         // The hold flags only mark intent: the climb/float itself is applied
         // on every move event so it follows the player smoothly.
-        if (jetpack && !pulling && event.getInput().isJump()) {
+        if (jetpack && !seaswim && !pulling && event.getInput().isJump()) {
             jetpackActive.add(player.getUniqueId());
         } else {
             jetpackActive.remove(player.getUniqueId());

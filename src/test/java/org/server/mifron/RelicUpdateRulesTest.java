@@ -69,6 +69,10 @@ class RelicUpdateRulesTest {
    void relicCatalogReflectsTheNewAndRemovedItems() {
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("endless_grimoire")));
+      assertTrue(Arrays.stream(RelicFeature.RelicType.values())
+         .anyMatch(type -> type.id.equals("infinite_bundle")));
+      assertTrue(Arrays.stream(RelicFeature.RelicType.values())
+         .anyMatch(type -> type.id.equals("ancient_slash_armor")));
       assertFalse(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("infinite_blaze")));
       assertTrue(RelicFeature.RelicType.LIGHTNING.displayName.contains("呼雷の銅杖"));
