@@ -115,6 +115,7 @@ public class RelicFeature implements Listener {
     private final Map<UUID, Long> excaliburCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburReplicaCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburReviveCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburCounterUntil = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> sniperDrawStart = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, ItemStack> pendingShotArrows = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<UUID> repeatingReloading = java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -168,6 +169,7 @@ public class RelicFeature implements Listener {
         for (BukkitTask task : this.repeatingAutoTasks.values()) task.cancel();
         this.repeatingAutoTasks.clear();
         this.repeatingReloading.clear();
+        this.excaliburCounterUntil.clear();
         this.pendingShotArrows.clear();
         for (Player player : Bukkit.getOnlinePlayers()) {
             this.clearExcaliburHealth(player);
@@ -965,16 +967,19 @@ public class RelicFeature implements Listener {
     /** FOV multiplier at full draw. Lower values zoom in more. */
     static final double SNIPER_FULL_DRAW_FOV = 0.55;
     static final double EXCALIBUR_ATTACK_DAMAGE = 50.0;
-    static final double EXCALIBUR_SLASH_DAMAGE = 1000.0;
+    static final double EXCALIBUR_SLASH_DAMAGE = 100000.0;
     static final double EXCALIBUR_REPLICA_SLASH_DAMAGE = 100.0;
     static final int EXCALIBUR_REPLICA_USES = 5;
     static final long EXCALIBUR_COOLDOWN_MILLIS = 15000L;
     static final long EXCALIBUR_REVIVE_COOLDOWN_MILLIS = 60000L;
     static final int EXCALIBUR_CHARGE_TICKS = 60;
-    static final double EXCALIBUR_SLASH_RANGE = 32.0;
+    static final double EXCALIBUR_SLASH_RANGE = 64.0;
     static final double EXCALIBUR_REPLICA_SLASH_RANGE = 20.0;
-    /** Forward-only cone: 0.45 keeps the slash in front of the player. */
-    static final double EXCALIBUR_SLASH_CONE_DOT = 0.45;
+    /** Front hemisphere: everything visible in front of the player is hit. */
+    static final double EXCALIBUR_SLASH_CONE_DOT = 0.0;
+    static final long EXCALIBUR_COUNTER_DURATION_MILLIS = 5000L;
+    static final double EXCALIBUR_COUNTER_DAMAGE = 100000.0;
+    static final double EXCALIBUR_COUNTER_RADIUS = 8.0;
     static final double SINGLE_BELL_RADIUS = 10.0;
     static final int SINGLE_BELL_FREEZE_TICKS = 200;
     static final long SINGLE_BELL_COOLDOWN_MILLIS = 10000L;
@@ -1247,7 +1252,8 @@ public class RelicFeature implements Listener {
             this.tryExcaliburReplica(player, item);
         } else if ("decayed_sword".equals(id) && rightClick && this.isExcalibur(item)) {
             event.setCancelled(true);
-            this.tryExcaliburSlash(player, item);
+            if (player.isSneaking()) this.startExcaliburCounter(player);
+            else this.tryExcaliburSlash(player, item);
         } else if ("hellfire_book".equals(id) && rightClick) {
             if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null
                 && (event.getClickedBlock().getType() == Material.ANVIL
@@ -1628,6 +1634,77 @@ public class RelicFeature implements Listener {
         player.getInventory().setItemInMainHand(item);
     }
 
+    private void startExcaliburCounter(Player player) {
+        this.excaliburCounterUntil.put(player.getUniqueId(),
+            System.currentTimeMillis() + EXCALIBUR_COUNTER_DURATION_MILLIS);
+        player.sendActionBar(ChatColor.GOLD + "聖剣: カウンター待機 — 攻撃を受けると聖光で反撃");
+        player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1.2f, 1.5f);
+        this.spawnLightRing(player.getWorld(), player.getLocation().add(0.0, 1.0, 0.0), 2.0,
+            new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(255, 225, 120), 1.0f));
+    }
+
+    private void tickExcaliburCounter(Player player) {
+        UUID uuid = player.getUniqueId();
+        Long until = this.excaliburCounterUntil.get(uuid);
+        if (until == null) return;
+        if (System.currentTimeMillis() > until || !player.isSneaking() || this.findExcalibur(player) == null) {
+            this.excaliburCounterUntil.remove(uuid);
+            return;
+        }
+        org.bukkit.Location center = player.getLocation().add(0.0, 1.0, 0.0);
+        player.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, center, 2,
+            0.8, 0.35, 0.8, 0.01);
+        player.getWorld().spawnParticle(org.bukkit.Particle.ENCHANT, center, 2,
+            0.7, 0.4, 0.7, 0.02);
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onExcaliburCounterDamage(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        UUID uuid = player.getUniqueId();
+        Long until = this.excaliburCounterUntil.get(uuid);
+        if (until == null || System.currentTimeMillis() > until) return;
+        if (!player.isSneaking() || this.findExcalibur(player) == null) {
+            this.excaliburCounterUntil.remove(uuid);
+            return;
+        }
+        LivingEntity attacker = null;
+        if (event.getDamager() instanceof LivingEntity living) {
+            attacker = living;
+        } else if (event.getDamager() instanceof org.bukkit.entity.Projectile projectile
+            && projectile.getShooter() instanceof LivingEntity living) {
+            attacker = living;
+        }
+        if (attacker == null || attacker == player) return;
+        event.setCancelled(true);
+        this.excaliburCounterUntil.remove(uuid);
+        this.smiteWithHolyLight(player, attacker);
+    }
+
+    private void smiteWithHolyLight(Player player, LivingEntity attacker) {
+        org.bukkit.Location hit = attacker.getLocation().add(0.0, attacker.getHeight() / 2.0, 0.0);
+        org.bukkit.World world = attacker.getWorld();
+        world.strikeLightningEffect(hit);
+        world.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, hit, 1);
+        world.spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, hit, 120, 1.2, 1.4, 1.2, 0.35);
+        world.spawnParticle(org.bukkit.Particle.END_ROD, hit, 90, 2.0, 2.0, 2.0, 0.12);
+        this.spawnLightRing(world, hit, 6.0,
+            new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(255, 225, 120), 1.3f));
+        for (org.bukkit.entity.Entity entity : world.getNearbyEntities(hit, EXCALIBUR_COUNTER_RADIUS,
+            EXCALIBUR_COUNTER_RADIUS, EXCALIBUR_COUNTER_RADIUS)) {
+            if (entity == player || !(entity instanceof LivingEntity living) || living.isDead()) continue;
+            living.damage(EXCALIBUR_COUNTER_DAMAGE, player);
+            living.setFireTicks(Math.max(living.getFireTicks(), 100));
+        }
+        player.showTitle(net.kyori.adventure.title.Title.title(
+            net.kyori.adventure.text.Component.text("HOLY COUNTER"),
+            net.kyori.adventure.text.Component.text("聖なる光が敵を討ち滅ぼした")));
+        world.playSound(hit, Sound.ITEM_TRIDENT_THUNDER, 2.0f, 0.85f);
+        world.playSound(hit, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 2.0f, 1.0f);
+        world.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.6f, 1.2f);
+        player.sendActionBar(ChatColor.GOLD + "聖剣: 反撃の聖光！");
+    }
+
     private void tryExcaliburSlash(Player player, ItemStack item) {
         if (!this.rollingCooldown(player, this.excaliburCooldown, EXCALIBUR_COOLDOWN_MILLIS, item)) return;
         player.sendActionBar(ChatColor.YELLOW + "聖剣の光を溜めている...");
@@ -1672,6 +1749,25 @@ public class RelicFeature implements Listener {
         org.bukkit.Particle.DustOptions white =
             new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(255, 255, 255), 0.9f);
 
+        // Endgame screen-filling burst around the caster.
+        player.showTitle(net.kyori.adventure.title.Title.title(
+            net.kyori.adventure.text.Component.text("EXCALIBUR"),
+            net.kyori.adventure.text.Component.text("絶光 ― 視界に映るすべてを消し飛ばす")));
+        world.spawnParticle(org.bukkit.Particle.FIREWORK, start, 220, 10.0, 5.0, 10.0, 0.08);
+        world.spawnParticle(org.bukkit.Particle.END_ROD, start, 180, 12.0, 6.0, 12.0, 0.05);
+        world.spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, start, 120, 8.0, 4.0, 8.0, 0.3);
+        world.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, start, 4, 4.0, 3.0, 4.0, 0.0);
+        this.spawnLightRing(world, start, 6.0, gold);
+        this.spawnLightRing(world, start, 12.0, white);
+        for (int i = 0; i < 8; i++) {
+            double angle = Math.PI * 2.0 * i / 8.0;
+            org.bukkit.Location strike = start.clone().add(
+                Math.cos(angle) * 9.0, 0.0, Math.sin(angle) * 9.0);
+            if (world.isChunkLoaded(strike.getBlockX() >> 4, strike.getBlockZ() >> 4)) {
+                world.strikeLightningEffect(strike);
+            }
+        }
+
         // Wide, layered forward beam: a bright core, side rays, sparks and
         // periodic sonic-boom rings.
         int steps = (int) Math.ceil(range);
@@ -1694,10 +1790,11 @@ public class RelicFeature implements Listener {
         }
 
         org.bukkit.Location end = start.clone().add(direction.clone().multiply(range));
-        this.spawnLightRing(world, start, 2.2, gold);
-        this.spawnLightRing(world, end, 4.2, gold);
-        world.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, end, 1);
-        world.spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, end, 80, 1.2, 1.0, 1.2, 0.35);
+        this.spawnLightRing(world, end, 8.0, gold);
+        this.spawnLightRing(world, end, 14.0, white);
+        world.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, end, 4, 2.0, 2.0, 2.0, 0.0);
+        world.spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, end, 160, 3.0, 2.0, 3.0, 0.35);
+        world.spawnParticle(org.bukkit.Particle.FIREWORK, end, 120, 4.0, 2.0, 4.0, 0.08);
         if (world.isChunkLoaded(end.getBlockX() >> 4, end.getBlockZ() >> 4)) {
             world.strikeLightningEffect(end);
         }
@@ -3464,6 +3561,7 @@ public class RelicFeature implements Listener {
         for (Player p : Bukkit.getOnlinePlayers()) {
             this.tickDashGrounding(p);
             this.tickNewSpecialItems(p);
+            this.tickExcaliburCounter(p);
             this.tickSniperDraw(p);
             this.tickArmorMovementPenalty(p);
             if (this.holdsRelic(p, "totem")) {
@@ -3845,6 +3943,7 @@ public class RelicFeature implements Listener {
         this.stopRepeatingReload(uuid);
         this.stopRepeatingAutoFire(uuid);
         this.sniperDrawStart.remove(uuid);
+        this.excaliburCounterUntil.remove(uuid);
         this.pendingShotArrows.remove(uuid);
         this.removeSniperZoom(event.getPlayer());
         this.removeArmorMovementPenalty(event.getPlayer());
@@ -3945,6 +4044,7 @@ public class RelicFeature implements Listener {
         this.clearHookshotAnchor(player);
         this.stopGaybolgDash(uuid);
         this.sniperDrawStart.remove(uuid);
+        this.excaliburCounterUntil.remove(uuid);
         this.removeSniperZoom(player);
         this.removeArmorMovementPenalty(player);
         seaswimActive.remove(uuid);
