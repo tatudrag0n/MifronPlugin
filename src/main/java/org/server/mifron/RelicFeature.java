@@ -100,7 +100,6 @@ public class RelicFeature implements Listener {
     private final NamespacedKey sniperZoomKey;
     private final NamespacedKey armorPenaltyKey;
     private final Map<UUID, ClockSnapshot> clockSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
-    private final java.util.Set<UUID> maceAscending = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Set<UUID> maceAscended = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final Map<UUID, Long> maceLandingProtectUntil = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> maceLaunchUntil = new java.util.concurrent.ConcurrentHashMap<>();
@@ -113,8 +112,6 @@ public class RelicFeature implements Listener {
     private final Map<UUID, Long> excaliburReviveCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> sniperDrawStart = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<org.bukkit.Location, ItemStack> endlessBrewIngredients = new java.util.concurrent.ConcurrentHashMap<>();
-    private final java.util.Set<UUID> arkAscending = java.util.concurrent.ConcurrentHashMap.newKeySet();
-    private final java.util.Set<UUID> arkDescending = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Set<UUID> excaliburHealthActive = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private record ClockSnapshot(Location location, double health, int food, float saturation,
@@ -679,6 +676,11 @@ public class RelicFeature implements Listener {
     static final double MACE_LAUNCH_VELOCITY = 0.9;
     static final double MACE_CLIMB_SPEED = 1.0;
     static final double MACE_CLIMB_ACCEL = 0.45;
+    static final double ARK_SPEED = 0.9;
+    static final double ARK_CLIMB_SPEED = 0.55;
+    static final double ARK_CLIMB_ACCEL = 0.3;
+    static final double ARK_DESCEND_SPEED = 0.55;
+    static final double ARK_DESCEND_ACCEL = 0.3;
     static final double LIGHTNING_STRIKE_RANGE = 50.0;
     // Common aliases used by balance notes and tests.
     static final int SIXSHOT_CAPACITY = SIXSHOT_MAX_AMMO;
@@ -1371,7 +1373,6 @@ public class RelicFeature implements Listener {
     private void startMaceAscension(Player player) {
         UUID uuid = player.getUniqueId();
         long now = System.currentTimeMillis();
-        this.maceAscending.add(uuid);
         this.maceLaunchUntil.put(uuid, now + MACE_LAUNCH_MILLIS);
         this.maceAscended.add(uuid);
         this.maceLastFallSpeed.put(uuid, 0.0);
@@ -1389,11 +1390,8 @@ public class RelicFeature implements Listener {
         long now = System.currentTimeMillis();
         Long launchUntil = this.maceLaunchUntil.get(uuid);
         boolean launchActive = launchUntil != null && now < launchUntil;
-        if (this.maceAscending.contains(uuid) && !player.getCurrentInput().isRight() && !launchActive) {
-            this.maceAscending.remove(uuid);
-        }
         if (launchUntil != null && !launchActive) this.maceLaunchUntil.remove(uuid);
-        if (this.maceAscending.contains(uuid) || launchActive) {
+        if (launchActive) {
             Vector velocity = player.getVelocity();
             player.setVelocity(new Vector(velocity.getX(), maceClimbY(velocity.getY()), velocity.getZ()));
             player.setFallDistance(0.0f);
@@ -1438,24 +1436,37 @@ public class RelicFeature implements Listener {
 
     private void tickNoahsArk(Player player) {
         org.bukkit.entity.Entity vehicle = player.getVehicle();
-        if (!(vehicle instanceof Boat boat) || !this.isArk(boat)) {
-            this.arkAscending.remove(player.getUniqueId());
-            this.arkDescending.remove(player.getUniqueId());
-            return;
+        if (!(vehicle instanceof Boat boat)) return;
+        if (!this.isArk(boat)) {
+            // Older boats placed before the marker existed can be adopted once
+            // while the owner still carries the relic.
+            if (!this.hasRelicInInventory(player, "noahs_ark")) return;
+            boat.getPersistentDataContainer().set(this.noahsArkKey, PersistentDataType.BYTE, (byte) 1);
         }
+        boat.setGravity(false);
+        boat.setWorkOnLand(true);
+        boat.setMaxSpeed(2.0);
+        var input = player.getCurrentInput();
+        Vector forward = player.getLocation().getDirection();
+        forward.setY(0.0);
+        if (forward.lengthSquared() < 1.0E-9) forward = new Vector(0.0, 0.0, 1.0);
+        else forward.normalize();
+        Vector right = forward.clone().crossProduct(new Vector(0.0, 1.0, 0.0));
+        double forwardInput = (input.isForward() ? 1.0 : 0.0) - (input.isBackward() ? 1.0 : 0.0);
+        double strafeInput = (input.isRight() ? 1.0 : 0.0) - (input.isLeft() ? 1.0 : 0.0);
+        Vector wish = forward.multiply(forwardInput).add(right.multiply(strafeInput));
+        if (wish.lengthSquared() > 1.0E-9) wish.normalize().multiply(ARK_SPEED);
         Vector velocity = boat.getVelocity();
         double y;
-        if (this.arkAscending.contains(player.getUniqueId())) {
-            y = Math.min(0.6, velocity.getY() + 0.25);
-        } else if (this.arkDescending.contains(player.getUniqueId())) {
-            y = Math.max(-0.6, velocity.getY() - 0.25);
-        } else {
-            y = Math.max(velocity.getY(), 0.02);
-        }
-        double x = Math.copySign(Math.min(Math.abs(velocity.getX()) * 1.03, 1.6), velocity.getX());
-        double z = Math.copySign(Math.min(Math.abs(velocity.getZ()) * 1.03, 1.6), velocity.getZ());
-        boat.setVelocity(new Vector(x, y, z));
+        if (input.isJump()) y = Math.min(ARK_CLIMB_SPEED, velocity.getY() + ARK_CLIMB_ACCEL);
+        else if (input.isSneak()) y = Math.max(-ARK_DESCEND_SPEED, velocity.getY() - ARK_DESCEND_ACCEL);
+        else y = 0.0;
+        boat.setVelocity(new Vector(wish.getX(), y, wish.getZ()));
         boat.setFallDistance(0.0f);
+        if (input.isJump() || input.isSneak() || wish.lengthSquared() > 0.01) {
+            boat.getWorld().spawnParticle(org.bukkit.Particle.CLOUD,
+                boat.getLocation().add(0.0, 0.25, 0.0), 4, 0.25, 0.08, 0.25, 0.01);
+        }
     }
 
     @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
@@ -1674,9 +1685,10 @@ public class RelicFeature implements Listener {
         if (!this.isRelicItem(item) || !"noahs_ark".equals(this.getRelicId(item))) return;
         if (!(event.getEntity() instanceof Boat boat)) return;
         boat.getPersistentDataContainer().set(this.noahsArkKey, PersistentDataType.BYTE, (byte) 1);
+        boat.setGravity(false);
         boat.setMaxSpeed(2.0);
         boat.setWorkOnLand(true);
-        event.getPlayer().sendMessage(ChatColor.AQUA + "ノアの方舟を出航させた。ジャンプで上昇、スニークで下降。");
+        event.getPlayer().sendMessage(ChatColor.AQUA + "ノアの方舟を出航させた。WASDで移動、ジャンプで上昇、スニークで下降。");
     }
 
     // ------------------------------------------------------------------
@@ -1779,10 +1791,34 @@ public class RelicFeature implements Listener {
 
     @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEndlessArrow(EntityShootBowEvent event) {
-        if (this.hasEndless(event.getArrowItem()) || this.hasEndless(event.getConsumable())) {
-            event.setConsumeArrow(false);
-            event.setConsumeItem(false);
+        if (!(event.getEntity() instanceof Player player)) return;
+        ItemStack ammo = event.getArrowItem();
+        if (!this.hasEndless(ammo)) ammo = event.getConsumable();
+        if (!this.hasEndless(ammo) && event.getBow() != null
+            && event.getBow().getType() == Material.CROSSBOW) {
+            // Crossbows keep the loaded projectile outside the inventory.
+            ammo = this.findEndlessArrow(player);
         }
+        if (!this.hasEndless(ammo)) return;
+        event.setConsumeArrow(false);
+        event.setConsumeItem(false);
+        if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) return;
+        // Vanilla removes the ammo before firing the event on this server
+        // build, so setConsumeArrow alone is not enough. Reimburse exactly one
+        // Endless arrow next tick.
+        ItemStack keep = ammo.clone();
+        keep.setAmount(1);
+        Bukkit.getScheduler().runTask(this.plugin, () -> this.giveOrDrop(player, keep));
+    }
+
+    private ItemStack findEndlessArrow(Player player) {
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (item == null) continue;
+            if (item.getType() != Material.ARROW && item.getType() != Material.TIPPED_ARROW
+                && item.getType() != Material.SPECTRAL_ARROW) continue;
+            if (this.hasEndless(item)) return item;
+        }
+        return null;
     }
 
     @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
@@ -3372,25 +3408,9 @@ public class RelicFeature implements Listener {
         } else {
             seaswimRising.remove(player.getUniqueId());
         }
-        // Anti-gravity mace: right click (the use button) is held to rise.
-        ItemStack mainHand = player.getInventory().getItemInMainHand();
-        boolean mace = this.isRelicItem(mainHand) && "antigravity_mace".equals(this.getRelicId(mainHand));
-        if (mace && event.getInput().isRight()) {
-            this.maceAscending.add(player.getUniqueId());
-        } else {
-            this.maceAscending.remove(player.getUniqueId());
-        }
-        // Noah's Ark: jump ascends, sneak descends while riding the boat.
-        org.bukkit.entity.Entity vehicle = player.getVehicle();
-        if (vehicle instanceof Boat boat && this.isArk(boat)) {
-            if (event.getInput().isJump()) this.arkAscending.add(player.getUniqueId());
-            else this.arkAscending.remove(player.getUniqueId());
-            if (event.getInput().isSneak()) this.arkDescending.add(player.getUniqueId());
-            else this.arkDescending.remove(player.getUniqueId());
-        } else {
-            this.arkAscending.remove(player.getUniqueId());
-            this.arkDescending.remove(player.getUniqueId());
-        }
+        // Anti-gravity mace and Noah's Ark now read the actual current input
+        // in their own tick handlers. PlayerInputEvent#isRight() is the D
+        // strafe key, not the right mouse button, so it must not drive them.
     }
 
     // ------------------------------------------------------------------
