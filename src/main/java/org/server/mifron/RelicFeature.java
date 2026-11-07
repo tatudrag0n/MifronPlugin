@@ -116,6 +116,7 @@ public class RelicFeature implements Listener {
     private final Map<UUID, Long> excaliburReplicaCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburReviveCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> sniperDrawStart = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, ItemStack> pendingShotArrows = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<org.bukkit.Location, ItemStack> endlessBrewIngredients = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<UUID> excaliburHealthActive = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -159,6 +160,7 @@ public class RelicFeature implements Listener {
         for (BukkitTask task : this.gaybolgDashTasks.values()) task.cancel();
         this.gaybolgDashTasks.clear();
         this.gaybolgDashTargets.clear();
+        this.pendingShotArrows.clear();
         for (Player player : Bukkit.getOnlinePlayers()) {
             this.clearExcaliburHealth(player);
             this.removeSniperZoom(player);
@@ -992,6 +994,14 @@ public class RelicFeature implements Listener {
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
         if (item == null || !isRelicItem(item)) return;
+
+        // Boat placement must reach vanilla untouched. This handler used to
+        // rewrite the in-hand stack while handling durability/migration, which
+        // could swallow the boat placement interaction.
+        if ("noahs_ark".equals(this.getRelicId(item)) && event.getAction().isRightClick()) {
+            this.normalizeRelicDurability(item);
+            return;
+        }
 
         // Vision relic: scoping starts on right click, stop is handled by the
         // task itself (it ends when the player is no longer using the item).
@@ -2041,11 +2051,42 @@ public class RelicFeature implements Listener {
         Bukkit.getScheduler().runTask(this.plugin, () -> this.giveOrDrop(player, keep));
     }
 
+    /**
+     * Captures the arrow stack that vanilla will select before the shot. This
+     * survives server builds where EntityShootBowEvent loses the original
+     * ammo metadata after the projectile has been split off.
+     */
+    @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
+    public void onBowDrawCapture(PlayerInteractEvent event) {
+        if (!event.getAction().isRightClick()) return;
+        ItemStack bow = event.getItem();
+        if (bow == null) return;
+        if (bow.getType() != Material.BOW && bow.getType() != Material.CROSSBOW) return;
+        Player player = event.getPlayer();
+        ItemStack selected = this.findSelectedArrow(player);
+        if (bow.getType() == Material.BOW) {
+            if (selected != null && this.hasEndless(selected)) {
+                this.pendingShotArrows.put(player.getUniqueId(), selected.clone());
+            } else {
+                this.pendingShotArrows.remove(player.getUniqueId());
+            }
+            return;
+        }
+        // A charged crossbow can fire with no arrow stack left in the
+        // inventory, so keep the previous pending Endless arrow in that case.
+        if (selected != null) {
+            if (this.hasEndless(selected)) this.pendingShotArrows.put(player.getUniqueId(), selected.clone());
+            else this.pendingShotArrows.remove(player.getUniqueId());
+        }
+    }
+
     @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEndlessArrow(EntityShootBowEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
+        ItemStack pending = this.pendingShotArrows.remove(player.getUniqueId());
         ItemStack ammo = event.getArrowItem();
         if (!this.hasEndless(ammo)) ammo = event.getConsumable();
+        if (!this.hasEndless(ammo)) ammo = pending;
         if (!this.hasEndless(ammo) && event.getBow() != null
             && event.getBow().getType() == Material.CROSSBOW) {
             // Crossbows keep the loaded projectile outside the inventory.
@@ -2063,11 +2104,23 @@ public class RelicFeature implements Listener {
         Bukkit.getScheduler().runTask(this.plugin, () -> this.giveOrDrop(player, keep));
     }
 
+    private ItemStack findSelectedArrow(Player player) {
+        ItemStack off = player.getInventory().getItemInOffHand();
+        if (this.isSupportedArrow(off)) return off;
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (this.isSupportedArrow(item)) return item;
+        }
+        return null;
+    }
+
+    private boolean isSupportedArrow(ItemStack item) {
+        return item != null && (item.getType() == Material.ARROW
+            || item.getType() == Material.TIPPED_ARROW || item.getType() == Material.SPECTRAL_ARROW);
+    }
+
     private ItemStack findEndlessArrow(Player player) {
         for (ItemStack item : player.getInventory().getContents()) {
-            if (item == null) continue;
-            if (item.getType() != Material.ARROW && item.getType() != Material.TIPPED_ARROW
-                && item.getType() != Material.SPECTRAL_ARROW) continue;
+            if (!this.isSupportedArrow(item)) continue;
             if (this.hasEndless(item)) return item;
         }
         return null;
@@ -3569,6 +3622,7 @@ public class RelicFeature implements Listener {
         this.stopScopedVision(uuid);
         this.stopGaybolgDash(uuid);
         this.sniperDrawStart.remove(uuid);
+        this.pendingShotArrows.remove(uuid);
         this.removeSniperZoom(event.getPlayer());
         this.removeArmorMovementPenalty(event.getPlayer());
         this.clearGhostIce(uuid);
