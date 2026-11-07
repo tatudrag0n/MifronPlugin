@@ -160,6 +160,17 @@ armor-movement-penalty:
   per-piece: 0.02
   max-penalty: 0.08
 
+# Elite mobs: much rarer than normal mobs, but far stronger and smarter.
+elite-mobs:
+  # 0.02 = 2% of natural monster spawns.
+  spawn-chance: 0.02
+  health-multiplier: 4.0
+  damage-multiplier: 1.5
+  speed-multiplier: 1.2
+  armor-bonus: 4.0
+  # Per-mob MP rewards; missing entries use 10.
+  base-mp: {}
+
 # Legacy fallback for minoru-bridge.secret. Keep empty so a deployment cannot
 # accidentally start the bridge with a publicly-known default secret.
 serverSecret: ""

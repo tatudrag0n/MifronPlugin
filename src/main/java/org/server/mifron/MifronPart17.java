@@ -6,6 +6,7 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -71,6 +72,10 @@ abstract class MifronPart17 extends MifronPart16 {
             if (this.denyUnlessAdmin(sender)) return true;
             this.handleMakeEliteCommand(sender, args);
          }
+         case "elite" -> {
+            if (this.denyUnlessAdmin(sender)) return true;
+            this.handleEliteCommand(sender, args);
+         }
          case "relic" -> {
             if (this.denyUnlessAdmin(sender)) return true;
             this.relicFeature.handleCommand(sender, args);
@@ -96,11 +101,42 @@ abstract class MifronPart17 extends MifronPart16 {
 
    private void sendMifronHelp(CommandSender sender) {
       sender.sendMessage(ChatColor.YELLOW + "/mf menu|balance|pay|quest|status|tutorial|guide|relics|protect|vote|refer");
-      sender.sendMessage(ChatColor.GRAY + "管理: /mf list|merchant|proposal|relic|regen|event|warning|text|structure|kit|...");
+      sender.sendMessage(ChatColor.GRAY + "管理: /mf list|merchant|proposal|relic|regen|event|warning|text|structure|kit|elite spawn <mob>|...");
    }
 
     private boolean isAdminOp(CommandSender sender) {
       return sender != null && (sender.isOp() || sender.hasPermission("mifron.admin"));
+   }
+
+   protected boolean handleEliteCommand(CommandSender sender, String[] args) {
+      if (!(sender instanceof Player player)) {
+         sender.sendMessage("Player only.");
+         return true;
+      }
+      if (args.length < 3 || !"spawn".equalsIgnoreCase(args[1])) {
+         sender.sendMessage("§e/mf elite spawn <mob ID>");
+         sender.sendMessage("§7例: /mf elite spawn zombie, /mf elite spawn wither_skeleton");
+         return true;
+      }
+      String raw = args[2].toUpperCase(Locale.ROOT).replace("MINECRAFT:", "");
+      EntityType type;
+      try {
+         type = EntityType.valueOf(raw);
+      } catch (IllegalArgumentException error) {
+         sender.sendMessage("§c不明なモブID: " + args[2]);
+         return true;
+      }
+      if (type.getEntityClass() == null
+          || !org.bukkit.entity.Monster.class.isAssignableFrom(type.getEntityClass())) {
+         sender.sendMessage("§cエリート化できるモブではありません: " + args[2]);
+         return true;
+      }
+      if (this.mifron().eliteMobFeature.spawnElite(player, type)) {
+         sender.sendMessage("§dエリートモブを召喚しました: " + type.name());
+      } else {
+         sender.sendMessage("§cエリートモブの召喚に失敗しました。");
+      }
+      return true;
    }
 
    protected boolean handleMakeEliteCommand(CommandSender sender, String[] args) {
