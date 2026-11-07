@@ -1637,7 +1637,6 @@ public class RelicFeature implements Listener {
     private void startExcaliburCounter(Player player) {
         this.excaliburCounterUntil.put(player.getUniqueId(),
             System.currentTimeMillis() + EXCALIBUR_COUNTER_DURATION_MILLIS);
-        player.sendActionBar(ChatColor.GOLD + "聖剣: カウンター待機 — 攻撃を受けると聖光で反撃");
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1.2f, 1.5f);
         this.spawnLightRing(player.getWorld(), player.getLocation().add(0.0, 1.0, 0.0), 2.0,
             new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(255, 225, 120), 1.0f));
@@ -1696,18 +1695,13 @@ public class RelicFeature implements Listener {
             living.damage(EXCALIBUR_COUNTER_DAMAGE, player);
             living.setFireTicks(Math.max(living.getFireTicks(), 100));
         }
-        player.showTitle(net.kyori.adventure.title.Title.title(
-            net.kyori.adventure.text.Component.text("HOLY COUNTER"),
-            net.kyori.adventure.text.Component.text("聖なる光が敵を討ち滅ぼした")));
         world.playSound(hit, Sound.ITEM_TRIDENT_THUNDER, 2.0f, 0.85f);
         world.playSound(hit, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 2.0f, 1.0f);
         world.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.6f, 1.2f);
-        player.sendActionBar(ChatColor.GOLD + "聖剣: 反撃の聖光！");
     }
 
     private void tryExcaliburSlash(Player player, ItemStack item) {
         if (!this.rollingCooldown(player, this.excaliburCooldown, EXCALIBUR_COOLDOWN_MILLIS, item)) return;
-        player.sendActionBar(ChatColor.YELLOW + "聖剣の光を溜めている...");
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 1.6f);
         Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
             if (!player.isOnline()) return;
@@ -1719,12 +1713,8 @@ public class RelicFeature implements Listener {
 
     private void tryExcaliburReplica(Player player, ItemStack item) {
         int uses = this.replicaUses(item);
-        if (uses <= 0) {
-            player.sendMessage(ChatColor.GRAY + "このレプリカはもう力を使い切っている。");
-            return;
-        }
+        if (uses <= 0) return;
         if (!this.rollingCooldown(player, this.excaliburReplicaCooldown, EXCALIBUR_COOLDOWN_MILLIS, item)) return;
-        player.sendActionBar(ChatColor.YELLOW + "レプリカの光を溜めている...");
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.7f, 1.8f);
         Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
             if (!player.isOnline()) return;
@@ -1750,9 +1740,6 @@ public class RelicFeature implements Listener {
             new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(255, 255, 255), 0.9f);
 
         // Endgame screen-filling burst around the caster.
-        player.showTitle(net.kyori.adventure.title.Title.title(
-            net.kyori.adventure.text.Component.text("EXCALIBUR"),
-            net.kyori.adventure.text.Component.text("絶光 ― 視界に映るすべてを消し飛ばす")));
         world.spawnParticle(org.bukkit.Particle.FIREWORK, start, 220, 10.0, 5.0, 10.0, 0.08);
         world.spawnParticle(org.bukkit.Particle.END_ROD, start, 180, 12.0, 6.0, 12.0, 0.05);
         world.spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, start, 120, 8.0, 4.0, 8.0, 0.3);
@@ -2182,7 +2169,6 @@ public class RelicFeature implements Listener {
         player.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING,
             player.getLocation().add(0.0, 1.0, 0.0), 80, 0.6, 1.0, 0.6, 0.3);
         player.getWorld().playSound(player.getLocation(), Sound.ITEM_TOTEM_USE, 1.2f, 1.0f);
-        player.sendMessage(ChatColor.GOLD + "聖剣エクスカリバーがあなたを死から引き戻した。");
     }
 
     private void startSniperDraw(Player player) {
