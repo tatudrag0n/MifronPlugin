@@ -18,6 +18,14 @@ class RelicUpdateRulesTest {
    }
 
    @Test
+   void maceKnockbackIsStronglyUpward() {
+      assertTrue(RelicFeature.maceKnockbackY(0.0) >= 0.9);
+      assertTrue(RelicFeature.maceKnockbackY(2.0) > 2.0);
+      assertTrue(RelicFeature.maceKnockbackY(3.5) > RelicFeature.maceKnockbackY(1.0));
+      assertEquals(3.2, RelicFeature.maceKnockbackY(100.0), 1.0e-9);
+   }
+
+   @Test
    void ancientSlashArmorUsesFiveBlockFiveDamageNoCooldown() {
       assertEquals(5.0, RelicFeature.ANCIENT_SLASH_DAMAGE, 1.0e-9);
       assertEquals(5.0, RelicFeature.ANCIENT_SLASH_RADIUS, 1.0e-9);

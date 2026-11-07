@@ -918,6 +918,11 @@ public class RelicFeature implements Listener {
         return Math.min(3.5, 0.8 + Math.max(0.0, fallSpeed) * 1.2);
     }
 
+    /** Vertical component of the mace knockback: intentionally very lift-heavy. */
+    static double maceKnockbackY(double horizontalPower) {
+        return Math.min(3.2, 0.9 + Math.max(0.0, horizontalPower) * 0.75);
+    }
+
     /** One reload loads at most six arrows, capped by the arrows available. */
     static int sixshotReloadAmount(int availableArrows) {
         return Math.max(0, Math.min(SIXSHOT_MAX_AMMO, availableArrows));
@@ -1640,9 +1645,33 @@ public class RelicFeature implements Listener {
             if (entity == player || !(entity instanceof LivingEntity)) continue;
             Vector away = entity.getLocation().toVector().subtract(center.toVector());
             if (away.lengthSquared() < 0.01) away = new Vector(0.0, 0.0, 1.0);
-            away.normalize().multiply(power).setY(0.55);
+            away.normalize().multiply(power).setY(maceKnockbackY(power));
             entity.setVelocity(away);
+            entity.getWorld().spawnParticle(org.bukkit.Particle.CLOUD,
+                entity.getLocation().add(0.0, 0.5, 0.0), 5, 0.2, 0.15, 0.2, 0.03);
         }
+    }
+
+    private void playMaceImpact(Player player, LivingEntity target) {
+        org.bukkit.Location hit = target.getLocation().add(0.0, target.getHeight() / 2.0, 0.0);
+        org.bukkit.World world = target.getWorld();
+        world.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, hit, 1);
+        world.spawnParticle(org.bukkit.Particle.CRIT, hit, 48, 0.8, 0.7, 0.8, 0.28);
+        world.spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, hit, 24, 1.0, 0.6, 1.0, 0.0);
+        org.bukkit.Particle.DustOptions shockwave =
+            new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(135, 205, 255), 1.25f);
+        for (int i = 0; i < 72; i++) {
+            double angle = Math.PI * 2.0 * i / 72.0;
+            org.bukkit.Location point = hit.clone().add(
+                Math.cos(angle) * 2.6, 0.15, Math.sin(angle) * 2.6);
+            world.spawnParticle(org.bukkit.Particle.DUST, point, 2, 0.1, 0.25, 0.1, 0.02, shockwave);
+            if (i % 3 == 0) {
+                world.spawnParticle(org.bukkit.Particle.END_ROD, point, 1, 0.0, 0.0, 0.0, 0.01);
+            }
+        }
+        world.playSound(hit, Sound.ITEM_MACE_SMASH_GROUND, 1.4f, 0.82f);
+        world.playSound(hit, Sound.ENTITY_GENERIC_EXPLODE, 0.8f, 1.45f);
+        world.playSound(hit, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.3f, 0.7f);
     }
 
     private boolean isArk(org.bukkit.entity.Entity entity) {
@@ -1727,6 +1756,7 @@ public class RelicFeature implements Listener {
         if (this.isRelicItem(hand) && "antigravity_mace".equals(this.getRelicId(hand))) {
             double fallSpeed = this.maceLastFallSpeed.getOrDefault(player.getUniqueId(), 0.0);
             this.knockbackAround(player, 6.0, maceAttackKnockback(fallSpeed));
+            this.playMaceImpact(player, target);
             player.setFallDistance(0.0f);
         }
     }
