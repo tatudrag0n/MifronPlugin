@@ -254,7 +254,7 @@ public class RelicFeature implements Listener {
         HELLFIRE_BOOK("hellfire_book", "§c§l獄炎の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.UNCOMMON, RelicPower.MAJOR, "§7金床で武器に「獄炎」を付与する。"),
         ENDLESS_GRIMOIRE("endless_grimoire", "§d§l無尽の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.EPIC, RelicPower.MAJOR, "§7金床でどんなアイテムにも「無尽」を付与する。"),
         ANCIENT_ANVIL("ancient_anvil", "§6§l古匠の金床", Material.ANVIL, MaterialRarity.EPIC, RelicPower.MEDIUM, "§7あらゆるアイテムに全エンチャントを付与できる。XP・MP不要、修繕ボーナス+50%。"),
-        GAYBOLG("gaybolg", "§5§lゲイ・ボルグ", Material.DIAMOND_SPEAR, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで最も近い敵を追尾して突進。攻撃射程50ブロック、距離でダメージ増加。(クールダウン10秒)"),
+        GAYBOLG("gaybolg", "§5§lゲイ・ボルグ", Material.DIAMOND_SPEAR, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで最も近い敵を追尾して突進。攻撃射程50ブロック、距離でダメージ増加。(クールダウン5秒)"),
         EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
         SIXSHOT_CROSSBOW("sixshot_crossbow", "§8§l六連装弩弓", Material.CROSSBOW, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7最大6連射のリボルバー式クロスボウ。リロード速度80%、ダメージ120%。"),
         SNIPER_BOW("sniper_bow", "§2§l狙撃弓", Material.BOW, MaterialRarity.RARE, RelicPower.MEDIUM, "§7溜め時間はバニラ相当、動的FOVズーム、ダメージ5倍、矢は貫通して直進する。"),
@@ -926,13 +926,17 @@ public class RelicFeature implements Listener {
     static final double EXCALIBUR_SLASH_DAMAGE = 1000.0;
     static final double EXCALIBUR_REPLICA_SLASH_DAMAGE = 100.0;
     static final int EXCALIBUR_REPLICA_USES = 5;
-    static final long EXCALIBUR_COOLDOWN_MILLIS = 30000L;
+    static final long EXCALIBUR_COOLDOWN_MILLIS = 15000L;
     static final long EXCALIBUR_REVIVE_COOLDOWN_MILLIS = 60000L;
     static final int EXCALIBUR_CHARGE_TICKS = 60;
+    static final double EXCALIBUR_SLASH_RANGE = 32.0;
+    static final double EXCALIBUR_REPLICA_SLASH_RANGE = 20.0;
+    /** Forward-only cone: 0.45 keeps the slash in front of the player. */
+    static final double EXCALIBUR_SLASH_CONE_DOT = 0.45;
     static final double SINGLE_BELL_RADIUS = 10.0;
     static final int SINGLE_BELL_FREEZE_TICKS = 200;
     static final long SINGLE_BELL_COOLDOWN_MILLIS = 10000L;
-    static final long GAYBOLG_COOLDOWN_MILLIS = 10000L;
+    static final long GAYBOLG_COOLDOWN_MILLIS = 5000L;
     static final double GAYBOLG_RANGE = 50.0;
     static final double GAYBOLG_DASH_SPEED = 3.1;
     static final int GAYBOLG_DASH_TICKS = 40;
@@ -1515,7 +1519,7 @@ public class RelicFeature implements Listener {
             if (!player.isOnline()) return;
             ItemStack hand = player.getInventory().getItemInMainHand();
             if (!this.isExcalibur(hand)) return;
-            this.fireLightSlash(player, EXCALIBUR_SLASH_DAMAGE, 18.0);
+            this.fireLightSlash(player, EXCALIBUR_SLASH_DAMAGE, EXCALIBUR_SLASH_RANGE);
         }, EXCALIBUR_CHARGE_TICKS);
     }
 
@@ -1535,31 +1539,86 @@ public class RelicFeature implements Listener {
             int remaining = this.replicaUses(hand);
             if (remaining <= 0) return;
             this.setReplicaUses(player, hand, remaining - 1);
-            this.fireLightSlash(player, EXCALIBUR_REPLICA_SLASH_DAMAGE, 18.0);
+            this.fireLightSlash(player, EXCALIBUR_REPLICA_SLASH_DAMAGE, EXCALIBUR_REPLICA_SLASH_RANGE);
         }, EXCALIBUR_CHARGE_TICKS);
     }
 
     private void fireLightSlash(Player player, double damage, double range) {
         Vector direction = player.getEyeLocation().getDirection().normalize();
         org.bukkit.Location start = player.getEyeLocation();
-        for (double step = 1.0; step <= range; step += 1.0) {
+        org.bukkit.World world = player.getWorld();
+        Vector side = direction.clone().crossProduct(new Vector(0.0, 1.0, 0.0));
+        if (side.lengthSquared() < 1.0E-6) side = new Vector(1.0, 0.0, 0.0);
+        else side.normalize();
+        org.bukkit.Particle.DustOptions gold =
+            new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(255, 220, 90), 1.15f);
+        org.bukkit.Particle.DustOptions white =
+            new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(255, 255, 255), 0.9f);
+
+        // Wide, layered forward beam: a bright core, side rays, sparks and
+        // periodic sonic-boom rings.
+        int steps = (int) Math.ceil(range);
+        for (int step = 1; step <= steps; step++) {
             org.bukkit.Location point = start.clone().add(direction.clone().multiply(step));
-            point.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, point, 6, 0.2, 0.2, 0.2, 0.01);
-            point.getWorld().spawnParticle(org.bukkit.Particle.FIREWORK, point, 3, 0.2, 0.2, 0.2, 0.01);
+            world.spawnParticle(org.bukkit.Particle.END_ROD, point, 10, 0.16, 0.16, 0.16, 0.01);
+            world.spawnParticle(org.bukkit.Particle.FIREWORK, point, 6, 0.18, 0.18, 0.18, 0.01);
+            world.spawnParticle(org.bukkit.Particle.DUST, point, 5, 0.18, 0.18, 0.18, 0.01, gold);
+            if (step % 2 == 0) {
+                world.spawnParticle(org.bukkit.Particle.ENCHANT, point, 5, 0.25, 0.25, 0.25, 0.02);
+            }
+            if (step % 4 == 0) {
+                world.spawnParticle(org.bukkit.Particle.SONIC_BOOM, point, 1, 0.0, 0.0, 0.0, 0.0);
+            }
+            for (double offset : new double[]{-1.5, 1.5, -2.8, 2.8}) {
+                org.bukkit.Location ray = point.clone().add(side.clone().multiply(offset));
+                world.spawnParticle(org.bukkit.Particle.END_ROD, ray, 2, 0.05, 0.05, 0.05, 0.01);
+                world.spawnParticle(org.bukkit.Particle.DUST, ray, 1, 0.05, 0.05, 0.05, 0.01, white);
+            }
         }
-        for (org.bukkit.entity.Entity entity : player.getWorld().getNearbyEntities(player.getLocation(), range, range, range)) {
+
+        org.bukkit.Location end = start.clone().add(direction.clone().multiply(range));
+        this.spawnLightRing(world, start, 2.2, gold);
+        this.spawnLightRing(world, end, 4.2, gold);
+        world.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, end, 1);
+        world.spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, end, 80, 1.2, 1.0, 1.2, 0.35);
+        if (world.isChunkLoaded(end.getBlockX() >> 4, end.getBlockZ() >> 4)) {
+            world.strikeLightningEffect(end);
+        }
+
+        for (org.bukkit.entity.Entity entity : world.getNearbyEntities(player.getLocation(), range, range, range)) {
             if (!(entity instanceof LivingEntity living) || living == player || living.isDead()) continue;
             Vector to = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0)
                 .toVector().subtract(player.getEyeLocation().toVector());
             if (to.length() > range) continue;
-            if (to.lengthSquared() > 0.01 && to.normalize().dot(direction) < 0.35) continue;
+            if (to.lengthSquared() > 0.01 && to.normalize().dot(direction) < EXCALIBUR_SLASH_CONE_DOT) continue;
             living.damage(damage, player);
-            living.setFireTicks(Math.max(living.getFireTicks(), 60));
-            living.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK,
-                living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0), 8, 0.5, 0.4, 0.5, 0.0);
+            living.setFireTicks(Math.max(living.getFireTicks(), 80));
+            org.bukkit.Location hit = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
+            living.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, hit, 20, 0.8, 0.6, 0.8, 0.0);
+            living.getWorld().spawnParticle(org.bukkit.Particle.CRIT, hit, 30, 0.6, 0.6, 0.6, 0.22);
+            living.getWorld().spawnParticle(org.bukkit.Particle.DUST, hit, 26, 0.7, 0.7, 0.7, 0.03, gold);
+            living.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, hit, 14, 0.5, 0.7, 0.5, 0.18);
+            living.getWorld().spawnParticle(org.bukkit.Particle.FLAME, hit, 18, 0.45, 0.5, 0.45, 0.06);
         }
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.5f, 1.4f);
-        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 1.5f, 1.0f);
+
+        world.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.6f, 1.4f);
+        world.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.6f, 1.3f);
+        world.playSound(start, Sound.ITEM_TRIDENT_THUNDER, 2.0f, 0.95f);
+        world.playSound(end, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 2.0f, 1.1f);
+        world.playSound(end, Sound.ENTITY_GENERIC_EXPLODE, 1.2f, 1.45f);
+    }
+
+    private void spawnLightRing(org.bukkit.World world, org.bukkit.Location center,
+                                double radius, org.bukkit.Particle.DustOptions dust) {
+        for (int i = 0; i < 96; i++) {
+            double angle = Math.PI * 2.0 * i / 96.0;
+            org.bukkit.Location point = center.clone().add(
+                Math.cos(angle) * radius, 0.08, Math.sin(angle) * radius);
+            world.spawnParticle(org.bukkit.Particle.DUST, point, 2, 0.05, 0.08, 0.05, 0.01, dust);
+            if (i % 3 == 0) {
+                world.spawnParticle(org.bukkit.Particle.END_ROD, point, 1, 0.0, 0.0, 0.0, 0.01);
+            }
+        }
     }
 
     private boolean hasHellfire(ItemStack item) {

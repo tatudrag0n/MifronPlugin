@@ -38,6 +38,15 @@ class RelicUpdateRulesTest {
       assertTrue(RelicFeature.GAYBOLG_DASH_TICKS > 0);
       assertTrue(RelicFeature.GAYBOLG_DASH_ARRIVE_DISTANCE > 0.0);
       assertEquals(50.0, RelicFeature.GAYBOLG_RANGE, 1.0e-9);
+      assertEquals(5000L, RelicFeature.GAYBOLG_COOLDOWN_MILLIS);
+   }
+
+   @Test
+   void excaliburHasShortCooldownAndLongForwardRange() {
+      assertEquals(15000L, RelicFeature.EXCALIBUR_COOLDOWN_MILLIS);
+      assertEquals(32.0, RelicFeature.EXCALIBUR_SLASH_RANGE, 1.0e-9);
+      assertTrue(RelicFeature.EXCALIBUR_SLASH_CONE_DOT > 0.0);
+      assertTrue(RelicFeature.EXCALIBUR_SLASH_CONE_DOT >= 0.45);
    }
 
    @Test
