@@ -582,8 +582,11 @@ public class RelicFeature implements Listener {
         int start = page * BUNDLE_PAGE_SIZE;
         for (int slot = 0; slot < BUNDLE_PAGE_SIZE; slot++) {
             int index = start + slot;
-            if (index < items.size()) inventory.setItem(slot, items.get(index).clone());
-            else inventory.setItem(slot, this.framePane());
+            if (index < items.size()) {
+                ItemStack display = items.get(index).clone();
+                if (this.isRelicItem(display)) this.normalizeRelicDurability(display);
+                inventory.setItem(slot, display);
+            } else inventory.setItem(slot, this.framePane());
         }
         for (int slot = 45; slot < 54; slot++) inventory.setItem(slot, this.framePane());
         if (page > 0) {
@@ -629,6 +632,7 @@ public class RelicFeature implements Listener {
             if (index < 0 || index >= items.size()) return;
             ItemStack stored = items.get(index);
             ItemStack give = stored.clone();
+            if (this.isRelicItem(give)) this.normalizeRelicDurability(give);
             if (event.getClick().isRightClick() && give.getAmount() > 1) {
                 give.setAmount(1);
                 stored.setAmount(stored.getAmount() - 1);
@@ -643,7 +647,9 @@ public class RelicFeature implements Listener {
         ItemStack moving = event.getCurrentItem();
         if (!event.isShiftClick() || moving == null || moving.getType().isAir()) return;
         if (this.isRelicItem(moving) && "infinite_bundle".equals(this.getRelicId(moving))) return;
-        this.bundleItems(bundleId).add(moving.clone());
+        ItemStack deposit = moving.clone();
+        if (this.isRelicItem(deposit)) this.normalizeRelicDurability(deposit);
+        this.bundleItems(bundleId).add(deposit);
         event.getClickedInventory().setItem(event.getSlot(), null);
         this.saveBundles();
         this.openBundlePage(player, bundleId, page);
@@ -775,9 +781,12 @@ public class RelicFeature implements Listener {
 
     @EventHandler
     public void onPickup(EntityPickupItemEvent event) {
-        if (event.getEntity() instanceof Player) {
-            tryTransform(event.getItem().getItemStack(), (Player) event.getEntity());
-        }
+        if (!(event.getEntity() instanceof Player player)) return;
+        ItemStack picked = event.getItem().getItemStack();
+        boolean changed = this.isRelicItem(picked) && this.normalizeRelicDurability(picked);
+        changed |= this.normalizeStoredRelics(picked);
+        if (changed) event.getItem().setItemStack(picked);
+        tryTransform(picked, player);
     }
 
     @EventHandler
