@@ -93,7 +93,7 @@ public class RelicFeature implements Listener {
     private final Map<UUID, GhostPatch> ghostIcePatches = new HashMap<>();
     private final NamespacedKey hellfireKey;
     private final NamespacedKey excaliburReplicaUsesKey;
-    private final NamespacedKey sixshotAmmoKey;
+    private final NamespacedKey repeatingAmmoKey;
     private final NamespacedKey noahsArkKey;
     private final NamespacedKey excaliburHealthKey;
     private final NamespacedKey endlessKey;
@@ -117,6 +117,9 @@ public class RelicFeature implements Listener {
     private final Map<UUID, Long> excaliburReviveCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> sniperDrawStart = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, ItemStack> pendingShotArrows = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Set<UUID> repeatingReloading = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final Map<UUID, BukkitTask> repeatingReloadTasks = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, BukkitTask> repeatingAutoTasks = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<org.bukkit.Location, ItemStack> endlessBrewIngredients = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<UUID> excaliburHealthActive = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -132,7 +135,7 @@ public class RelicFeature implements Listener {
         this.seaswimSpeedKey = new NamespacedKey(plugin, "seaswim_speed");
         this.hellfireKey = new NamespacedKey(plugin, "hellfire");
         this.excaliburReplicaUsesKey = new NamespacedKey(plugin, "excalibur_replica_uses");
-        this.sixshotAmmoKey = new NamespacedKey(plugin, "sixshot_ammo");
+        this.repeatingAmmoKey = new NamespacedKey(plugin, "repeating_ammo");
         this.noahsArkKey = new NamespacedKey(plugin, "noahs_ark");
         this.excaliburHealthKey = new NamespacedKey(plugin, "excalibur_health");
         this.endlessKey = new NamespacedKey(plugin, "endless");
@@ -160,6 +163,11 @@ public class RelicFeature implements Listener {
         for (BukkitTask task : this.gaybolgDashTasks.values()) task.cancel();
         this.gaybolgDashTasks.clear();
         this.gaybolgDashTargets.clear();
+        for (BukkitTask task : this.repeatingReloadTasks.values()) task.cancel();
+        this.repeatingReloadTasks.clear();
+        for (BukkitTask task : this.repeatingAutoTasks.values()) task.cancel();
+        this.repeatingAutoTasks.clear();
+        this.repeatingReloading.clear();
         this.pendingShotArrows.clear();
         for (Player player : Bukkit.getOnlinePlayers()) {
             this.clearExcaliburHealth(player);
@@ -256,7 +264,7 @@ public class RelicFeature implements Listener {
         ANCIENT_ANVIL("ancient_anvil", "§6§l古匠の金床", Material.ANVIL, MaterialRarity.EPIC, RelicPower.MEDIUM, "§7あらゆるアイテムに全エンチャントを付与できる。XP・MP不要、修繕ボーナス+50%。"),
         GAYBOLG("gaybolg", "§5§lゲイ・ボルグ", Material.DIAMOND_SPEAR, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで最も近い敵を追尾して突進。攻撃射程50ブロック、距離でダメージ増加。(クールダウン5秒)"),
         EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
-        SIXSHOT_CROSSBOW("sixshot_crossbow", "§8§l六連装弩弓", Material.CROSSBOW, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7最大6連射のリボルバー式クロスボウ。リロード速度80%、ダメージ120%。"),
+        REPEATING_CROSSBOW("repeating_crossbow", "§8§l連射式弩弓", Material.CROSSBOW, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7右クリックでリロード開始/停止。最大50発。左クリック単射、スニーク+右クリックで連射。"),
         SNIPER_BOW("sniper_bow", "§2§l狙撃弓", Material.BOW, MaterialRarity.RARE, RelicPower.MEDIUM, "§7溜め時間はバニラ相当、動的FOVズーム、ダメージ5倍、矢は貫通して直進する。"),
         INFINITE_BUNDLE("infinite_bundle", "§6§l無限のバンドル", Material.BUNDLE, MaterialRarity.EPIC, RelicPower.MAJOR, "§7容量無制限。バンドルに重ねるかShiftクリックで収納し、好きな順番で取り出せる。"),
         NOAHS_ARK("noahs_ark", "§3§lノアの方舟", Material.PALE_OAK_BOAT, MaterialRarity.RARE, RelicPower.MEDIUM, "§7空を飛べる高速な船。");
@@ -939,13 +947,12 @@ public class RelicFeature implements Listener {
 
     // Public balance constants for the newer special items. Keeping them here
     // makes the gameplay and the rule checks share one source of truth.
-    static final int SIXSHOT_MAX_AMMO = 6;
-    static final int VANILLA_CROSSBOW_RELOAD_TICKS = 25;
-    static final double SIXSHOT_RELOAD_SPEED_MULTIPLIER = 0.8;
-    /** 80% of vanilla crossbow reload speed means 25 / 0.8 = 31.25 ticks. */
-    static final int SIXSHOT_RELOAD_TICKS = (int) Math.ceil(
-        VANILLA_CROSSBOW_RELOAD_TICKS / SIXSHOT_RELOAD_SPEED_MULTIPLIER);
-    static final double SIXSHOT_DAMAGE = 7.2;
+    static final int REPEATING_MAX_AMMO = 50;
+    /** One arrow every 0.3 seconds while the reload state is active. */
+    static final int REPEATING_RELOAD_INTERVAL_TICKS = 6;
+    /** Automatic fire cadence while sneaking and right-clicking. */
+    static final int REPEATING_AUTO_INTERVAL_TICKS = 2;
+    static final double REPEATING_DAMAGE = 7.2;
     /**
      * Vanilla's client-side bow animation completes at 20 ticks and cannot be
      * slowed by a server plugin. Keep the release gate in lockstep with that
@@ -991,9 +998,8 @@ public class RelicFeature implements Listener {
     static final double ARK_DESCEND_ACCEL = 0.3;
     static final double LIGHTNING_STRIKE_RANGE = 50.0;
     // Common aliases used by balance notes and tests.
-    static final int SIXSHOT_CAPACITY = SIXSHOT_MAX_AMMO;
-    static final int SIXSHOT_RELOAD_TIME_TICKS = SIXSHOT_RELOAD_TICKS;
-    static final double SIXSHOT_DAMAGE_MULTIPLIER = 1.2;
+    static final int REPEATING_CAPACITY = REPEATING_MAX_AMMO;
+    static final int REPEATING_RELOAD_TIME_TICKS = REPEATING_RELOAD_INTERVAL_TICKS;
     static final double SNIPER_DRAW_TIME_MULTIPLIER = 1.0;
     static final double SNIPER_DAMAGE_MULTIPLIER = 5.0;
     static final double EXCALIBUR_REPLICA_DAMAGE = EXCALIBUR_REPLICA_SLASH_DAMAGE;
@@ -1023,11 +1029,6 @@ public class RelicFeature implements Listener {
     /** Vertical component of the mace knockback: intentionally very lift-heavy. */
     static double maceKnockbackY(double horizontalPower) {
         return Math.min(3.2, 0.9 + Math.max(0.0, horizontalPower) * 0.75);
-    }
-
-    /** One reload loads at most six arrows, capped by the arrows available. */
-    static int sixshotReloadAmount(int availableArrows) {
-        return Math.max(0, Math.min(SIXSHOT_MAX_AMMO, availableArrows));
     }
 
     /** The spear deals more damage the farther the target is. */
@@ -1145,7 +1146,7 @@ public class RelicFeature implements Listener {
         long now = System.currentTimeMillis();
         String id = getRelicId(item);
         Long last = this.lastUseMillis.get(player.getUniqueId());
-        if (!"sixshot_crossbow".equals(id) && !"antigravity_mace".equals(id)
+        if (!"repeating_crossbow".equals(id) && !"antigravity_mace".equals(id)
             && last != null && now - last < 500L) {
             event.setCancelled(true);
             return;
@@ -1226,9 +1227,14 @@ public class RelicFeature implements Listener {
                 event.setCancelled(true);
                 this.tryGaybolgRangedAttack(player);
             }
-        } else if ("sixshot_crossbow".equals(id) && rightClick) {
+        } else if ("repeating_crossbow".equals(id)) {
             event.setCancelled(true);
-            this.trySixshotCrossbow(player, item);
+            if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                this.tryRepeatingSingleShot(player, item);
+            } else if (rightClick) {
+                if (player.isSneaking()) this.startRepeatingAutoFire(player, item);
+                else this.toggleRepeatingReload(player, item);
+            }
         } else if ("sniper_bow".equals(id) && rightClick) {
             // Do not cancel: vanilla keeps drawing the bow; the shoot event
             // enforces the draw time and rewrites the arrow.
@@ -1440,8 +1446,8 @@ public class RelicFeature implements Listener {
             if (this.hasEndless(item)) endless = true;
             else count += item.getAmount();
         }
-        // One Endless arrow stack can supply a full six-shot load forever.
-        return endless ? Math.max(count, SIXSHOT_MAX_AMMO) : count;
+        // One Endless arrow stack can supply a full repeating-crossbow load forever.
+        return endless ? Math.max(count, REPEATING_MAX_AMMO) : count;
     }
 
     private void consumeArrows(Player player, int amount) {
@@ -1459,58 +1465,134 @@ public class RelicFeature implements Listener {
         }
     }
 
-    private int sixshotAmmo(ItemStack item) {
+    private int repeatingAmmo(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return 0;
         Integer value = item.getItemMeta().getPersistentDataContainer()
-            .get(this.sixshotAmmoKey, PersistentDataType.INTEGER);
-        return value == null ? 0 : Math.max(0, Math.min(SIXSHOT_MAX_AMMO, value));
+            .get(this.repeatingAmmoKey, PersistentDataType.INTEGER);
+        return value == null ? 0 : Math.max(0, Math.min(REPEATING_MAX_AMMO, value));
     }
 
-    private void setSixshotAmmo(Player player, ItemStack item, int ammo) {
+    private void setRepeatingAmmo(Player player, ItemStack item, int ammo) {
         if (item == null || !item.hasItemMeta()) return;
+        int safe = Math.max(0, Math.min(REPEATING_MAX_AMMO, ammo));
         ItemMeta meta = item.getItemMeta();
-        meta.getPersistentDataContainer().set(this.sixshotAmmoKey, PersistentDataType.INTEGER,
-            Math.max(0, Math.min(SIXSHOT_MAX_AMMO, ammo)));
+        meta.getPersistentDataContainer().set(this.repeatingAmmoKey, PersistentDataType.INTEGER, safe);
         java.util.List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
         lore.removeIf(line -> line != null && line.contains("装填"));
-        lore.add(ChatColor.GRAY + "装填: " + ChatColor.YELLOW + Math.max(0, Math.min(SIXSHOT_MAX_AMMO, ammo)) + "/" + SIXSHOT_MAX_AMMO);
+        lore.add(ChatColor.GRAY + "装填: " + ChatColor.YELLOW + safe + "/" + REPEATING_MAX_AMMO);
         meta.setLore(lore);
         item.setItemMeta(meta);
         player.getInventory().setItemInMainHand(item);
     }
 
-    private void trySixshotCrossbow(Player player, ItemStack item) {
-        int ammo = this.sixshotAmmo(item);
-        if (ammo > 0) {
-            org.bukkit.entity.Arrow arrow = player.launchProjectile(org.bukkit.entity.Arrow.class);
-            arrow.setVelocity(player.getEyeLocation().getDirection().multiply(2.8));
-            arrow.setDamage(SIXSHOT_DAMAGE);
-            arrow.setCritical(true);
-            arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
-            this.setSixshotAmmo(player, item, ammo - 1);
-            player.setCooldown(Material.CROSSBOW, 2);
-            player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_SHOOT, 1.0f, 1.1f);
+    private boolean isHoldingRepeatingCrossbow(Player player) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        return hand != null && this.isRelicItem(hand) && "repeating_crossbow".equals(this.getRelicId(hand));
+    }
+
+    private void toggleRepeatingReload(Player player, ItemStack item) {
+        UUID uuid = player.getUniqueId();
+        this.stopRepeatingAutoFire(uuid);
+        if (this.repeatingReloading.remove(uuid)) {
+            this.stopRepeatingReload(uuid);
+            player.sendActionBar(ChatColor.YELLOW + "リロードを停止した。");
             return;
         }
-        int arrows = this.countArrows(player);
-        if (arrows <= 0) {
+        if (this.repeatingAmmo(item) >= REPEATING_MAX_AMMO) {
+            player.sendActionBar(ChatColor.YELLOW + "装填は満タンだ。");
+            return;
+        }
+        if (this.countArrows(player) <= 0) {
             player.sendMessage(ChatColor.RED + "矢がない。");
             return;
         }
-        int load = sixshotReloadAmount(arrows);
-        this.consumeArrows(player, load);
-        player.setCooldown(Material.CROSSBOW, SIXSHOT_RELOAD_TICKS);
-        player.sendActionBar(ChatColor.YELLOW + "六連装弩弓をリロード中...");
+        this.repeatingReloading.add(uuid);
+        player.sendActionBar(ChatColor.YELLOW + "リロード開始...");
         player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, 1.0f, 1.0f);
-        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-            if (!player.isOnline()) return;
-            ItemStack hand = player.getInventory().getItemInMainHand();
-            if (hand != null && this.isRelicItem(hand) && "sixshot_crossbow".equals(this.getRelicId(hand))) {
-                this.setSixshotAmmo(player, hand, load);
-                player.playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_END, 1.0f, 1.0f);
-                player.sendActionBar(ChatColor.YELLOW + "装填完了: " + load + "/" + SIXSHOT_MAX_AMMO);
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            Player current = Bukkit.getPlayer(uuid);
+            if (current == null || !current.isOnline() || current.isDead()
+                || !this.repeatingReloading.contains(uuid) || !this.isHoldingRepeatingCrossbow(current)) {
+                this.stopRepeatingReload(uuid);
+                return;
             }
-        }, (long) SIXSHOT_RELOAD_TICKS);
+            ItemStack hand = current.getInventory().getItemInMainHand();
+            int ammo = this.repeatingAmmo(hand);
+            if (ammo >= REPEATING_MAX_AMMO) {
+                this.stopRepeatingReload(uuid);
+                current.sendActionBar(ChatColor.GREEN + "装填完了: " + REPEATING_MAX_AMMO + "/" + REPEATING_MAX_AMMO);
+                current.playSound(current.getLocation(), Sound.ITEM_CROSSBOW_LOADING_END, 1.0f, 1.0f);
+                return;
+            }
+            if (this.countArrows(current) <= 0) {
+                this.stopRepeatingReload(uuid);
+                current.sendActionBar(ChatColor.RED + "矢が尽きた。");
+                return;
+            }
+            this.consumeArrows(current, 1);
+            this.setRepeatingAmmo(current, hand, ammo + 1);
+            current.sendActionBar(ChatColor.YELLOW + "装填: " + (ammo + 1) + "/" + REPEATING_MAX_AMMO);
+            current.playSound(current.getLocation(), Sound.ITEM_CROSSBOW_LOADING_MIDDLE, 0.35f, 1.4f);
+        }, REPEATING_RELOAD_INTERVAL_TICKS, REPEATING_RELOAD_INTERVAL_TICKS);
+        this.repeatingReloadTasks.put(uuid, task);
+    }
+
+    private void stopRepeatingReload(UUID uuid) {
+        this.repeatingReloading.remove(uuid);
+        BukkitTask task = this.repeatingReloadTasks.remove(uuid);
+        if (task != null) task.cancel();
+    }
+
+    private void tryRepeatingSingleShot(Player player, ItemStack item) {
+        int ammo = this.repeatingAmmo(item);
+        if (ammo <= 0) {
+            player.sendActionBar(ChatColor.RED + "装填されていない。右クリックでリロード。");
+            return;
+        }
+        this.fireRepeatingShot(player, item, ammo);
+    }
+
+    private void fireRepeatingShot(Player player, ItemStack item, int ammo) {
+        org.bukkit.entity.Arrow arrow = player.launchProjectile(org.bukkit.entity.Arrow.class);
+        arrow.setVelocity(player.getEyeLocation().getDirection().multiply(2.8));
+        arrow.setDamage(REPEATING_DAMAGE);
+        arrow.setCritical(true);
+        arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
+        this.setRepeatingAmmo(player, item, ammo - 1);
+        player.setCooldown(Material.CROSSBOW, 2);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_SHOOT, 1.0f, 1.1f);
+    }
+
+    private void startRepeatingAutoFire(Player player, ItemStack item) {
+        UUID uuid = player.getUniqueId();
+        this.stopRepeatingReload(uuid);
+        if (this.repeatingAmmo(item) <= 0) {
+            player.sendActionBar(ChatColor.RED + "装填されていない。右クリックでリロード。");
+            return;
+        }
+        this.stopRepeatingAutoFire(uuid);
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            Player current = Bukkit.getPlayer(uuid);
+            if (current == null || !current.isOnline() || current.isDead()
+                || !current.isSneaking() || !this.isHoldingRepeatingCrossbow(current)) {
+                this.stopRepeatingAutoFire(uuid);
+                return;
+            }
+            ItemStack hand = current.getInventory().getItemInMainHand();
+            int ammo = this.repeatingAmmo(hand);
+            if (ammo <= 0) {
+                this.stopRepeatingAutoFire(uuid);
+                current.sendActionBar(ChatColor.RED + "弾切れ。右クリックでリロード。");
+                return;
+            }
+            this.fireRepeatingShot(current, hand, ammo);
+        }, 0L, REPEATING_AUTO_INTERVAL_TICKS);
+        this.repeatingAutoTasks.put(uuid, task);
+    }
+
+    private void stopRepeatingAutoFire(UUID uuid) {
+        BukkitTask task = this.repeatingAutoTasks.remove(uuid);
+        if (task != null) task.cancel();
     }
 
     private boolean isExcalibur(ItemStack item) {
@@ -2422,7 +2504,8 @@ public class RelicFeature implements Listener {
         "tide", "seaswim",
         "swift", "dashfoot",
         "guardian", "reflect",
-        "wind", "shrinkstar");
+        "wind", "shrinkstar",
+        "sixshot_crossbow", "repeating_crossbow");
 
     /**
      * Rewrites a stale relic in place (id, name, material, lore) to its
@@ -3759,6 +3842,8 @@ public class RelicFeature implements Listener {
         UUID uuid = event.getPlayer().getUniqueId();
         this.stopScopedVision(uuid);
         this.stopGaybolgDash(uuid);
+        this.stopRepeatingReload(uuid);
+        this.stopRepeatingAutoFire(uuid);
         this.sniperDrawStart.remove(uuid);
         this.pendingShotArrows.remove(uuid);
         this.removeSniperZoom(event.getPlayer());

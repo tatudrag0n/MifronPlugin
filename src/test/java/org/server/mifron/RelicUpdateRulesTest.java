@@ -50,10 +50,10 @@ class RelicUpdateRulesTest {
    }
 
    @Test
-   void sixshotReloadUsesEightyPercentSpeed() {
-      assertEquals(0.8, RelicFeature.SIXSHOT_RELOAD_SPEED_MULTIPLIER, 1.0e-9);
-      assertEquals((int) Math.ceil(25 / 0.8), RelicFeature.SIXSHOT_RELOAD_TICKS);
-      assertTrue(RelicFeature.SIXSHOT_RELOAD_TICKS > 13);
+   void repeatingCrossbowLoadsOneArrowEveryPointThreeSeconds() {
+      assertEquals(50, RelicFeature.REPEATING_MAX_AMMO);
+      assertEquals(6, RelicFeature.REPEATING_RELOAD_INTERVAL_TICKS);
+      assertTrue(RelicFeature.REPEATING_AUTO_INTERVAL_TICKS < RelicFeature.REPEATING_RELOAD_INTERVAL_TICKS);
    }
 
    @Test
@@ -93,6 +93,10 @@ class RelicUpdateRulesTest {
          .anyMatch(type -> type.id.equals("endless_grimoire")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("infinite_bundle")));
+      assertTrue(Arrays.stream(RelicFeature.RelicType.values())
+         .anyMatch(type -> type.id.equals("repeating_crossbow")));
+      assertFalse(Arrays.stream(RelicFeature.RelicType.values())
+         .anyMatch(type -> type.id.equals("sixshot_crossbow")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("ancient_slash_armor")));
       assertFalse(Arrays.stream(RelicFeature.RelicType.values())
