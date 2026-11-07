@@ -1766,9 +1766,6 @@ public class RelicFeature implements Listener {
             if (step % 2 == 0) {
                 world.spawnParticle(org.bukkit.Particle.ENCHANT, point, 5, 0.25, 0.25, 0.25, 0.02);
             }
-            if (step % 4 == 0) {
-                world.spawnParticle(org.bukkit.Particle.SONIC_BOOM, point, 1, 0.0, 0.0, 0.0, 0.0);
-            }
             for (double offset : new double[]{-1.5, 1.5, -2.8, 2.8}) {
                 org.bukkit.Location ray = point.clone().add(side.clone().multiply(offset));
                 world.spawnParticle(org.bukkit.Particle.END_ROD, ray, 2, 0.05, 0.05, 0.05, 0.01);
@@ -2077,6 +2074,14 @@ public class RelicFeature implements Listener {
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (this.isExcalibur(hand)) {
             event.setDamage(Math.max(event.getDamage(), EXCALIBUR_ATTACK_DAMAGE));
+            org.bukkit.Location hit = target.getLocation().add(0.0, target.getHeight() / 2.0, 0.0);
+            org.bukkit.Particle.DustOptions holy =
+                new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(255, 225, 120), 0.9f);
+            target.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, hit, 8, 0.28, 0.35, 0.28, 0.02);
+            target.getWorld().spawnParticle(org.bukkit.Particle.CRIT, hit, 7, 0.25, 0.3, 0.25, 0.08);
+            target.getWorld().spawnParticle(org.bukkit.Particle.DUST, hit, 6, 0.25, 0.3, 0.25, 0.02, holy);
+            target.getWorld().spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, hit, 2, 0.2, 0.15, 0.2, 0.0);
+            target.getWorld().playSound(hit, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.65f, 1.35f);
         }
         if (this.hasHellfire(hand)) {
             event.setDamage(event.getDamage() + 10.0);
