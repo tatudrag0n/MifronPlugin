@@ -149,11 +149,9 @@ advanced-enchanting:
 # default max-durability for individual relic ids.
 relic-durability:
   enabled: true
-  max-durability: 500
+  # All relics share this fixed pool. The awakened Excalibur is unbreakable.
+  max-durability: 1000
   durability-loss-on-use: 1
-  per-relic:
-    antigravity_mace: 800
-    ancient_slash_armor: 700
 
 # Wearing armor has a small movement-speed trade-off. The penalty scales with
 # the number of equipped armor pieces and is capped by max-penalty.

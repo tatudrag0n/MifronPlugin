@@ -75,6 +75,11 @@ class RelicUpdateRulesTest {
    }
 
    @Test
+   void relicsUseTheFixedThousandDurabilityPool() {
+      assertEquals(1000, RelicFeature.RELIC_MAX_DURABILITY);
+   }
+
+   @Test
    void armorPenaltyScalesPerPieceAndRespectsTheCap() {
       assertEquals(0.0, RelicFeature.armorMovementPenalty(0, 0.02, 0.08), 1.0e-9);
       assertEquals(-0.04, RelicFeature.armorMovementPenalty(2, 0.02, 0.08), 1.0e-9);

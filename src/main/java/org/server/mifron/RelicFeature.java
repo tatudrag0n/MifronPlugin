@@ -319,10 +319,11 @@ public class RelicFeature implements Listener {
         return item;
     }
 
+    /** Every relic uses the same fixed durability pool. */
+    static final int RELIC_MAX_DURABILITY = 1000;
+
     private int relicMaxDurability(RelicType type) {
-        int fallback = Math.max(1, this.plugin.getConfig().getInt("relic-durability.max-durability", 500));
-        int configured = this.plugin.getConfig().getInt("relic-durability.per-relic." + type.id, fallback);
-        return Math.max(1, Math.min(32767, configured));
+        return RELIC_MAX_DURABILITY;
     }
 
     private int relicDurabilityLossOnUse() {
@@ -335,15 +336,39 @@ public class RelicFeature implements Listener {
      * stack is stored in a bundle. Strip that component in place.
      */
     private boolean normalizeRelicDurability(ItemStack item) {
-        if (item == null || item.getType().getMaxDurability() > 0) return false;
-        if (!(item.getItemMeta() instanceof Damageable damageable)) return false;
-        boolean changed = damageable.hasMaxDamage() || damageable.hasDamage();
-        if (!changed) return false;
-        damageable.setMaxDamage(null);
-        damageable.resetDamage();
-        damageable.setUnbreakable(true);
-        item.setItemMeta(damageable);
-        return true;
+        if (item == null || !(item.getItemMeta() instanceof Damageable damageable)) return false;
+        boolean changed = false;
+        if (this.isExcalibur(item)) {
+            // The awakened holy sword has infinite durability.
+            if (!damageable.isUnbreakable()) {
+                damageable.setUnbreakable(true);
+                changed = true;
+            }
+            if (damageable.getDamage() != 0) {
+                damageable.setDamage(0);
+                changed = true;
+            }
+            if (damageable.hasMaxDamage() && damageable.getMaxDamage() != RELIC_MAX_DURABILITY) {
+                damageable.setMaxDamage(RELIC_MAX_DURABILITY);
+                changed = true;
+            }
+        } else if (item.getType().getMaxDurability() > 0) {
+            if (!damageable.hasMaxDamage() || damageable.getMaxDamage() != RELIC_MAX_DURABILITY) {
+                damageable.setMaxDamage(RELIC_MAX_DURABILITY);
+                changed = true;
+            }
+            if (damageable.getDamage() > RELIC_MAX_DURABILITY) {
+                damageable.setDamage(RELIC_MAX_DURABILITY);
+                changed = true;
+            }
+        } else if (damageable.hasMaxDamage() || damageable.hasDamage() || !damageable.isUnbreakable()) {
+            damageable.setMaxDamage(null);
+            damageable.resetDamage();
+            damageable.setUnbreakable(true);
+            changed = true;
+        }
+        if (changed) item.setItemMeta(damageable);
+        return changed;
     }
 
     /**
@@ -355,6 +380,16 @@ public class RelicFeature implements Listener {
         if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) return false;
         if (!this.plugin.getConfig().getBoolean("relic-durability.enabled", true)) return false;
         if (this.hasEndless(item)) return false;
+        if (this.isExcalibur(item)) {
+            if (item.getItemMeta() instanceof Damageable holy) {
+                if (!holy.isUnbreakable() || holy.getDamage() != 0) {
+                    holy.setUnbreakable(true);
+                    holy.setDamage(0);
+                    item.setItemMeta(holy);
+                }
+            }
+            return false;
+        }
         if (!(item.getItemMeta() instanceof Damageable damageable)) return false;
         int maximum = damageable.hasMaxDamage() ? damageable.getMaxDamage() : item.getType().getMaxDurability();
         if (maximum <= 0) return false;
@@ -1661,14 +1696,18 @@ public class RelicFeature implements Listener {
             health.addModifier(new AttributeModifier(this.excaliburHealthKey, 20.0,
                 AttributeModifier.Operation.ADD_NUMBER, EquipmentSlotGroup.ANY));
         }
-        // Excalibur is a real, breakable blade once it awakens.
+        // Excalibur is an eternal holy blade: its durability never decreases.
         for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
             ItemStack item = player.getInventory().getItem(slot);
             if (!this.isExcalibur(item) || item.getItemMeta() == null) continue;
             ItemMeta meta = item.getItemMeta();
             boolean changed = false;
-            if (meta.isUnbreakable()) {
-                meta.setUnbreakable(false);
+            if (!meta.isUnbreakable()) {
+                meta.setUnbreakable(true);
+                changed = true;
+            }
+            if (meta instanceof Damageable damageable && damageable.getDamage() != 0) {
+                damageable.setDamage(0);
                 changed = true;
             }
             String plain = meta.hasDisplayName()
@@ -1952,34 +1991,15 @@ public class RelicFeature implements Listener {
     public void onExcaliburRevive(org.bukkit.event.entity.EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         if (event.getFinalDamage() < player.getHealth()) return;
-        int excaliburSlot = -1;
-        for (int i = 0; i < player.getInventory().getSize(); i++) {
-            ItemStack candidate = player.getInventory().getItem(i);
-            if (this.isExcalibur(candidate)) {
-                excaliburSlot = i;
-                break;
-            }
-        }
-        if (excaliburSlot < 0) return;
-        ItemStack excalibur = player.getInventory().getItem(excaliburSlot);
+        if (this.findExcalibur(player) == null) return;
         long now = System.currentTimeMillis();
         Long last = this.excaliburReviveCooldown.get(player.getUniqueId());
         if (last != null && now - last < EXCALIBUR_REVIVE_COOLDOWN_MILLIS) return;
-        if (!(excalibur.getItemMeta() instanceof Damageable damageable)) return;
-        int maxDurability = excalibur.getType().getMaxDurability();
-        if (maxDurability <= 0) return;
-        int damage = damageable.getDamage() + Math.max(1, maxDurability / 5);
         this.excaliburReviveCooldown.put(player.getUniqueId(), now);
         event.setCancelled(true);
         player.setHealth(player.getMaxHealth());
         player.setFireTicks(0);
-        if (damage >= maxDurability) {
-            player.getInventory().setItem(excaliburSlot, null);
-        } else {
-            damageable.setDamage(damage);
-            excalibur.setItemMeta(damageable);
-            player.getInventory().setItem(excaliburSlot, excalibur);
-        }
+        // Infinite durability: the revive never consumes the sword.
         player.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING,
             player.getLocation().add(0.0, 1.0, 0.0), 80, 0.6, 1.0, 0.6, 0.3);
         player.getWorld().playSound(player.getLocation(), Sound.ITEM_TOTEM_USE, 1.2f, 1.0f);
