@@ -18,7 +18,7 @@ param(
 
 # 3D モデルとして Blockbench で作ったもの。テクスチャはモデルの UV 用パレットなので
 # traced の 2D 画像で上書きしてはいけない。
-$ModelIds = @('ancient_anvil', 'enchgrind', 'giantcore', 'lightning', 'reflect')
+$ModelIds = @('ancient_anvil', 'enchgrind', 'lightning', 'reflect')
 
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
@@ -75,3 +75,4 @@ if (-not $SkipPack) {
   if ($LASTEXITCODE -ne 0) { throw "pack failed ($LASTEXITCODE)" }
 }
 Step 'done'
+

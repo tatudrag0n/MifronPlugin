@@ -37,7 +37,6 @@ BLOCK_ITEMS = {
     "anvil":         ("ancient_anvil", "netherite", "gold", "gold"),
     "grindstone":    ("enchgrind",     "steel",     "wood", "violet"),
     "lightning_rod": ("lightning",     "copper",    "gold", "gold"),
-    "heavy_core":    ("giantcore",     "netherite", "ember", "ember"),
 }
 
 OUTLINE_MAX = 46
@@ -215,3 +214,4 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
