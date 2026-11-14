@@ -1,0 +1,34 @@
+# relic id | vanilla source | primary | secondary | accent | accent_frac
+# バニラ構造をなぞる: シルエット・光の構造・輪郭位置は source から継承し、
+# 素材と色はここで指定した Mifron のランプに置き換える。
+#
+# ここに載らないものは v9 の spec 版をそのまま使う:
+#   ancient_anvil / enchgrind / giantcore / magnet / jetpack / reflect / wither / nightclock
+# 理由: 前者4つは 26.1.2 では textures/block にしか存在せず、ブロックの面テクスチャを
+#       アイコンにしても「平らな箱」にしかならない。jetpack は elytra 由来だと翼に見える。
+hookshot|fishing_rod|steel|wood|pale|0.05
+skates|iron_boots|leather|steel|frost|0.06
+resonance|echo_shard|void|pale|lapis|0.08
+fireball|fire_charge|ember|ember|gold|0.12
+decayed_sword|iron_sword|rusted|wood|ember|0.06
+chain|iron_chain|steel|steel|shadow|0.00
+seaswim|heart_of_the_sea|lapis|frost|pale|0.08
+dashfoot|rabbit_foot|leather|bone|bone|0.05
+shrinkstar|nether_star|bone|pale|poison|0.08
+lightning|lightning_rod|copper|gold|gold|0.10
+blink|ender_eye|void|poison|pale|0.06
+totem|totem_of_undying|bone|gold|lapis|0.08
+bell|bell|gold|leather|poison|0.06
+dragonbreath|dragon_breath|violet|pale|poison|0.08
+vision|spyglass|copper|steel|shadow|0.05
+time_clock|clock_00|gold|frost|frost|0.08
+antigravity_mace|mace|steel|netherite|lapis|0.08
+ancient_slash_armor|netherite_chestplate|netherite|ember|ember|0.07
+hellfire_book|enchanted_book|leather|gold|ember|0.10
+endless_grimoire|book|leather|violet|violet|0.10
+gaybolg|trident|steel|violet|violet|0.08
+excalibur_replica|golden_sword|gold|pale|lapis|0.08
+infinite_bundle|bundle|leather|gold|violet|0.08
+noahs_ark|pale_oak_boat|wood|lapis|pale|0.06
+artemis|bow|wood|lapis|lapis|0.03
+enchbook|enchanted_book|leather|lapis|lapis|0.08
