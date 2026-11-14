@@ -96,6 +96,16 @@ MODELS = {
             ("vent_top", [5, 15, 5], [11, 16, 11], "accent"),
         ],
     },
+    "lightning": {
+        "tex_override": {"LIGHT": "#e89a5c", "MID": "#c26a32", "DARK": "#8a4420",
+                         "ACCENT": "#ffd84a"},
+        "cubes": [
+            ("base",  [6, 0, 6],  [10, 1, 10], "dark"),
+            ("rod",   [7, 1, 7],  [9, 14, 9],  "mid"),
+            ("collar", [6, 9, 6], [10, 10, 10], "light"),
+            ("tip",   [7, 14, 7], [9, 16, 9],  "accent"),
+        ],
+    },
 }
 
 DISPLAY = {

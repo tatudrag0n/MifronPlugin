@@ -18,7 +18,7 @@ param(
 
 # 3D モデルとして Blockbench で作ったもの。テクスチャはモデルの UV 用パレットなので
 # traced の 2D 画像で上書きしてはいけない。
-$ModelIds = @('ancient_anvil', 'enchgrind', 'giantcore')
+$ModelIds = @('ancient_anvil', 'enchgrind', 'giantcore', 'lightning')
 
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
