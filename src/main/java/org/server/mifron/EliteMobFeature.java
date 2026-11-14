@@ -1108,8 +1108,16 @@ public class EliteMobFeature implements Listener {
         if (!(target instanceof Player player) || !this.isValidTarget(player)) return false;
         World world = player.getWorld();
         Location base = player.getLocation().clone();
-        int destinationY = Math.min(world.getMaxHeight() - 4, base.getBlockY() + VOID_LIFT_HEIGHT);
-        if (destinationY <= base.getBlockY() + 2) return false;
+        int startY = Math.min(world.getMaxHeight() - 4, base.getBlockY() + VOID_LIFT_HEIGHT);
+        if (startY <= base.getBlockY() + 2) return false;
+        // 洞窟の中に埋まらないよう、上空から下へ向かって空洞を探す。
+        int destinationY = this.findOpenAirY(world, base.getBlockX(), base.getBlockZ(),
+            startY, world.getMaxHeight() - 2);
+        if (destinationY < 0) {
+            destinationY = this.findOpenAirY(world, base.getBlockX(), base.getBlockZ(),
+                base.getBlockY() + 3, startY);
+        }
+        if (destinationY <= base.getBlockY()) return false;
         Location destination = base.clone();
         destination.setY(destinationY);
         Location origin = base.clone().add(0.0, 1.0, 0.0);
@@ -1123,6 +1131,18 @@ public class EliteMobFeature implements Listener {
         world.playSound(destination, Sound.ENTITY_ENDERMAN_SCREAM, 1.0f, 0.8f);
         player.sendMessage(ChatColor.LIGHT_PURPLE + "異空の支配者が空間を歪めた…");
         return true;
+    }
+
+    /** yMin..yMax で 2 ブロック分の空気が連続する最も低い Y。無ければ -1。 */
+    private int findOpenAirY(World world, int x, int z, int yMin, int yMax) {
+        int from = Math.max(world.getMinHeight() + 1, yMin);
+        int to = Math.min(world.getMaxHeight() - 2, yMax);
+        for (int y = from; y <= to; y++) {
+            if (world.getBlockAt(x, y, z).getType().isSolid()) continue;
+            if (world.getBlockAt(x, y + 1, z).getType().isSolid()) continue;
+            return y;
+        }
+        return -1;
     }
 
     /** 対象の足元の地面から TNT を掘り出して起爆する。 */
