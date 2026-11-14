@@ -35,7 +35,9 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "spec validation failed (exit $LASTEXITCODE)" }
 
   if (-not $CheckOnly) {
-    & py render.py --spec-dir $specDir --out-dir $reviewDir --quiet
+    # --outline 181818: バニラのアイテムは輪郭が #181818 のほぼ黒で統一されている。
+    # 素材ごとの色付き輪郭だと柔らかく見え「ベクター絵」っぽくなるため、実測に合わせる。
+    & py render.py --spec-dir $specDir --out-dir $reviewDir --quiet --outline 181818
     if ($LASTEXITCODE -ne 0) { throw "render failed (exit $LASTEXITCODE)" }
   }
 } finally { Pop-Location }

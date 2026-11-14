@@ -112,7 +112,7 @@ def parse_spec(path):
     return name, meta, grid
 
 
-def to_image(meta, grid):
+def to_image(meta, grid, outline_override=None):
     im = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     px = im.load()
     for y, row in enumerate(grid):
@@ -124,7 +124,10 @@ def to_image(meta, grid):
             mat = meta.get(layer)
             if mat is None:
                 raise SpecError(f"char {ch!r} needs '{layer}:' in header")
-            hexv = P.ramp(mat, role)
+            if role == "outline" and outline_override:
+                hexv = outline_override
+            else:
+                hexv = P.ramp(mat, role)
             h = hexv.lstrip("#")
             px[x, y] = (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 255)
     return im
@@ -226,6 +229,7 @@ def main():
     ap.add_argument("--out-dir")
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--sheet")
+    ap.add_argument("--outline", help="override every outline colour with this hex (e.g. 181818)")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
@@ -239,7 +243,7 @@ def main():
         path = os.path.join(args.spec_dir, fn)
         try:
             name, meta, grid = parse_spec(path)
-            img = to_image(meta, grid)
+            img = to_image(meta, grid, args.outline)
             viol, warns = validate(name, meta, grid)
         except SpecError as e:
             print(f"ERROR  {e}")
