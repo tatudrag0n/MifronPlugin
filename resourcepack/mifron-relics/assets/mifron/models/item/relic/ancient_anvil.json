@@ -1,6 +1,12 @@
 {
+  "textures": {
+    "particle": "mifron:item/relic/ancient_anvil_particle",
+    "body": "mifron:item/relic/ancient_anvil_body",
+    "top": "mifron:item/relic/ancient_anvil_top"
+  },
   "elements": [
     {
+      "__comment": "Anvil base",
       "from": [
         2,
         0,
@@ -8,386 +14,267 @@
       ],
       "to": [
         14,
-        3,
+        4,
         14
       ],
-      "color": 6,
       "faces": {
-        "north": {
+        "down": {
           "uv": [
-            8,
-            0,
-            16,
-            8
+            2,
+            2,
+            14,
+            14
           ],
-          "texture": "#missing"
-        },
-        "east": {
-          "uv": [
-            8,
-            0,
-            16,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "south": {
-          "uv": [
-            8,
-            0,
-            16,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "west": {
-          "uv": [
-            8,
-            0,
-            16,
-            8
-          ],
-          "texture": "#missing"
+          "texture": "#body",
+          "rotation": 180,
+          "cullface": "down"
         },
         "up": {
           "uv": [
-            0,
-            0,
-            8,
-            8
+            2,
+            2,
+            14,
+            14
           ],
-          "texture": "#missing"
+          "texture": "#body",
+          "rotation": 180
         },
-        "down": {
+        "north": {
           "uv": [
-            0,
-            8,
-            8,
+            2,
+            12,
+            14,
             16
           ],
-          "texture": "#missing"
+          "texture": "#body"
+        },
+        "south": {
+          "uv": [
+            2,
+            12,
+            14,
+            16
+          ],
+          "texture": "#body"
+        },
+        "west": {
+          "uv": [
+            0,
+            2,
+            4,
+            14
+          ],
+          "texture": "#body",
+          "rotation": 90
+        },
+        "east": {
+          "uv": [
+            4,
+            2,
+            0,
+            14
+          ],
+          "texture": "#body",
+          "rotation": 270
         }
       }
     },
     {
+      "__comment": "Lower narrow portion",
       "from": [
+        4,
+        4,
+        3
+      ],
+      "to": [
+        12,
         5,
-        3,
-        5
+        13
       ],
-      "to": [
-        11,
-        7,
-        11
-      ],
-      "color": 4,
       "faces": {
+        "up": {
+          "uv": [
+            4,
+            3,
+            12,
+            13
+          ],
+          "texture": "#body",
+          "rotation": 180
+        },
         "north": {
           "uv": [
-            0,
-            8,
-            8,
-            16
+            4,
+            11,
+            12,
+            12
           ],
-          "texture": "#missing"
-        },
-        "east": {
-          "uv": [
-            0,
-            8,
-            8,
-            16
-          ],
-          "texture": "#missing"
+          "texture": "#body"
         },
         "south": {
           "uv": [
-            0,
-            8,
-            8,
-            16
+            4,
+            11,
+            12,
+            12
           ],
-          "texture": "#missing"
+          "texture": "#body"
         },
         "west": {
           "uv": [
-            0,
-            8,
-            8,
-            16
+            4,
+            3,
+            5,
+            13
           ],
-          "texture": "#missing"
+          "texture": "#body",
+          "rotation": 90
         },
-        "up": {
+        "east": {
           "uv": [
-            0,
-            8,
-            8,
-            16
+            5,
+            3,
+            4,
+            13
           ],
-          "texture": "#missing"
-        },
-        "down": {
-          "uv": [
-            0,
-            8,
-            8,
-            16
-          ],
-          "texture": "#missing"
+          "texture": "#body",
+          "rotation": 270
         }
       }
     },
     {
+      "__comment": "Wider section beneath top portion",
       "from": [
-        1,
-        7,
-        2
+        6,
+        5,
+        4
       ],
       "to": [
-        15,
         10,
-        14
-      ],
-      "color": 2,
-      "faces": {
-        "north": {
-          "uv": [
-            0,
-            0,
-            8,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "east": {
-          "uv": [
-            0,
-            0,
-            8,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "south": {
-          "uv": [
-            0,
-            0,
-            8,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "west": {
-          "uv": [
-            0,
-            0,
-            8,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "up": {
-          "uv": [
-            0,
-            0,
-            8,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "down": {
-          "uv": [
-            0,
-            0,
-            8,
-            8
-          ],
-          "texture": "#missing"
-        }
-      }
-    },
-    {
-      "from": [
-        -2,
-        7,
-        5
-      ],
-      "to": [
-        1,
         10,
-        11
-      ],
-      "color": 3,
-      "faces": {
-        "north": {
-          "uv": [
-            8,
-            0,
-            16,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "east": {
-          "uv": [
-            8,
-            0,
-            16,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "south": {
-          "uv": [
-            8,
-            0,
-            16,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "west": {
-          "uv": [
-            8,
-            0,
-            16,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "up": {
-          "uv": [
-            0,
-            0,
-            8,
-            8
-          ],
-          "texture": "#missing"
-        },
-        "down": {
-          "uv": [
-            0,
-            8,
-            8,
-            16
-          ],
-          "texture": "#missing"
-        }
-      }
-    },
-    {
-      "from": [
-        2,
-        10,
-        8
-      ],
-      "to": [
-        14,
-        11,
         12
       ],
-      "color": 9,
       "faces": {
         "north": {
           "uv": [
-            8,
-            8,
-            16,
-            16
+            6,
+            6,
+            10,
+            11
           ],
-          "texture": "#missing"
-        },
-        "east": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
+          "texture": "#body"
         },
         "south": {
           "uv": [
-            8,
-            8,
-            16,
-            16
+            6,
+            6,
+            10,
+            11
           ],
-          "texture": "#missing"
+          "texture": "#body"
         },
         "west": {
           "uv": [
-            8,
-            8,
-            16,
+            5,
+            4,
+            10,
+            12
+          ],
+          "texture": "#body",
+          "rotation": 90
+        },
+        "east": {
+          "uv": [
+            10,
+            4,
+            5,
+            12
+          ],
+          "texture": "#body",
+          "rotation": 270
+        }
+      }
+    },
+    {
+      "__comment": "Anvil top",
+      "from": [
+        3,
+        10,
+        0
+      ],
+      "to": [
+        13,
+        16,
+        16
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            3,
+            0,
+            13,
             16
           ],
-          "texture": "#missing"
+          "texture": "#body",
+          "rotation": 180
         },
         "up": {
           "uv": [
-            8,
-            8,
-            16,
+            3,
+            0,
+            13,
             16
           ],
-          "texture": "#missing"
+          "texture": "#top",
+          "rotation": 180
         },
-        "down": {
+        "north": {
           "uv": [
-            8,
-            8,
+            3,
+            0,
+            13,
+            6
+          ],
+          "texture": "#body"
+        },
+        "south": {
+          "uv": [
+            3,
+            0,
+            13,
+            6
+          ],
+          "texture": "#body"
+        },
+        "west": {
+          "uv": [
+            10,
+            0,
             16,
             16
           ],
-          "texture": "#missing"
+          "texture": "#body",
+          "rotation": 90
+        },
+        "east": {
+          "uv": [
+            16,
+            0,
+            10,
+            16
+          ],
+          "texture": "#body",
+          "rotation": 270
         }
       }
     }
   ],
-  "textures": {
-    "particle": "mifron:item/relic/ancient_anvil"
-  },
+  "gui_light": "side",
   "display": {
-    "gui": {
-      "rotation": [
-        30,
-        225,
-        0
-      ],
-      "translation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.625,
-        0.625,
-        0.625
-      ]
-    },
-    "ground": {
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "translation": [
-        0,
-        3,
-        0
-      ],
-      "scale": [
-        0.25,
-        0.25,
-        0.25
-      ]
-    },
     "fixed": {
       "rotation": [
         0,
-        0,
+        90,
         0
       ],
       "translation": [
@@ -401,27 +288,10 @@
         0.5
       ]
     },
-    "thirdperson_righthand": {
-      "rotation": [
-        75,
-        45,
-        0
-      ],
-      "translation": [
-        0,
-        2.5,
-        0
-      ],
-      "scale": [
-        0.375,
-        0.375,
-        0.375
-      ]
-    },
-    "firstperson_righthand": {
+    "on_shelf": {
       "rotation": [
         0,
-        45,
+        90,
         0
       ],
       "translation": [
@@ -430,9 +300,9 @@
         0
       ],
       "scale": [
-        0.4,
-        0.4,
-        0.4
+        1,
+        1,
+        1
       ]
     }
   }

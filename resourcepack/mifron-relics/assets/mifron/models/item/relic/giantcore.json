@@ -1,53 +1,57 @@
 {
+  "textures": {
+    "all": "mifron:item/relic/giantcore_all",
+    "particle": "mifron:item/relic/giantcore_all"
+  },
   "elements": [
     {
+      "name": "heavy_core",
       "from": [
-        1,
-        1,
-        1
+        4,
+        0,
+        4
       ],
       "to": [
-        15,
-        15,
-        15
+        12,
+        8,
+        12
       ],
-      "color": 9,
       "faces": {
         "north": {
           "uv": [
-            8,
             0,
-            16,
-            8
+            8,
+            8,
+            16
           ],
-          "texture": "#missing"
+          "texture": "all"
         },
         "east": {
           "uv": [
-            8,
             0,
-            16,
-            8
+            8,
+            8,
+            16
           ],
-          "texture": "#missing"
+          "texture": "all"
         },
         "south": {
           "uv": [
-            8,
             0,
-            16,
-            8
+            8,
+            8,
+            16
           ],
-          "texture": "#missing"
+          "texture": "all"
         },
         "west": {
           "uv": [
-            8,
             0,
-            16,
-            8
+            8,
+            8,
+            16
           ],
-          "texture": "#missing"
+          "texture": "all"
         },
         "up": {
           "uv": [
@@ -56,230 +60,20 @@
             8,
             8
           ],
-          "texture": "#missing"
+          "texture": "all"
         },
         "down": {
           "uv": [
+            8,
             0,
-            8,
-            8,
-            16
-          ],
-          "texture": "#missing"
-        }
-      }
-    },
-    {
-      "from": [
-        1,
-        5,
-        1
-      ],
-      "to": [
-        2,
-        11,
-        15
-      ],
-      "color": 3,
-      "faces": {
-        "north": {
-          "uv": [
-            8,
-            8,
             16,
-            16
+            8
           ],
-          "texture": "#missing"
-        },
-        "east": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "south": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "west": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "up": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "down": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        }
-      }
-    },
-    {
-      "from": [
-        14,
-        5,
-        1
-      ],
-      "to": [
-        15,
-        11,
-        15
-      ],
-      "color": 3,
-      "faces": {
-        "north": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "east": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "south": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "west": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "up": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "down": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        }
-      }
-    },
-    {
-      "from": [
-        5,
-        15,
-        5
-      ],
-      "to": [
-        11,
-        16,
-        11
-      ],
-      "color": 7,
-      "faces": {
-        "north": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "east": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "south": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "west": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "up": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
-        },
-        "down": {
-          "uv": [
-            8,
-            8,
-            16,
-            16
-          ],
-          "texture": "#missing"
+          "texture": "all"
         }
       }
     }
   ],
-  "textures": {
-    "particle": "mifron:item/relic/giantcore"
-  },
   "display": {
     "gui": {
       "rotation": [
@@ -289,13 +83,13 @@
       ],
       "translation": [
         0,
-        0,
+        3,
         0
       ],
       "scale": [
-        0.625,
-        0.625,
-        0.625
+        1,
+        1,
+        1
       ]
     },
     "ground": {
@@ -310,60 +104,43 @@
         0
       ],
       "scale": [
-        0.25,
-        0.25,
-        0.25
+        0.5,
+        0.5,
+        0.5
       ]
     },
     "fixed": {
       "rotation": [
         0,
-        0,
+        180,
         0
       ],
       "translation": [
         0,
+        4,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [
+        45,
+        45,
+        0
+      ],
+      "translation": [
         0,
+        3,
         0
       ],
       "scale": [
         0.5,
         0.5,
         0.5
-      ]
-    },
-    "thirdperson_righthand": {
-      "rotation": [
-        75,
-        45,
-        0
-      ],
-      "translation": [
-        0,
-        2.5,
-        0
-      ],
-      "scale": [
-        0.375,
-        0.375,
-        0.375
-      ]
-    },
-    "firstperson_righthand": {
-      "rotation": [
-        0,
-        45,
-        0
-      ],
-      "translation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.4,
-        0.4,
-        0.4
       ]
     }
   }

@@ -68,13 +68,68 @@ FACES = {
 }
 
 
+def textured_quad(im, quad, tex, uv, shade, flipv=True):
+    """Fill a projected parallelogram with the texture region, nearest-neighbour.
+
+    An isometric projection of an axis-aligned rectangle is a parallelogram, so
+    the inverse mapping is a 2x2 solve rather than full homography.
+    """
+    x1, y1, x2, y2 = [int(round(v)) for v in uv]
+    x1, x2 = max(0, x1), min(tex.width, max(x2, x1 + 1))
+    y1, y2 = max(0, y1), min(tex.height, max(y2, y1 + 1))
+
+    (ax, ay), (bx, by), (cx, cy), (dx, dy) = quad
+    # p00 = a, p10 = b, p01 = d  (a->b is u, a->d is v)
+    e1 = (bx - ax, by - ay)
+    e2 = (dx - ax, dy - ay)
+    det = e1[0] * e2[1] - e1[1] * e2[0]
+    if abs(det) < 1e-9:
+        return
+    xs = [p[0] for p in quad]
+    ys = [p[1] for p in quad]
+    px = tex.load()
+    tw, th = tex.width, tex.height
+
+    for sy in range(int(min(ys)), int(max(ys)) + 1):
+        for sx in range(int(min(xs)), int(max(xs)) + 1):
+            rx, ry = sx - ax, sy - ay
+            u = (rx * e2[1] - ry * e2[0]) / det
+            v = (e1[0] * ry - e1[1] * rx) / det
+            if u < 0 or u > 1 or v < 0 or v > 1:
+                continue
+            vv = 1.0 - v if flipv else v
+            tx = int(x1 + u * (x2 - x1))
+            ty = int(y1 + vv * (y2 - y1))
+            tx = min(tw - 1, max(0, tx))
+            ty = min(th - 1, max(0, ty))
+            r, g, b, a = px[tx, ty]
+            if a < 8:
+                continue
+            im.putpixel((sx, sy), (int(r * shade), int(g * shade), int(b * shade), 255))
+
+
 def render(model_path, out_path, size=420, texname=None):
     model = json.load(open(model_path, encoding="utf-8"))
     name = texname or os.path.splitext(os.path.basename(model_path))[0]
-    tp = os.path.join(TEXDIR, name + ".png")
-    if not os.path.exists(tp):
-        raise SystemExit("texture not found: " + tp)
-    tex = Image.open(tp).convert("RGBA")
+
+    # resolve each texture slot to an image; faces reference slots via "#slot"
+    slot_imgs = {}
+    for slot, ref in (model.get("textures") or {}).items():
+        if not isinstance(ref, str):
+            continue
+        fn = ref.split("/")[-1].split(":")[-1]
+        p = os.path.join(TEXDIR, fn + ".png")
+        if not os.path.exists(p):
+            p = os.path.join(TEXDIR, name + ".png")
+        if os.path.exists(p):
+            slot_imgs["#" + slot] = Image.open(p).convert("RGBA")
+    if not slot_imgs:
+        raise SystemExit("no textures resolved for " + model_path)
+    default_img = list(slot_imgs.values())[0]
+
+    def img_for(fd):
+        t = fd.get("texture") if isinstance(fd, dict) else None
+        return slot_imgs.get(t, default_img)
 
     bs = boxes(model)
     if not bs:
@@ -105,10 +160,11 @@ def render(model_path, out_path, size=420, texname=None):
             if not fd:
                 continue
             uv = fd.get("uv")
-            col = face_colour(tex, uv, shade) if uv else (180, 180, 180)
+            if not uv:
+                continue
             quad = [proj(p, scale, ox, oy) for p in corners(f, t)]
-            d.polygon(quad, fill=col + (255,))
-            d.line(quad + [quad[0]], fill=(20, 20, 24, 255), width=2)
+            textured_quad(im, quad, img_for(fd), uv, shade)
+            d.line(quad + [quad[0]], fill=(18, 18, 22, 255), width=1)
 
     im.save(out_path)
     print("wrote", out_path, im.size, f"({len(bs)} elements)")
