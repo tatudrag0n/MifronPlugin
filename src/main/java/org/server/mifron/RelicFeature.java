@@ -989,6 +989,8 @@ public class RelicFeature implements Listener {
     static final double EXCALIBUR_DIVE_DAMAGE = 150.0;
     static final double EXCALIBUR_AERIAL_RADIUS = 4.0;
     static final double EXCALIBUR_DIVE_RADIUS = 6.0;
+    static final double ARTEMIS_DAMAGE = 24.0;
+    static final int ARTEMIS_HOMING_TICKS = 40;
     static final double EXCALIBUR_COUNTER_RADIUS = 8.0;
     static final double SINGLE_BELL_RADIUS = 10.0;
     static final int SINGLE_BELL_FREEZE_TICKS = 200;
@@ -1832,6 +1834,57 @@ public class RelicFeature implements Listener {
             w.playSound(loc, Sound.ENTITY_PLAYER_BIG_FALL, 1.4f, 0.7f);
             p.sendActionBar(ChatColor.RED + "急降下！");
         }, 10L);
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onArtemisShoot(org.bukkit.event.entity.EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        ItemStack bow = event.getBow();
+        if (bow == null || !this.isRelicItem(bow) || !"artemis".equals(this.getRelicId(bow))) return;
+        event.setCancelled(true);
+        event.setConsumeArrow(false);
+        org.bukkit.World world = player.getWorld();
+        org.bukkit.Location eye = player.getEyeLocation();
+        org.bukkit.util.Vector base = eye.getDirection().normalize();
+        java.util.List<org.bukkit.entity.Arrow> arrows = new java.util.ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            double yawOffset = (i - 1) * 10.0;
+            org.bukkit.util.Vector dir = base.clone().rotateAroundY(Math.toRadians(yawOffset));
+            org.bukkit.entity.Arrow arrow = world.spawnArrow(eye, dir, 2.0f, 0.35f);
+            arrow.setShooter(player);
+            arrow.setDamage(ARTEMIS_DAMAGE);
+            arrow.setPickupStatus(org.bukkit.entity.AbstractArrow.PickupStatus.CREATIVE_ONLY);
+            arrows.add(arrow);
+        }
+        final org.bukkit.scheduler.BukkitTask[] holder = new org.bukkit.scheduler.BukkitTask[1];
+        holder[0] = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            boolean anyAlive = false;
+            for (org.bukkit.entity.Arrow arrow : arrows) {
+                if (arrow.isDead() || !arrow.isValid()) continue;
+                anyAlive = true;
+                org.bukkit.entity.LivingEntity target = null;
+                double best = Double.MAX_VALUE;
+                for (org.bukkit.entity.Entity e : arrow.getWorld().getNearbyEntities(arrow.getLocation(), 24.0, 24.0, 24.0)) {
+                    if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player || living.isDead()) continue;
+                    if (living instanceof org.bukkit.entity.Player p && p.getGameMode() == org.bukkit.GameMode.SPECTATOR) continue;
+                    double d = living.getLocation().distanceSquared(arrow.getLocation());
+                    if (d < best) { best = d; target = living; }
+                }
+                if (target != null) {
+                    org.bukkit.util.Vector toTarget = target.getLocation().add(0.0, target.getHeight() / 2.0, 0.0)
+                        .toVector().subtract(arrow.getLocation().toVector());
+                    if (toTarget.lengthSquared() > 1.0E-6) {
+                        org.bukkit.util.Vector vel = toTarget.normalize().multiply(2.1);
+                        arrow.setVelocity(vel);
+                    }
+                }
+            }
+            // stop after ticks
+        }, 1L, 1L);
+        // cancel after N ticks
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> { if (holder[0] != null) holder[0].cancel(); }, ARTEMIS_HOMING_TICKS);
+        world.playSound(eye, Sound.ENTITY_ARROW_SHOOT, 1.2f, 1.2f);
+        player.sendActionBar(ChatColor.GREEN + "アルテミス: 3本の追尾矢！");
     }
 
     private void tryExcaliburSlash(Player player, ItemStack item) {
