@@ -114,6 +114,9 @@ public class RelicFeature implements Listener {
     private final Map<UUID, BukkitTask> gaybolgDashTasks = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburDashCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburAirborneUntil = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburLastGround = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburRightClickMillis = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburReplicaCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburReviveCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburCounterUntil = new java.util.concurrent.ConcurrentHashMap<>();
@@ -982,6 +985,10 @@ public class RelicFeature implements Listener {
     static final double EXCALIBUR_COUNTER_DAMAGE = 50000.0;
     static final double EXCALIBUR_DASH_DAMAGE = 60.0;
     static final long EXCALIBUR_DASH_COOLDOWN_MILLIS = 3000L;
+    static final double EXCALIBUR_AERIAL_DAMAGE = 40.0;
+    static final double EXCALIBUR_DIVE_DAMAGE = 150.0;
+    static final double EXCALIBUR_AERIAL_RADIUS = 4.0;
+    static final double EXCALIBUR_DIVE_RADIUS = 6.0;
     static final double EXCALIBUR_COUNTER_RADIUS = 8.0;
     static final double SINGLE_BELL_RADIUS = 10.0;
     static final int SINGLE_BELL_FREEZE_TICKS = 200;
@@ -1255,13 +1262,21 @@ public class RelicFeature implements Listener {
             this.tryExcaliburReplica(player, item);
         } else if ("decayed_sword".equals(id) && !rightClick
                 && (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK)
+                && player.isSneaking() && this.isExcalibur(item)
+                && this.isExcaliburAirborne(player)) {
+            event.setCancelled(true);
+            this.tryExcaliburDive(player, item);
+        } else if ("decayed_sword".equals(id) && !rightClick
+                && (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK)
                 && player.isSneaking() && this.isExcalibur(item)) {
             event.setCancelled(true);
             this.tryExcaliburDashAttack(player, item);
         } else if ("decayed_sword".equals(id) && rightClick && this.isExcalibur(item)) {
             event.setCancelled(true);
-            if (player.isSneaking()) this.startExcaliburCounter(player);
-            else this.tryExcaliburSlash(player, item);
+            if (player.isSneaking()) {
+                this.excaliburRightClickMillis.put(player.getUniqueId(), System.currentTimeMillis());
+                this.startExcaliburCounter(player);
+            } else this.tryExcaliburSlash(player, item);
         } else if ("hellfire_book".equals(id) && rightClick) {
             if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null
                 && (event.getClickedBlock().getType() == Material.ANVIL
@@ -1757,6 +1772,66 @@ public class RelicFeature implements Listener {
                 world.playSound(hit, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.9f, 1.1f);
             }
         }, 6L);
+    }
+
+    private boolean isExcaliburAirborne(Player player) {
+        Long until = this.excaliburAirborneUntil.get(player.getUniqueId());
+        return until != null && System.currentTimeMillis() <= until;
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onExcaliburAerialMove(org.bukkit.event.player.PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+        if (player.isOnGround()) { this.excaliburLastGround.put(uuid, System.currentTimeMillis()); return; }
+        if (!player.isSneaking()) return;
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (!this.isExcalibur(hand)) return;
+        Long rc = this.excaliburRightClickMillis.get(uuid);
+        if (rc == null || System.currentTimeMillis() - rc > 500L) return;
+        Long lg = this.excaliburLastGround.get(uuid);
+        if (lg == null || System.currentTimeMillis() - lg > 400L) return;
+        if (this.isExcaliburAirborne(player)) return;
+        org.bukkit.Location loc = player.getLocation();
+        org.bukkit.World world = loc.getWorld();
+        for (org.bukkit.entity.Entity e : world.getNearbyEntities(loc, EXCALIBUR_AERIAL_RADIUS, EXCALIBUR_AERIAL_RADIUS, EXCALIBUR_AERIAL_RADIUS)) {
+            if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player || living.isDead()) continue;
+            living.damage(EXCALIBUR_AERIAL_DAMAGE, player);
+            org.bukkit.Location hit = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
+            world.spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, hit, 3, 0.3, 0.2, 0.3, 0.0);
+        }
+        player.setVelocity(player.getVelocity().setY(1.35));
+        this.excaliburAirborneUntil.put(uuid, System.currentTimeMillis() + 5000L);
+        world.spawnParticle(org.bukkit.Particle.CLOUD, loc.add(0.0, 0.2, 0.0), 30, 0.6, 0.3, 0.6, 0.08);
+        world.playSound(loc, Sound.ENTITY_PLAYER_BIG_FALL, 1.0f, 1.4f);
+        player.sendActionBar(ChatColor.AQUA + "空中へ跳躍！");
+    }
+
+    private void tryExcaliburDive(Player player, ItemStack item) {
+        if (!this.rollingCooldown(player, this.excaliburDashCooldown, EXCALIBUR_DASH_COOLDOWN_MILLIS, item)) return;
+        this.excaliburAirborneUntil.remove(player.getUniqueId());
+        player.setVelocity(new org.bukkit.util.Vector(0.0, -2.6, 0.0));
+        org.bukkit.Location start = player.getLocation();
+        org.bukkit.World world = start.getWorld();
+        world.spawnParticle(org.bukkit.Particle.CLOUD, start.add(0.0, 0.2, 0.0), 20, 0.4, 0.2, 0.4, 0.06);
+        world.playSound(start, Sound.ENTITY_PLAYER_BIG_FALL, 1.2f, 0.9f);
+        org.bukkit.entity.Player p = player;
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            if (!p.isOnline()) return;
+            org.bukkit.Location loc = p.getLocation();
+            org.bukkit.World w = loc.getWorld();
+            for (org.bukkit.entity.Entity e : w.getNearbyEntities(loc, EXCALIBUR_DIVE_RADIUS, 4.0, EXCALIBUR_DIVE_RADIUS)) {
+                if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == p || living.isDead()) continue;
+                living.damage(EXCALIBUR_DIVE_DAMAGE, p);
+                org.bukkit.Location hit = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
+                w.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, hit, 1);
+                w.spawnParticle(org.bukkit.Particle.END_ROD, hit, 30, 0.8, 1.0, 0.8, 0.05);
+                w.playSound(hit, Sound.ENTITY_GENERIC_EXPLODE, 1.2f, 1.0f);
+            }
+            w.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, loc.add(0.0, 0.5, 0.0), 2);
+            w.playSound(loc, Sound.ENTITY_PLAYER_BIG_FALL, 1.4f, 0.7f);
+            p.sendActionBar(ChatColor.RED + "急降下！");
+        }, 10L);
     }
 
     private void tryExcaliburSlash(Player player, ItemStack item) {
