@@ -147,6 +147,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final RelicFeature relicFeature = new RelicFeature((Mifron) this);
    protected final EliteMobFeature eliteMobFeature = new EliteMobFeature((Mifron) this);
    protected final EnchantMaxDisplayFeature enchantMaxDisplayFeature = new EnchantMaxDisplayFeature((Mifron) this);
+  protected final ResourcePackFeature resourcePackFeature = new ResourcePackFeature((Mifron) this);
    protected OnlineShopFeature onlineShopFeature;
    protected final Random random = new Random();
    protected final Set<UUID> merchantTransactions = ConcurrentHashMap.newKeySet();

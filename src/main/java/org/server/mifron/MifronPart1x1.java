@@ -216,6 +216,8 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("start main world approval particles", this.mainWorldFeature::start);
       this.mifron().runStartupStep("schedule chunk protection scan", this.chunkProtectionFeature::scheduleScan);
       this.mifron().runStartupStep("start jump pad task", this.mifron()::startJumpPadTask);
+      this.mifron().runStartupStep("register relic resource pack events", () -> Bukkit.getPluginManager().registerEvents(this.resourcePackFeature, this));
+      this.mifron().runStartupStep("start relic resource pack server", this.resourcePackFeature::start);
       InventoryGroupFeature.install(this);
    }
 }
