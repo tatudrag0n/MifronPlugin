@@ -16,7 +16,7 @@ abstract class MifronPart17 extends MifronPart16 {
          this.sendMifronHelp(sender);
          return true;
       }
-      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop", "event", "relic").contains(args[0].toLowerCase(Locale.ROOT))) {
+      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop", "event", "relic", "ragnarok").contains(args[0].toLowerCase(Locale.ROOT))) {
          sender.sendMessage("Player only.");
          return true;
       }

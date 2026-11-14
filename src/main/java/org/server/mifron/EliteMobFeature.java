@@ -129,7 +129,8 @@ public class EliteMobFeature implements Listener {
         return entity != null && entity.getPersistentDataContainer().has(this.eliteKey, PersistentDataType.BYTE);
     }
 
-    private void makeElite(Mob mob) {
+    /** エリート化する。テストからも直接呼べるようパッケージ可視。 */
+    void makeElite(Mob mob) {
         // PDC survives chunk unload/restart, unlike transient metadata.
         mob.getPersistentDataContainer().set(this.eliteKey, PersistentDataType.BYTE, (byte) 1);
         double healthMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.health-multiplier", 8.0));
