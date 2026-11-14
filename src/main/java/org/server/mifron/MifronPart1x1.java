@@ -163,6 +163,7 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register special item events", () -> Bukkit.getPluginManager().registerEvents(this.relicFeature, this));
       this.mifron().runStartupStep("start relic magnet task", this.relicFeature::startMagnetTask);
       this.mifron().runStartupStep("register elite mob events", () -> Bukkit.getPluginManager().registerEvents(this.eliteMobFeature, this));
+      this.mifron().runStartupStep("register ragnarok event", () -> Bukkit.getPluginManager().registerEvents(this.ragnarokFeature, this));
       this.mifron().runStartupStep("register enchant max display events", () -> Bukkit.getPluginManager().registerEvents(this.enchantMaxDisplayFeature, this));
       this.mifron().runStartupStep("register friend chat events", () -> Bukkit.getPluginManager().registerEvents(this.friendChatService, this));
       this.mifron().runStartupStep("register chat policy events", () -> Bukkit.getPluginManager().registerEvents(this.chatPolicyFeature, this));
