@@ -1785,15 +1785,16 @@ public class RelicFeature implements Listener {
     public void onExcaliburAerialMove(org.bukkit.event.player.PlayerMoveEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
-        if (player.isOnGround()) { this.excaliburLastGround.put(uuid, System.currentTimeMillis()); return; }
+        if (player.isOnGround()) { this.excaliburLastGround.put(uuid, System.currentTimeMillis()); this.excaliburAirborneUntil.remove(uuid); return; }
         if (!player.isSneaking()) return;
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (!this.isExcalibur(hand)) return;
         Long rc = this.excaliburRightClickMillis.get(uuid);
-        if (rc == null || System.currentTimeMillis() - rc > 500L) return;
+        if (rc == null || System.currentTimeMillis() - rc > 300L) return;
         Long lg = this.excaliburLastGround.get(uuid);
-        if (lg == null || System.currentTimeMillis() - lg > 250L) return;
-        if (player.getVelocity().getY() < 0.32) return;
+        if (lg == null || System.currentTimeMillis() - lg > 150L) return;
+        if (player.getVelocity().getY() < 0.4) return;
+        this.excaliburRightClickMillis.remove(uuid);
         if (this.isExcaliburAirborne(player)) return;
         org.bukkit.Location loc = player.getLocation();
         org.bukkit.World world = loc.getWorld();
