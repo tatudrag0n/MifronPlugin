@@ -94,8 +94,10 @@ class RelicUpdateRulesTest {
          .anyMatch(type -> type.id.equals("endless_grimoire")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("infinite_bundle")));
-      assertTrue(Arrays.stream(RelicFeature.RelicType.values())
+      assertFalse(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("repeating_crossbow")));
+      assertFalse(Arrays.stream(RelicFeature.RelicType.values())
+         .anyMatch(type -> type.id.equals("sniper_bow")));
       assertFalse(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("sixshot_crossbow")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())

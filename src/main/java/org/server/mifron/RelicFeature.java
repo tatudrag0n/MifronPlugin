@@ -270,8 +270,6 @@ public class RelicFeature implements Listener {
         ANCIENT_ANVIL("ancient_anvil", "§6§l古匠の金床", Material.ANVIL, MaterialRarity.EPIC, RelicPower.MEDIUM, "§7あらゆるアイテムに全エンチャントを付与できる。XP・MP不要、修繕ボーナス+50%。"),
         GAYBOLG("gaybolg", "§5§lゲイ・ボルグ", Material.DIAMOND_SPEAR, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで最も近い敵を追尾して突進。攻撃射程50ブロック、距離でダメージ増加。(クールダウン5秒)"),
         EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
-        REPEATING_CROSSBOW("repeating_crossbow", "§8§l連射式弩弓", Material.CROSSBOW, MaterialRarity.UNCOMMON, RelicPower.MEDIUM, "§7右クリックでリロード開始/停止。最大50発。左クリック単射、スニーク+右クリックで連射。"),
-        SNIPER_BOW("sniper_bow", "§2§l狙撃弓", Material.BOW, MaterialRarity.RARE, RelicPower.MEDIUM, "§7溜め時間はバニラ相当、動的FOVズーム、ダメージ5倍、矢は貫通して直進する。"),
         INFINITE_BUNDLE("infinite_bundle", "§6§l無限のバンドル", Material.BUNDLE, MaterialRarity.EPIC, RelicPower.MAJOR, "§7容量無制限。バンドルに重ねるかShiftクリックで収納し、好きな順番で取り出せる。"),
         NOAHS_ARK("noahs_ark", "§3§lノアの方舟", Material.PALE_OAK_BOAT, MaterialRarity.RARE, RelicPower.MEDIUM, "§7空を飛べる高速な船。");
 

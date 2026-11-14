@@ -122,6 +122,7 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    protected final UtilityItemsFeature utilityItemsFeature = new UtilityItemsFeature((Mifron) this);
    protected final AdvancedAnvilFeature advancedAnvilFeature = new AdvancedAnvilFeature((Mifron) this);
    protected final SpecialCraftingFeature specialCraftingFeature = new SpecialCraftingFeature((Mifron) this);
+   protected final SpecialCraftFeature specialCraftFeature = new SpecialCraftFeature((Mifron) this);
    protected BedrockUiFeature bedrockUiFeature;
    protected final TextDisplayFeature textDisplayFeature = new TextDisplayFeature((Mifron) this);
    protected final BuildWorldManager buildWorldManager = new BuildWorldManager((Mifron) this);
