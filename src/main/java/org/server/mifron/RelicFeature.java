@@ -113,6 +113,7 @@ public class RelicFeature implements Listener {
     private final Map<UUID, UUID> gaybolgDashTargets = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> gaybolgDashTasks = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburDashCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburReplicaCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburReviveCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburCounterUntil = new java.util.concurrent.ConcurrentHashMap<>();
@@ -980,6 +981,7 @@ public class RelicFeature implements Listener {
     static final long EXCALIBUR_COUNTER_DURATION_MILLIS = 5000L;
     static final double EXCALIBUR_COUNTER_DAMAGE = 50000.0;
     static final double EXCALIBUR_DASH_DAMAGE = 60.0;
+    static final long EXCALIBUR_DASH_COOLDOWN_MILLIS = 3000L;
     static final double EXCALIBUR_COUNTER_RADIUS = 8.0;
     static final double SINGLE_BELL_RADIUS = 10.0;
     static final int SINGLE_BELL_FREEZE_TICKS = 200;
@@ -1724,7 +1726,7 @@ public class RelicFeature implements Listener {
     }
 
     private void tryExcaliburDashAttack(Player player, ItemStack item) {
-        if (!this.rollingCooldown(player, this.excaliburCooldown, EXCALIBUR_COOLDOWN_MILLIS, item)) return;
+        if (!this.rollingCooldown(player, this.excaliburDashCooldown, EXCALIBUR_DASH_COOLDOWN_MILLIS, item)) return;
         org.bukkit.util.Vector facing = player.getLocation().getDirection();
         facing.setY(0.0);
         if (facing.lengthSquared() < 1.0E-9) facing = new org.bukkit.util.Vector(1.0, 0.0, 0.0);
