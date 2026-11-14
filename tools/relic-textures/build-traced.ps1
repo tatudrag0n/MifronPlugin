@@ -16,6 +16,10 @@ param(
   [switch]$SkipPack
 )
 
+# 3D モデルとして Blockbench で作ったもの。テクスチャはモデルの UV 用パレットなので
+# traced の 2D 画像で上書きしてはいけない。
+$ModelIds = @('ancient_anvil', 'enchgrind', 'giantcore')
+
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $repo = (Resolve-Path (Join-Path $here '..\..')).Path
@@ -26,8 +30,8 @@ function Step($m) { Write-Host "`n== $m" -ForegroundColor Cyan }
 
 Step "1. 元テクスチャを検証 ($Src)"
 if (-not (Test-Path $Src)) { throw "source dir not found: $Src" }
-$pngs = Get-ChildItem $Src -Filter *.png
-Write-Host "  $($pngs.Count) png"
+$pngs = Get-ChildItem $Src -Filter *.png | Where-Object { $ModelIds -notcontains $_.BaseName }
+Write-Host "  $($pngs.Count) png (3D model ids excluded: $($ModelIds -join ','))"
 
 Push-Location $here
 try {
