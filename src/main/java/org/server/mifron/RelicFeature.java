@@ -1792,7 +1792,8 @@ public class RelicFeature implements Listener {
         Long rc = this.excaliburRightClickMillis.get(uuid);
         if (rc == null || System.currentTimeMillis() - rc > 500L) return;
         Long lg = this.excaliburLastGround.get(uuid);
-        if (lg == null || System.currentTimeMillis() - lg > 400L) return;
+        if (lg == null || System.currentTimeMillis() - lg > 250L) return;
+        if (player.getVelocity().getY() < 0.32) return;
         if (this.isExcaliburAirborne(player)) return;
         org.bukkit.Location loc = player.getLocation();
         org.bukkit.World world = loc.getWorld();
