@@ -74,3 +74,6 @@ server-config/plugins/DiscordSRV/
 server-config/plugins/MifronAuth/
 server-config/plugins/MifronMPBridge/
 server-config/plugins/**
+
+# テクスチャ検品用の作業出力（バニラ抽出792枚・比較画像など）
+_review/
