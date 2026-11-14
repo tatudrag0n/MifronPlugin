@@ -46,6 +46,16 @@ public final class SpecialCraftFeature implements Listener {
     /** 連射式弩弓の連射間隔（tick）。 */
     private static final int REPEATER_INTERVAL_TICKS = 6;
 
+    /**
+     * 狙撃弓の引き絞り倍率。バニラのフルチャージ（20tick）を 1.0 とし、
+     * 40tick で上限 2.0 に達する。引きが浅すぎる場合は 0.1 に丸める。
+     */
+    static double sniperRatio(int drawTicks) {
+        double ratio = Math.min(SNIPER_MAX_MULTIPLIER,
+            Math.max(0, drawTicks) / (double) VANILLA_FULL_DRAW_TICKS);
+        return Math.max(0.1, ratio);
+    }
+
     private final Mifron plugin;
     private final NamespacedKey craftKey;
     private final Map<UUID, Long> sniperDrawStart = new HashMap<>();
@@ -115,8 +125,7 @@ public final class SpecialCraftFeature implements Listener {
         return item;
     }
 
-    /** アイテムがどの特殊クラフトか（違えば null）。 */
-    public String craftId(ItemStack item) {
+    /** アイテムがどの特殊クラフトか（違えば null）。 */    public String craftId(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return null;
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return null;
@@ -138,10 +147,7 @@ public final class SpecialCraftFeature implements Listener {
             : (int) Math.max(0L, (System.currentTimeMillis() - start) / 50L);
 
         // バニラのフルチャージを1.0倍とし、2倍まで伸ばす。
-        double ratio = Math.min(SNIPER_MAX_MULTIPLIER,
-            drawTicks / (double) VANILLA_FULL_DRAW_TICKS);
-        // 引きが浅すぎる場合はバニラ同様に弱くする。
-        if (ratio < 0.1) ratio = 0.1;
+        double ratio = sniperRatio(drawTicks);
 
         if (event.getProjectile() instanceof AbstractArrow arrow) {
             Vector velocity = arrow.getVelocity().multiply(ratio);
