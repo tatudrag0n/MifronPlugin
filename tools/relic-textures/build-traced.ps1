@@ -53,12 +53,21 @@ Write-Host "  gate OK: $($rows.Count) textures" -ForegroundColor Green
 if ($CheckOnly) { Step 'check only: done'; return }
 
 Step "2. リソースパックへ配置"
-$n = 0
+# 重要: $Src はスナップショットなので、無条件にコピーすると
+# スナップショット作成後に他所で加えた修正を消してしまう。
+# 宛先が存在しないか、宛先より新しい時だけコピーする。
+$n = 0; $skipped = @()
 foreach ($p in $pngs) {
-  Copy-Item $p.FullName (Join-Path $texDir $p.Name) -Force
+  $dst = Join-Path $texDir $p.Name
+  if ((Test-Path $dst) -and ((Get-Item $dst).LastWriteTime -gt $p.LastWriteTime)) {
+    $skipped += $p.Name
+    continue
+  }
+  Copy-Item $p.FullName $dst -Force
   $n++
 }
-Write-Host "  installed $n"
+Write-Host "  installed $n (skipped $($skipped.Count) newer-on-destination)"
+if ($skipped.Count -gt 0) { Write-Host ("    skipped: " + ($skipped -join ', ')) -ForegroundColor Yellow }
 
 Step "3. items JSON とテクスチャの整合"
 $itemsRoot = Join-Path $repo 'resourcepack\mifron-relics\assets\mifron\items\relic'
