@@ -236,6 +236,13 @@ public class RelicFeature implements Listener {
         }
     }
 
+    /** リソースパックにアイコンが収録済みのレリックID。増やすときは一緒にテクスチャも追加する。 */
+    private static final java.util.Set<String> RELIC_ICONS = java.util.Set.of(
+        "hookshot", "jetpack", "skates", "resonance", "fireball", "decayed_sword",
+        "enchgrind", "chain", "giantcore", "seaswim", "dashfoot", "reflect",
+        "magnet", "shrinkstar", "lightning", "blink", "totem", "wither",
+        "bell", "dragonbreath", "vision");
+
     public enum RelicType {
         HOOKSHOT("hookshot", "§6§lフックショット", Material.FISHING_ROD, MaterialRarity.COMMON, RelicPower.MAJOR, "§7ウキを引っ掛けた所へ急接近する。"),
         JETPACK("jetpack", "§3§lジェットパック", Material.CHAINMAIL_CHESTPLATE, MaterialRarity.UNCOMMON, RelicPower.MAJOR, "§7ブレイズパウダーを燃料に、スペース長押しで上昇＆前進。燃料消費1/0.8秒。後退(S)キーでふわっと着地。"),
@@ -319,6 +326,13 @@ public class RelicFeature implements Listener {
             }
             meta.setLore(lore);
             meta.setEnchantmentGlintOverride(true);
+            // レリックごとの独自アイコン。リソースパック未導入のクライアントは
+            // この指定を無視してバニラの素材を表示するだけなので壊れない。
+            // アイコン未収録のレリックは指定しない（存在しないモデルを指すと
+            // クライアント側で欠損表示になるため）。
+            if (RELIC_ICONS.contains(type.id)) {
+                meta.setItemModel(new org.bukkit.NamespacedKey("mifron", "relic/" + type.id));
+            }
             meta.getPersistentDataContainer().set(keyRelic, PersistentDataType.STRING, type.id);
             if (type == RelicType.INFINITE_BUNDLE) {
                 meta.getPersistentDataContainer().set(this.bundleIdKey, PersistentDataType.STRING,

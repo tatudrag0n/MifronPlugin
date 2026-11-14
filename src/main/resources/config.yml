@@ -164,7 +164,9 @@ armor-movement-penalty:
 elite-mobs:
   # 0.02 = 2% of natural monster spawns.
   spawn-chance: 0.02
-  health-multiplier: 4.0
+  health-multiplier: 8.0
+  # 弱いMOBでも最低これだけの体力を持たせる
+  min-health: 40.0
   damage-multiplier: 1.5
   speed-multiplier: 1.2
   armor-bonus: 4.0

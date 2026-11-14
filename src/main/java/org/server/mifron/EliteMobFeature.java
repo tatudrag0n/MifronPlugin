@@ -55,6 +55,8 @@ public class EliteMobFeature implements Listener {
 
     private static final class EliteState {
         boolean phase2;
+        /** Set once we know this type never gets a second phase. */
+        boolean phase2Blocked;
         long nextSpecialAt;
         long nextBuildAt;
         Location lastLocation;
@@ -130,12 +132,15 @@ public class EliteMobFeature implements Listener {
     private void makeElite(Mob mob) {
         // PDC survives chunk unload/restart, unlike transient metadata.
         mob.getPersistentDataContainer().set(this.eliteKey, PersistentDataType.BYTE, (byte) 1);
-        double healthMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.health-multiplier", 4.0));
+        double healthMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.health-multiplier", 8.0));
         double damageMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.damage-multiplier", 1.5));
         double speedMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.speed-multiplier", 1.2));
         AttributeInstance maxHealth = mob.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealth != null) {
-            double newHp = maxHealth.getBaseValue() * healthMultiplier;
+            // Weak mobs (silverfish, endermite) would stay trivial even at x8,
+            // so every elite also gets a hard health floor.
+            double floor = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.min-health", 40.0));
+            double newHp = Math.max(maxHealth.getBaseValue() * healthMultiplier, floor);
             maxHealth.setBaseValue(newHp);
             mob.setHealth(newHp);
         }
@@ -147,7 +152,7 @@ public class EliteMobFeature implements Listener {
         if (armor != null) armor.setBaseValue(armor.getBaseValue() + plugin.getConfig().getDouble("elite-mobs.armor-bonus", 4.0));
         AttributeInstance knockback = mob.getAttribute(Attribute.KNOCKBACK_RESISTANCE);
         if (knockback != null) knockback.setBaseValue(Math.max(0.5, knockback.getBaseValue()));
-        mob.setCustomName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "✦ ELITE ✦ " + ChatColor.RED + mob.getName());
+        mob.setCustomName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "✦ ELITE ✦ " + ChatColor.RED + eliteTitle(mob));
         mob.setCustomNameVisible(true);
 
         UUID id = mob.getUniqueId();
@@ -179,7 +184,7 @@ public class EliteMobFeature implements Listener {
         String prefix = state.phase2
             ? ChatColor.DARK_PURPLE + "✦ ELITE II ✦ "
             : ChatColor.LIGHT_PURPLE + "✦ ELITE ✦ ";
-        return prefix + ChatColor.RED + mob.getName()
+        return prefix + ChatColor.RED + eliteTitle(mob)
             + ChatColor.GRAY + "  " + (int) Math.ceil(Math.max(0.0, mob.getHealth()))
             + "/" + (int) Math.ceil(Math.max(1.0, mob.getMaxHealth()));
     }
@@ -254,8 +259,13 @@ public class EliteMobFeature implements Listener {
             target = this.findNearestPlayer(mob, 24.0);
             if (target != null) mob.setTarget(target);
         }
-        if (!state.phase2 && mob.getHealth() <= mob.getMaxHealth() * 0.5) {
-            this.enterPhase2(mob, state);
+        if (!state.phase2 && !state.phase2Blocked && mob.getHealth() <= mob.getMaxHealth() * 0.5) {
+            if (supportsPhase2(mob.getType())) {
+                this.enterPhase2(mob, state);
+            } else {
+                // Only the headline bosses escalate. Everything else stays single-phase.
+                state.phase2Blocked = true;
+            }
         }
         long now = System.currentTimeMillis();
         if (target != null) {
@@ -334,7 +344,7 @@ public class EliteMobFeature implements Listener {
         if (damage != null) damage.setBaseValue(damage.getBaseValue() * 1.3);
         AttributeInstance speed = mob.getAttribute(Attribute.MOVEMENT_SPEED);
         if (speed != null) speed.setBaseValue(speed.getBaseValue() * 1.2);
-        mob.setCustomName(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "✦ ELITE II ✦ " + ChatColor.RED + mob.getName());
+        mob.setCustomName(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "✦ ELITE II ✦ " + ChatColor.RED + eliteTitle(mob));
         // Phase two is a real escalation: heal, shield, summon help and knock
         // nearby players back in one telegraphed burst.
         this.healSelf(mob, mob.getMaxHealth() * 0.2);
@@ -470,17 +480,26 @@ public class EliteMobFeature implements Listener {
                 mob.getWorld().playSound(mob.getLocation(), Sound.ENTITY_SPIDER_AMBIENT, 1.2f, 0.8f);
             }
             case ENDERMAN -> {
-                Vector behind = target.getLocation().getDirection().setY(0.0);
-                if (behind.lengthSquared() > 1.0E-6) {
-                    behind.normalize().multiply(-2.0);
-                    mob.teleport(target.getLocation().add(behind));
+                // 異空の支配者: 上空送りと、地面から掘り出した TNT の2種を使い分ける。
+                if (this.random.nextBoolean()) {
+                    this.voidSlam(mob, target, multiplier);
+                } else {
+                    this.buriedTnt(mob, target, multiplier);
                 }
-                target.damage(12.0 * multiplier, mob);
-                mob.getWorld().spawnParticle(Particle.PORTAL, target.getLocation(), 30, 0.5, 0.8, 0.5, 0.1);
             }
             case WITHER_SKELETON ->
                 this.witherSkullVolley(mob, target, state.phase2 ? 3 : 1, state.phase2);
-            case BLAZE -> this.fireballBarrage(mob, target, state.phase2 ? 4 : 2, false);
+            case BLAZE -> {
+                // 極炎の化身: 10連射 / 爆発する火球 / 降下して周囲を焼く の3種。
+                int blazeRoll = this.random.nextInt(3);
+                if (blazeRoll == 0) {
+                    this.fireballBarrage(mob, target, 10, false);
+                } else if (blazeRoll == 1) {
+                    this.explosiveFireball(mob, target, 8.0 * multiplier);
+                } else {
+                    this.infernoDescent(mob, target, 6.0 * multiplier);
+                }
+            }
             case WARDEN -> this.sonicBurst(mob, target, 12.0 * multiplier);
             case PIGLIN, PIGLIN_BRUTE, ZOMBIFIED_PIGLIN ->
                 this.chargeTarget(mob, target, 1.6, 8.0 * multiplier, false);
@@ -897,6 +916,171 @@ public class EliteMobFeature implements Listener {
         return this.random.nextDouble() < plugin.getConfig().getDouble("elite-drops." + key, def);
     }
 
+    /** Per-type display name for an elite. Every elite gets a distinct identity. */
+    static String eliteTitle(Mob mob) {
+        EntityType type = mob.getType();
+        if (type == null) return "エリート";
+        return switch (type) {
+            case ZOMBIE -> "腐死王";
+            case HUSK -> "砂漠の腐死王";
+            case DROWNED -> "海淵の腐死王";
+            case ZOMBIE_VILLAGER -> "堕落した村人王";
+            case SKELETON -> "骸の射手王";
+            case STRAY -> "凍てつく射手王";
+            case BOGGED -> "沼の射手王";
+            case WITHER_SKELETON -> "凋零の騎士王";
+            case CREEPER -> "爆裂の王";
+            case SPIDER -> "巣食う女王";
+            case CAVE_SPIDER -> "洞窟の女王";
+            case ENDERMAN -> "異空の支配者";
+            case BLAZE -> "極炎の化身";
+            case GHAST -> "泣き叫ぶ巨影";
+            case SLIME -> "粘性の王";
+            case MAGMA_CUBE -> "溶岩の王";
+            case SHULKER -> "殻の監視者";
+            case PHANTOM -> "夜翔の王";
+            case WITCH -> "呪いの女王";
+            case RAVAGER -> "蹂躙の巨獣";
+            case EVOKER -> "呪術王";
+            case VINDICATOR -> "処刑王";
+            case PILLAGER -> "狙撃隊長";
+            case ILLUSIONER -> "幻影の王";
+            case VEX -> "騒霊の王";
+            case GUARDIAN -> "深海の番人";
+            case ELDER_GUARDIAN -> "深海の古王";
+            case SILVERFISH -> "蝕みの群王";
+            case ENDERMITE -> "次元虫の王";
+            case WARDEN -> "深淵の守護王";
+            case ENDER_DRAGON -> "終焉の竜王";
+            case WITHER -> "凋零の王";
+            case PIGLIN -> "灼熱の将軍";
+            case PIGLIN_BRUTE -> "豚人の大将";
+            case ZOMBIFIED_PIGLIN -> "亡国の将軍";
+            case HOGLIN -> "暴走獣王";
+            case ZOGLIN -> "腐乱獣王";
+            case BREEZE -> "旋風の王";
+            case CREAKING -> "軋みの王";
+            default -> "エリート・" + type.name().toLowerCase().replace('_', '-');
+        };
+    }
+
+    /** Only the headline bosses escalate into a second phase. */
+    static boolean supportsPhase2(EntityType type) {
+        if (type == null) return false;
+        return switch (type) {
+            case ELDER_GUARDIAN, PIGLIN_BRUTE, WITHER, ENDER_DRAGON, WARDEN -> true;
+            default -> false;
+        };
+    }
+
+    /** 腐死王系: can only be finished off with Smite. */
+    static boolean isUndeadKing(EntityType type) {
+        if (type == null) return false;
+        return switch (type) {
+            case ZOMBIE, HUSK, DROWNED -> true;
+            default -> false;
+        };
+    }
+
+    /** True when the killing blow came from a weapon enchanted with Smite (アンデット特攻). */
+    private boolean slainBySmite(EntityDeathEvent event) {
+        Player killer = event.getEntity().getKiller();
+        if (killer == null) return false;
+        ItemStack weapon = killer.getInventory().getItemInMainHand();
+        return weapon != null
+            && weapon.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.SMITE) > 0;
+    }
+
+    /** Brings an undead king back a moment after a non-Smite kill. */
+    private void scheduleUndeadKingRevival(Mob dead) {
+        Location where = dead.getLocation().clone();
+        EntityType type = dead.getType();
+        World world = dead.getWorld();
+        world.playSound(where, Sound.ENTITY_ZOMBIE_AMBIENT, 1.4f, 0.6f);
+        world.spawnParticle(Particle.SOUL, where.clone().add(0.0, 1.0, 0.0), 40, 0.6, 0.8, 0.6, 0.02);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (!world.isChunkLoaded(where.getBlockX() >> 4, where.getBlockZ() >> 4)) return;
+            Entity spawned = world.spawnEntity(where, type, CreatureSpawnEvent.SpawnReason.CUSTOM);
+            if (spawned instanceof Mob revived) {
+                this.makeElite(revived);
+                world.spawnParticle(Particle.SOUL_FIRE_FLAME, where.clone().add(0.0, 1.0, 0.0),
+                    50, 0.6, 0.9, 0.6, 0.05);
+                world.playSound(where, Sound.ENTITY_WITHER_SPAWN, 1.0f, 1.4f);
+            }
+        }, 60L);
+    }
+
+    /** 異空の支配者: flings the target high into the air. */
+    private void voidSlam(Mob mob, LivingEntity target, double multiplier) {
+        World world = mob.getWorld();
+        Location from = target.getLocation().clone();
+        Location up = from.clone().add(0.0, 26.0, 0.0);
+        world.spawnParticle(Particle.PORTAL, from.clone().add(0.0, 1.0, 0.0), 60, 0.5, 1.0, 0.5, 0.4);
+        world.playSound(from, Sound.ENTITY_ENDERMAN_TELEPORT, 1.3f, 0.7f);
+        target.teleport(up);
+        target.damage(6.0 * multiplier, mob);
+        world.spawnParticle(Particle.REVERSE_PORTAL, up, 40, 0.5, 0.8, 0.5, 0.1);
+        world.playSound(up, Sound.ENTITY_ENDERMAN_SCREAM, 1.2f, 0.6f);
+    }
+
+    /** 異空の支配者: tears TNT out of the ground underneath the target. */
+    private void buriedTnt(Mob mob, LivingEntity target, double multiplier) {
+        World world = mob.getWorld();
+        Location at = target.getLocation().clone();
+        Location ground = at.clone();
+        // Dig down to the first solid block so the TNT looks excavated.
+        for (int i = 0; i < 4; i++) {
+            Block below = ground.getBlock().getRelative(BlockFace.DOWN);
+            if (!below.isPassable()) break;
+            ground = below.getLocation();
+        }
+        world.spawnParticle(Particle.SMOKE, ground.clone().add(0.0, 0.4, 0.0), 30, 0.5, 0.2, 0.5, 0.02);
+        world.playSound(ground, Sound.BLOCK_GRAVEL_BREAK, 1.4f, 0.6f);
+        org.bukkit.entity.TNTPrimed tnt = world.spawn(ground, org.bukkit.entity.TNTPrimed.class);
+        tnt.setFuseTicks(45);
+        tnt.setYield(4.0f);
+        tnt.setIsIncendiary(false);
+        target.damage(4.0 * multiplier, mob);
+        world.spawnParticle(Particle.EXPLOSION_EMITTER, ground.clone().add(0.0, 1.0, 0.0), 1);
+    }
+
+    /** 極炎の化身: lobs a large, exploding fireball. */
+    private void explosiveFireball(Mob mob, LivingEntity target, double damage) {
+        World world = mob.getWorld();
+        Location from = mob.getEyeLocation();
+        Vector direction = target.getEyeLocation().toVector().subtract(from.toVector());
+        if (direction.lengthSquared() < 1.0E-6) return;
+        org.bukkit.entity.LargeFireball ball = world.spawn(from, org.bukkit.entity.LargeFireball.class);
+        ball.setShooter(mob);
+        ball.setDirection(direction.normalize());
+        ball.setYield(3.0f);
+        ball.setIsIncendiary(true);
+        world.playSound(from, Sound.ENTITY_BLAZE_SHOOT, 1.4f, 0.6f);
+        target.damage(damage, mob);
+    }
+
+    /** 極炎の化身: drops to the ground and sets its surroundings ablaze. */
+    private void infernoDescent(Mob mob, LivingEntity target, double damage) {
+        World world = mob.getWorld();
+        Location dest = target.getLocation().clone();
+        mob.teleport(dest.clone().add(0.0, 0.5, 0.0));
+        world.spawnParticle(Particle.FLAME, dest.clone().add(0.0, 1.0, 0.0), 120, 3.0, 0.6, 3.0, 0.02);
+        world.spawnParticle(Particle.LAVA, dest.clone().add(0.0, 1.0, 0.0), 40, 2.5, 0.4, 2.5, 0.0);
+        world.playSound(dest, Sound.ITEM_FIRECHARGE_USE, 1.5f, 0.6f);
+        for (int dx = -3; dx <= 3; dx++) {
+            for (int dz = -3; dz <= 3; dz++) {
+                if (dx * dx + dz * dz > 9) continue;
+                Block b = dest.clone().add(dx, 0.0, dz).getBlock();
+                Block under = b.getRelative(BlockFace.DOWN);
+                if (b.isPassable() && !under.isPassable()) {
+                    b.setType(Material.FIRE, false);
+                }
+            }
+        }
+        target.damage(damage, mob);
+        target.setFireTicks(Math.max(target.getFireTicks(), 100));
+    }
+
     private static Material eliteHead(EntityType type) {
         if (type == null) return null;
         switch (type) {
@@ -936,6 +1120,14 @@ public class EliteMobFeature implements Listener {
     public void onDeath(EntityDeathEvent event) {
         LivingEntity entity = event.getEntity();
         if (!this.isElite(entity)) {
+            return;
+        }
+        // 腐死王系はアンデット特攻（Smite）を付けた武器でしか止められない。
+        // それ以外で倒された場合はその場で蘇り、討伐報酬も与えない。
+        if (entity instanceof Mob undeadKing && isUndeadKing(undeadKing.getType())
+            && !this.slainBySmite(event)) {
+            this.stopElite(undeadKing);
+            this.scheduleUndeadKingRevival(undeadKing);
             return;
         }
         if (entity instanceof Mob mob) this.stopElite(mob);
