@@ -12,12 +12,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$ids = @(
-  'hookshot', 'enchbook', 'jetpack', 'skates', 'resonance', 'fireball',
-  'decayed_sword', 'enchgrind', 'chain', 'giantcore', 'seaswim', 'dashfoot',
-  'reflect', 'nightclock', 'magnet', 'shrinkstar', 'lightning', 'blink',
-  'totem', 'wither', 'bell', 'dragonbreath', 'vision'
-)
+# テクスチャディレクトリに実在する PNG を正とする。
+# （レリックの追加・削除に追従できるよう、ID をハードコードしない）
+$texDir = Join-Path $PackDir 'assets\mifron\textures\item\relic'
+if (-not (Test-Path $texDir)) { throw "texture dir not found: $texDir" }
+$ids = @(Get-ChildItem $texDir -Filter '*.png' | ForEach-Object { $_.BaseName } | Sort-Object)
+if ($ids.Count -eq 0) { throw "no textures in $texDir" }
 
 # 1. pack.mcmeta
 $mcmeta = [ordered]@{

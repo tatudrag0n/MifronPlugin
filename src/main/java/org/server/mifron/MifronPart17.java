@@ -89,6 +89,25 @@ abstract class MifronPart17 extends MifronPart16 {
                }
             }
          }
+         case "ragnarok" -> {
+            if (this.isAdminOp(sender)) {
+               int seconds = 180;
+               if (args.length > 1) {
+                  try {
+                     seconds = Integer.parseInt(args[1]);
+                  } catch (NumberFormatException ignored) {
+                     // 既定の180秒を使う
+                  }
+               }
+               if (args.length > 2 && "stop".equalsIgnoreCase(args[1])) {
+                  this.eliteMobFeature.stopRagnarok();
+               } else {
+                  int converted = this.eliteMobFeature.startRagnarok(seconds);
+                  sender.sendMessage(ChatColor.RED + "ラグナロク開始: " + seconds
+                     + "秒 / 既存 " + converted + " 体をエリート化");
+               }
+            }
+         }
          case "sethub" -> { if (this.isAdminOp(sender)) { this.writeLocation("hub", ((Player) sender).getLocation()); sender.sendMessage("\u00a7a\u4e2d\u592e\u5e83\u5834\u3092\u8a2d\u5b9a\u3057\u307e\u3057\u305f\u3002"); } }
          case "warning" -> { if (this.denyUnlessAdmin(sender)) return true; this.mifron().handleWarningCommand(sender, args); }
          default -> {

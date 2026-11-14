@@ -59,7 +59,8 @@ try {
     throw ("files lost their directory structure at the zip root: " + (($flat | Select-Object -First 5) -join ', '))
   }
   $texCount = @($names | Where-Object { $_ -match '^assets/mifron/textures/item/relic/.*\.png$' }).Count
-  if ($texCount -ne 23) { throw "expected 23 relic textures, found $texCount" }
+  $expected = @(Get-ChildItem (Join-Path $PackRoot 'assets\mifron\textures\item\relic') -Filter '*.png').Count
+  if ($texCount -ne $expected) { throw "expected $expected relic textures, found $texCount" }
 
   Write-Output ("entries: {0}, textures: {1}, structure: OK" -f $names.Count, $texCount)
 } finally {

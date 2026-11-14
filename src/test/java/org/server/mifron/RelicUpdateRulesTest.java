@@ -94,8 +94,13 @@ class RelicUpdateRulesTest {
          .anyMatch(type -> type.id.equals("endless_grimoire")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("infinite_bundle")));
-      assertTrue(Arrays.stream(RelicFeature.RelicType.values())
+      // 狙撃弓と連射式弩弓はレリックをやめ、特殊クラフトへ移行した。
+      assertFalse(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("repeating_crossbow")));
+      assertFalse(Arrays.stream(RelicFeature.RelicType.values())
+         .anyMatch(type -> type.id.equals("sniper_bow")));
+      assertTrue(Arrays.stream(RelicFeature.RelicType.values())
+         .anyMatch(type -> type.id.equals("artemis")));
       assertFalse(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("sixshot_crossbow")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())

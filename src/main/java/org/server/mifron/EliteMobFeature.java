@@ -92,7 +92,7 @@ public class EliteMobFeature implements Listener {
         String hubWorld = plugin.getConfig().getString("hub.world", "world");
         if (worldName.equalsIgnoreCase(hubWorld)) return;
         double chance = plugin.getConfig().getDouble("elite-mobs.spawn-chance", DEFAULT_SPAWN_CHANCE);
-        if (random.nextDouble() < Math.max(0.0, Math.min(1.0, chance))) {
+        if (this.isRagnarokActive() || random.nextDouble() < Math.max(0.0, Math.min(1.0, chance))) {
             makeElite(mob);
         }
     }
@@ -914,6 +914,48 @@ public class EliteMobFeature implements Listener {
 
     private boolean roll(String key, double def) {
         return this.random.nextDouble() < plugin.getConfig().getDouble("elite-drops." + key, def);
+    }
+
+    /** ラグナロク終了時刻（epoch millis）。0 なら未開催。 */
+    private volatile long ragnarokUntil;
+
+    /** ラグナロク開催中か。 */
+    public boolean isRagnarokActive() {
+        return System.currentTimeMillis() < this.ragnarokUntil;
+    }
+
+    /**
+     * イベント「ラグナロク」: 全MOBをエリート化する。
+     *
+     * <p>開催中は新しく自然湧きするMOBもすべてエリートになり、
+     * すでに読み込まれているMOBもその場でエリート化される。
+     *
+     * @return エリート化した既存MOBの数
+     */
+    public int startRagnarok(int seconds) {
+        int duration = Math.max(10, seconds);
+        this.ragnarokUntil = System.currentTimeMillis() + duration * 1000L;
+        String hubWorld = plugin.getConfig().getString("hub.world", "world");
+        int converted = 0;
+        for (World world : Bukkit.getWorlds()) {
+            if (world.getName().equalsIgnoreCase(hubWorld)) continue;
+            for (LivingEntity living : world.getLivingEntities()) {
+                if (!(living instanceof Mob mob) || !(mob instanceof Enemy)) continue;
+                if (mob.isDead() || !mob.isValid() || this.isElite(mob)) continue;
+                this.makeElite(mob);
+                converted++;
+            }
+        }
+        Bukkit.broadcastMessage(ChatColor.DARK_RED + "" + ChatColor.BOLD
+            + "⚔ ラグナロク ⚔ " + ChatColor.RED + "全MOBがエリート化した。"
+            + ChatColor.GRAY + " (" + duration + "秒間 / 既存 " + converted + " 体)");
+        return converted;
+    }
+
+    /** ラグナロクを即時終了する。 */
+    public void stopRagnarok() {
+        this.ragnarokUntil = 0L;
+        Bukkit.broadcastMessage(ChatColor.GOLD + "ラグナロクは終息した。");
     }
 
     /** Per-type display name for an elite. Every elite gets a distinct identity. */

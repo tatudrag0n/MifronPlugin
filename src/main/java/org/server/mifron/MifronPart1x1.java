@@ -166,6 +166,8 @@ abstract class MifronPart1x1 extends MifronPart1 {
          Bukkit.getPluginManager().registerEvents(this.specialCraftFeature, this);
          this.specialCraftFeature.registerRecipes();
       });
+      this.mifron().runStartupStep("register artemis relic events", () ->
+         Bukkit.getPluginManager().registerEvents(this.artemisFeature, this));
       this.mifron().runStartupStep("start relic resource pack delivery", () -> {
          Bukkit.getPluginManager().registerEvents(this.resourcePackFeature, this);
          this.resourcePackFeature.start();
