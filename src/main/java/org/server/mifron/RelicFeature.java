@@ -978,7 +978,8 @@ public class RelicFeature implements Listener {
     /** Front hemisphere: everything visible in front of the player is hit. */
     static final double EXCALIBUR_SLASH_CONE_DOT = 0.0;
     static final long EXCALIBUR_COUNTER_DURATION_MILLIS = 5000L;
-    static final double EXCALIBUR_COUNTER_DAMAGE = 100000.0;
+    static final double EXCALIBUR_COUNTER_DAMAGE = 50000.0;
+    static final double EXCALIBUR_DASH_DAMAGE = 60.0;
     static final double EXCALIBUR_COUNTER_RADIUS = 8.0;
     static final double SINGLE_BELL_RADIUS = 10.0;
     static final int SINGLE_BELL_FREEZE_TICKS = 200;
@@ -1250,6 +1251,11 @@ public class RelicFeature implements Listener {
         } else if ("excalibur_replica".equals(id) && rightClick) {
             event.setCancelled(true);
             this.tryExcaliburReplica(player, item);
+        } else if ("decayed_sword".equals(id) && !rightClick
+                && (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK)
+                && player.isSneaking() && this.isExcalibur(item)) {
+            event.setCancelled(true);
+            this.tryExcaliburDashAttack(player, item);
         } else if ("decayed_sword".equals(id) && rightClick && this.isExcalibur(item)) {
             event.setCancelled(true);
             if (player.isSneaking()) this.startExcaliburCounter(player);
@@ -1677,6 +1683,11 @@ public class RelicFeature implements Listener {
         if (attacker == null || attacker == player) return;
         event.setCancelled(true);
         this.excaliburCounterUntil.remove(uuid);
+        long counterStartedAt = until - EXCALIBUR_COUNTER_DURATION_MILLIS;
+        boolean justGuard = (System.currentTimeMillis() - counterStartedAt) <= 300L;
+        if (justGuard) {
+            this.playExcaliburJustGuard(player, attacker);
+        }
         this.smiteWithHolyLight(player, attacker);
     }
 
@@ -1698,6 +1709,52 @@ public class RelicFeature implements Listener {
         world.playSound(hit, Sound.ITEM_TRIDENT_THUNDER, 2.0f, 0.85f);
         world.playSound(hit, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 2.0f, 1.0f);
         world.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.6f, 1.2f);
+    }
+
+    private void playExcaliburJustGuard(Player player, LivingEntity attacker) {
+        org.bukkit.Location hit = player.getLocation().add(0.0, 1.0, 0.0);
+        org.bukkit.World world = player.getWorld();
+        world.spawnParticle(org.bukkit.Particle.FLASH, hit, 3);
+        world.spawnParticle(org.bukkit.Particle.END_ROD, hit, 80, 1.5, 1.5, 1.5, 0.08);
+        world.spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, hit, 60, 1.0, 1.2, 1.0, 0.2);
+        this.spawnLightRing(world, hit, 4.0, new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(120, 220, 255), 1.2f));
+        world.playSound(hit, Sound.BLOCK_BEACON_POWER_SELECT, 1.6f, 2.0f);
+        world.playSound(hit, Sound.ENTITY_PLAYER_LEVELUP, 1.2f, 1.8f);
+        player.sendActionBar(ChatColor.AQUA + "JUST GUARD");
+    }
+
+    private void tryExcaliburDashAttack(Player player, ItemStack item) {
+        if (!this.rollingCooldown(player, this.excaliburCooldown, EXCALIBUR_COOLDOWN_MILLIS, item)) return;
+        org.bukkit.util.Vector facing = player.getLocation().getDirection();
+        facing.setY(0.0);
+        if (facing.lengthSquared() < 1.0E-9) facing = new org.bukkit.util.Vector(1.0, 0.0, 0.0);
+        facing.normalize().multiply(2.2);
+        player.setVelocity(new org.bukkit.util.Vector(facing.getX(), 0.28, facing.getZ()));
+        player.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, player.getLocation().add(0.0, 0.4, 0.0), 24, 0.4, 0.15, 0.4, 0.06);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_RIPTIDE_3, 1.0f, 1.3f);
+        org.bukkit.entity.Player p = player;
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            if (!p.isOnline() || p.isDead()) return;
+            org.bukkit.Location loc = p.getLocation();
+            org.bukkit.World world = loc.getWorld();
+            org.bukkit.util.Vector dir = loc.getDirection().clone().setY(0.0);
+            if (dir.lengthSquared() < 1.0E-9) dir = new org.bukkit.util.Vector(1.0, 0.0, 0.0);
+            else dir.normalize();
+            for (org.bukkit.entity.Entity e : world.getNearbyEntities(loc, 5.0, 3.0, 5.0)) {
+                if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == p || living.isDead()) continue;
+                org.bukkit.util.Vector to = living.getLocation().toVector().subtract(loc.toVector());
+                if (to.lengthSquared() < 1.0E-6 || to.length() > 5.5) continue;
+                org.bukkit.util.Vector tn = to.clone().setY(0.0);
+                if (tn.lengthSquared() < 1.0E-6) continue;
+                tn.normalize();
+                if (tn.dot(dir) < 0.35) continue;
+                living.damage(EXCALIBUR_DASH_DAMAGE, p);
+                org.bukkit.Location hit = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
+                world.spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, hit, 4, 0.3, 0.2, 0.3, 0.0);
+                world.spawnParticle(org.bukkit.Particle.END_ROD, hit, 12, 0.3, 0.4, 0.3, 0.03);
+                world.playSound(hit, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.9f, 1.1f);
+            }
+        }, 6L);
     }
 
     private void tryExcaliburSlash(Player player, ItemStack item) {

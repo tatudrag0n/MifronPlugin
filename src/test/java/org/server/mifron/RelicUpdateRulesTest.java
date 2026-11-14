@@ -47,7 +47,7 @@ class RelicUpdateRulesTest {
       assertEquals(64.0, RelicFeature.EXCALIBUR_SLASH_RANGE, 1.0e-9);
       assertEquals(0.0, RelicFeature.EXCALIBUR_SLASH_CONE_DOT, 1.0e-9);
       assertTrue(RelicFeature.EXCALIBUR_COUNTER_DURATION_MILLIS > 0L);
-      assertTrue(RelicFeature.EXCALIBUR_COUNTER_DAMAGE >= 100000.0);
+      assertEquals(50000.0, RelicFeature.EXCALIBUR_COUNTER_DAMAGE, 1.0e-9);
    }
 
    @Test
