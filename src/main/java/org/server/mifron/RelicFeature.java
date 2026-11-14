@@ -321,6 +321,9 @@ public class RelicFeature implements Listener {
             }
             meta.setLore(lore);
             meta.setEnchantmentGlintOverride(true);
+            // レリックごとの独自アイコン。リソースパック未導入のクライアントは
+            // この指定を無視してバニラの素材を表示するだけなので壊れない。
+            meta.setItemModel(new org.bukkit.NamespacedKey("mifron", "relic/" + type.id));
             meta.getPersistentDataContainer().set(keyRelic, PersistentDataType.STRING, type.id);
             if (type == RelicType.INFINITE_BUNDLE) {
                 meta.getPersistentDataContainer().set(this.bundleIdKey, PersistentDataType.STRING,
