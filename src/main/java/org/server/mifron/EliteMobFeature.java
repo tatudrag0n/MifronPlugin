@@ -44,6 +44,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class EliteMobFeature implements Listener {
     private static final double DEFAULT_SPAWN_CHANCE = 0.02;
+    /** この明るさ未満なら「暗所での自然沸き」とみなす。 */
+    private static final int DARK_LIGHT_LEVEL = 7;
+    /** 固有の名前を持つエリート。未登録の種は種名を整形して使う。 */
+    private static final Map<EntityType, String> ELITE_NAMES = Map.of(
+        EntityType.ZOMBIE, "腐死王",
+        EntityType.HUSK, "砂漠の腐死王",
+        EntityType.DROWNED, "海淵の腐死王",
+        EntityType.ENDERMAN, "異空の支配者",
+        EntityType.BLAZE, "極炎の化身");
     private final Mifron plugin;
     private final Random random = new Random();
     private final NamespacedKey eliteKey;
@@ -89,10 +98,22 @@ public class EliteMobFeature implements Listener {
         String worldName = mob.getWorld().getName();
         String hubWorld = plugin.getConfig().getString("hub.world", "world");
         if (worldName.equalsIgnoreCase(hubWorld)) return;
+        if (this.isElite(mob)) return;
+        if (!this.isNaturalEliteWindow(mob)) return;
         double chance = plugin.getConfig().getDouble("elite-mobs.spawn-chance", DEFAULT_SPAWN_CHANCE);
         if (random.nextDouble() < Math.max(0.0, Math.min(1.0, chance))) {
             makeElite(mob);
         }
+    }
+
+    /**
+     * 自然沸きのエリート化条件。既定では夜（または暗所）の湧きだけをエリートにする。
+     * 昼間・明るい場所の湧きは通常 mob のままにして、生活圏の難易度を上げすぎない。
+     */
+    private boolean isNaturalEliteWindow(Mob mob) {
+        if (!plugin.getConfig().getBoolean("elite-mobs.require-night", true)) return true;
+        if (mob.getLocation().getBlock().getLightLevel() < DARK_LIGHT_LEVEL) return true;
+        return !mob.getWorld().isDayTime();
     }
 
     /** True when the entity type is a hostile mob that can become an elite. */
@@ -130,12 +151,14 @@ public class EliteMobFeature implements Listener {
     private void makeElite(Mob mob) {
         // PDC survives chunk unload/restart, unlike transient metadata.
         mob.getPersistentDataContainer().set(this.eliteKey, PersistentDataType.BYTE, (byte) 1);
-        double healthMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.health-multiplier", 4.0));
+        double healthMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.health-multiplier", 8.0));
         double damageMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.damage-multiplier", 1.5));
         double speedMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.speed-multiplier", 1.2));
         AttributeInstance maxHealth = mob.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealth != null) {
-            double newHp = maxHealth.getBaseValue() * healthMultiplier;
+            // シルバーフィッシュ等は倍率だけでは脅威にならないため、倍率に加えて最低体力を保証する。
+            double healthFloor = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.min-health", 40.0));
+            double newHp = Math.max(maxHealth.getBaseValue() * healthMultiplier, healthFloor);
             maxHealth.setBaseValue(newHp);
             mob.setHealth(newHp);
         }
@@ -147,7 +170,7 @@ public class EliteMobFeature implements Listener {
         if (armor != null) armor.setBaseValue(armor.getBaseValue() + plugin.getConfig().getDouble("elite-mobs.armor-bonus", 4.0));
         AttributeInstance knockback = mob.getAttribute(Attribute.KNOCKBACK_RESISTANCE);
         if (knockback != null) knockback.setBaseValue(Math.max(0.5, knockback.getBaseValue()));
-        mob.setCustomName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "✦ ELITE ✦ " + ChatColor.RED + mob.getName());
+        mob.setCustomName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "✦ ELITE ✦ " + ChatColor.RED + eliteTitle(mob.getType()));
         mob.setCustomNameVisible(true);
 
         UUID id = mob.getUniqueId();
@@ -179,7 +202,7 @@ public class EliteMobFeature implements Listener {
         String prefix = state.phase2
             ? ChatColor.DARK_PURPLE + "✦ ELITE II ✦ "
             : ChatColor.LIGHT_PURPLE + "✦ ELITE ✦ ";
-        return prefix + ChatColor.RED + mob.getName()
+        return prefix + ChatColor.RED + eliteTitle(mob.getType())
             + ChatColor.GRAY + "  " + (int) Math.ceil(Math.max(0.0, mob.getHealth()))
             + "/" + (int) Math.ceil(Math.max(1.0, mob.getMaxHealth()));
     }
@@ -254,7 +277,8 @@ public class EliteMobFeature implements Listener {
             target = this.findNearestPlayer(mob, 24.0);
             if (target != null) mob.setTarget(target);
         }
-        if (!state.phase2 && mob.getHealth() <= mob.getMaxHealth() * 0.5) {
+        if (!state.phase2 && supportsPhase2(mob.getType())
+            && mob.getHealth() <= mob.getMaxHealth() * 0.5) {
             this.enterPhase2(mob, state);
         }
         long now = System.currentTimeMillis();
@@ -334,7 +358,7 @@ public class EliteMobFeature implements Listener {
         if (damage != null) damage.setBaseValue(damage.getBaseValue() * 1.3);
         AttributeInstance speed = mob.getAttribute(Attribute.MOVEMENT_SPEED);
         if (speed != null) speed.setBaseValue(speed.getBaseValue() * 1.2);
-        mob.setCustomName(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "✦ ELITE II ✦ " + ChatColor.RED + mob.getName());
+        mob.setCustomName(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "✦ ELITE II ✦ " + ChatColor.RED + eliteTitle(mob.getType()));
         // Phase two is a real escalation: heal, shield, summon help and knock
         // nearby players back in one telegraphed burst.
         this.healSelf(mob, mob.getMaxHealth() * 0.2);
@@ -895,6 +919,40 @@ public class EliteMobFeature implements Listener {
 
     private boolean roll(String key, double def) {
         return this.random.nextDouble() < plugin.getConfig().getDouble("elite-drops." + key, def);
+    }
+
+    /**
+     * エリートの表示名。固有の名前がある種はそれを使い、無い種は種名を整形する
+     * （WITHER_SKELETON -> "Wither Skeleton"）。
+     */
+    static String eliteTitle(EntityType type) {
+        if (type == null) return "";
+        String custom = ELITE_NAMES.get(type);
+        if (custom != null) return custom;
+        StringBuilder title = new StringBuilder();
+        for (String word : type.name().toLowerCase(java.util.Locale.ROOT).split("_")) {
+            if (word.isEmpty()) continue;
+            if (title.length() > 0) title.append(' ');
+            title.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return title.toString();
+    }
+
+    /**
+     * 第二形態に移行できる種。第二形態は体力50%以下で特殊行動が一斉に強化されるため、
+     * 元から高耐久のボス系5種だけに限定する。
+     */
+    static boolean supportsPhase2(EntityType type) {
+        return type == EntityType.ELDER_GUARDIAN
+            || type == EntityType.PIGLIN_BRUTE
+            || type == EntityType.WITHER
+            || type == EntityType.ENDER_DRAGON
+            || type == EntityType.WARDEN;
+    }
+
+    /** 腐死王（アンデット特攻以外で倒されると復活する）か。第2弾の復活処理の土台。 */
+    static boolean isUndeadKing(EntityType type) {
+        return type == EntityType.ZOMBIE || type == EntityType.HUSK || type == EntityType.DROWNED;
     }
 
     private static Material eliteHead(EntityType type) {

@@ -164,9 +164,13 @@ armor-movement-penalty:
 elite-mobs:
   # 0.02 = 2% of natural monster spawns.
   spawn-chance: 0.02
-  health-multiplier: 4.0
+  health-multiplier: 8.0
   damage-multiplier: 1.5
   speed-multiplier: 1.2
+  # 倍率だけでは弱すぎる mob のための最低体力。
+  min-health: 40.0
+  # true = 夜または暗所での自然沸きだけエリート化する。
+  require-night: true
   armor-bonus: 4.0
   # Per-mob MP rewards; missing entries use 10.
   base-mp: {}
