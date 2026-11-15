@@ -169,7 +169,7 @@ final class SpecialCraftingFeature implements Listener {
         return potion.getBasePotionType() == org.bukkit.potion.PotionType.NIGHT_VISION;
     }
 
-    private boolean isAtAdvancedTable(CraftingInventory inventory) {
+    boolean isAtAdvancedTable(CraftingInventory inventory) {
         if (inventory.getLocation() == null) return false;
         Block block = inventory.getLocation().getBlock();
         if (block.getType() != Material.CRAFTING_TABLE) return false;
