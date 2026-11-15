@@ -27,6 +27,8 @@ import org.bukkit.persistence.PersistentDataType;
  * - steel furnace: eight iron blocks around a furnace, only craftable at the
  *   advanced crafting table. Smelts twice as fast and burns fuel for twice as
  *   long.
+ * - night vision scope: a night vision potion plus a spyglass, shapeless,
+ *   only craftable at the advanced crafting table.
  */
 final class SpecialCraftingFeature implements Listener {
     static final String ADVANCED_TABLE_ID = "advanced_crafting_table";
@@ -124,7 +126,47 @@ final class SpecialCraftingFeature implements Listener {
         if (!this.isAtAdvancedTable(inventory)) return;
         if (SpecialCraftingRules.isSteelFurnace(matrix)) {
             inventory.setResult(this.createSteelFurnace());
+            return;
         }
+        // 暗視鏡: 暗視ポーション + 望遠鏡（不定形、高度な作業台のみ）。
+        if (SpecialCraftFeature.matchesNightVisionScope(this.slotKinds(matrix))) {
+            inventory.setResult(this.plugin.specialCraftFeature.nightVisionScope());
+        }
+    }
+
+    /** レシピ判定用に、各スロットの中身を種別番号へ落とす。 */
+    private int[] slotKinds(ItemStack[] matrix) {
+        int[] kinds = new int[matrix.length];
+        for (int slot = 0; slot < matrix.length; slot++) {
+            kinds[slot] = slotKind(matrix[slot]);
+        }
+        return kinds;
+    }
+
+    /** 未知のアイテムは -1（どのレシピにも一致しない）。 */
+    private static int slotKind(ItemStack item) {
+        if (item == null) return SpecialCraftFeature.SLOT_EMPTY;
+        if (item.getType().isAir() || item.getAmount() <= 0) {
+            return SpecialCraftFeature.SLOT_EMPTY;
+        }
+        if (item.getType() == Material.SPYGLASS) return SpecialCraftFeature.SLOT_SPYGLASS;
+        if (isNightVisionPotion(item)) return SpecialCraftFeature.SLOT_NIGHT_VISION_POTION;
+        return -1;
+    }
+
+    private static boolean isNightVisionPotion(ItemStack item) {
+        Material type = item.getType();
+        if (type != Material.POTION && type != Material.SPLASH_POTION
+            && type != Material.LINGERING_POTION) {
+            return false;
+        }
+        if (!(item.getItemMeta() instanceof org.bukkit.inventory.meta.PotionMeta potion)) {
+            return false;
+        }
+        if (potion.hasCustomEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION)) {
+            return true;
+        }
+        return potion.getBasePotionType() == org.bukkit.potion.PotionType.NIGHT_VISION;
     }
 
     private boolean isAtAdvancedTable(CraftingInventory inventory) {

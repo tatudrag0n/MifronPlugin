@@ -17,6 +17,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
@@ -24,6 +25,8 @@ import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
 /**
@@ -35,6 +38,8 @@ import org.bukkit.scheduler.BukkitTask;
  *       引き絞ると弾速・威力が最大2倍まで伸びる。</li>
  *   <li>連射式弩弓 — 上から発射装置 / クロスボウ / 樽（縦3マス）。攻撃力と耐久は通常の
  *       クロスボウと同じで、右クリックを押し続けると連射できる。</li>
+ *   <li>暗視鏡 — 暗視ポーション + 望遠鏡。高度な作業台でのみ作れる。
+ *       望遠鏡を覗いている間だけ暗視を得る（旧レリックから移行した装備）。</li>
  * </ul>
  */
 public final class SpecialCraftFeature implements Listener {
@@ -42,6 +47,41 @@ public final class SpecialCraftFeature implements Listener {
     /** PDC に保存する特殊クラフト種別。 */
     public static final String SNIPER_BOW_ID = "sniper_bow";
     public static final String REPEATING_CROSSBOW_ID = "repeating_crossbow";
+    /** 暗視スコープ。高度な作業台で「暗視ポーション + 望遠鏡」から作る。 */
+    public static final String NIGHT_VISION_SCOPE_ID = "night_vision_scope";
+
+    /** 旧「暗視鏡」レリックの PDC 値。移行の判定にだけ使う。 */
+    private static final String LEGACY_VISION_RELIC_ID = "vision";
+
+    /** 高度な作業台のレシピ判定に使うスロット種別（純粋ルール用）。 */
+    static final int SLOT_EMPTY = 0;
+    static final int SLOT_SPYGLASS = 1;
+    static final int SLOT_NIGHT_VISION_POTION = 2;
+
+    /** 暗視スコープの暗視を付け直す間隔（tick）。 */
+    private static final int SCOPED_VISION_TICK_PERIOD = 4;
+    /** 1回の付与で持たせる暗視の長さ（tick）。切れ目でちらつかない長さにする。 */
+    private static final int SCOPED_VISION_DURATION_TICKS = 260;
+
+    /**
+     * 暗視スコープのレシピ判定（純粋ルール）。
+     * 望遠鏡1個と暗視ポーション1個だけを並べたときだけ成立する。
+     */
+    static boolean matchesNightVisionScope(int[] slotKinds) {
+        if (slotKinds == null || slotKinds.length != 9) return false;
+        int spyglass = 0;
+        int potion = 0;
+        for (int kind : slotKinds) {
+            if (kind == SLOT_SPYGLASS) {
+                spyglass++;
+            } else if (kind == SLOT_NIGHT_VISION_POTION) {
+                potion++;
+            } else if (kind != SLOT_EMPTY) {
+                return false;
+            }
+        }
+        return spyglass == 1 && potion == 1;
+    }
 
     /** バニラの弓がフルチャージになるまでの所要tick。 */
     static final int VANILLA_FULL_DRAW_TICKS = 20;
@@ -66,6 +106,8 @@ public final class SpecialCraftFeature implements Listener {
     private final NamespacedKey craftKey;
     private final Map<UUID, Long> sniperDrawStart = new HashMap<>();
     private final Map<UUID, RepeaterState> repeaters = new HashMap<>();
+    /** 暗視スコープの暗視ループ（プレイヤーごと）。 */
+    private final Map<UUID, BukkitTask> visionTasks = new HashMap<>();
 
     public SpecialCraftFeature(Mifron plugin) {
         this.plugin = plugin;
@@ -95,7 +137,8 @@ public final class SpecialCraftFeature implements Listener {
         repeater.setIngredient('B', Material.BARREL);
         Bukkit.addRecipe(repeater);
 
-        this.plugin.getLogger().info("Special craft recipes registered: 狙撃弓 / 連射式弩弓");
+        this.plugin.getLogger().info("Special craft recipes registered: 狙撃弓 / 連射式弩弓"
+            + "（暗視鏡は高度な作業台のレシピ）");
     }
 
     /** 狙撃弓のアイテム。 */
@@ -110,6 +153,7 @@ public final class SpecialCraftFeature implements Listener {
                 "§72倍まで引き絞ると弾速と威力が増す。",
                 "§8特殊クラフト"));
             meta.getPersistentDataContainer().set(this.craftKey, PersistentDataType.STRING, SNIPER_BOW_ID);
+            meta.setItemModel(new org.bukkit.NamespacedKey(plugin, "special/sniper_bow"));
             item.setItemMeta(meta);
         }
         return item;
@@ -128,6 +172,25 @@ public final class SpecialCraftFeature implements Listener {
                 "§8特殊クラフト"));
             meta.getPersistentDataContainer().set(this.craftKey, PersistentDataType.STRING,
                 REPEATING_CROSSBOW_ID);
+            meta.setItemModel(new org.bukkit.NamespacedKey(plugin, "special/repeating_crossbow"));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    /** 暗視スコープ（特殊クラフト品）。望遠鏡を覗いている間だけ暗視を得る。 */
+    public ItemStack nightVisionScope() {
+        ItemStack item = new ItemStack(Material.SPYGLASS);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§8§l暗視鏡");
+            meta.setLore(List.of(
+                "§7望遠鏡に暗視の力を込めたスコープ。",
+                "§7覗いている間だけ暗視を得る。",
+                "§8特殊クラフト"));
+            meta.getPersistentDataContainer().set(this.craftKey, PersistentDataType.STRING,
+                NIGHT_VISION_SCOPE_ID);
+            meta.setItemModel(new org.bukkit.NamespacedKey(this.plugin, "special/night_vision_scope"));
             item.setItemMeta(meta);
         }
         return item;
@@ -189,8 +252,27 @@ public final class SpecialCraftFeature implements Listener {
             && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         Player player = event.getPlayer();
         ItemStack held = player.getInventory().getItemInMainHand();
+
+        // 旧「暗視鏡」レリックはここで見つけ次第、新しい特殊クラフト品へ置き換える。
+        if (this.isLegacyVisionRelic(held)) {
+            held = this.nightVisionScope();
+            player.getInventory().setItemInMainHand(held);
+        }
+
         String id = this.craftId(held);
-        if (id == null) return;
+        if (id == null) {
+            // オフハンドのスコープでも覗けるようにしておく。
+            if (this.isNightVisionScope(player.getInventory().getItemInOffHand())) {
+                this.startScopedVision(player);
+            }
+            return;
+        }
+
+        if (NIGHT_VISION_SCOPE_ID.equals(id)) {
+            // 覗き始め。終了はタスク側が「今使っているアイテム」を見て判定する。
+            this.startScopedVision(player);
+            return;
+        }
 
         if (SNIPER_BOW_ID.equals(id)) {
             this.sniperDrawStart.put(player.getUniqueId(), System.currentTimeMillis());
@@ -289,9 +371,83 @@ public final class SpecialCraftFeature implements Listener {
         }
     }
 
+    // ------------------------------------------------------------------
+    // 暗視スコープ: 覗いている間だけ暗視
+    // ------------------------------------------------------------------
+
+    /** 暗視ループを開始する（冪等）。 */
+    private void startScopedVision(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (this.visionTasks.containsKey(uuid)) return;
+        this.visionTasks.put(uuid, Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            Player current = Bukkit.getPlayer(uuid);
+            if (current == null || !current.isOnline()) {
+                this.stopScopedVision(uuid);
+                return;
+            }
+            if (this.isNightVisionScope(current.getItemInUse())) {
+                current.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION,
+                    SCOPED_VISION_DURATION_TICKS, 0, true, false));
+            } else {
+                current.removePotionEffect(PotionEffectType.NIGHT_VISION);
+                this.stopScopedVision(uuid);
+            }
+        }, 0L, SCOPED_VISION_TICK_PERIOD));
+    }
+
+    private void stopScopedVision(UUID uuid) {
+        BukkitTask task = this.visionTasks.remove(uuid);
+        if (task != null) task.cancel();
+    }
+
+    private boolean isNightVisionScope(ItemStack item) {
+        return NIGHT_VISION_SCOPE_ID.equals(this.craftId(item));
+    }
+
+    // ------------------------------------------------------------------
+    // 旧レリック「暗視鏡」の移行
+    // ------------------------------------------------------------------
+
+    /**
+     * 旧レリック（PDC relic_id = vision）はレリック定義を削除したので、
+     * インベントリ確認時に新しい特殊クラフト品へ置き換える。
+     */
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        this.migrateLegacyVisionRelics(event.getPlayer());
+    }
+
+    private void migrateLegacyVisionRelics(Player player) {
+        org.bukkit.inventory.PlayerInventory inventory = player.getInventory();
+        this.migrateLegacyVisionRelics(inventory.getContents(), inventory);
+        org.bukkit.inventory.Inventory enderChest = player.getEnderChest();
+        this.migrateLegacyVisionRelics(enderChest.getContents(), enderChest);
+    }
+
+    private void migrateLegacyVisionRelics(ItemStack[] contents,
+        org.bukkit.inventory.Inventory owner) {
+        if (contents == null) return;
+        for (int slot = 0; slot < contents.length; slot++) {
+            if (this.isLegacyVisionRelic(contents[slot])) {
+                owner.setItem(slot, this.nightVisionScope());
+            }
+        }
+    }
+
+    /** 旧「暗視鏡」レリックかどうか（PDC relic_id = vision）。 */
+    private boolean isLegacyVisionRelic(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return false;
+        String relicId = meta.getPersistentDataContainer().get(
+            new NamespacedKey(this.plugin, "relic_id"), PersistentDataType.STRING);
+        return LEGACY_VISION_RELIC_ID.equals(relicId);
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         this.stopRepeater(event.getPlayer());
+        this.stopScopedVision(event.getPlayer().getUniqueId());
         this.sniperDrawStart.remove(event.getPlayer().getUniqueId());
     }
 

@@ -88,7 +88,6 @@ public class RelicFeature implements Listener {
      */
     static final int SEASWIM_ASCEND_AMPLIFIER = 1;
     private final Random random = new Random();
-    private final Map<UUID, BukkitTask> visionTasks = new HashMap<>();
     private final BlockData ghostIceData;
     private final Map<UUID, GhostPatch> ghostIcePatches = new HashMap<>();
     private final NamespacedKey hellfireKey;
@@ -261,13 +260,12 @@ public class RelicFeature implements Listener {
         WITHER("wither", "§8§l凋零の頭骨", Material.WITHER_SKELETON_SKULL, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
         BELL("bell", "§2§lシングル・ベル", Material.BELL, MaterialRarity.COMMON, RelicPower.MINOR, "§7半径10ブロック以内のエンティティを10秒間停止させる。(クールダウン10秒)"),
         DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
-        VISION("vision", "§8§l暗視鏡", Material.SPYGLASS, MaterialRarity.COMMON, RelicPower.MINOR, "§7覗いている間だけ暗視を得る。"),
         TIME_CLOCK("time_clock", "§b§lときを刻む時計", Material.CLOCK, MaterialRarity.COMMON, RelicPower.MINOR, "§7右クリックで現在の状態を保存し、もう一度でその状態へ戻る。"),
         ANTIGRAVITY_MACE("antigravity_mace", "§9§l反重力戦鎚", Material.MACE, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで上昇する。落下速度に応じて周囲を吹き飛ばす。"),
         ANCIENT_SLASH_ARMOR("ancient_slash_armor", "§4§l古代の斬鎧", Material.NETHERITE_CHESTPLATE, MaterialRarity.RARE, RelicPower.MAJOR, "§7攻撃を受けると周囲5ブロックへ5ダメージの斬撃を放つ。"),
         HELLFIRE_BOOK("hellfire_book", "§c§l獄炎の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.UNCOMMON, RelicPower.MAJOR, "§7金床で武器に「獄炎」を付与する。"),
         ENDLESS_GRIMOIRE("endless_grimoire", "§d§l無尽の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.EPIC, RelicPower.MAJOR, "§7金床でどんなアイテムにも「無尽」を付与する。"),
-        ANCIENT_ANVIL("ancient_anvil", "§6§l古匠の金床", Material.ANVIL, MaterialRarity.EPIC, RelicPower.MEDIUM, "§7あらゆるアイテムに全エンチャントを付与できる。XP・MP不要、修繕ボーナス+50%。"),
+        ANCIENT_ANVIL("ancient_anvil", "§6§l古匠の金床", Material.ANVIL, MaterialRarity.EPIC, RelicPower.MEDIUM, "§7設置して使う。置いた金床では全エンチャント付与がXP・MP不要、修繕ボーナス+50%。壊すとレリックに戻る。"),
         GAYBOLG("gaybolg", "§5§lゲイ・ボルグ", Material.DIAMOND_SPEAR, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで最も近い敵を追尾して突進。攻撃射程50ブロック、距離でダメージ増加。(クールダウン5秒)"),
         EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
         INFINITE_BUNDLE("infinite_bundle", "§6§l無限のバンドル", Material.BUNDLE, MaterialRarity.EPIC, RelicPower.MAJOR, "§7容量無制限。バンドルに重ねるかShiftクリックで収納し、好きな順番で取り出せる。"),
@@ -1122,16 +1120,6 @@ public class RelicFeature implements Listener {
             return;
         }
 
-        // Vision relic: scoping starts on right click, stop is handled by the
-        // task itself (it ends when the player is no longer using the item).
-        // Checked before the HAND-only guard so an off-hand spyglass works
-        // too; starting a scope task twice is idempotent.
-        if ("vision".equals(getRelicId(item)) && event.getAction().isRightClick()) {
-            if (this.damageRelic(player, item, this.relicDurabilityLossOnUse())) return;
-            this.startScopedVision(player);
-            return;
-        }
-
         // Hookshot is handled entirely here so the vanilla fishing rod (and
         // its 32-block bobber limit) is never used.
         if ("hookshot".equals(getRelicId(item)) && event.getAction().isRightClick()) {
@@ -1290,16 +1278,20 @@ public class RelicFeature implements Listener {
             event.setCancelled(true);
             player.sendMessage(ChatColor.RED + "金床で武器と一緒に合成すると「獄炎」を付与できる。");
         } else if ("ancient_anvil".equals(id) && rightClick) {
+            // 古匠の金床は「置いて使う」レリックになったので、右クリックは
+            // キャンセルしない（設置と通常金床のGUIをそのまま通す）。
+            // 設置アンビルの追跡・破壊時の返却は AdvancedAnvilFeature が行う。
             if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null
                 && (event.getClickedBlock().getType() == Material.ANVIL
                     || event.getClickedBlock().getType() == Material.CHIPPED_ANVIL
                     || event.getClickedBlock().getType() == Material.DAMAGED_ANVIL)) {
-                // Let the normal anvil GUI open; the artisan bonus is applied
-                // by AdvancedAnvilFeature while this relic is in the inventory.
                 return;
             }
-            event.setCancelled(true);
-            player.sendMessage(ChatColor.GOLD + "古匠の金床をインベントリに入れた状態で金床を使うと、XP・MPなしで全エンチャントと修繕ができる。");
+            if (event.getAction() == Action.RIGHT_CLICK_AIR) {
+                player.sendMessage(ChatColor.GOLD
+                    + "古匠の金床は設置して使う。壊すとレリックに戻る。");
+            }
+            return;
         }
     }
 
@@ -3077,7 +3069,9 @@ public class RelicFeature implements Listener {
         ItemStack item = event.getItemInHand();
         if (!isRelicItem(item)) return;
         String id = getRelicId(item);
-        if ("chain".equals(id) || "magnet".equals(id) || "ancient_anvil".equals(id)) {
+        // 古匠の金床は「置いて使う」レリックなので設置を許可する
+        // (追跡・破壊時の返却は AdvancedAnvilFeature が行う)。
+        if ("chain".equals(id) || "magnet".equals(id)) {
             event.setCancelled(true);
             event.getPlayer().sendMessage(ChatColor.RED + "このレリックは設置できません。");
         }
@@ -3651,11 +3645,6 @@ public class RelicFeature implements Listener {
         } else {
             this.clearGhostIce(player.getUniqueId());
         }
-        ItemStack inUse = player.getItemInUse();
-        if (inUse != null && isRelicItem(inUse) && "vision".equals(getRelicId(inUse))) {
-            // Covers relogs and other paths where no interact event fired.
-            this.startScopedVision(player);
-        }
         boolean pulling = hookshotPulls.containsKey(player.getUniqueId());
         if (!pulling && jetpackActive.contains(player.getUniqueId())) {
             this.tryHoverJetpack(player);
@@ -4002,38 +3991,6 @@ public class RelicFeature implements Listener {
         return false;
     }
 
-    // ------------------------------------------------------------------
-    // Vision relic: night vision only while the player is actually scoping
-    // through the spyglass (right click held), not while merely holding it.
-    // ------------------------------------------------------------------
-
-    /** Starts the while-scoped night vision loop for one player (idempotent). */
-    private void startScopedVision(Player player) {
-        UUID uuid = player.getUniqueId();
-        if (this.visionTasks.containsKey(uuid)) return;
-        this.visionTasks.put(uuid, Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
-            Player current = Bukkit.getPlayer(uuid);
-            if (current == null || !current.isOnline()) {
-                this.stopScopedVision(uuid);
-                return;
-            }
-            ItemStack inUse = current.getItemInUse();
-            if (inUse != null && isRelicItem(inUse) && "vision".equals(getRelicId(inUse))) {
-                // Stay above 10 seconds so the overlay never starts to blur.
-                current.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                    org.bukkit.potion.PotionEffectType.NIGHT_VISION, 260, 0, true, false));
-            } else {
-                current.removePotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION);
-                this.stopScopedVision(uuid);
-            }
-        }, 0L, 4L));
-    }
-
-    private void stopScopedVision(UUID uuid) {
-        BukkitTask task = this.visionTasks.remove(uuid);
-        if (task != null) task.cancel();
-    }
-
     /** Background pull while the magnet relic is held (items + XP). */
     private void tickMagnet() {
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -4119,7 +4076,6 @@ public class RelicFeature implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
-        this.stopScopedVision(uuid);
         this.stopGaybolgDash(uuid);
         this.stopRepeatingReload(uuid);
         this.stopRepeatingAutoFire(uuid);
