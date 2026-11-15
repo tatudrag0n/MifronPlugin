@@ -23,8 +23,8 @@ class SpecialCraftRecipeRulesTest {
     }
 
     @Test
-    void catalogHasTwentyUniqueEntries() {
-        assertEquals(20, SpecialCraftCatalog.all().size());
+    void catalogHasTwentyTwoUniqueEntries() {
+        assertEquals(22, SpecialCraftCatalog.all().size());
         Set<String> ids = new HashSet<>();
         for (SpecialCraftCatalog.Def def : SpecialCraftCatalog.all()) {
             assertNotNull(def.id(), "id は必須");

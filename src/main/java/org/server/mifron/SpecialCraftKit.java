@@ -54,6 +54,10 @@ final class SpecialCraftKit {
             lore.add("§8特殊クラフト");
             meta.setLore(lore);
             meta.getPersistentDataContainer().set(this.idKey, PersistentDataType.STRING, def.id());
+            String itemModel = SpecialCraftCatalog.itemModel(def.id());
+            if (itemModel != null) {
+                meta.setItemModel(new NamespacedKey(this.plugin, itemModel));
+            }
             item.setItemMeta(meta);
         }
         return item;

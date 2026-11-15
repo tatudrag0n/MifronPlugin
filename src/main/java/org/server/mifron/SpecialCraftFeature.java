@@ -114,68 +114,16 @@ public final class SpecialCraftFeature implements Listener {
         this.craftKey = new NamespacedKey(plugin, "special_craft");
     }
 
-    /** レシピを登録する。起動時に一度だけ呼ぶ。 */
-    public void registerRecipes() {
-        try {
-            Bukkit.removeRecipe(new NamespacedKey(this.plugin, SNIPER_BOW_ID));
-            Bukkit.removeRecipe(new NamespacedKey(this.plugin, REPEATING_CROSSBOW_ID));
-        } catch (Throwable ignored) {
-            // 未登録なら何もしない
-        }
-
-        ShapelessRecipe sniper = new ShapelessRecipe(
-            new NamespacedKey(this.plugin, SNIPER_BOW_ID), this.sniperBow());
-        sniper.addIngredient(Material.SPYGLASS);
-        sniper.addIngredient(Material.BOW);
-        Bukkit.addRecipe(sniper);
-
-        ShapedRecipe repeater = new ShapedRecipe(
-            new NamespacedKey(this.plugin, REPEATING_CROSSBOW_ID), this.repeatingCrossbow());
-        repeater.shape("D", "C", "B");
-        repeater.setIngredient('D', Material.DISPENSER);
-        repeater.setIngredient('C', Material.CROSSBOW);
-        repeater.setIngredient('B', Material.BARREL);
-        Bukkit.addRecipe(repeater);
-
-        this.plugin.getLogger().info("Special craft recipes registered: 狙撃弓 / 連射式弩弓"
-            + "（暗視鏡は高度な作業台のレシピ）");
-    }
-
-    /** 狙撃弓のアイテム。 */
+    /** 狙撃弓のアイテム（定義は SpecialCraftCatalog が持つ）。 */
     public ItemStack sniperBow() {
-        ItemStack item = new ItemStack(Material.BOW);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§2§l狙撃弓");
-            meta.setLore(List.of(
-                "§7望遠鏡と弓を組み合わせた長弓。",
-                "§7威力は通常の弓と同じだが、",
-                "§72倍まで引き絞ると弾速と威力が増す。",
-                "§8特殊クラフト"));
-            meta.getPersistentDataContainer().set(this.craftKey, PersistentDataType.STRING, SNIPER_BOW_ID);
-            meta.setItemModel(new org.bukkit.NamespacedKey(plugin, "special/sniper_bow"));
-            item.setItemMeta(meta);
-        }
-        return item;
+        ItemStack created = this.plugin.specialCraftKit.create(SNIPER_BOW_ID);
+        return created == null ? new ItemStack(Material.BOW) : created;
     }
 
-    /** 連射式弩弓のアイテム。 */
+    /** 連射式弩弓のアイテム（定義は SpecialCraftCatalog が持つ）。 */
     public ItemStack repeatingCrossbow() {
-        ItemStack item = new ItemStack(Material.CROSSBOW);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§8§l連射式弩弓");
-            meta.setLore(List.of(
-                "§7発射装置・クロスボウ・樽を組み合わせた連弩。",
-                "§7攻撃力と耐久は通常のクロスボウと同じ。",
-                "§7右クリック長押しで連射する。",
-                "§8特殊クラフト"));
-            meta.getPersistentDataContainer().set(this.craftKey, PersistentDataType.STRING,
-                REPEATING_CROSSBOW_ID);
-            meta.setItemModel(new org.bukkit.NamespacedKey(plugin, "special/repeating_crossbow"));
-            item.setItemMeta(meta);
-        }
-        return item;
+        ItemStack created = this.plugin.specialCraftKit.create(REPEATING_CROSSBOW_ID);
+        return created == null ? new ItemStack(Material.CROSSBOW) : created;
     }
 
     /** 暗視スコープ（特殊クラフト品）。望遠鏡を覗いている間だけ暗視を得る。 */

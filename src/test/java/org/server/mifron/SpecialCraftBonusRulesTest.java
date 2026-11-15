@@ -47,7 +47,7 @@ class SpecialCraftBonusRulesTest {
             assertNotNull(item.getItemMeta().getDisplayName(), def.id());
             assertFalse(item.getItemMeta().getLore().isEmpty(), def.id());
         }
-        assertEquals(20, SpecialCraftCatalog.all().size());
+        assertEquals(22, SpecialCraftCatalog.all().size());
     }
 
     @Test

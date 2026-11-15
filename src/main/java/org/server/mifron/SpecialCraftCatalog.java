@@ -156,7 +156,34 @@ final class SpecialCraftCatalog {
                 List.of("§7叩いて直すための鉄鎚。",
                     "§7右クリックで装備4部位の耐久を15ずつ回復する。(CD 60秒)"),
                 shaped(new String[] {"IBI", " S "},
-                    Map.of('I', Material.IRON_INGOT, 'B', Material.IRON_BLOCK, 'S', Material.STICK)))
+                    Map.of('I', Material.IRON_INGOT, 'B', Material.IRON_BLOCK, 'S', Material.STICK))),
+
+            // ---------------- 既存の特殊クラフト（高度な作業台へ移行） ----------------
+            new Def("sniper_bow", Material.BOW, 1, "§2§l狙撃弓",
+                List.of("§7望遠鏡と弓を組み合わせた長弓。",
+                    "§7威力は通常の弓と同じだが、",
+                    "§72倍まで引き絞ると弾速と威力が増す。"),
+                shapeless(Material.SPYGLASS, Material.BOW)),
+            new Def("repeating_crossbow", Material.CROSSBOW, 1, "§8§l連射式弩弓",
+                List.of("§7発射装置・クロスボウ・樽を組み合わせた連弩。",
+                    "§7攻撃力と耐久は通常のクロスボウと同じ。",
+                    "§7右クリック長押しで連射する。"),
+                shaped(new String[] {"D", "C", "B"},
+                    Map.of('D', Material.DISPENSER, 'C', Material.CROSSBOW, 'B', Material.BARREL)))
         );
+    }
+
+    /**
+     * リソースパックのアイテムモデルキー（無ければ null）。
+     * 狙撃弓と連射式弩弓だけは専用テクスチャを持つ。
+     */
+    static String itemModel(String id) {
+        if ("sniper_bow".equals(id)) {
+            return "special/sniper_bow";
+        }
+        if ("repeating_crossbow".equals(id)) {
+            return "special/repeating_crossbow";
+        }
+        return null;
     }
 }
