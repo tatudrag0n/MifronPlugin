@@ -1,16 +1,16 @@
-# MifronPlugin ハンドオフ（2026-11-15 09:20 JST）
+# MifronPlugin ハンドオフ（2026-11-15 09:45 JST）
 
 ## 現在の稼働状態（実機で確認済み）
 
 - サーバー: Vultr 167.179.86.103, Minecraft 26.1.2 (Paper), SSH はポート 443 のみ
 - リソパ配信: **正常稼働**（18027ポート、UFW許可済み。18026 は Minoru bridge が使用中で自動フォールバック）
   - 配信sha1: `a8e562170e5eac19d63a9d86ff433c3007f154da`（今回変更なし。`night_vision_scope` のアイテム定義/モデル/テクスチャは既に zip 内に存在）
-- サーバー repo: `main@55893f2`（GitHub origin/main と一致）
-  - 起動ログで `[mifron] Special craft recipes registered: 狙撃弓 / 連射式弩弓（暗視鏡は高度な作業台のレシピ）` と `Done (35.339s)!` を確認
-  - 稼働 jar sha1: `1bc5c9c2b3c8dad22cd68f41e544338376657273`
-  - `/var/lib/mifronplugin-deploy/last-deployed` = `55893f2`、deploy イベント `status: SUCCESS`（2026-11-15T00:07:29Z）
+- サーバー repo: `main@618e694`（GitHub origin/main と一致）
+  - 起動ログで `[mifron] Enabling mifron` → `Registered 26 Mifron self event handlers` → `Done (35.012s)!` を確認（エラーなし）
+  - 稼働 jar sha1: `b52d849d7fe7f06d8b28ef3f69fc26e47fa10db6`
+  - `/var/lib/mifronplugin-deploy/last-deployed` = `618e694`、deploy イベント `status: SUCCESS`（2026-11-15T00:40:00Z）
 - ローカル repo `C:\root\repos\MifronPlugin`: 別系統（古い）。**HANDOFF の更新のみ**行う場所
-- テスト: **172件全通過**（従来162 + ArtisanAnvilRulesTest 6 + NightVisionScopeRecipeTest 4）
+- テスト: **186件全通過**（従来172 + SpecialCraftRecipeRulesTest 8 + SpecialCraftBonusRulesTest 6）
 
 ## 今回のセッションで完了（コミット `55893f2` → デプロイ済み）
 
@@ -21,6 +21,24 @@
 | 狙撃弓/連射式弩弓 | `setItemModel` を追加（リソパのカスタムモデルが効くように） |
 | 古匠の金床 | 「所持して金床を使う」→「**設置して使う**」へ変更。`BlockPlaceEvent` でレリックをアンビルとして設置し位置を追跡（`plugins/mifron/artisan-anvils.yml` に永続化）。追跡アンビルだけが全エンチャント付与（XP/MP不要）と修繕+50% の対象。**破壊・爆発でレリック本体をドロップ**、ピストンは拒否、追跡アンビルは使用のたびに `ANVIL` へ戻して摩耗消滅を防止。既定の同時設置上限3（`advanced-enchanting.artisan-anvil.max-per-player`） |
 | ドキュメント | README のレリック表から `vision` を削除、暗視鏡を特殊クラフト節へ追加、古匠の金床の説明を設置型に更新。`docs/SPECIFICATION.md` も同様 |
+
+### 追記: 特殊クラフト20種（コミット `618e694` → デプロイ済み）
+
+レリックより弱い「暮らしの道具」を20種追加した。材料と機能を対応させ、すべて**高度な作業台でのみ**作れる（通常の作業台では成立しない）。
+
+- 装備（パッシブ・5）: 耐火の外套（炎35%減）/ 登山の命綱（落下40%減）/ 職人の前掛け（Haste I）/ 深海の兜（水中呼吸）/ 風読みの羽根（低速落下）
+- 道具（7）: 携帯作業台 / 携帯エンダーチェスト / 野営セット（焚き火設置）/ 収穫の鎌（3x3収穫）/ 折り畳みボート / 足場の束 / 光のしずく（35秒だけ光を置く）
+- 戦闘補助（5・すべてMOB専用でプレイヤーには無効）: 吹き矢（3ダメ＋毒I）/ 投網（前方8×横4の鈍足III）/ 煙幕玉（盲目）/ 蜘蛛の目鏡（発光）/ 氷結の瓶（粉末雪＋鈍足II）
+- 回復・整備（3）: 応急包帯（+4HP）/ 毒消しの蜂蜜（毒・衰弱解除＋再生I）/ 名工の金槌（防具4部位の耐久+15）
+
+実装の分担（すべて `src/main/java/org/server/mifron/`）:
+- `SpecialCraftCatalog.java` … 20種の定義（完成品・表示名・説明・レシピ）
+- `SpecialCraftRecipeRules.java` … レシピ照合の純粋関数（形の正規化・不定形の多重集合）
+- `SpecialCraftKit.java` … 生成・PDC識別・クールダウン・耐久・`opensOwnUi`（チェスト等の操作を邪魔しないガード）
+- `SpecialCraftBenchFeature.java` … 高度な作業台の `PrepareItemCraftEvent` で結果を差し替え
+- `SpecialCraftWearableFeature` / `SpecialCraftToolFeature` / `SpecialCraftCombatFeature` / `SpecialCraftConsumableFeature` … テーマ別の効果
+- 配線: `MifronBase.java` にフィールド追加、`MifronPart1x1.java` に `registerEvents` の起動ステップ追加、`SpecialCraftingFeature.isAtAdvancedTable` を package-private 化
+- テスト: `SpecialCraftRecipeRulesTest`（8）と `SpecialCraftBonusRulesTest`（6、MockBukkit でプラグインをロード）
 
 主な変更ファイル（サーバー repo）:
 - `src/main/java/org/server/mifron/RelicFeature.java`（VISION削除、古匠の金床の設置許可・右クリック素通し、説明文更新）
@@ -34,6 +52,10 @@
 
 ### 1. プレイヤー操作での実機検証（最優先・未実施）
 サーバー起動とレシピ登録ログまでは確認済みだが、実際のアイテム操作は未検証。以下をゲーム内で確認する。
+- 高度な作業台で**特殊クラフト20種が実際に作れるか**（通常の作業台では作れないこと）
+- 各道具の右クリック挙動: 携帯作業台のGUIが開くか / エンダーチェスト / 焚き火設置 / 鎌の3x3収穫 / ボート / 足場 / 光のしずくが35秒で消えるか
+- 装備5種のパッシブが実際に効くか（特に落下軽減はメインワールドで `MainWorldFeature` が HIGHEST で落下ダメージを処理しているため効かない可能性あり）
+- クールダウン表示と、チェスト・ドアを右クリックしたときに通常操作が妨げられないこと
 - 高度な作業台で暗視鏡が作れるか（通常の作業台では作れないこと）
 - 暗視鏡を覗いている間だけ暗視が付き、離すと消えるか
 - 古匠の金床を**設置**でき、その金床でのみXP/MP不要の全エンチャントが通り、**壊すとレリックが戻る**か。通常の金床が今まで通り動くか
@@ -66,6 +88,9 @@
 
 - `src/main/java/org/server/mifron/RelicFeature.java` — レリック定義（VISION 削除済み、古匠の金床は設置型）
 - `src/main/java/org/server/mifron/SpecialCraftFeature.java` — 特殊クラフト（狙撃弓・連射弩・**暗視鏡**、旧レリック移行）
+- `src/main/java/org/server/mifron/SpecialCraftCatalog.java` — **特殊クラフト20種の定義**（完成品・材料・レシピ）
+- `src/main/java/org/server/mifron/SpecialCraftRecipeRules.java` / `SpecialCraftKit.java` / `SpecialCraftBenchFeature.java` — レシピ照合（純粋関数）/ 生成・識別・CD / 高度な作業台フック
+- `src/main/java/org/server/mifron/SpecialCraftWearableFeature.java` / `SpecialCraftToolFeature.java` / `SpecialCraftCombatFeature.java` / `SpecialCraftConsumableFeature.java` — 20種の効果（テーマ別）
 - `src/main/java/org/server/mifron/SpecialCraftingFeature.java` — 高度な作業台/鋼鉄かまど/**暗視鏡レシピ**（`advanced-tables.yml` に設置を永続化）
 - `src/main/java/org/server/mifron/AdvancedAnvilFeature.java` — 高度な金床＋**設置型古匠の金床**（`artisan-anvils.yml`）
 - `src/main/java/org/server/mifron/ArtisanAnvilRules.java` — 設置アンビルの純粋ルール
@@ -96,3 +121,4 @@ tail -3 /var/lib/mifronplugin-deploy/events.jsonl
 - knowledge: `[knowledge][deepseek] レリックテクスチャの真因は不透明背景／16x16実測規範とWindowsの罠`
 - session-log: `[session-log][deepseek] 2026-11-14 レリックテクスチャv9 黒背景バグ特定と再制作`
 - 今回分: knowledge/session-log に「暗視鏡の特殊クラフト化／古匠の金床の設置型化／DSH出力要約の回避策」を追記済み
+- 追加分（特殊クラフト20種）: `[knowledge][deepseek] 高度な作業台の特殊クラフトを量産する設計（カタログ+純粋ルール+テーマ別Listener）` と同名の session-log を保存済み
