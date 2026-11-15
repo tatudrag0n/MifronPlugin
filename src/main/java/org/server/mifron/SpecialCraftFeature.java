@@ -1,7 +1,9 @@
 package org.server.mifron;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Bukkit;
@@ -9,6 +11,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Player;
@@ -150,6 +153,152 @@ public final class SpecialCraftFeature implements Listener {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return null;
         return meta.getPersistentDataContainer().get(this.craftKey, PersistentDataType.STRING);
+    }
+
+    // ------------------------------------------------------------------
+    // 管理者向け入手コマンド
+    // ------------------------------------------------------------------
+
+    /** SpecialCraftCatalog に定義された全ID。 */
+    public static List<String> catalogIds() {
+        List<String> ids = new ArrayList<>();
+        for (SpecialCraftCatalog.Def def : SpecialCraftCatalog.all()) {
+            ids.add(def.id());
+        }
+        return ids;
+    }
+
+    /** カタログ外の特殊クラフト品（暗視鏡・高度な作業台・鋼鉄かまど）。 */
+    private static final List<String> EXTRA_IDS = List.of(
+        NIGHT_VISION_SCOPE_ID,
+        SpecialCraftingFeature.ADVANCED_TABLE_ID,
+        SpecialCraftingFeature.STEEL_FURNACE_ID);
+
+    /** 管理者向け入手コマンドで扱う全ID（カタログ22種＋カタログ外3種）。 */
+    public static List<String> grantableIds() {
+        List<String> ids = catalogIds();
+        for (String id : EXTRA_IDS) {
+            if (!ids.contains(id)) ids.add(id);
+        }
+        return ids;
+    }
+
+    /**
+     * 指定IDの特殊クラフト品を生成する。カタログ品も、カタログ外の暗視鏡・
+     * 高度な作業台・鋼鉄かまども、実際にクラフトで得られるものと同一の
+     * アイテムを返す。未知のIDなら null。
+     */
+    public ItemStack createGrantable(String id) {
+        if (id == null) return null;
+        String key = id.toLowerCase(Locale.ROOT);
+        ItemStack fromCatalog = this.plugin.specialCraftKit.create(key);
+        if (fromCatalog != null) return fromCatalog;
+        return switch (key) {
+            case NIGHT_VISION_SCOPE_ID -> this.nightVisionScope();
+            case SpecialCraftingFeature.ADVANCED_TABLE_ID ->
+                this.plugin.specialCraftingFeature.createAdvancedCraftingTable();
+            case SpecialCraftingFeature.STEEL_FURNACE_ID ->
+                this.plugin.specialCraftingFeature.createSteelFurnace();
+            default -> null;
+        };
+    }
+
+    /** アイテムの表示名。名前が無ければ fallback を返す。 */
+    private static String displayNameOf(ItemStack item, String fallback) {
+        ItemMeta meta = item == null ? null : item.getItemMeta();
+        if (meta != null && meta.hasDisplayName()) return meta.getDisplayName();
+        return fallback;
+    }
+
+    /**
+     * /mf specialcraft &lt;id|all&gt; [player] を処理する。
+     * 個別IDでも all でも、特殊クラフトとして入手できる全種を付与する。
+     */
+    public void handleCommand(CommandSender sender, String[] args) {
+        if (sender == null) return;
+        if (!(sender instanceof org.bukkit.command.ConsoleCommandSender)
+            && !sender.isOp() && !sender.hasPermission("mifron.admin")
+            && !sender.hasPermission("mifron.specialcraft.admin")) {
+            sender.sendMessage("§cOP権限が必要です。");
+            return;
+        }
+        if (args == null || args.length < 2) {
+            sender.sendMessage("§e/mf specialcraft <id|all> [player]");
+            sender.sendMessage("§7IDs: " + String.join(", ", grantableIds()));
+            return;
+        }
+        Player target;
+        if (args.length >= 3) {
+            target = Bukkit.getPlayerExact(args[2]);
+            if (target == null) {
+                sender.sendMessage("§cPlayer not found.");
+                return;
+            }
+        } else if (sender instanceof Player player) {
+            target = player;
+        } else {
+            sender.sendMessage("§cPlayer not found.");
+            return;
+        }
+        String raw = args[1].toLowerCase(Locale.ROOT);
+        if ("all".equals(raw)) {
+            int given = 0;
+            for (String id : grantableIds()) {
+                ItemStack item = createGrantable(id);
+                if (item == null) continue;
+                giveTo(target, item);
+                given++;
+            }
+            target.sendMessage("§a全特殊クラフトを入手しました: " + given + "種");
+            if (sender != target) {
+                sender.sendMessage("§a" + target.getName() + " に全特殊クラフトを付与しました。");
+            }
+            return;
+        }
+        ItemStack item = createGrantable(raw);
+        if (item == null) {
+            sender.sendMessage("§cUnknown special craft item: " + args[1]);
+            sender.sendMessage("§7IDs: " + String.join(", ", grantableIds()));
+            return;
+        }
+        SpecialCraftCatalog.Def def = SpecialCraftCatalog.byId(raw);
+        String label = def != null ? def.displayName() : displayNameOf(item, raw);
+        giveTo(target, item);
+        target.sendMessage("§a特殊クラフトを入手しました: " + label);
+        if (sender != target) {
+            sender.sendMessage("§a" + target.getName() + " に " + raw + " を付与しました。");
+        }
+    }
+
+    private static void giveTo(Player target, ItemStack item) {
+        for (ItemStack leftover : target.getInventory().addItem(item).values()) {
+            target.getWorld().dropItemNaturally(target.getLocation(), leftover);
+        }
+    }
+
+    /** Tab completion for /mf specialcraft <id|all> [player]. */
+    public List<String> tabComplete(String[] args) {
+        if (args == null) return List.of();
+        if (args.length == 2) {
+            List<String> values = new ArrayList<>();
+            values.add("all");
+            values.addAll(grantableIds());
+            String prefix = args[1].toLowerCase(Locale.ROOT);
+            List<String> matched = new ArrayList<>();
+            for (String value : values) if (value.startsWith(prefix)) matched.add(value);
+            return matched;
+        }
+        if (args.length == 3) {
+            String prefix = args[2].toLowerCase(Locale.ROOT);
+            List<String> matched = new ArrayList<>();
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (online.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                    matched.add(online.getName());
+                }
+            }
+            return matched;
+        }
+        return List.of();
     }
 
     // ------------------------------------------------------------------

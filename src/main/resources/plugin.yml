@@ -57,3 +57,9 @@ permissions:
   mifron.proposal.admin:
     description: Allows reviewing Mifron proposals.
     default: op
+  mifron.relic.admin:
+    description: Allows granting relics and the awakened Excalibur with /mf relic and /mf excalibur.
+    default: op
+  mifron.specialcraft.admin:
+    description: Allows granting catalog special craft items with /mf specialcraft.
+    default: op

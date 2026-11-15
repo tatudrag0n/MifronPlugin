@@ -16,7 +16,7 @@ abstract class MifronPart17 extends MifronPart16 {
          this.sendMifronHelp(sender);
          return true;
       }
-      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop", "event", "relic").contains(args[0].toLowerCase(Locale.ROOT))) {
+      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop", "event", "relic", "excalibur", "specialcraft", "sc").contains(args[0].toLowerCase(Locale.ROOT))) {
          sender.sendMessage("Player only.");
          return true;
       }
@@ -77,8 +77,16 @@ abstract class MifronPart17 extends MifronPart16 {
             this.handleEliteCommand(sender, args);
          }
          case "relic" -> {
-            if (this.denyUnlessAdmin(sender)) return true;
+            if (this.denyUnlessPermission(sender, "mifron.relic.admin")) return true;
             this.relicFeature.handleCommand(sender, args);
+         }
+         case "excalibur" -> {
+            if (this.denyUnlessPermission(sender, "mifron.relic.admin")) return true;
+            this.relicFeature.handleExcaliburCommand(sender, args);
+         }
+         case "specialcraft", "sc", "specialcrafts" -> {
+            if (this.denyUnlessPermission(sender, "mifron.specialcraft.admin")) return true;
+            this.specialCraftFeature.handleCommand(sender, args);
          }
          case "relics", "compendium" -> {
             if (sender instanceof Player relicViewer) this.relicFeature.openCompendium(relicViewer);
@@ -99,14 +107,22 @@ abstract class MifronPart17 extends MifronPart16 {
       return true;
    }
 
-   private void sendMifronHelp(CommandSender sender) {
+    private void sendMifronHelp(CommandSender sender) {
       sender.sendMessage(ChatColor.YELLOW + "/mf menu|balance|pay|quest|status|tutorial|guide|relics|protect|vote|refer");
-      sender.sendMessage(ChatColor.GRAY + "管理: /mf list|merchant|proposal|relic|regen|event|warning|text|structure|kit|elite spawn <mob>|...");
-   }
+      sender.sendMessage(ChatColor.GRAY + "管理: /mf list|merchant|proposal|relic <id|all|excalibur>|specialcraft <id|all>|regen|event|warning|text|structure|kit|elite spawn <mob>|...");
+    }
 
     private boolean isAdminOp(CommandSender sender) {
       return sender != null && (sender.isOp() || sender.hasPermission("mifron.admin"));
-   }
+    }
+
+    private boolean denyUnlessPermission(CommandSender sender, String permission) {
+      if (sender == null) return true;
+      if (sender instanceof org.bukkit.command.ConsoleCommandSender) return false;
+      if (this.isAdminOp(sender) || sender.hasPermission(permission)) return false;
+      sender.sendMessage("\u00a7cOP\u6a29\u9650\u304c\u5fc5\u8981\u3067\u3059\u3002");
+      return true;
+    }
 
    protected boolean handleEliteCommand(CommandSender sender, String[] args) {
       if (!(sender instanceof Player player)) {

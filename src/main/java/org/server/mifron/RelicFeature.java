@@ -332,6 +332,30 @@ public class RelicFeature implements Listener {
         return item;
     }
 
+    /**
+     * Creates the awakened holy sword. Excalibur is the decayed sword carrying
+     * Smite 20 (the same condition the combat handlers use), renamed and made
+     * unbreakable so administrators can hand out the finished form directly.
+     */
+    public ItemStack createExcalibur() {
+        ItemStack item = this.createRelicItem(RelicType.DECAYED_SWORD);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.displayName(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                .legacySection().deserialize("§6§l聖剣エクスカリバー"));
+            meta.addEnchant(Enchantment.SMITE, 20, true);
+            List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
+            lore.add(0, "§7伝説の聖剣。振るえば聖光がアンデッドを浄化する。");
+            meta.setLore(lore);
+            meta.setUnbreakable(true);
+            if (meta instanceof Damageable damageable) {
+                damageable.setDamage(0);
+            }
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
     /** Every relic uses the same fixed durability pool. */
     static final int RELIC_MAX_DURABILITY = 1000;
 
@@ -436,7 +460,8 @@ public class RelicFeature implements Listener {
     public void handleCommand(CommandSender sender, String[] args) {
         if (sender == null) return;
         if (!(sender instanceof org.bukkit.command.ConsoleCommandSender)
-            && !sender.isOp() && !sender.hasPermission("mifron.admin")) {
+            && !sender.isOp() && !sender.hasPermission("mifron.admin")
+            && !sender.hasPermission("mifron.relic.admin")) {
             sender.sendMessage("§cOP権限が必要です。");
             return;
         }
@@ -467,6 +492,17 @@ public class RelicFeature implements Listener {
             if (sender != target) sender.sendMessage("§a" + target.getName() + " に全レリックを付与しました。");
             return;
         }
+        if ("excalibur".equals(raw) || "holy_sword".equals(raw)) {
+            ItemStack item = createExcalibur();
+            for (ItemStack leftover : target.getInventory().addItem(item).values()) {
+                target.getWorld().dropItemNaturally(target.getLocation(), leftover);
+            }
+            target.sendMessage("§a聖剣エクスカリバーを入手しました。");
+            if (sender != target) {
+                sender.sendMessage("§a" + target.getName() + " にエクスカリバーを付与しました。");
+            }
+            return;
+        }
         RelicType type = null;
         String wanted = raw;
         boolean known = false;
@@ -494,6 +530,64 @@ public class RelicFeature implements Listener {
         if (sender != target) {
             sender.sendMessage("§a" + target.getName() + " に " + type.id + " を付与しました。");
         }
+    }
+
+    /** Grants the awakened Excalibur directly. Usage: /mf excalibur [player]. */
+    public void handleExcaliburCommand(CommandSender sender, String[] args) {
+        if (sender == null) return;
+        if (!(sender instanceof org.bukkit.command.ConsoleCommandSender)
+            && !sender.isOp() && !sender.hasPermission("mifron.admin")
+            && !sender.hasPermission("mifron.relic.admin")) {
+            sender.sendMessage("§cOP権限が必要です。");
+            return;
+        }
+        Player target;
+        if (args != null && args.length >= 2) {
+            target = Bukkit.getPlayerExact(args[1]);
+            if (target == null) {
+                sender.sendMessage("§cPlayer not found.");
+                return;
+            }
+        } else if (sender instanceof Player player) {
+            target = player;
+        } else {
+            sender.sendMessage("§cPlayer not found.");
+            return;
+        }
+        ItemStack item = createExcalibur();
+        for (ItemStack leftover : target.getInventory().addItem(item).values()) {
+            target.getWorld().dropItemNaturally(target.getLocation(), leftover);
+        }
+        target.sendMessage("§a聖剣エクスカリバーを入手しました。");
+        if (sender != target) {
+            sender.sendMessage("§a" + target.getName() + " にエクスカリバーを付与しました。");
+        }
+    }
+
+    /** Tab completion for /mf relic <id|all|excalibur> [player]. */
+    public List<String> tabComplete(String[] args) {
+        if (args == null) return List.of();
+        if (args.length == 2) {
+            List<String> values = new ArrayList<>();
+            values.add("all");
+            values.add("excalibur");
+            for (RelicType type : RelicType.values()) values.add(type.id);
+            String prefix = args[1].toLowerCase(java.util.Locale.ROOT);
+            List<String> matched = new ArrayList<>();
+            for (String value : values) if (value.startsWith(prefix)) matched.add(value);
+            return matched;
+        }
+        if (args.length == 3) {
+            String prefix = args[2].toLowerCase(java.util.Locale.ROOT);
+            List<String> matched = new ArrayList<>();
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (online.getName().toLowerCase(java.util.Locale.ROOT).startsWith(prefix)) {
+                    matched.add(online.getName());
+                }
+            }
+            return matched;
+        }
+        return List.of();
     }
 
     /** Opens the read-only relic compendium for every player. */

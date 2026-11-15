@@ -140,6 +140,7 @@ Multiverse管理ワールドの実体は `world/dimensions/minecraft/<名前>/` 
 - `/mf menu|balance|pay|tutorial|guide|status|quest|merchant|protect|proposal|vote|gamerules|reload|relic <id>`（一部管理者専用）
 - `/mf quest propose|cancel|progress`、`/mf refer [code]`、`/mf event list|start <id> [分]|stop`
 - `/mf structure submit|submissions|register|generate|approve|reject|install|delete`（提出はBuild有効時、審査は管理者）
+- 管理者向け付与: `/mf excalibur [player]`（聖剣エクスカリバー）、`/mf specialcraft <id|all> [player]`（特殊クラフト全25種。別名 `/mf sc`）。IDはタブ補完で確認できる。
 - `/trade <player>|accept|deny|cancel|money <額>`
 - `/mifron merchant spawn|spawnrare|reroll|clear`
 - `/tutorial`（`/mf tutorial` の別名）

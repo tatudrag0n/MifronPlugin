@@ -8,6 +8,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.generator.WorldInfo;
 
@@ -37,7 +38,8 @@ public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
              "list", "text", "structure", "build", "main", "proposal", "vote", "gamerules",
              "info", "reload", "kit", "balance", "pay", "merchant",
              "quest", "mp", "regen", "chunk", "chunkprotect", "protect", "menu", "status", "tutorial", "guide", "shelfshop", "shopwand",
-             "jumppadwand", "jumpblock", "makeelite", "sethub", "warning", "refer", "event", "relic"
+             "jumppadwand", "jumpblock", "makeelite", "sethub", "warning", "refer", "event", "relic",
+             "excalibur", "specialcraft", "sc"
           ));
           // Disabled world features are not advertised.
           if (!this.getConfig().getBoolean("build-world.enabled", false)) all.remove("build");
@@ -45,20 +47,34 @@ public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
           if (!sender.isOp() && !sender.hasPermission("mifron.admin")) {
              all.removeAll(List.of("reload", "regen", "gamerules", "kit", "shopwand", "jumppadwand", "jumpblock",
                 "sethub", "text", "structure", "warning", "mp", "build", "main", "shelfshop", "makeelite",
-                "chunkprotect", "proposal", "relic", "event"));
+                "chunkprotect", "proposal", "relic", "excalibur", "specialcraft", "sc", "event"));
           }
-         String prefix = args[0].toLowerCase();
-         List<String> matched = new ArrayList<>();
-         for (String value : all) if (value.startsWith(prefix)) matched.add(value);
-         return matched;
-      }
-      if (args.length >= 2 && this.isMifronRootCommand(command) && "text".equalsIgnoreCase(args[0])) return this.textDisplayFeature.tabComplete(args);
-      if (args.length >= 2 && this.isMifronRootCommand(command) && "structure".equalsIgnoreCase(args[0])) return this.structureManager.tabComplete(args);
-      if (args.length >= 2 && this.isMifronRootCommand(command) && "build".equalsIgnoreCase(args[0])) return this.buildWorldManager.tabComplete(args);
-      if (args.length >= 2 && this.isMifronRootCommand(command) && "proposal".equalsIgnoreCase(args[0])) return this.proposalManager.tabComplete(args);
-      if (args.length == 2 && this.isMifronRootCommand(command) && "quest".equalsIgnoreCase(args[0])) return List.of("progress", "propose", "cancel");
-      if (args.length == 2 && this.isMifronRootCommand(command) && "tutorial".equalsIgnoreCase(args[0])) return List.of("restart", "skip");
-      return Collections.emptyList();
+          String prefix = args[0].toLowerCase();
+          List<String> matched = new ArrayList<>();
+          for (String value : all) if (value.startsWith(prefix)) matched.add(value);
+          return matched;
+       }
+       if (args.length >= 2 && this.isMifronRootCommand(command) && "text".equalsIgnoreCase(args[0])) return this.textDisplayFeature.tabComplete(args);
+       if (args.length >= 2 && this.isMifronRootCommand(command) && "structure".equalsIgnoreCase(args[0])) return this.structureManager.tabComplete(args);
+       if (args.length >= 2 && this.isMifronRootCommand(command) && "build".equalsIgnoreCase(args[0])) return this.buildWorldManager.tabComplete(args);
+       if (args.length >= 2 && this.isMifronRootCommand(command) && "proposal".equalsIgnoreCase(args[0])) return this.proposalManager.tabComplete(args);
+       if (args.length >= 2 && this.isMifronRootCommand(command) && "relic".equalsIgnoreCase(args[0])) return this.relicFeature.tabComplete(args);
+       if (args.length >= 2 && this.isMifronRootCommand(command)
+          && ("specialcraft".equalsIgnoreCase(args[0]) || "sc".equalsIgnoreCase(args[0])
+             || "specialcrafts".equalsIgnoreCase(args[0]))) {
+          return this.specialCraftFeature.tabComplete(args);
+       }
+       if (args.length == 2 && this.isMifronRootCommand(command) && "excalibur".equalsIgnoreCase(args[0])) {
+          String prefix = args[1].toLowerCase();
+          List<String> matched = new ArrayList<>();
+          for (Player online : Bukkit.getOnlinePlayers()) {
+             if (online.getName().toLowerCase().startsWith(prefix)) matched.add(online.getName());
+          }
+          return matched;
+       }
+       if (args.length == 2 && this.isMifronRootCommand(command) && "quest".equalsIgnoreCase(args[0])) return List.of("progress", "propose", "cancel");
+       if (args.length == 2 && this.isMifronRootCommand(command) && "tutorial".equalsIgnoreCase(args[0])) return List.of("restart", "skip");
+       return Collections.emptyList();
    }
 
    protected boolean isMifronRootCommand(Command command) {
