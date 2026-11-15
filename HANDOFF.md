@@ -1,14 +1,14 @@
-# MifronPlugin ハンドオフ（2026-11-15 09:45 JST）
+# MifronPlugin ハンドオフ（2026-11-15 10:00 JST）
 
 ## 現在の稼働状態（実機で確認済み）
 
 - サーバー: Vultr 167.179.86.103, Minecraft 26.1.2 (Paper), SSH はポート 443 のみ
 - リソパ配信: **正常稼働**（18027ポート、UFW許可済み。18026 は Minoru bridge が使用中で自動フォールバック）
   - 配信sha1: `a8e562170e5eac19d63a9d86ff433c3007f154da`（今回変更なし。`night_vision_scope` のアイテム定義/モデル/テクスチャは既に zip 内に存在）
-- サーバー repo: `main@618e694`（GitHub origin/main と一致）
+- サーバー repo: `main@956fca8`（GitHub origin/main と一致）
   - 起動ログで `[mifron] Enabling mifron` → `Registered 26 Mifron self event handlers` → `Done (35.012s)!` を確認（エラーなし）
-  - 稼働 jar sha1: `b52d849d7fe7f06d8b28ef3f69fc26e47fa10db6`
-  - `/var/lib/mifronplugin-deploy/last-deployed` = `618e694`、deploy イベント `status: SUCCESS`（2026-11-15T00:40:00Z）
+  - 稼働 jar sha1: `eeb5636ade99…`
+  - `/var/lib/mifronplugin-deploy/last-deployed` = `956fca8`、deploy イベント `status: SUCCESS`（2026-11-15T00:54:52Z）
 - ローカル repo `C:\root\repos\MifronPlugin`: 別系統（古い）。**HANDOFF の更新のみ**行う場所
 - テスト: **186件全通過**（従来172 + SpecialCraftRecipeRulesTest 8 + SpecialCraftBonusRulesTest 6）
 
@@ -22,10 +22,11 @@
 | 古匠の金床 | 「所持して金床を使う」→「**設置して使う**」へ変更。`BlockPlaceEvent` でレリックをアンビルとして設置し位置を追跡（`plugins/mifron/artisan-anvils.yml` に永続化）。追跡アンビルだけが全エンチャント付与（XP/MP不要）と修繕+50% の対象。**破壊・爆発でレリック本体をドロップ**、ピストンは拒否、追跡アンビルは使用のたびに `ANVIL` へ戻して摩耗消滅を防止。既定の同時設置上限3（`advanced-enchanting.artisan-anvil.max-per-player`） |
 | ドキュメント | README のレリック表から `vision` を削除、暗視鏡を特殊クラフト節へ追加、古匠の金床の説明を設置型に更新。`docs/SPECIFICATION.md` も同様 |
 
-### 追記: 特殊クラフト20種（コミット `618e694` → デプロイ済み）
+### 追記: 特殊クラフト22種（コミット `618e694` / `956fca8` → デプロイ済み）
 
 レリックより弱い「暮らしの道具」を20種追加した。材料と機能を対応させ、すべて**高度な作業台でのみ**作れる（通常の作業台では成立しない）。
 
+- **狙撃弓・連射式弩弓も高度な作業台専用へ移行**（`956fca8`）。従来は `SpecialCraftFeature.registerRecipes()` がバニラレシピとして登録していたため通常作業台でも作れた。今はカタログ（22件）に載せ、`SpecialCraftBenchFeature` が高度な作業台でのみ結果を返す。リソースパックのアイテムモデルは `SpecialCraftCatalog.itemModel()` で維持。`registerRecipes()` は削除し、`MifronPart1x1` の起動ステップからも外した。
 - 装備（パッシブ・5）: 耐火の外套（炎35%減）/ 登山の命綱（落下40%減）/ 職人の前掛け（Haste I）/ 深海の兜（水中呼吸）/ 風読みの羽根（低速落下）
 - 道具（7）: 携帯作業台 / 携帯エンダーチェスト / 野営セット（焚き火設置）/ 収穫の鎌（3x3収穫）/ 折り畳みボート / 足場の束 / 光のしずく（35秒だけ光を置く）
 - 戦闘補助（5・すべてMOB専用でプレイヤーには無効）: 吹き矢（3ダメ＋毒I）/ 投網（前方8×横4の鈍足III）/ 煙幕玉（盲目）/ 蜘蛛の目鏡（発光）/ 氷結の瓶（粉末雪＋鈍足II）
