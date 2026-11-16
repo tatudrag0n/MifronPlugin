@@ -1,16 +1,24 @@
-# MifronPlugin ハンドオフ（2026-11-15 10:00 JST）
+# MifronPlugin ハンドオフ（2026-11-16 20:20 JST）
 
-## 現在の稼働状態（実機で確認済み）
+## 現在の稼働状態
 
-- サーバー: Vultr 167.179.86.103, Minecraft 26.1.2 (Paper), SSH はポート 443 のみ
-- リソパ配信: **正常稼働**（18027ポート、UFW許可済み。18026 は Minoru bridge が使用中で自動フォールバック）
-  - 配信sha1: `a8e562170e5eac19d63a9d86ff433c3007f154da`（今回変更なし。`night_vision_scope` のアイテム定義/モデル/テクスチャは既に zip 内に存在）
-- サーバー repo: `main@956fca8`（GitHub origin/main と一致）
-  - 起動ログで `[mifron] Enabling mifron` → `Registered 26 Mifron self event handlers` → `Done (35.012s)!` を確認（エラーなし）
-  - 稼働 jar sha1: `eeb5636ade99…`
-  - `/var/lib/mifronplugin-deploy/last-deployed` = `956fca8`、deploy イベント `status: SUCCESS`（2026-11-15T00:54:52Z）
-- ローカル repo `C:\root\repos\MifronPlugin`: 別系統（古い）。**HANDOFF の更新のみ**行う場所
-- テスト: **186件全通過**（従来172 + SpecialCraftRecipeRulesTest 8 + SpecialCraftBonusRulesTest 6）
+**2026-11-16 に Vultr から AWS EC2（東京）へ移行済み。旧ホスト 167.179.86.103 は停止しており参照しない。**
+
+- ホスト: **13.113.193.5**（EC2 `i-095c7b9774de1c9ff` / t4g.small / 東京）、SSH は **22番**
+- リポジトリ: `/srv/mifron/full-backup/MifronPlugin`（旧 `/root/mifron-gcloud-full-backup-*/` は無い）
+- 稼働管理: `mifron.service`（systemd）。再起動は `sudo systemctl restart mifron`、状態は `systemctl status mifron`
+- GitHub `origin/main` = `e55d970`（特殊クラフト削減）。EC2 側は要 `git pull` + ビルド + jar差し替え（未実施）
+- テスト: **186件 0失敗**（ローカル JDK25 + `mvn -o test` で確認。`mvn -o` は依存キャッシュがあるのでオフラインで通る）
+- ローカル repo `C:\root\repos\MifronPlugin` は別系統（HANDOFF のみの更新場所）。コードは `origin/main` の worktree で作業する
+
+### ローカルでのビルド手順（EC2に入れない時の検証）
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-25.0.4.101-hotspot"
+cd C:\root\tmp\aws-main   # origin/main の worktree（git worktree add C:\root\tmp\aws-main origin/main --detach）
+mvn -o test              # 186件
+mvn -o -q package -DskipTests
+```
 
 ## 今回のセッションで完了（コミット `55893f2` → デプロイ済み）
 
@@ -123,3 +131,14 @@ tail -3 /var/lib/mifronplugin-deploy/events.jsonl
 - session-log: `[session-log][deepseek] 2026-11-14 レリックテクスチャv9 黒背景バグ特定と再制作`
 - 今回分: knowledge/session-log に「暗視鏡の特殊クラフト化／古匠の金床の設置型化／DSH出力要約の回避策」を追記済み
 - 追加分（特殊クラフト20種）: `[knowledge][deepseek] 高度な作業台の特殊クラフトを量産する設計（カタログ+純粋ルール+テーマ別Listener）` と同名の session-log を保存済み
+
+## 追記: 特殊クラフトの削減（2026-11-16 / コミット `e55d970`）
+
+20種追加した特殊クラフトを棚卸しし、**17種を削除して3種に絞った**（狙撃弓・連射弩と合わせて特殊クラフトは計8種）。
+
+- 削除: 装備5（耐火の外套・登山の命綱・職人の前掛け・深海の兜・風読みの羽根＝既存エンチャントの代替）、バニラ代替5（携帯作業台・携帯エンダーチェスト・野営セット・折り畳みボート・足場の束）、重複4（吹き矢・蜘蛛の目鏡・氷結の瓶・毒消しの蜂蜜）、死に機能1（煙幕玉＝MOBに盲目は実質無効）、経済破壊2（応急包帯＝無コスト回復、名工の金槌＝無コスト修理）
+- 残置: 収穫の鎌（3x3収穫）・光のしずく（35秒の一時光源）・投網（前方8×横4の範囲鈍足）＋狙撃弓・連射弩。**特殊クラフトは定義上すべて高度な作業台限定**（狙撃弓・連射弩もこの定義に合わせて移行済み）
+- `SpecialCraftWearableFeature` / `SpecialCraftConsumableFeature` を削除、`SpecialCraftToolFeature` / `SpecialCraftCombatFeature` / `SpecialCraftCatalog` を圧縮、`MifronBase` / `MifronPart1x1` の配線も削除
+- `/mf specialcraft` の一覧はカタログから自動生成のため、**25種 → 8種**に自動追随（コマンド側の修正は不要）
+- 検証: ローカルで186テスト0失敗・jar生成（`ResourcePackFeature` 同梱確認）・削除クラスが jar に無いことを確認。GitHub `origin/main` へ push 済み
+- **未実施: EC2 への反映**（`git pull` → `mvn -o test` → jar差し替え → `sudo systemctl restart mifron`）。このマシンから EC2 へ SSH できない（移行時の一時鍵が削除済み）ため、`~/.ssh/mifron_aws_ed25519.pub` を EC2 の `authorized_keys` に追加してもらう必要がある
