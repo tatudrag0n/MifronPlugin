@@ -88,4 +88,22 @@ final class SpecialCraftingRules {
         }
         return true;
     }
+
+    static boolean matchesNightVisionScope(ItemStack[] matrix) {
+        if (matrix == null || matrix.length != 9) return false;
+        boolean hasSpyglass = false;
+        boolean hasPotion = false;
+        for (ItemStack s : matrix) {
+            if (s == null || s.getType().isAir()) continue;
+            if (s.getType() == Material.SPYGLASS) hasSpyglass = true;
+            if (s.getType() == Material.POTION || s.getType() == Material.SPLASH_POTION) {
+                if (s.hasItemMeta() && s.getItemMeta() instanceof org.bukkit.inventory.meta.PotionMeta) {
+                    org.bukkit.inventory.meta.PotionMeta pm = (org.bukkit.inventory.meta.PotionMeta) s.getItemMeta();
+                    if (pm.getBasePotionType() == org.bukkit.potion.PotionType.NIGHT_VISION) hasPotion = true;
+                }
+            }
+        }
+        return hasSpyglass && hasPotion;
+    }
+
 }

@@ -277,10 +277,7 @@ public class RelicFeature implements Listener {
         ANCIENT_ANVIL("ancient_anvil", "§6§l古匠の金床", Material.ANVIL, MaterialRarity.EPIC, RelicPower.MEDIUM, "§7設置して使う。置いた金床では全エンチャント付与がXP・MP不要、修繕ボーナス+50%。壊すとレリックに戻る。"),
         GAYBOLG("gaybolg", "§5§lゲイ・ボルグ", Material.DIAMOND_SPEAR, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで最も近い敵を追尾して突進。攻撃射程50ブロック、距離でダメージ増加。(クールダウン5秒)"),
         EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
-<<<<<<< HEAD
         ARTEMIS("artemis", "§a§lアルテミス", Material.BOW, MaterialRarity.EPIC, RelicPower.MAJOR, "§7右クリックで獲物を追う3本の矢を放つ。(クールダウン5秒)"),
-=======
->>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
         INFINITE_BUNDLE("infinite_bundle", "§6§l無限のバンドル", Material.BUNDLE, MaterialRarity.EPIC, RelicPower.MAJOR, "§7容量無制限。バンドルに重ねるかShiftクリックで収納し、好きな順番で取り出せる。"),
         NOAHS_ARK("noahs_ark", "§3§lノアの方舟", Material.PALE_OAK_BOAT, MaterialRarity.RARE, RelicPower.MEDIUM, "§7空を飛べる高速な船。");
 
@@ -334,15 +331,11 @@ public class RelicFeature implements Listener {
             meta.setEnchantmentGlintOverride(true);
             // レリックごとの独自アイコン。リソースパック未導入のクライアントは
             // この指定を無視してバニラの素材を表示するだけなので壊れない。
-<<<<<<< HEAD
             // アイコン未収録のレリックは指定しない（存在しないモデルを指すと
             // クライアント側で欠損表示になるため）。
             if (RELIC_ICONS.contains(type.id)) {
                 meta.setItemModel(new org.bukkit.NamespacedKey("mifron", "relic/" + type.id));
             }
-=======
-            meta.setItemModel(new org.bukkit.NamespacedKey("mifron", "relic/" + type.id));
->>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
             meta.getPersistentDataContainer().set(keyRelic, PersistentDataType.STRING, type.id);
             if (type == RelicType.INFINITE_BUNDLE) {
                 meta.getPersistentDataContainer().set(this.bundleIdKey, PersistentDataType.STRING,

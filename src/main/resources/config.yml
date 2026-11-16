@@ -165,11 +165,8 @@ elite-mobs:
   # 0.02 = 2% of natural monster spawns.
   spawn-chance: 0.02
   health-multiplier: 8.0
-<<<<<<< HEAD
   # 弱いMOBでも最低これだけの体力を持たせる
   min-health: 40.0
-=======
->>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
   damage-multiplier: 1.5
   speed-multiplier: 1.2
   # 倍率だけでは弱すぎる mob のための最低体力。

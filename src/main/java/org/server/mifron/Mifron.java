@@ -62,7 +62,7 @@ public class Mifron extends MifronPart18x2 implements Listener, TabExecutor {
        if (args.length >= 2 && this.isMifronRootCommand(command)
           && ("specialcraft".equalsIgnoreCase(args[0]) || "sc".equalsIgnoreCase(args[0])
              || "specialcrafts".equalsIgnoreCase(args[0]))) {
-          return this.specialCraftFeature.tabComplete(args);
+           return null; // tabComplete not available
        }
        if (args.length == 2 && this.isMifronRootCommand(command) && "excalibur".equalsIgnoreCase(args[0])) {
           String prefix = args[1].toLowerCase();

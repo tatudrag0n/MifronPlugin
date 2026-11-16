@@ -93,6 +93,18 @@ final class SpecialCraftingFeature implements Listener {
             List.of(ChatColor.GRAY + "精錬速度2倍。",
                 ChatColor.GRAY + "燃料の持ち時間2倍（燃料消費1/2）。"), STEEL_FURNACE_ID);
     }
+    ItemStack nightVisionScope() {
+        ItemStack item = this.createSpecialItem(Material.SPYGLASS, ChatColor.DARK_GREEN + "暗視鏡",
+            List.of("§7覗いている間だけ暗視を得る。", "§8特殊クラフト"), "night_vision_scope");
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setItemModel(new org.bukkit.NamespacedKey(this.plugin, "special/night_vision_scope"));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+
 
     private ItemStack createSpecialItem(Material material, String name, List<String> lore, String id) {
         ItemStack item = new ItemStack(material);
@@ -129,8 +141,8 @@ final class SpecialCraftingFeature implements Listener {
             return;
         }
         // 暗視鏡: 暗視ポーション + 望遠鏡（不定形、高度な作業台のみ）。
-        if (SpecialCraftFeature.matchesNightVisionScope(this.slotKinds(matrix))) {
-            inventory.setResult(this.plugin.specialCraftFeature.nightVisionScope());
+        if (SpecialCraftingRules.matchesNightVisionScope(matrix)) {
+            inventory.setResult(this.nightVisionScope());
         }
     }
 

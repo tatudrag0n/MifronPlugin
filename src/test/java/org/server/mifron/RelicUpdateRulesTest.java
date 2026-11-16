@@ -100,7 +100,8 @@ class RelicUpdateRulesTest {
          .anyMatch(type -> type.id.equals("sniper_bow")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("artemis")));
-         .anyMatch(type -> type.id.equals("sixshot_crossbow")));
+         assertFalse(Arrays.stream(RelicFeature.RelicType.values())
+            .anyMatch(type -> type.id.equals("sixshot_crossbow")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("ancient_slash_armor")));
       assertFalse(Arrays.stream(RelicFeature.RelicType.values())

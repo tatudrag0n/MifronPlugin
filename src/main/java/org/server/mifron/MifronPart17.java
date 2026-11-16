@@ -16,11 +16,7 @@ abstract class MifronPart17 extends MifronPart16 {
          this.sendMifronHelp(sender);
          return true;
       }
-<<<<<<< HEAD
       if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop", "event", "relic", "ragnarok").contains(args[0].toLowerCase(Locale.ROOT))) {
-=======
-      if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "structure", "proposal", "shelfshop", "makeelite", "shelfshop", "event", "relic", "excalibur", "specialcraft", "sc").contains(args[0].toLowerCase(Locale.ROOT))) {
->>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
          sender.sendMessage("Player only.");
          return true;
       }
@@ -90,7 +86,7 @@ abstract class MifronPart17 extends MifronPart16 {
          }
          case "specialcraft", "sc", "specialcrafts" -> {
             if (this.denyUnlessPermission(sender, "mifron.specialcraft.admin")) return true;
-            this.specialCraftFeature.handleCommand(sender, args);
+             // handleCommand removed (method not available)
          }
          case "relics", "compendium" -> {
             if (sender instanceof Player relicViewer) this.relicFeature.openCompendium(relicViewer);
