@@ -65,6 +65,8 @@ Multiverse管理ワールドの実体は `world/dimensions/minecraft/<名前>/` 
 
 - ステータスUI：メニューからは扇状に進捗・討伐・称号・図鑑・転生の5タブを展開。討伐タブは討伐数＋エリート討伐状況を日本語Mob名（全87種）で表示。図鑑タブはレアアイテム発見状況。各タブ末尾の「追加」から公式サイトへ誘導。
 - 高度な金床は維持（エンチャント拡張）。チュートリアルで説明。
+- レリック「古匠の金床」は設置して使う。設置した金床だけがXP・MP不要の全エンチャント付与と修繕ボーナス+50%の対象で、壊すとレリック本体に戻る。
+- 特殊クラフト（高度な作業台専用・8種）: 狙撃弓 / 連射式弩弓 / 収穫の鎌 / 光のしずく / 投網 / 暗視鏡 / 高度な作業台 / 鋼鉄かまど。バニラや既存レリックで代替できない遊びだけを残す方針で、装備5・道具7・戦闘補助5・回復整備3の案は重複のため実装しない。定義は `SpecialCraftCatalog.java`（5種）と `SpecialCraftingFeature`（暗視鏡・高度な作業台・鋼鉄かまど）、効果は `SpecialCraftToolFeature` / `SpecialCraftCombatFeature`、共通処理は `SpecialCraftKit.java`、レシピ照合は `SpecialCraftRecipeRules.java`（純粋関数）。
 - 組み込みクエスト39件（デイリー/ウィークリー/マンスリー/定期/スペシャル/単発/隠し）。`quests.yml` とサイト同期で追加でき、稼働サーバーではこれより多くなる場合がある。
 - 称号21種＋特殊。未解放は「???」＋達成ヒント表示。装着はタブ表示に反映。
 - 進捗：mainワールドでの達成は無効（記録・報酬・称号なし、再取得可）。
@@ -105,7 +107,6 @@ Multiverse管理ワールドの実体は `world/dimensions/minecraft/<名前>/` 
 | wither | 凋零の頭骨 | チャージ済みウィザースクロウ（CD4秒） |
 | bell | 癒やしの鐘 | 自分と周囲の味方を回復（CD6秒） |
 | dragonbreath | 竜の吐息 | 前方へ指向性ブレス（ダメージ+炎上、CD6秒） |
-| vision | 暗視鏡 | 望遠鏡を覗いている間だけ暗視 |
 
 ## 8. ギア（廃止済み）
 
@@ -139,6 +140,7 @@ Multiverse管理ワールドの実体は `world/dimensions/minecraft/<名前>/` 
 - `/mf menu|balance|pay|tutorial|guide|status|quest|merchant|protect|proposal|vote|gamerules|reload|relic <id>`（一部管理者専用）
 - `/mf quest propose|cancel|progress`、`/mf refer [code]`、`/mf event list|start <id> [分]|stop`
 - `/mf structure submit|submissions|register|generate|approve|reject|install|delete`（提出はBuild有効時、審査は管理者）
+- 管理者向け付与: `/mf excalibur [player]`（聖剣エクスカリバー）、`/mf specialcraft <id|all> [player]`（特殊クラフト全8種。別名 `/mf sc`）。IDはタブ補完で確認できる。
 - `/trade <player>|accept|deny|cancel|money <額>`
 - `/mifron merchant spawn|spawnrare|reroll|clear`
 - `/tutorial`（`/mf tutorial` の別名）

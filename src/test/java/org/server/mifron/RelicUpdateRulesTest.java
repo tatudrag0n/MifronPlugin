@@ -47,7 +47,7 @@ class RelicUpdateRulesTest {
       assertEquals(64.0, RelicFeature.EXCALIBUR_SLASH_RANGE, 1.0e-9);
       assertEquals(0.0, RelicFeature.EXCALIBUR_SLASH_CONE_DOT, 1.0e-9);
       assertTrue(RelicFeature.EXCALIBUR_COUNTER_DURATION_MILLIS > 0L);
-      assertTrue(RelicFeature.EXCALIBUR_COUNTER_DAMAGE >= 100000.0);
+      assertEquals(50000.0, RelicFeature.EXCALIBUR_COUNTER_DAMAGE, 1.0e-9);
    }
 
    @Test
@@ -94,14 +94,12 @@ class RelicUpdateRulesTest {
          .anyMatch(type -> type.id.equals("endless_grimoire")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("infinite_bundle")));
-      // 狙撃弓と連射式弩弓はレリックをやめ、特殊クラフトへ移行した。
       assertFalse(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("repeating_crossbow")));
       assertFalse(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("sniper_bow")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("artemis")));
-      assertFalse(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("sixshot_crossbow")));
       assertTrue(Arrays.stream(RelicFeature.RelicType.values())
          .anyMatch(type -> type.id.equals("ancient_slash_armor")));

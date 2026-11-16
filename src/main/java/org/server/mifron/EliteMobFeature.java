@@ -16,12 +16,16 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Enemy;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.LargeFireball;
+import org.bukkit.entity.SmallFireball;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
@@ -44,10 +48,47 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class EliteMobFeature implements Listener {
     private static final double DEFAULT_SPAWN_CHANCE = 0.02;
+    /** この明るさ未満なら「暗所での自然沸き」とみなす。 */
+    private static final int DARK_LIGHT_LEVEL = 7;
+    /** 固有の名前を持つエリート。未登録の種は種名を整形して使う。 */
+    private static final Map<EntityType, String> ELITE_NAMES = Map.of(
+        EntityType.ZOMBIE, "腐死王",
+        EntityType.HUSK, "砂漠の腐死王",
+        EntityType.DROWNED, "海淵の腐死王",
+        EntityType.ENDERMAN, "異空の支配者",
+        EntityType.BLAZE, "極炎の化身");
     private final Mifron plugin;
     private final Random random = new Random();
     private final NamespacedKey eliteKey;
+    /** 腐死王の復活回数を引き継ぐための PDC キー。 */
+    private final NamespacedKey revivalKey;
     private static final double BOSS_BAR_RANGE = 40.0;
+    /** 腐死王が復活できる既定回数（連続復活の暴走防止）。 */
+    static final int DEFAULT_UNDEAD_REVIVALS = 3;
+    /** 死亡から復活までの遅延(tick)。 */
+    static final long UNDEAD_REVIVAL_DELAY_TICKS = 40L;
+    /** 異空の支配者: 上空テレポートのクールダウン(ms)。 */
+    static final long VOID_LIFT_COOLDOWN_MS = 12_000L;
+    /** 異空の支配者: 地面から TNT を掘り出すクールダウン(ms)。 */
+    static final long VOID_TNT_COOLDOWN_MS = 15_000L;
+    /** 上空テレポートで持ち上げる高さ(ブロック)。 */
+    static final int VOID_LIFT_HEIGHT = 22;
+    /** 掘り出した TNT の導火線(tick)。 */
+    static final int VOID_TNT_FUSE_TICKS = 50;
+    /** 掘り出した TNT の爆破威力。 */
+    static final float VOID_TNT_YIELD = 2.5f;
+    /** 極炎の化身: 火の玉10連射のクールダウン(ms)。 */
+    static final long INFERNO_VOLLEY_COOLDOWN_MS = 14_000L;
+    /** 極炎の化身: 爆発する火の玉のクールダウン(ms)。 */
+    static final long INFERNO_BLAST_COOLDOWN_MS = 10_000L;
+    /** 極炎の化身: 地面に降りて周囲を焼くクールダウン(ms)。 */
+    static final long INFERNO_GROUND_COOLDOWN_MS = 18_000L;
+    /** 極炎の化身: 10連射の発数。 */
+    static final int BLAZE_BURST_SHOTS = 10;
+    /** 極炎の化身: 10連射の間隔(tick)。 */
+    static final long BLAZE_BURST_INTERVAL_TICKS = 3L;
+    /** 極炎の化身: 爆発する火の玉の威力。 */
+    static final float INFERNO_BLAST_YIELD = 3.0f;
     private final Map<UUID, EliteState> eliteStates = new ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> eliteTasks = new ConcurrentHashMap<>();
     private final Map<UUID, BossBar> eliteBars = new ConcurrentHashMap<>();
@@ -59,6 +100,11 @@ public class EliteMobFeature implements Listener {
         boolean phase2Blocked;
         long nextSpecialAt;
         long nextBuildAt;
+        long nextVoidLiftAt;
+        long nextVoidTntAt;
+        long nextInfernoVolleyAt;
+        long nextInfernoBlastAt;
+        long nextInfernoGroundAt;
         Location lastLocation;
         int stuckTicks;
     }
@@ -66,6 +112,7 @@ public class EliteMobFeature implements Listener {
     public EliteMobFeature(Mifron plugin) {
         this.plugin = plugin;
         this.eliteKey = new NamespacedKey(plugin, "elite_mob");
+        this.revivalKey = new NamespacedKey(plugin, "elite_revivals");
     }
 
     /** Admin-summoned elites bypass region/plugin spawn denials. */
@@ -91,10 +138,22 @@ public class EliteMobFeature implements Listener {
         String worldName = mob.getWorld().getName();
         String hubWorld = plugin.getConfig().getString("hub.world", "world");
         if (worldName.equalsIgnoreCase(hubWorld)) return;
+        if (this.isElite(mob)) return;
+        if (!this.isNaturalEliteWindow(mob)) return;
         double chance = plugin.getConfig().getDouble("elite-mobs.spawn-chance", DEFAULT_SPAWN_CHANCE);
         if (this.isRagnarokActive() || random.nextDouble() < Math.max(0.0, Math.min(1.0, chance))) {
             makeElite(mob);
         }
+    }
+
+    /**
+     * 自然沸きのエリート化条件。既定では夜（または暗所）の湧きだけをエリートにする。
+     * 昼間・明るい場所の湧きは通常 mob のままにして、生活圏の難易度を上げすぎない。
+     */
+    private boolean isNaturalEliteWindow(Mob mob) {
+        if (!plugin.getConfig().getBoolean("elite-mobs.require-night", true)) return true;
+        if (mob.getLocation().getBlock().getLightLevel() < DARK_LIGHT_LEVEL) return true;
+        return !mob.getWorld().isDayTime();
     }
 
     /** True when the entity type is a hostile mob that can become an elite. */
@@ -138,10 +197,16 @@ public class EliteMobFeature implements Listener {
         double speedMultiplier = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.speed-multiplier", 1.2));
         AttributeInstance maxHealth = mob.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealth != null) {
+<<<<<<< HEAD
             // Weak mobs (silverfish, endermite) would stay trivial even at x8,
             // so every elite also gets a hard health floor.
             double floor = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.min-health", 40.0));
             double newHp = Math.max(maxHealth.getBaseValue() * healthMultiplier, floor);
+=======
+            // シルバーフィッシュ等は倍率だけでは脅威にならないため、倍率に加えて最低体力を保証する。
+            double healthFloor = Math.max(1.0, plugin.getConfig().getDouble("elite-mobs.min-health", 40.0));
+            double newHp = Math.max(maxHealth.getBaseValue() * healthMultiplier, healthFloor);
+>>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
             maxHealth.setBaseValue(newHp);
             mob.setHealth(newHp);
         }
@@ -153,13 +218,23 @@ public class EliteMobFeature implements Listener {
         if (armor != null) armor.setBaseValue(armor.getBaseValue() + plugin.getConfig().getDouble("elite-mobs.armor-bonus", 4.0));
         AttributeInstance knockback = mob.getAttribute(Attribute.KNOCKBACK_RESISTANCE);
         if (knockback != null) knockback.setBaseValue(Math.max(0.5, knockback.getBaseValue()));
+<<<<<<< HEAD
         mob.setCustomName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "✦ ELITE ✦ " + ChatColor.RED + eliteTitle(mob));
+=======
+        mob.setCustomName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "✦ ELITE ✦ " + ChatColor.RED + eliteTitle(mob.getType()));
+>>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
         mob.setCustomNameVisible(true);
 
         UUID id = mob.getUniqueId();
         BukkitTask old = this.eliteTasks.remove(id);
         if (old != null) old.cancel();
         EliteState state = new EliteState();
+        long nowMs = System.currentTimeMillis();
+        state.nextVoidLiftAt = nowMs + 5_000L;
+        state.nextVoidTntAt = nowMs + 8_000L;
+        state.nextInfernoVolleyAt = nowMs + 5_000L;
+        state.nextInfernoBlastAt = nowMs + 7_000L;
+        state.nextInfernoGroundAt = nowMs + 9_000L;
         this.eliteStates.put(id, state);
         this.createBossBar(mob, state);
         BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> this.tickElite(mob), 20L, 10L);
@@ -185,7 +260,11 @@ public class EliteMobFeature implements Listener {
         String prefix = state.phase2
             ? ChatColor.DARK_PURPLE + "✦ ELITE II ✦ "
             : ChatColor.LIGHT_PURPLE + "✦ ELITE ✦ ";
+<<<<<<< HEAD
         return prefix + ChatColor.RED + eliteTitle(mob)
+=======
+        return prefix + ChatColor.RED + eliteTitle(mob.getType())
+>>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
             + ChatColor.GRAY + "  " + (int) Math.ceil(Math.max(0.0, mob.getHealth()))
             + "/" + (int) Math.ceil(Math.max(1.0, mob.getMaxHealth()));
     }
@@ -260,6 +339,7 @@ public class EliteMobFeature implements Listener {
             target = this.findNearestPlayer(mob, 24.0);
             if (target != null) mob.setTarget(target);
         }
+<<<<<<< HEAD
         if (!state.phase2 && !state.phase2Blocked && mob.getHealth() <= mob.getMaxHealth() * 0.5) {
             if (supportsPhase2(mob.getType())) {
                 this.enterPhase2(mob, state);
@@ -267,6 +347,11 @@ public class EliteMobFeature implements Listener {
                 // Only the headline bosses escalate. Everything else stays single-phase.
                 state.phase2Blocked = true;
             }
+=======
+        if (!state.phase2 && supportsPhase2(mob.getType())
+            && mob.getHealth() <= mob.getMaxHealth() * 0.5) {
+            this.enterPhase2(mob, state);
+>>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
         }
         long now = System.currentTimeMillis();
         if (target != null) {
@@ -279,6 +364,7 @@ public class EliteMobFeature implements Listener {
                 this.useEliteSpecial(mob, target, state);
                 state.nextSpecialAt = now + (state.phase2 ? 3500L : 6000L);
             }
+            this.tickSignatureAbility(mob, target, state, now);
         }
         Location effect = location.clone().add(0.0, 1.0, 0.0);
         mob.getWorld().spawnParticle(Particle.ENCHANT, effect, 8, 0.4, 0.6, 0.4, 0.1);
@@ -345,7 +431,11 @@ public class EliteMobFeature implements Listener {
         if (damage != null) damage.setBaseValue(damage.getBaseValue() * 1.3);
         AttributeInstance speed = mob.getAttribute(Attribute.MOVEMENT_SPEED);
         if (speed != null) speed.setBaseValue(speed.getBaseValue() * 1.2);
+<<<<<<< HEAD
         mob.setCustomName(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "✦ ELITE II ✦ " + ChatColor.RED + eliteTitle(mob));
+=======
+        mob.setCustomName(ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "✦ ELITE II ✦ " + ChatColor.RED + eliteTitle(mob.getType()));
+>>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
         // Phase two is a real escalation: heal, shield, summon help and knock
         // nearby players back in one telegraphed burst.
         this.healSelf(mob, mob.getMaxHealth() * 0.2);
@@ -917,6 +1007,7 @@ public class EliteMobFeature implements Listener {
         return this.random.nextDouble() < plugin.getConfig().getDouble("elite-drops." + key, def);
     }
 
+<<<<<<< HEAD
     /** ラグナロク終了時刻（epoch millis）。0 なら未開催。 */
     private volatile long ragnarokUntil;
 
@@ -1122,6 +1213,360 @@ public class EliteMobFeature implements Listener {
         }
         target.damage(damage, mob);
         target.setFireTicks(Math.max(target.getFireTicks(), 100));
+=======
+    /**
+     * エリートの表示名。固有の名前がある種はそれを使い、無い種は種名を整形する
+     * （WITHER_SKELETON -> "Wither Skeleton"）。
+     */
+    // =================================================================
+    // 腐死王の復活
+    // =================================================================
+
+    /**
+     * ゾンビ系エリート（腐死王）が死亡したとき、とどめの武器に
+     * アンデット特攻（Smite）が無ければ元の位置に蘇らせる。
+     * 復活回数は {@link #DEFAULT_UNDEAD_REVIVALS} を上限とし、
+     * 回数は復活した個体の PDC に引き継いで暴走を防ぐ。
+     */
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = false)
+    public void onUndeadKingDeath(EntityDeathEvent event) {
+        if (!(event.getEntity() instanceof Mob mob)) return;
+        if (!this.isElite(mob)) return;
+        EntityType type = mob.getType();
+        if (!isUndeadKing(type)) return;
+        Player killer = mob.getKiller();
+        int revivals = this.revivalCount(mob);
+        int limit = this.revivalLimit();
+        if (!shouldReviveUndeadKing(type, this.hasSmiteWeapon(killer), revivals, limit)) {
+            return;
+        }
+        Location where = mob.getLocation().clone();
+        int next = revivals + 1;
+        if (killer != null) {
+            killer.sendMessage(ChatColor.DARK_RED + "腐死王はまだ死なない…"
+                + ChatColor.GRAY + " (復活 " + next + "/" + limit + ")");
+        }
+        mob.getWorld().playSound(where, Sound.ENTITY_ZOMBIE_AMBIENT, 1.6f, 0.6f);
+        mob.getWorld().spawnParticle(Particle.SOUL, where.clone().add(0.0, 1.0, 0.0),
+            30, 0.6, 0.7, 0.6, 0.02);
+        this.plugin.getServer().getScheduler().runTaskLater(this.plugin,
+            () -> this.reviveUndeadKing(where, type, next), UNDEAD_REVIVAL_DELAY_TICKS);
+    }
+
+    /** とどめの武器にアンデット特攻（Smite）が付いているか。 */
+    private boolean hasSmiteWeapon(Player killer) {
+        if (killer == null) return false;
+        ItemStack weapon = killer.getInventory().getItemInMainHand();
+        return weapon != null && weapon.getEnchantmentLevel(Enchantment.SMITE) > 0;
+    }
+
+    /** この個体がこれまでに復活した回数。 */
+    private int revivalCount(Mob mob) {
+        Integer stored = mob.getPersistentDataContainer()
+            .get(this.revivalKey, PersistentDataType.INTEGER);
+        return stored == null ? 0 : stored;
+    }
+
+    /** 復活上限。設定 `elite-mobs.undead-king-revivals`（既定 3 回）。 */
+    private int revivalLimit() {
+        return Math.max(0, Math.min(10, this.plugin.getConfig()
+            .getInt("elite-mobs.undead-king-revivals", DEFAULT_UNDEAD_REVIVALS)));
+    }
+
+    /** 元の位置に腐死王を蘇らせ、体力を全回復して復活回数を引き継ぐ。 */
+    private void reviveUndeadKing(Location where, EntityType type, int revivals) {
+        World world = where.getWorld();
+        if (world == null) return;
+        if (!world.isChunkLoaded(where.getBlockX() >> 4, where.getBlockZ() >> 4)) return;
+        this.allowEliteSpawn = true;
+        Entity spawned;
+        try {
+            spawned = world.spawnEntity(where, type, CreatureSpawnEvent.SpawnReason.CUSTOM);
+        } finally {
+            this.allowEliteSpawn = false;
+        }
+        if (!(spawned instanceof Mob mob) || !mob.isValid()) {
+            if (spawned != null) spawned.remove();
+            return;
+        }
+        mob.getPersistentDataContainer().set(this.revivalKey, PersistentDataType.INTEGER, revivals);
+        this.makeElite(mob);
+        mob.setHealth(mob.getMaxHealth());
+        for (Entity nearby : world.getNearbyEntities(where, 24.0, 24.0, 24.0)) {
+            if (nearby instanceof Player player && this.isValidTarget(player)) {
+                mob.setTarget(player);
+                break;
+            }
+        }
+        Location effect = where.clone().add(0.0, 1.0, 0.0);
+        world.spawnParticle(Particle.SOUL_FIRE_FLAME, effect, 60, 0.8, 1.0, 0.8, 0.06);
+        world.spawnParticle(Particle.EXPLOSION_EMITTER, effect, 1);
+        world.playSound(where, Sound.ENTITY_ZOMBIE_VILLAGER_CURE, 1.4f, 0.6f);
+    }
+
+    /** 腐死王の復活上限（既定値）。 */
+    static int undeadKingRevivalLimit() {
+        return DEFAULT_UNDEAD_REVIVALS;
+    }
+
+    /**
+     * この死亡で復活させるべきか。副作用の無い純粋関数なので単体テストできる。
+     * アンデット特攻でとどめを刺された個体と、上限に達した個体は蘇らない。
+     */
+    static boolean shouldReviveUndeadKing(EntityType type, boolean killerHasSmite,
+                                          int revivals, int limit) {
+        if (type == null || !isUndeadKing(type)) return false;
+        if (killerHasSmite) return false;
+        return revivals < Math.max(0, limit);
+    }
+
+    // =================================================================
+    // 固有行動（異空の支配者 / 極炎の化身）
+    // =================================================================
+
+    /** 種ごとの固有行動。クールダウンは EliteState で個体ごとに管理する。 */
+    private void tickSignatureAbility(Mob mob, LivingEntity target, EliteState state, long now) {
+        switch (mob.getType()) {
+            case ENDERMAN -> this.tickVoidSovereign(mob, target, state, now);
+            case BLAZE -> this.tickInfernoAvatar(mob, target, state, now);
+            default -> { }
+        }
+    }
+
+    /** 異空の支配者: 上空テレポートと、地面から掘り出した TNT の起爆。 */
+    private void tickVoidSovereign(Mob mob, LivingEntity target, EliteState state, long now) {
+        if (now >= state.nextVoidLiftAt) {
+            if (this.liftTargetSkyward(mob, target)) {
+                state.nextVoidLiftAt = now + VOID_LIFT_COOLDOWN_MS;
+            } else {
+                state.nextVoidLiftAt = now + 2500L;
+            }
+        }
+        if (now >= state.nextVoidTntAt) {
+            if (this.digOutTnt(mob, target)) {
+                state.nextVoidTntAt = now + VOID_TNT_COOLDOWN_MS;
+            } else {
+                state.nextVoidTntAt = now + 3000L;
+            }
+        }
+    }
+
+    /** 対象プレイヤーを真上へ打ち上げる。 */
+    private boolean liftTargetSkyward(Mob mob, LivingEntity target) {
+        if (!(target instanceof Player player) || !this.isValidTarget(player)) return false;
+        World world = player.getWorld();
+        Location base = player.getLocation().clone();
+        int startY = Math.min(world.getMaxHeight() - 4, base.getBlockY() + VOID_LIFT_HEIGHT);
+        if (startY <= base.getBlockY() + 2) return false;
+        // 洞窟の中に埋まらないよう、上空から下へ向かって空洞を探す。
+        int destinationY = this.findOpenAirY(world, base.getBlockX(), base.getBlockZ(),
+            startY, world.getMaxHeight() - 2);
+        if (destinationY < 0) {
+            destinationY = this.findOpenAirY(world, base.getBlockX(), base.getBlockZ(),
+                base.getBlockY() + 3, startY);
+        }
+        if (destinationY <= base.getBlockY()) return false;
+        Location destination = base.clone();
+        destination.setY(destinationY);
+        Location origin = base.clone().add(0.0, 1.0, 0.0);
+        world.spawnParticle(Particle.PORTAL, origin, 50, 0.6, 0.9, 0.6, 0.15);
+        world.playSound(base, Sound.ENTITY_ENDERMAN_TELEPORT, 1.3f, 0.6f);
+        player.setFallDistance(0.0f);
+        player.teleport(destination);
+        player.setFallDistance(0.0f);
+        world.spawnParticle(Particle.PORTAL, destination.clone().add(0.0, 1.0, 0.0),
+            50, 0.6, 0.9, 0.6, 0.15);
+        world.playSound(destination, Sound.ENTITY_ENDERMAN_SCREAM, 1.0f, 0.8f);
+        player.sendMessage(ChatColor.LIGHT_PURPLE + "異空の支配者が空間を歪めた…");
+        return true;
+    }
+
+    /** yMin..yMax で 2 ブロック分の空気が連続する最も低い Y。無ければ -1。 */
+    private int findOpenAirY(World world, int x, int z, int yMin, int yMax) {
+        int from = Math.max(world.getMinHeight() + 1, yMin);
+        int to = Math.min(world.getMaxHeight() - 2, yMax);
+        for (int y = from; y <= to; y++) {
+            if (world.getBlockAt(x, y, z).getType().isSolid()) continue;
+            if (world.getBlockAt(x, y + 1, z).getType().isSolid()) continue;
+            return y;
+        }
+        return -1;
+    }
+
+    /** 対象の足元の地面から TNT を掘り出して起爆する。 */
+    private boolean digOutTnt(Mob mob, LivingEntity target) {
+        World world = target.getWorld();
+        Location center = target.getLocation().clone();
+        for (int depth = 1; depth <= 4; depth++) {
+            Block block = center.clone().subtract(0.0, depth, 0.0).getBlock();
+            if (!block.getType().isSolid()) continue;
+            if (block.getType() == Material.BEDROCK || block.getType() == Material.BARRIER) continue;
+            if (block.getType() == Material.OBSIDIAN) continue;
+            block.setType(Material.AIR);
+            Location spawn = block.getLocation().add(0.5, 0.0, 0.5);
+            world.playSound(spawn, Sound.BLOCK_GRAVEL_BREAK, 1.4f, 0.7f);
+            world.spawnParticle(Particle.SMOKE, spawn.clone().add(0.0, 0.5, 0.0),
+                30, 0.5, 0.3, 0.5, 0.02);
+            TNTPrimed tnt = world.spawn(spawn, TNTPrimed.class);
+            if (tnt == null) return false;
+            tnt.setFuseTicks(VOID_TNT_FUSE_TICKS);
+            tnt.setYield(VOID_TNT_YIELD);
+            tnt.setSource(mob);
+            world.playSound(spawn, Sound.ENTITY_TNT_PRIMED, 1.2f, 0.9f);
+            if (target instanceof Player player) {
+                player.sendMessage(ChatColor.DARK_PURPLE + "足元から TNT が掘り出された！");
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /** 極炎の化身: 10連射・爆発する火の玉・地面に降りて延焼。 */
+    private void tickInfernoAvatar(Mob mob, LivingEntity target, EliteState state, long now) {
+        if (now >= state.nextInfernoVolleyAt) {
+            state.nextInfernoVolleyAt = now + INFERNO_VOLLEY_COOLDOWN_MS;
+            this.startBlazeBurst(mob, target, BLAZE_BURST_SHOTS);
+        }
+        if (now >= state.nextInfernoBlastAt) {
+            state.nextInfernoBlastAt = now + INFERNO_BLAST_COOLDOWN_MS;
+            this.launchExplosiveFireball(mob, target);
+        }
+        if (now >= state.nextInfernoGroundAt) {
+            state.nextInfernoGroundAt = now + INFERNO_GROUND_COOLDOWN_MS;
+            this.descendAndIgnite(mob, target);
+        }
+    }
+
+    /** 火の玉を BLAZE_BURST_INTERVAL_TICKS 間隔で指定発数だけ連射する。 */
+    private void startBlazeBurst(Mob mob, LivingEntity target, int shots) {
+        if (shots <= 0) return;
+        int[] fired = { 0 };
+        BukkitTask[] holder = { null };
+        holder[0] = this.plugin.getServer().getScheduler().runTaskTimer(this.plugin, () -> {
+            BukkitTask self = holder[0];
+            if (self == null || fired[0] >= shots
+                || mob.isDead() || !mob.isValid()
+                || target.isDead() || !target.isValid()) {
+                if (self != null) self.cancel();
+                return;
+            }
+            this.shootEmber(mob, target);
+            fired[0]++;
+        }, 0L, BLAZE_BURST_INTERVAL_TICKS);
+    }
+
+    /** 小型の火の玉を1発撃つ。 */
+    private void shootEmber(Mob mob, LivingEntity target) {
+        World world = mob.getWorld();
+        Location eye = mob.getLocation().clone().add(0.0, 1.2, 0.0);
+        Vector direction = target.getEyeLocation().toVector().subtract(eye.toVector());
+        if (direction.lengthSquared() > 1.0E-6) {
+            direction.normalize().multiply(1.2);
+        } else {
+            direction = mob.getLocation().getDirection().clone().multiply(1.2);
+        }
+        SmallFireball fireball = world.spawn(eye, SmallFireball.class);
+        if (fireball == null) return;
+        fireball.setDirection(direction);
+        fireball.setShooter(mob);
+        world.playSound(eye, Sound.ENTITY_BLAZE_SHOOT, 0.7f, 1.5f);
+    }
+
+    /** 着弾で爆発する大型の火の玉を撃つ。 */
+    private void launchExplosiveFireball(Mob mob, LivingEntity target) {
+        World world = mob.getWorld();
+        Location eye = mob.getLocation().clone().add(0.0, 1.4, 0.0);
+        Vector direction = target.getEyeLocation().toVector().subtract(eye.toVector());
+        if (direction.lengthSquared() <= 1.0E-6) return;
+        LargeFireball fireball = world.spawn(eye, LargeFireball.class);
+        if (fireball == null) return;
+        fireball.setDirection(direction.normalize().multiply(1.1));
+        fireball.setYield(INFERNO_BLAST_YIELD);
+        fireball.setShooter(mob);
+        world.spawnParticle(Particle.FLAME, eye, 24, 0.4, 0.4, 0.4, 0.02);
+        world.playSound(eye, Sound.ENTITY_GHAST_SHOOT, 1.3f, 0.9f);
+        if (target instanceof Player player) {
+            player.sendMessage(ChatColor.RED + "極炎の化身が爆炎を放った…");
+        }
+    }
+
+    /** 地面に降りて周囲を焼き払う。 */
+    private void descendAndIgnite(Mob mob, LivingEntity target) {
+        World world = mob.getWorld();
+        Location base = target.getLocation().clone();
+        Location destination = base.clone().add(0.0, 1.0, 0.0);
+        destination.setDirection(mob.getLocation().getDirection());
+        mob.teleport(destination);
+        Location center = mob.getLocation();
+        world.playSound(center, Sound.ENTITY_BLAZE_SHOOT, 1.6f, 0.7f);
+        world.spawnParticle(Particle.FLAME, center, 80, 2.5, 0.6, 2.5, 0.06);
+        world.spawnParticle(Particle.LAVA, center, 20, 2.0, 0.4, 2.0, 0.0);
+        int radius = 4;
+        int originX = center.getBlockX();
+        int originY = center.getBlockY();
+        int originZ = center.getBlockZ();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (dx * dx + dz * dz > radius * radius) continue;
+                Block floor = world.getBlockAt(originX + dx, originY - 1, originZ + dz);
+                if (!floor.getType().isSolid()) continue;
+                Block above = world.getBlockAt(originX + dx, originY, originZ + dz);
+                if (!above.getType().isAir()) continue;
+                above.setType(Material.FIRE, false);
+            }
+        }
+        for (Entity nearby : world.getNearbyEntities(center, 6.0, 4.0, 6.0)) {
+            if (!(nearby instanceof LivingEntity living) || living.equals(mob)) continue;
+            if (living instanceof Player player && !this.isValidTarget(player)) continue;
+            living.setFireTicks(Math.max(living.getFireTicks(), 120));
+        }
+        this.shockwave(mob, 5.0, 8.0, true);
+    }
+
+    /** 異空の支配者（エンダーマン）か。 */
+    static boolean isVoidSovereign(EntityType type) {
+        return type == EntityType.ENDERMAN;
+    }
+
+    /** 極炎の化身（ブレイズ）か。 */
+    static boolean isInfernoAvatar(EntityType type) {
+        return type == EntityType.BLAZE;
+    }
+
+    /** 火の玉10連射の発数。 */
+    static int blazeBurstShots() {
+        return BLAZE_BURST_SHOTS;
+    }
+
+    static String eliteTitle(EntityType type) {
+        if (type == null) return "";
+        String custom = ELITE_NAMES.get(type);
+        if (custom != null) return custom;
+        StringBuilder title = new StringBuilder();
+        for (String word : type.name().toLowerCase(java.util.Locale.ROOT).split("_")) {
+            if (word.isEmpty()) continue;
+            if (title.length() > 0) title.append(' ');
+            title.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return title.toString();
+    }
+
+    /**
+     * 第二形態に移行できる種。第二形態は体力50%以下で特殊行動が一斉に強化されるため、
+     * 元から高耐久のボス系5種だけに限定する。
+     */
+    static boolean supportsPhase2(EntityType type) {
+        return type == EntityType.ELDER_GUARDIAN
+            || type == EntityType.PIGLIN_BRUTE
+            || type == EntityType.WITHER
+            || type == EntityType.ENDER_DRAGON
+            || type == EntityType.WARDEN;
+    }
+
+    /** 腐死王（アンデット特攻以外で倒されると復活する）か。第2弾の復活処理の土台。 */
+    static boolean isUndeadKing(EntityType type) {
+        return type == EntityType.ZOMBIE || type == EntityType.HUSK || type == EntityType.DROWNED;
+>>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
     }
 
     private static Material eliteHead(EntityType type) {

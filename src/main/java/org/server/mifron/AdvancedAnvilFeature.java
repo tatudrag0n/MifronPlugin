@@ -55,6 +55,19 @@ final class AdvancedAnvilFeature implements Listener {
    private final NamespacedKey advancedEnchantLoreCountKey;
    private final NamespacedKey advancedCostDisplayKey;
    private final Map<Inventory, PendingResult> pendingResults = new WeakHashMap<>();
+   /**
+    * Anvils placed from the ancient-anvil relic, keyed by block location and
+    * mapped to the player who placed them. Ordinary anvils are never in this
+    * map, so vanilla anvils keep their normal behaviour.
+    */
+   private final Map<org.bukkit.Location, java.util.UUID> artisanAnvils = new java.util.concurrent.ConcurrentHashMap<>();
+   /**
+    * Fallback used when the open anvil does not report its block location:
+    * the anvil this player just right-clicked. Cleared when the view closes.
+    */
+   private final Map<java.util.UUID, org.bukkit.Location> artisanAnvilSessions = new java.util.concurrent.ConcurrentHashMap<>();
+   private final java.io.File artisanAnvilFile;
+   private volatile boolean artisanAnvilsLoaded;
 
    AdvancedAnvilFeature(Mifron plugin) {
       this.plugin = plugin;
@@ -66,6 +79,7 @@ final class AdvancedAnvilFeature implements Listener {
       this.advancedEnchantDisplayKey = new NamespacedKey(plugin, "advanced_enchant_display");
       this.advancedEnchantLoreCountKey = new NamespacedKey(plugin, "advanced_enchant_lore_count");
       this.advancedCostDisplayKey = new NamespacedKey(plugin, "advanced_anvil_cost_display");
+      this.artisanAnvilFile = new java.io.File(plugin.getDataFolder(), "artisan-anvils.yml");
    }
 
    @EventHandler(priority = EventPriority.HIGHEST)
@@ -128,7 +142,7 @@ final class AdvancedAnvilFeature implements Listener {
          return;
       }
 
-      boolean artisanAnvil = this.plugin.relicFeature.hasRelicInInventory(player, "ancient_anvil");
+      boolean artisanAnvil = this.isArtisanAnvilUse(player, inventory);
       int vanillaCost = Math.max(0, event.getView().getRepairCost());
       int totalCost = Math.max(vanillaCost, this.fallbackCost(left, right, incoming, result));
       totalCost = Math.min(totalCost, this.maximumRepairCost());
@@ -271,6 +285,10 @@ final class AdvancedAnvilFeature implements Listener {
             return;
          }
          this.removeTransientCostDisplay(cursor);
+         // A placed relic anvil must not wear out and vanish: vanilla anvils
+         // degrade in place and the last stage is destroyed without firing a
+         // BlockBreakEvent, which would lose the relic for good.
+         this.resetArtisanAnvilWear(top);
          // Endless inputs (including the Endless Grimoire) must survive the
          // anvil transaction. Restore them only after the result was taken.
          for (ItemStack preserved : pending.preservedItems()) {
@@ -411,6 +429,253 @@ final class AdvancedAnvilFeature implements Listener {
 
    private void configureMaximumRepairCost(AnvilView view) {
       view.setMaximumRepairCost(this.maximumRepairCost());
+   }
+
+   // ------------------------------------------------------------------
+   // Ancient anvil relic: the relic item is placed as a normal anvil block.
+   // Anvils have no tile entity, so the tracked-location pattern used by the
+   // advanced crafting table is used here as well. Only tracked blocks get the
+   // artisan behaviour and breaking one turns it back into the relic.
+   // ------------------------------------------------------------------
+
+   /** Loads the tracked anvils lazily so no startup wiring change is needed. */
+   private void ensureArtisanAnvilsLoaded() {
+      if (this.artisanAnvilsLoaded) {
+         return;
+      }
+      this.artisanAnvilsLoaded = true;
+      if (!this.artisanAnvilFile.exists()) {
+         return;
+      }
+      org.bukkit.configuration.file.YamlConfiguration config =
+         org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(this.artisanAnvilFile);
+      for (String key : config.getKeys(false)) {
+         ArtisanAnvilRules.Anchor anchor = ArtisanAnvilRules.parse(key);
+         if (anchor == null) {
+            continue;
+         }
+         World world = Bukkit.getWorld(anchor.world());
+         if (world == null) {
+            continue;
+         }
+         java.util.UUID owner = ArtisanAnvilRules.parseOwner(config.getString(key));
+         if (owner == null) {
+            continue;
+         }
+         this.artisanAnvils.put(new org.bukkit.Location(world, anchor.x(), anchor.y(), anchor.z()), owner);
+      }
+   }
+
+   private void saveArtisanAnvils() {
+      org.bukkit.configuration.file.YamlConfiguration config =
+         new org.bukkit.configuration.file.YamlConfiguration();
+      for (Map.Entry<org.bukkit.Location, java.util.UUID> entry : this.artisanAnvils.entrySet()) {
+         org.bukkit.Location location = entry.getKey();
+         if (location.getWorld() == null) {
+            continue;
+         }
+         config.set(ArtisanAnvilRules.serialize(location.getWorld().getName(),
+            location.getBlockX(), location.getBlockY(), location.getBlockZ()), entry.getValue().toString());
+      }
+      try {
+         config.save(this.artisanAnvilFile);
+      } catch (java.io.IOException exception) {
+         this.plugin.getLogger().warning("Could not save artisan anvils: " + exception.getMessage());
+      }
+   }
+
+   private static boolean isAnvilBlock(org.bukkit.block.Block block) {
+      return block != null && ArtisanAnvilRules.isAnvilBlockName(block.getType().name());
+   }
+
+   /**
+    * Returns the tracked anvil behind an open anvil inventory, or null when the
+    * inventory is not a placed relic anvil. Ordinary anvils are never tracked,
+    * so vanilla combining keeps working unchanged.
+    */
+   private org.bukkit.block.Block artisanAnvilAt(Inventory inventory) {
+      if (inventory == null || inventory.getLocation() == null) {
+         return null;
+      }
+      org.bukkit.block.Block block = inventory.getLocation().getBlock();
+      if (!isAnvilBlock(block)) {
+         return null;
+      }
+      this.ensureArtisanAnvilsLoaded();
+      return this.artisanAnvils.containsKey(block.getLocation()) ? block : null;
+   }
+
+   private boolean isArtisanAnvilUse(Player player, Inventory inventory) {
+      org.bukkit.block.Block block = this.artisanAnvilAt(inventory);
+      if (block != null) {
+         this.artisanAnvilSessions.put(player.getUniqueId(), block.getLocation());
+         return true;
+      }
+      // Some container implementations do not expose the block location, so
+      // fall back to the anvil this player just opened nearby.
+      org.bukkit.Location session = this.artisanAnvilSessions.get(player.getUniqueId());
+      if (session == null || session.getWorld() == null || !session.getWorld().equals(player.getWorld())) {
+         return false;
+      }
+      if (!ArtisanAnvilRules.isWithinUseRange(player.getLocation().distanceSquared(session))) {
+         this.artisanAnvilSessions.remove(player.getUniqueId());
+         return false;
+      }
+      org.bukkit.block.Block sessionBlock = session.getBlock();
+      if (!isAnvilBlock(sessionBlock)) {
+         return false;
+      }
+      this.ensureArtisanAnvilsLoaded();
+      return this.artisanAnvils.containsKey(sessionBlock.getLocation());
+   }
+
+   /** Vanilla anvils lose a damage stage per use; a placed relic anvil must not. */
+   private void resetArtisanAnvilWear(Inventory inventory) {
+      org.bukkit.block.Block block = this.artisanAnvilAt(inventory);
+      if (block == null || block.getType() == Material.ANVIL) {
+         return;
+      }
+      block.setType(Material.ANVIL, false);
+   }
+
+   private int artisanAnvilLimit() {
+      return this.plugin.getConfig().getInt("advanced-enchanting.artisan-anvil.max-per-player", 3);
+   }
+
+   private int countArtisanAnvils(java.util.UUID owner) {
+      int count = 0;
+      for (java.util.UUID candidate : this.artisanAnvils.values()) {
+         if (candidate.equals(owner)) {
+            count++;
+         }
+      }
+      return count;
+   }
+
+   private void returnAncientAnvilRelic(org.bukkit.block.Block block) {
+      ItemStack relic = this.plugin.relicFeature.createRelicItem(RelicFeature.RelicType.ANCIENT_ANVIL);
+      block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), relic);
+   }
+
+   /** Removes the tracking entry and returns true only for the first caller. */
+   private boolean untrackArtisanAnvil(org.bukkit.block.Block block) {
+      this.ensureArtisanAnvilsLoaded();
+      org.bukkit.Location location = block.getLocation();
+      if (this.artisanAnvils.remove(location) == null) {
+         return false;
+      }
+      this.artisanAnvilSessions.values().removeIf(location::equals);
+      this.saveArtisanAnvils();
+      return true;
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onPlaceArtisanAnvil(org.bukkit.event.block.BlockPlaceEvent event) {
+      ItemStack item = event.getItemInHand();
+      if (item == null || item.getType() != Material.ANVIL) {
+         return;
+      }
+      if (!this.plugin.relicFeature.isRelicItem(item)
+         || !"ancient_anvil".equals(this.plugin.relicFeature.getRelicId(item))) {
+         return;
+      }
+      org.bukkit.block.Block block = event.getBlockPlaced();
+      if (block.getType() != Material.ANVIL) {
+         return;
+      }
+      this.ensureArtisanAnvilsLoaded();
+      Player player = event.getPlayer();
+      int limit = this.artisanAnvilLimit();
+      if (!ArtisanAnvilRules.isUnderLimit(this.countArtisanAnvils(player.getUniqueId()), limit)) {
+         event.setCancelled(true);
+         player.sendMessage(Component.text("古匠の金床を同時に設置できる数は " + limit + " 個までです。", NamedTextColor.RED));
+         return;
+      }
+      this.artisanAnvils.put(block.getLocation(), player.getUniqueId());
+      this.saveArtisanAnvils();
+      player.sendMessage(Component.text("古匠の金床を設置した。壊すとレリックに戻る。", NamedTextColor.GOLD));
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onInteractArtisanAnvil(org.bukkit.event.player.PlayerInteractEvent event) {
+      if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+         return;
+      }
+      if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) {
+         return;
+      }
+      org.bukkit.block.Block block = event.getClickedBlock();
+      if (!isAnvilBlock(block)) {
+         return;
+      }
+      this.ensureArtisanAnvilsLoaded();
+      if (!this.artisanAnvils.containsKey(block.getLocation())) {
+         return;
+      }
+      this.artisanAnvilSessions.put(event.getPlayer().getUniqueId(), block.getLocation());
+      // Holding the relic itself must open the placed anvil instead of
+      // stacking a second anvil on top of it.
+      ItemStack hand = event.getItem();
+      if (hand != null && hand.getType() == Material.ANVIL
+         && this.plugin.relicFeature.isRelicItem(hand)
+         && "ancient_anvil".equals(this.plugin.relicFeature.getRelicId(hand))) {
+         event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onBreakArtisanAnvil(org.bukkit.event.block.BlockBreakEvent event) {
+      org.bukkit.block.Block block = event.getBlock();
+      if (!isAnvilBlock(block) || !this.untrackArtisanAnvil(block)) {
+         return;
+      }
+      event.setDropItems(false);
+      this.returnAncientAnvilRelic(block);
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onExplodeArtisanAnvil(org.bukkit.event.entity.EntityExplodeEvent event) {
+      for (org.bukkit.block.Block block : event.blockList()) {
+         if (!isAnvilBlock(block) || !this.untrackArtisanAnvil(block)) {
+            continue;
+         }
+         this.returnAncientAnvilRelic(block);
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onPistonExtendArtisanAnvil(org.bukkit.event.block.BlockPistonExtendEvent event) {
+      if (this.movesArtisanAnvil(event.getBlocks())) {
+         event.setCancelled(true);
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onPistonRetractArtisanAnvil(org.bukkit.event.block.BlockPistonRetractEvent event) {
+      if (this.movesArtisanAnvil(event.getBlocks())) {
+         event.setCancelled(true);
+      }
+   }
+
+   private boolean movesArtisanAnvil(List<org.bukkit.block.Block> blocks) {
+      this.ensureArtisanAnvilsLoaded();
+      if (this.artisanAnvils.isEmpty()) {
+         return false;
+      }
+      for (org.bukkit.block.Block block : blocks) {
+         if (isAnvilBlock(block) && this.artisanAnvils.containsKey(block.getLocation())) {
+            return true;
+         }
+      }
+      return false;
+   }
+
+   @EventHandler
+   public void onCloseArtisanAnvil(org.bukkit.event.inventory.InventoryCloseEvent event) {
+      if (!(event.getInventory() instanceof AnvilInventory)) {
+         return;
+      }
+      this.artisanAnvilSessions.remove(event.getPlayer().getUniqueId());
    }
 
    private boolean isFeatureAllowed(World world) {

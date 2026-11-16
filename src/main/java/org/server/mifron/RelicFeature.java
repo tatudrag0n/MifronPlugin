@@ -88,7 +88,6 @@ public class RelicFeature implements Listener {
      */
     static final int SEASWIM_ASCEND_AMPLIFIER = 1;
     private final Random random = new Random();
-    private final Map<UUID, BukkitTask> visionTasks = new HashMap<>();
     private final BlockData ghostIceData;
     private final Map<UUID, GhostPatch> ghostIcePatches = new HashMap<>();
     private final NamespacedKey hellfireKey;
@@ -113,6 +112,10 @@ public class RelicFeature implements Listener {
     private final Map<UUID, UUID> gaybolgDashTargets = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> gaybolgDashTasks = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburDashCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburAirborneUntil = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburLastGround = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> excaliburRightClickMillis = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburReplicaCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburReviveCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> excaliburCounterUntil = new java.util.concurrent.ConcurrentHashMap<>();
@@ -266,16 +269,18 @@ public class RelicFeature implements Listener {
         WITHER("wither", "§8§l凋零の頭骨", Material.WITHER_SKELETON_SKULL, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックでウィザースクロウを撃ち出す。(クールダウン4秒)"),
         BELL("bell", "§2§lシングル・ベル", Material.BELL, MaterialRarity.COMMON, RelicPower.MINOR, "§7半径10ブロック以内のエンティティを10秒間停止させる。(クールダウン10秒)"),
         DRAGONBREATH("dragonbreath", "§5§l竜の吐息", Material.DRAGON_BREATH, MaterialRarity.RARE, RelicPower.MEDIUM, "§7右クリックで前方に竜のブレスを放つ。(クールダウン6秒)"),
-        VISION("vision", "§8§l暗視鏡", Material.SPYGLASS, MaterialRarity.COMMON, RelicPower.MINOR, "§7覗いている間だけ暗視を得る。"),
         TIME_CLOCK("time_clock", "§b§lときを刻む時計", Material.CLOCK, MaterialRarity.COMMON, RelicPower.MINOR, "§7右クリックで現在の状態を保存し、もう一度でその状態へ戻る。"),
         ANTIGRAVITY_MACE("antigravity_mace", "§9§l反重力戦鎚", Material.MACE, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで上昇する。落下速度に応じて周囲を吹き飛ばす。"),
         ANCIENT_SLASH_ARMOR("ancient_slash_armor", "§4§l古代の斬鎧", Material.NETHERITE_CHESTPLATE, MaterialRarity.RARE, RelicPower.MAJOR, "§7攻撃を受けると周囲5ブロックへ5ダメージの斬撃を放つ。"),
         HELLFIRE_BOOK("hellfire_book", "§c§l獄炎の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.UNCOMMON, RelicPower.MAJOR, "§7金床で武器に「獄炎」を付与する。"),
         ENDLESS_GRIMOIRE("endless_grimoire", "§d§l無尽の魔導書", Material.ENCHANTED_BOOK, MaterialRarity.EPIC, RelicPower.MAJOR, "§7金床でどんなアイテムにも「無尽」を付与する。"),
-        ANCIENT_ANVIL("ancient_anvil", "§6§l古匠の金床", Material.ANVIL, MaterialRarity.EPIC, RelicPower.MEDIUM, "§7あらゆるアイテムに全エンチャントを付与できる。XP・MP不要、修繕ボーナス+50%。"),
+        ANCIENT_ANVIL("ancient_anvil", "§6§l古匠の金床", Material.ANVIL, MaterialRarity.EPIC, RelicPower.MEDIUM, "§7設置して使う。置いた金床では全エンチャント付与がXP・MP不要、修繕ボーナス+50%。壊すとレリックに戻る。"),
         GAYBOLG("gaybolg", "§5§lゲイ・ボルグ", Material.DIAMOND_SPEAR, MaterialRarity.RARE, RelicPower.MAJOR, "§7右クリックで最も近い敵を追尾して突進。攻撃射程50ブロック、距離でダメージ増加。(クールダウン5秒)"),
         EXCALIBUR_REPLICA("excalibur_replica", "§e§lエクスカリバー・レプリカ", Material.GOLDEN_SWORD, MaterialRarity.RARE, RelicPower.MAJOR, "§7聖剣の力を1/10だけ、5回まで発揮する。"),
+<<<<<<< HEAD
         ARTEMIS("artemis", "§a§lアルテミス", Material.BOW, MaterialRarity.EPIC, RelicPower.MAJOR, "§7右クリックで獲物を追う3本の矢を放つ。(クールダウン5秒)"),
+=======
+>>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
         INFINITE_BUNDLE("infinite_bundle", "§6§l無限のバンドル", Material.BUNDLE, MaterialRarity.EPIC, RelicPower.MAJOR, "§7容量無制限。バンドルに重ねるかShiftクリックで収納し、好きな順番で取り出せる。"),
         NOAHS_ARK("noahs_ark", "§3§lノアの方舟", Material.PALE_OAK_BOAT, MaterialRarity.RARE, RelicPower.MEDIUM, "§7空を飛べる高速な船。");
 
@@ -329,15 +334,43 @@ public class RelicFeature implements Listener {
             meta.setEnchantmentGlintOverride(true);
             // レリックごとの独自アイコン。リソースパック未導入のクライアントは
             // この指定を無視してバニラの素材を表示するだけなので壊れない。
+<<<<<<< HEAD
             // アイコン未収録のレリックは指定しない（存在しないモデルを指すと
             // クライアント側で欠損表示になるため）。
             if (RELIC_ICONS.contains(type.id)) {
                 meta.setItemModel(new org.bukkit.NamespacedKey("mifron", "relic/" + type.id));
             }
+=======
+            meta.setItemModel(new org.bukkit.NamespacedKey("mifron", "relic/" + type.id));
+>>>>>>> e55d970dca986acaa065acd3ac9118d54a716637
             meta.getPersistentDataContainer().set(keyRelic, PersistentDataType.STRING, type.id);
             if (type == RelicType.INFINITE_BUNDLE) {
                 meta.getPersistentDataContainer().set(this.bundleIdKey, PersistentDataType.STRING,
                     UUID.randomUUID().toString());
+            }
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    /**
+     * Creates the awakened holy sword. Excalibur is the decayed sword carrying
+     * Smite 20 (the same condition the combat handlers use), renamed and made
+     * unbreakable so administrators can hand out the finished form directly.
+     */
+    public ItemStack createExcalibur() {
+        ItemStack item = this.createRelicItem(RelicType.DECAYED_SWORD);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.displayName(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                .legacySection().deserialize("§6§l聖剣エクスカリバー"));
+            meta.addEnchant(Enchantment.SMITE, 20, true);
+            List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
+            lore.add(0, "§7伝説の聖剣。振るえば聖光がアンデッドを浄化する。");
+            meta.setLore(lore);
+            meta.setUnbreakable(true);
+            if (meta instanceof Damageable damageable) {
+                damageable.setDamage(0);
             }
             item.setItemMeta(meta);
         }
@@ -448,7 +481,8 @@ public class RelicFeature implements Listener {
     public void handleCommand(CommandSender sender, String[] args) {
         if (sender == null) return;
         if (!(sender instanceof org.bukkit.command.ConsoleCommandSender)
-            && !sender.isOp() && !sender.hasPermission("mifron.admin")) {
+            && !sender.isOp() && !sender.hasPermission("mifron.admin")
+            && !sender.hasPermission("mifron.relic.admin")) {
             sender.sendMessage("§cOP権限が必要です。");
             return;
         }
@@ -479,6 +513,17 @@ public class RelicFeature implements Listener {
             if (sender != target) sender.sendMessage("§a" + target.getName() + " に全レリックを付与しました。");
             return;
         }
+        if ("excalibur".equals(raw) || "holy_sword".equals(raw)) {
+            ItemStack item = createExcalibur();
+            for (ItemStack leftover : target.getInventory().addItem(item).values()) {
+                target.getWorld().dropItemNaturally(target.getLocation(), leftover);
+            }
+            target.sendMessage("§a聖剣エクスカリバーを入手しました。");
+            if (sender != target) {
+                sender.sendMessage("§a" + target.getName() + " にエクスカリバーを付与しました。");
+            }
+            return;
+        }
         RelicType type = null;
         String wanted = raw;
         boolean known = false;
@@ -506,6 +551,64 @@ public class RelicFeature implements Listener {
         if (sender != target) {
             sender.sendMessage("§a" + target.getName() + " に " + type.id + " を付与しました。");
         }
+    }
+
+    /** Grants the awakened Excalibur directly. Usage: /mf excalibur [player]. */
+    public void handleExcaliburCommand(CommandSender sender, String[] args) {
+        if (sender == null) return;
+        if (!(sender instanceof org.bukkit.command.ConsoleCommandSender)
+            && !sender.isOp() && !sender.hasPermission("mifron.admin")
+            && !sender.hasPermission("mifron.relic.admin")) {
+            sender.sendMessage("§cOP権限が必要です。");
+            return;
+        }
+        Player target;
+        if (args != null && args.length >= 2) {
+            target = Bukkit.getPlayerExact(args[1]);
+            if (target == null) {
+                sender.sendMessage("§cPlayer not found.");
+                return;
+            }
+        } else if (sender instanceof Player player) {
+            target = player;
+        } else {
+            sender.sendMessage("§cPlayer not found.");
+            return;
+        }
+        ItemStack item = createExcalibur();
+        for (ItemStack leftover : target.getInventory().addItem(item).values()) {
+            target.getWorld().dropItemNaturally(target.getLocation(), leftover);
+        }
+        target.sendMessage("§a聖剣エクスカリバーを入手しました。");
+        if (sender != target) {
+            sender.sendMessage("§a" + target.getName() + " にエクスカリバーを付与しました。");
+        }
+    }
+
+    /** Tab completion for /mf relic <id|all|excalibur> [player]. */
+    public List<String> tabComplete(String[] args) {
+        if (args == null) return List.of();
+        if (args.length == 2) {
+            List<String> values = new ArrayList<>();
+            values.add("all");
+            values.add("excalibur");
+            for (RelicType type : RelicType.values()) values.add(type.id);
+            String prefix = args[1].toLowerCase(java.util.Locale.ROOT);
+            List<String> matched = new ArrayList<>();
+            for (String value : values) if (value.startsWith(prefix)) matched.add(value);
+            return matched;
+        }
+        if (args.length == 3) {
+            String prefix = args[2].toLowerCase(java.util.Locale.ROOT);
+            List<String> matched = new ArrayList<>();
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (online.getName().toLowerCase(java.util.Locale.ROOT).startsWith(prefix)) {
+                    matched.add(online.getName());
+                }
+            }
+            return matched;
+        }
+        return List.of();
     }
 
     /** Opens the read-only relic compendium for every player. */
@@ -993,7 +1096,15 @@ public class RelicFeature implements Listener {
     /** Front hemisphere: everything visible in front of the player is hit. */
     static final double EXCALIBUR_SLASH_CONE_DOT = 0.0;
     static final long EXCALIBUR_COUNTER_DURATION_MILLIS = 5000L;
-    static final double EXCALIBUR_COUNTER_DAMAGE = 100000.0;
+    static final double EXCALIBUR_COUNTER_DAMAGE = 50000.0;
+    static final double EXCALIBUR_DASH_DAMAGE = 60.0;
+    static final long EXCALIBUR_DASH_COOLDOWN_MILLIS = 3000L;
+    static final double EXCALIBUR_AERIAL_DAMAGE = 40.0;
+    static final double EXCALIBUR_DIVE_DAMAGE = 150.0;
+    static final double EXCALIBUR_AERIAL_RADIUS = 4.0;
+    static final double EXCALIBUR_DIVE_RADIUS = 6.0;
+    static final double ARTEMIS_DAMAGE = 24.0;
+    static final int ARTEMIS_HOMING_TICKS = 40;
     static final double EXCALIBUR_COUNTER_RADIUS = 8.0;
     static final double SINGLE_BELL_RADIUS = 10.0;
     static final int SINGLE_BELL_FREEZE_TICKS = 200;
@@ -1121,16 +1232,6 @@ public class RelicFeature implements Listener {
         // could swallow the boat placement interaction.
         if ("noahs_ark".equals(this.getRelicId(item)) && event.getAction().isRightClick()) {
             this.normalizeRelicDurability(item);
-            return;
-        }
-
-        // Vision relic: scoping starts on right click, stop is handled by the
-        // task itself (it ends when the player is no longer using the item).
-        // Checked before the HAND-only guard so an off-hand spyglass works
-        // too; starting a scope task twice is idempotent.
-        if ("vision".equals(getRelicId(item)) && event.getAction().isRightClick()) {
-            if (this.damageRelic(player, item, this.relicDurabilityLossOnUse())) return;
-            this.startScopedVision(player);
             return;
         }
 
@@ -1265,10 +1366,23 @@ public class RelicFeature implements Listener {
         } else if ("excalibur_replica".equals(id) && rightClick) {
             event.setCancelled(true);
             this.tryExcaliburReplica(player, item);
+        } else if ("decayed_sword".equals(id) && !rightClick
+                && (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK)
+                && player.isSneaking() && this.isExcalibur(item)
+                && this.isExcaliburAirborne(player)) {
+            event.setCancelled(true);
+            this.tryExcaliburDive(player, item);
+        } else if ("decayed_sword".equals(id) && !rightClick
+                && (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK)
+                && player.isSneaking() && this.isExcalibur(item)) {
+            event.setCancelled(true);
+            this.tryExcaliburDashAttack(player, item);
         } else if ("decayed_sword".equals(id) && rightClick && this.isExcalibur(item)) {
             event.setCancelled(true);
-            if (player.isSneaking()) this.startExcaliburCounter(player);
-            else this.tryExcaliburSlash(player, item);
+            if (player.isSneaking()) {
+                this.excaliburRightClickMillis.put(player.getUniqueId(), System.currentTimeMillis());
+                this.startExcaliburCounter(player);
+            } else this.tryExcaliburSlash(player, item);
         } else if ("hellfire_book".equals(id) && rightClick) {
             if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null
                 && (event.getClickedBlock().getType() == Material.ANVIL
@@ -1279,16 +1393,20 @@ public class RelicFeature implements Listener {
             event.setCancelled(true);
             player.sendMessage(ChatColor.RED + "金床で武器と一緒に合成すると「獄炎」を付与できる。");
         } else if ("ancient_anvil".equals(id) && rightClick) {
+            // 古匠の金床は「置いて使う」レリックになったので、右クリックは
+            // キャンセルしない（設置と通常金床のGUIをそのまま通す）。
+            // 設置アンビルの追跡・破壊時の返却は AdvancedAnvilFeature が行う。
             if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null
                 && (event.getClickedBlock().getType() == Material.ANVIL
                     || event.getClickedBlock().getType() == Material.CHIPPED_ANVIL
                     || event.getClickedBlock().getType() == Material.DAMAGED_ANVIL)) {
-                // Let the normal anvil GUI open; the artisan bonus is applied
-                // by AdvancedAnvilFeature while this relic is in the inventory.
                 return;
             }
-            event.setCancelled(true);
-            player.sendMessage(ChatColor.GOLD + "古匠の金床をインベントリに入れた状態で金床を使うと、XP・MPなしで全エンチャントと修繕ができる。");
+            if (event.getAction() == Action.RIGHT_CLICK_AIR) {
+                player.sendMessage(ChatColor.GOLD
+                    + "古匠の金床は設置して使う。壊すとレリックに戻る。");
+            }
+            return;
         }
     }
 
@@ -1692,6 +1810,11 @@ public class RelicFeature implements Listener {
         if (attacker == null || attacker == player) return;
         event.setCancelled(true);
         this.excaliburCounterUntil.remove(uuid);
+        long counterStartedAt = until - EXCALIBUR_COUNTER_DURATION_MILLIS;
+        boolean justGuard = (System.currentTimeMillis() - counterStartedAt) <= 300L;
+        if (justGuard) {
+            this.playExcaliburJustGuard(player, attacker);
+        }
         this.smiteWithHolyLight(player, attacker);
     }
 
@@ -1713,6 +1836,165 @@ public class RelicFeature implements Listener {
         world.playSound(hit, Sound.ITEM_TRIDENT_THUNDER, 2.0f, 0.85f);
         world.playSound(hit, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 2.0f, 1.0f);
         world.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.6f, 1.2f);
+    }
+
+    private void playExcaliburJustGuard(Player player, LivingEntity attacker) {
+        org.bukkit.Location hit = player.getLocation().add(0.0, 1.0, 0.0);
+        org.bukkit.World world = player.getWorld();
+        world.spawnParticle(org.bukkit.Particle.FLASH, hit, 3);
+        world.spawnParticle(org.bukkit.Particle.END_ROD, hit, 80, 1.5, 1.5, 1.5, 0.08);
+        world.spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, hit, 60, 1.0, 1.2, 1.0, 0.2);
+        this.spawnLightRing(world, hit, 4.0, new org.bukkit.Particle.DustOptions(org.bukkit.Color.fromRGB(120, 220, 255), 1.2f));
+        world.playSound(hit, Sound.BLOCK_BEACON_POWER_SELECT, 1.6f, 2.0f);
+        world.playSound(hit, Sound.ENTITY_PLAYER_LEVELUP, 1.2f, 1.8f);
+        player.sendActionBar(ChatColor.AQUA + "JUST GUARD");
+    }
+
+    private void tryExcaliburDashAttack(Player player, ItemStack item) {
+        if (!this.rollingCooldown(player, this.excaliburDashCooldown, EXCALIBUR_DASH_COOLDOWN_MILLIS, item)) return;
+        org.bukkit.util.Vector facing = player.getLocation().getDirection();
+        facing.setY(0.0);
+        if (facing.lengthSquared() < 1.0E-9) facing = new org.bukkit.util.Vector(1.0, 0.0, 0.0);
+        facing.normalize().multiply(2.2);
+        player.setVelocity(new org.bukkit.util.Vector(facing.getX(), 0.28, facing.getZ()));
+        player.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, player.getLocation().add(0.0, 0.4, 0.0), 24, 0.4, 0.15, 0.4, 0.06);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_RIPTIDE_3, 1.0f, 1.3f);
+        org.bukkit.entity.Player p = player;
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            if (!p.isOnline() || p.isDead()) return;
+            org.bukkit.Location loc = p.getLocation();
+            org.bukkit.World world = loc.getWorld();
+            org.bukkit.util.Vector dir = loc.getDirection().clone().setY(0.0);
+            if (dir.lengthSquared() < 1.0E-9) dir = new org.bukkit.util.Vector(1.0, 0.0, 0.0);
+            else dir.normalize();
+            for (org.bukkit.entity.Entity e : world.getNearbyEntities(loc, 5.0, 3.0, 5.0)) {
+                if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == p || living.isDead()) continue;
+                org.bukkit.util.Vector to = living.getLocation().toVector().subtract(loc.toVector());
+                if (to.lengthSquared() < 1.0E-6 || to.length() > 5.5) continue;
+                org.bukkit.util.Vector tn = to.clone().setY(0.0);
+                if (tn.lengthSquared() < 1.0E-6) continue;
+                tn.normalize();
+                if (tn.dot(dir) < 0.35) continue;
+                living.damage(EXCALIBUR_DASH_DAMAGE, p);
+                org.bukkit.Location hit = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
+                world.spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, hit, 4, 0.3, 0.2, 0.3, 0.0);
+                world.spawnParticle(org.bukkit.Particle.END_ROD, hit, 12, 0.3, 0.4, 0.3, 0.03);
+                world.playSound(hit, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.9f, 1.1f);
+            }
+        }, 6L);
+    }
+
+    private boolean isExcaliburAirborne(Player player) {
+        Long until = this.excaliburAirborneUntil.get(player.getUniqueId());
+        return until != null && System.currentTimeMillis() <= until;
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onExcaliburAerialMove(org.bukkit.event.player.PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+        if (player.isOnGround()) { this.excaliburLastGround.put(uuid, System.currentTimeMillis()); this.excaliburAirborneUntil.remove(uuid); return; }
+        if (!player.isSneaking()) return;
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (!this.isExcalibur(hand)) return;
+        Long rc = this.excaliburRightClickMillis.get(uuid);
+        if (rc == null || System.currentTimeMillis() - rc > 300L) return;
+        Long lg = this.excaliburLastGround.get(uuid);
+        if (lg == null || System.currentTimeMillis() - lg > 150L) return;
+        if (player.getVelocity().getY() < 0.4) return;
+        this.excaliburRightClickMillis.remove(uuid);
+        if (this.isExcaliburAirborne(player)) return;
+        org.bukkit.Location loc = player.getLocation();
+        org.bukkit.World world = loc.getWorld();
+        for (org.bukkit.entity.Entity e : world.getNearbyEntities(loc, EXCALIBUR_AERIAL_RADIUS, EXCALIBUR_AERIAL_RADIUS, EXCALIBUR_AERIAL_RADIUS)) {
+            if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player || living.isDead()) continue;
+            living.damage(EXCALIBUR_AERIAL_DAMAGE, player);
+            org.bukkit.Location hit = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
+            world.spawnParticle(org.bukkit.Particle.SWEEP_ATTACK, hit, 3, 0.3, 0.2, 0.3, 0.0);
+        }
+        player.setVelocity(player.getVelocity().setY(1.35));
+        this.excaliburAirborneUntil.put(uuid, System.currentTimeMillis() + 5000L);
+        world.spawnParticle(org.bukkit.Particle.CLOUD, loc.add(0.0, 0.2, 0.0), 30, 0.6, 0.3, 0.6, 0.08);
+        world.playSound(loc, Sound.ENTITY_PLAYER_BIG_FALL, 1.0f, 1.4f);
+        player.sendActionBar(ChatColor.AQUA + "空中へ跳躍！");
+    }
+
+    private void tryExcaliburDive(Player player, ItemStack item) {
+        if (!this.rollingCooldown(player, this.excaliburDashCooldown, EXCALIBUR_DASH_COOLDOWN_MILLIS, item)) return;
+        this.excaliburAirborneUntil.remove(player.getUniqueId());
+        player.setVelocity(new org.bukkit.util.Vector(0.0, -2.6, 0.0));
+        org.bukkit.Location start = player.getLocation();
+        org.bukkit.World world = start.getWorld();
+        world.spawnParticle(org.bukkit.Particle.CLOUD, start.add(0.0, 0.2, 0.0), 20, 0.4, 0.2, 0.4, 0.06);
+        world.playSound(start, Sound.ENTITY_PLAYER_BIG_FALL, 1.2f, 0.9f);
+        org.bukkit.entity.Player p = player;
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            if (!p.isOnline()) return;
+            org.bukkit.Location loc = p.getLocation();
+            org.bukkit.World w = loc.getWorld();
+            for (org.bukkit.entity.Entity e : w.getNearbyEntities(loc, EXCALIBUR_DIVE_RADIUS, 4.0, EXCALIBUR_DIVE_RADIUS)) {
+                if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == p || living.isDead()) continue;
+                living.damage(EXCALIBUR_DIVE_DAMAGE, p);
+                org.bukkit.Location hit = living.getLocation().add(0.0, living.getHeight() / 2.0, 0.0);
+                w.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, hit, 1);
+                w.spawnParticle(org.bukkit.Particle.END_ROD, hit, 30, 0.8, 1.0, 0.8, 0.05);
+                w.playSound(hit, Sound.ENTITY_GENERIC_EXPLODE, 1.2f, 1.0f);
+            }
+            w.spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, loc.add(0.0, 0.5, 0.0), 2);
+            w.playSound(loc, Sound.ENTITY_PLAYER_BIG_FALL, 1.4f, 0.7f);
+            p.sendActionBar(ChatColor.RED + "急降下！");
+        }, 10L);
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onArtemisShoot(org.bukkit.event.entity.EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        ItemStack bow = event.getBow();
+        if (bow == null || !this.isRelicItem(bow) || !"artemis".equals(this.getRelicId(bow))) return;
+        event.setCancelled(true);
+        event.setConsumeArrow(false);
+        org.bukkit.World world = player.getWorld();
+        org.bukkit.Location eye = player.getEyeLocation();
+        org.bukkit.util.Vector base = eye.getDirection().normalize();
+        java.util.List<org.bukkit.entity.Arrow> arrows = new java.util.ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            double yawOffset = (i - 1) * 10.0;
+            org.bukkit.util.Vector dir = base.clone().rotateAroundY(Math.toRadians(yawOffset));
+            org.bukkit.entity.Arrow arrow = world.spawnArrow(eye, dir, 2.0f, 0.35f);
+            arrow.setShooter(player);
+            arrow.setDamage(ARTEMIS_DAMAGE);
+            arrow.setPickupStatus(org.bukkit.entity.AbstractArrow.PickupStatus.CREATIVE_ONLY);
+            arrows.add(arrow);
+        }
+        final org.bukkit.scheduler.BukkitTask[] holder = new org.bukkit.scheduler.BukkitTask[1];
+        holder[0] = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            boolean anyAlive = false;
+            for (org.bukkit.entity.Arrow arrow : arrows) {
+                if (arrow.isDead() || !arrow.isValid()) continue;
+                anyAlive = true;
+                org.bukkit.entity.LivingEntity target = null;
+                double best = Double.MAX_VALUE;
+                for (org.bukkit.entity.Entity e : arrow.getWorld().getNearbyEntities(arrow.getLocation(), 24.0, 24.0, 24.0)) {
+                    if (!(e instanceof org.bukkit.entity.LivingEntity living) || living == player || living.isDead()) continue;
+                    if (living instanceof org.bukkit.entity.Player p && p.getGameMode() == org.bukkit.GameMode.SPECTATOR) continue;
+                    double d = living.getLocation().distanceSquared(arrow.getLocation());
+                    if (d < best) { best = d; target = living; }
+                }
+                if (target != null) {
+                    org.bukkit.util.Vector toTarget = target.getLocation().add(0.0, target.getHeight() / 2.0, 0.0)
+                        .toVector().subtract(arrow.getLocation().toVector());
+                    if (toTarget.lengthSquared() > 1.0E-6) {
+                        org.bukkit.util.Vector vel = toTarget.normalize().multiply(2.1);
+                        arrow.setVelocity(vel);
+                    }
+                }
+            }
+            // stop after ticks
+        }, 1L, 1L);
+        // cancel after N ticks
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> { if (holder[0] != null) holder[0].cancel(); }, ARTEMIS_HOMING_TICKS);
+        world.playSound(eye, Sound.ENTITY_ARROW_SHOOT, 1.2f, 1.2f);
+        player.sendActionBar(ChatColor.GREEN + "アルテミス: 3本の追尾矢！");
     }
 
     private void tryExcaliburSlash(Player player, ItemStack item) {
@@ -2902,7 +3184,9 @@ public class RelicFeature implements Listener {
         ItemStack item = event.getItemInHand();
         if (!isRelicItem(item)) return;
         String id = getRelicId(item);
-        if ("chain".equals(id) || "magnet".equals(id) || "ancient_anvil".equals(id)) {
+        // 古匠の金床は「置いて使う」レリックなので設置を許可する
+        // (追跡・破壊時の返却は AdvancedAnvilFeature が行う)。
+        if ("chain".equals(id) || "magnet".equals(id)) {
             event.setCancelled(true);
             event.getPlayer().sendMessage(ChatColor.RED + "このレリックは設置できません。");
         }
@@ -3476,11 +3760,6 @@ public class RelicFeature implements Listener {
         } else {
             this.clearGhostIce(player.getUniqueId());
         }
-        ItemStack inUse = player.getItemInUse();
-        if (inUse != null && isRelicItem(inUse) && "vision".equals(getRelicId(inUse))) {
-            // Covers relogs and other paths where no interact event fired.
-            this.startScopedVision(player);
-        }
         boolean pulling = hookshotPulls.containsKey(player.getUniqueId());
         if (!pulling && jetpackActive.contains(player.getUniqueId())) {
             this.tryHoverJetpack(player);
@@ -3827,38 +4106,6 @@ public class RelicFeature implements Listener {
         return false;
     }
 
-    // ------------------------------------------------------------------
-    // Vision relic: night vision only while the player is actually scoping
-    // through the spyglass (right click held), not while merely holding it.
-    // ------------------------------------------------------------------
-
-    /** Starts the while-scoped night vision loop for one player (idempotent). */
-    private void startScopedVision(Player player) {
-        UUID uuid = player.getUniqueId();
-        if (this.visionTasks.containsKey(uuid)) return;
-        this.visionTasks.put(uuid, Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
-            Player current = Bukkit.getPlayer(uuid);
-            if (current == null || !current.isOnline()) {
-                this.stopScopedVision(uuid);
-                return;
-            }
-            ItemStack inUse = current.getItemInUse();
-            if (inUse != null && isRelicItem(inUse) && "vision".equals(getRelicId(inUse))) {
-                // Stay above 10 seconds so the overlay never starts to blur.
-                current.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                    org.bukkit.potion.PotionEffectType.NIGHT_VISION, 260, 0, true, false));
-            } else {
-                current.removePotionEffect(org.bukkit.potion.PotionEffectType.NIGHT_VISION);
-                this.stopScopedVision(uuid);
-            }
-        }, 0L, 4L));
-    }
-
-    private void stopScopedVision(UUID uuid) {
-        BukkitTask task = this.visionTasks.remove(uuid);
-        if (task != null) task.cancel();
-    }
-
     /** Background pull while the magnet relic is held (items + XP). */
     private void tickMagnet() {
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -3944,7 +4191,6 @@ public class RelicFeature implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
-        this.stopScopedVision(uuid);
         this.stopGaybolgDash(uuid);
         this.stopRepeatingReload(uuid);
         this.stopRepeatingAutoFire(uuid);
