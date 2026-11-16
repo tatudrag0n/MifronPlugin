@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.AfterEach;
@@ -17,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
-/** 特殊クラフト20種の効果ルール（装備の軽減率・射程判定・回復量）のテスト。 */
+/** 特殊クラフトの効果ルール（射程判定・クールダウン・アイテム生成）のテスト。 */
 class SpecialCraftBonusRulesTest {
 
     private ServerMock server;
@@ -47,49 +46,43 @@ class SpecialCraftBonusRulesTest {
             assertNotNull(item.getItemMeta().getDisplayName(), def.id());
             assertFalse(item.getItemMeta().getLore().isEmpty(), def.id());
         }
-        assertEquals(22, SpecialCraftCatalog.all().size());
+        assertEquals(5, SpecialCraftCatalog.all().size());
+    }
+
+    @Test
+    void theWeaponsKeepTheirResourcePackModels() {
+        ItemStack sniper = this.plugin.specialCraftKit.create("sniper_bow");
+        assertNotNull(sniper);
+        assertNotNull(sniper.getItemMeta().getItemModel(), "狙撃弓のモデルが無い");
+        assertEquals("mifron:special/sniper_bow",
+            sniper.getItemMeta().getItemModel().toString());
+        ItemStack repeater = this.plugin.specialCraftKit.create("repeating_crossbow");
+        assertNotNull(repeater);
+        assertEquals("mifron:special/repeating_crossbow",
+            repeater.getItemMeta().getItemModel().toString());
+        // 専用テクスチャを持たないものはモデル無し
+        ItemStack scythe = this.plugin.specialCraftKit.create("harvest_scythe");
+        assertNotNull(scythe);
+        assertEquals(null, scythe.getItemMeta().getItemModel());
     }
 
     @Test
     void kitRejectsUnknownIds() {
-        // カタログ外のID（他Featureの特殊クラフト）は生成しない
-        assertTrue(this.plugin.specialCraftKit.create("night_vision_scope") == null);
+        assertTrue(this.plugin.specialCraftKit.create("field_bandage") == null,
+            "削除したIDが生成できてしまう");
         assertTrue(this.plugin.specialCraftKit.create("does_not_exist") == null);
         assertTrue(this.plugin.specialCraftKit.idOf(new ItemStack(Material.STICK)) == null);
-        assertFalse(this.plugin.specialCraftKit.is(new ItemStack(Material.STICK), "field_bandage"));
+        assertFalse(this.plugin.specialCraftKit.is(new ItemStack(Material.STICK), "throw_net"));
     }
 
     @Test
-    void wearableDamageRules() {
-        assertEquals(0.65, SpecialCraftWearableFeature.fireDamageMultiplier(), 1e-9);
-        assertEquals(0.60, SpecialCraftWearableFeature.fallDamageMultiplier(), 1e-9);
-        assertTrue(SpecialCraftWearableFeature.isFireDamage(EntityDamageEvent.DamageCause.FIRE));
-        assertTrue(SpecialCraftWearableFeature.isFireDamage(EntityDamageEvent.DamageCause.FIRE_TICK));
-        assertTrue(SpecialCraftWearableFeature.isFireDamage(EntityDamageEvent.DamageCause.LAVA));
-        assertFalse(SpecialCraftWearableFeature.isFireDamage(EntityDamageEvent.DamageCause.ENTITY_ATTACK));
-        assertTrue(SpecialCraftWearableFeature.isFallDamage(EntityDamageEvent.DamageCause.FALL));
-        assertFalse(SpecialCraftWearableFeature.isFallDamage(EntityDamageEvent.DamageCause.FIRE));
-
-        // 何も着ていなければ軽減なし
-        assertEquals(1.0,
-            SpecialCraftWearableFeature.damageMultiplier(EntityDamageEvent.DamageCause.FIRE, false, false), 1e-9);
-        // 外套のみ
-        assertEquals(0.65,
-            SpecialCraftWearableFeature.damageMultiplier(EntityDamageEvent.DamageCause.FIRE, true, false), 1e-9);
-        // 命綱のみ
-        assertEquals(0.60,
-            SpecialCraftWearableFeature.damageMultiplier(EntityDamageEvent.DamageCause.FALL, false, true), 1e-9);
-        // 関係ないダメージは軽減しない
-        assertEquals(1.0,
-            SpecialCraftWearableFeature.damageMultiplier(EntityDamageEvent.DamageCause.ENTITY_ATTACK, true, true), 1e-9);
-    }
-
-    @Test
-    void consumableHealingAndRepairRules() {
-        assertEquals(14.0, SpecialCraftConsumableFeature.healedHealth(10.0, 20.0), 1e-9);
-        assertEquals(20.0, SpecialCraftConsumableFeature.healedHealth(18.0, 20.0), 1e-9);
-        assertEquals(0, SpecialCraftConsumableFeature.repairedDamage(3));
-        assertEquals(5, SpecialCraftConsumableFeature.repairedDamage(20));
+    void grantableIdsMatchTheCatalogPlusTheThreeExtras() {
+        // 管理者コマンドの一覧はカタログから自動生成される（特殊クラフト5 + 暗視鏡/作業台/かまど3）。
+        assertEquals(8, SpecialCraftFeature.grantableIds().size());
+        assertTrue(SpecialCraftFeature.grantableIds().containsAll(
+            java.util.List.of("sniper_bow", "repeating_crossbow", "harvest_scythe",
+                "light_drop", "throw_net", "night_vision_scope",
+                "advanced_crafting_table", "steel_furnace")));
     }
 
     @Test
@@ -123,13 +116,13 @@ class SpecialCraftBonusRulesTest {
     @Test
     void cooldownGateBlocksRepeatedUse() {
         var player = this.server.addPlayer("CraftBot");
-        assertTrue(this.plugin.specialCraftKit.tryUse(player, "field_bandage", 25));
-        int left = this.plugin.specialCraftKit.remaining(player, "field_bandage");
-        assertTrue(left >= 24 && left <= 25, "残り秒数が想定外: " + left);
-        assertFalse(this.plugin.specialCraftKit.tryUse(player, "field_bandage", 25));
+        assertTrue(this.plugin.specialCraftKit.tryUse(player, "throw_net", 15));
+        int left = this.plugin.specialCraftKit.remaining(player, "throw_net");
+        assertTrue(left >= 14 && left <= 15, "残り秒数が想定外: " + left);
+        assertFalse(this.plugin.specialCraftKit.tryUse(player, "throw_net", 15));
         // 別IDは独立している
-        assertTrue(this.plugin.specialCraftKit.tryUse(player, "repair_hammer", 60));
-        this.plugin.specialCraftKit.clearCooldown(player, "field_bandage");
-        assertEquals(0, this.plugin.specialCraftKit.remaining(player, "field_bandage"));
+        assertTrue(this.plugin.specialCraftKit.tryUse(player, "harvest_scythe", 4));
+        this.plugin.specialCraftKit.clearCooldown(player, "throw_net");
+        assertEquals(0, this.plugin.specialCraftKit.remaining(player, "throw_net"));
     }
 }

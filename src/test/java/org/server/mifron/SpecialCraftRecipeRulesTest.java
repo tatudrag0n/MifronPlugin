@@ -11,7 +11,7 @@ import java.util.Set;
 import org.bukkit.Material;
 import org.junit.jupiter.api.Test;
 
-/** 高度な作業台の特殊クラフト20種（カタログとレシピ照合）の純粋ルールテスト。 */
+/** 高度な作業台の特殊クラフト（カタログとレシピ照合）の純粋ルールテスト。 */
 class SpecialCraftRecipeRulesTest {
 
     private static Material[] grid(Material... cells) {
@@ -23,8 +23,8 @@ class SpecialCraftRecipeRulesTest {
     }
 
     @Test
-    void catalogHasTwentyTwoUniqueEntries() {
-        assertEquals(22, SpecialCraftCatalog.all().size());
+    void catalogKeepsOnlyTheFiveChosenCrafts() {
+        assertEquals(5, SpecialCraftCatalog.all().size());
         Set<String> ids = new HashSet<>();
         for (SpecialCraftCatalog.Def def : SpecialCraftCatalog.all()) {
             assertNotNull(def.id(), "id は必須");
@@ -33,45 +33,50 @@ class SpecialCraftRecipeRulesTest {
             assertFalse(def.lore().isEmpty(), "説明文が無い: " + def.id());
             assertNotNull(def.recipe(), "レシピが無い: " + def.id());
         }
+        // バニラやレリックで代替できるものは残さない。
+        for (String removed : new String[] {"fireproof_cloak", "safety_harness", "artisan_apron",
+            "deep_diver_helm", "wind_feather", "portable_crafting_table", "portable_ender_chest",
+            "campfire_kit", "folding_boat", "scaffold_pack", "field_bandage", "antidote_honey",
+            "repair_hammer", "blow_dart", "smoke_bomb", "spider_lens", "frost_vial"}) {
+            assertNull(SpecialCraftCatalog.byId(removed), "削除したはずのIDが残っている: " + removed);
+        }
     }
 
     @Test
     void shapedRecipeMatchesAnywhereInTheTable() {
-        SpecialCraftCatalog.Recipe hammer = SpecialCraftCatalog.byId("repair_hammer").recipe();
-        // 左上に置いた場合
-        assertTrue(SpecialCraftRecipeRules.matches(hammer,
-            grid(Material.IRON_INGOT, Material.IRON_BLOCK, Material.IRON_INGOT,
-                null, Material.STICK, null)));
+        SpecialCraftCatalog.Recipe scythe = SpecialCraftCatalog.byId("harvest_scythe").recipe();
+        // 左上に置いた場合（鉄 鉄 小麦 / 空 空 棒）
+        assertTrue(SpecialCraftRecipeRules.matches(scythe,
+            grid(Material.IRON_INGOT, Material.IRON_INGOT, Material.WHEAT,
+                null, null, Material.STICK)));
         // 1行下にずらした場合
-        assertTrue(SpecialCraftRecipeRules.matches(hammer,
+        assertTrue(SpecialCraftRecipeRules.matches(scythe,
             grid(null, null, null,
-                Material.IRON_INGOT, Material.IRON_BLOCK, Material.IRON_INGOT,
-                null, Material.STICK, null)));
+                Material.IRON_INGOT, Material.IRON_INGOT, Material.WHEAT,
+                null, null, Material.STICK)));
         // 別物を混ぜると成立しない
-        assertFalse(SpecialCraftRecipeRules.matches(hammer,
-            grid(Material.IRON_INGOT, Material.IRON_BLOCK, Material.IRON_INGOT,
-                Material.DIRT, Material.STICK, null)));
-        // 個数が足りない
-        assertFalse(SpecialCraftRecipeRules.matches(hammer,
-            grid(Material.IRON_INGOT, Material.IRON_BLOCK,
-                null, Material.STICK, null)));
+        assertFalse(SpecialCraftRecipeRules.matches(scythe,
+            grid(Material.IRON_INGOT, Material.IRON_INGOT, Material.WHEAT,
+                Material.DIRT, null, Material.STICK)));
+        // 素材が足りない
+        assertFalse(SpecialCraftRecipeRules.matches(scythe,
+            grid(Material.IRON_INGOT, Material.IRON_INGOT,
+                null, Material.STICK)));
     }
 
     @Test
     void shapelessRecipeIgnoresOrder() {
-        SpecialCraftCatalog.Recipe cloak = SpecialCraftCatalog.byId("fireproof_cloak").recipe();
-        assertTrue(SpecialCraftRecipeRules.matches(cloak,
-            grid(Material.LEATHER_CHESTPLATE, Material.MAGMA_CREAM, Material.BLAZE_POWDER)));
-        assertTrue(SpecialCraftRecipeRules.matches(cloak,
-            grid(null, Material.BLAZE_POWDER, null,
-                Material.MAGMA_CREAM, null, Material.LEATHER_CHESTPLATE)));
+        SpecialCraftCatalog.Recipe light = SpecialCraftCatalog.byId("light_drop").recipe();
+        assertTrue(SpecialCraftRecipeRules.matches(light,
+            grid(Material.GLOWSTONE_DUST, Material.GLASS_BOTTLE)));
+        assertTrue(SpecialCraftRecipeRules.matches(light,
+            grid(null, Material.GLASS_BOTTLE, null,
+                Material.GLOWSTONE_DUST, null, null)));
         // 余分な材料があると成立しない
-        assertFalse(SpecialCraftRecipeRules.matches(cloak,
-            grid(Material.LEATHER_CHESTPLATE, Material.MAGMA_CREAM, Material.BLAZE_POWDER,
-                Material.STICK)));
+        assertFalse(SpecialCraftRecipeRules.matches(light,
+            grid(Material.GLOWSTONE_DUST, Material.GLASS_BOTTLE, Material.STICK)));
         // 足りない
-        assertFalse(SpecialCraftRecipeRules.matches(cloak,
-            grid(Material.LEATHER_CHESTPLATE, Material.MAGMA_CREAM)));
+        assertFalse(SpecialCraftRecipeRules.matches(light, grid(Material.GLOWSTONE_DUST)));
     }
 
     @Test

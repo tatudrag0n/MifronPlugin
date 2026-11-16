@@ -126,10 +126,8 @@ abstract class MifronBase extends JavaPlugin implements Listener, TabExecutor {
    /** 特殊クラフト品（高度な作業台で作る20種）の共通処理。 */
    protected final SpecialCraftKit specialCraftKit = new SpecialCraftKit((Mifron) this);
    protected final SpecialCraftBenchFeature specialCraftBenchFeature = new SpecialCraftBenchFeature((Mifron) this, this.specialCraftKit);
-   protected final SpecialCraftWearableFeature specialCraftWearableFeature = new SpecialCraftWearableFeature((Mifron) this, this.specialCraftKit);
    protected final SpecialCraftToolFeature specialCraftToolFeature = new SpecialCraftToolFeature((Mifron) this, this.specialCraftKit);
    protected final SpecialCraftCombatFeature specialCraftCombatFeature = new SpecialCraftCombatFeature((Mifron) this, this.specialCraftKit);
-   protected final SpecialCraftConsumableFeature specialCraftConsumableFeature = new SpecialCraftConsumableFeature((Mifron) this, this.specialCraftKit);
    protected BedrockUiFeature bedrockUiFeature;
    protected final TextDisplayFeature textDisplayFeature = new TextDisplayFeature((Mifron) this);
    protected final BuildWorldManager buildWorldManager = new BuildWorldManager((Mifron) this);

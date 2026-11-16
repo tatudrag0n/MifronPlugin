@@ -151,10 +151,8 @@ abstract class MifronPart1x1 extends MifronPart1 {
       this.mifron().runStartupStep("register special crafting events", () -> Bukkit.getPluginManager().registerEvents(this.specialCraftingFeature, this));
       this.mifron().runStartupStep("register special craft events", () -> Bukkit.getPluginManager().registerEvents(this.specialCraftFeature, this));
       this.mifron().runStartupStep("register special craft bench events", () -> Bukkit.getPluginManager().registerEvents(this.specialCraftBenchFeature, this));
-      this.mifron().runStartupStep("register special craft wearable events", () -> Bukkit.getPluginManager().registerEvents(this.specialCraftWearableFeature, this));
       this.mifron().runStartupStep("register special craft tool events", () -> Bukkit.getPluginManager().registerEvents(this.specialCraftToolFeature, this));
       this.mifron().runStartupStep("register special craft combat events", () -> Bukkit.getPluginManager().registerEvents(this.specialCraftCombatFeature, this));
-      this.mifron().runStartupStep("register special craft consumable events", () -> Bukkit.getPluginManager().registerEvents(this.specialCraftConsumableFeature, this));
       this.mifron().runStartupStep("register shop block events", () -> Bukkit.getPluginManager().registerEvents(this.shopBlockFeature, this));
       this.mifron().runStartupStep("register barrel shop events", () -> Bukkit.getPluginManager().registerEvents(this.barrelShopFeature, this));
       this.mifron().runStartupStep("start barrel shop hover", this.barrelShopFeature::startHoverTask);
